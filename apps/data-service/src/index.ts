@@ -5,3 +5,4 @@ export default class DataService extends WorkerEntrypoint<Env> {
 		return new Response('Hello World!');
 	}
 }
+

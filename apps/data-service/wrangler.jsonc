@@ -25,5 +25,20 @@
 			"id": "4c3bbe472d204bce99a8c84de8501dd8",
 			"remote": true
 		}
-	]
+	],
+			"queues": {
+		"consumers": [
+			{
+				"queue": "smart-data-queue-stage",
+			}
+		],
+		"producers": [
+			{
+				"binding": "QUEUE",
+				"queue": "smart-data-queue-stage",
+			}
+		]
+	}
+
+
 }

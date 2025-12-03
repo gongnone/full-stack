@@ -14,11 +14,11 @@ export function useClickSocket() {
 
   useEffect(() => {
     const connect = () => {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const protocol = window.location.protocol === "https:" ? "wss:" : "wss:";
       const socket = new WebSocket(
-       // `${protocol}//${import.meta.env.VITE_BASE_HOST}/click-socket`,
-       `${protocol}//localhost:8787/click-socket`,
+       `${protocol}//${import.meta.env.VITE_BASE_HOST}/click-socket`,
        //`${protocol}//data-service.wjs-78d.workers.dev/click-socket`,
+       //`${protocol}//localhost:8787/click-socket`,
       );
 
       socket.onopen = () => {

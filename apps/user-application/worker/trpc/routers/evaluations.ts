@@ -4,7 +4,7 @@ import { z } from "zod";
 import {
   getEvaluations,
   getNotAvailableEvaluations,
-} from "@repo/data-ops/queries/evalutations";
+} from "@repo/data-ops/queries/evaluations";
 
 export const evaluationsTrpcRoutes = t.router({
   problematicDestinations: t.procedure.query(async ({ ctx }) => {

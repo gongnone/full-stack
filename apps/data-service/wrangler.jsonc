@@ -59,5 +59,18 @@
 
 		}
 	],
-	
+		"durable_objects": {
+		"bindings": [
+			{
+				"name": "EVALUATION_SCHEDULAR",
+				"class_name": "EvaluationScheduler"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_classes": ["EvaluationScheduler"]
+		}
+	],
 }

@@ -1,5 +1,18 @@
 import { getLink } from "@repo/data-ops/queries/link";
-import { linkSchema, LinkSchemaType } from "@repo/data-ops/zod-schema/links";
+import { linkSchema, LinkSchemaType} from "@repo/data-ops/zod-schema/links"; 
+import { LinkClickMessageType } from "@repo/data-ops/zod-schema/queue";
+
+export async function scheduleEvalWorkflow(env: Env, event: LinkClickMessageType) {
+	const doId = env.EVALUATION_SCHEDULAR.idFromName(`${event.data.id}:${event.data.destination}`);
+	const stub = env.EVALUATION_SCHEDULAR.get(doId);
+	await stub.collectLinkClick(
+		event.data.accountId,
+		event.data.id,
+		event.data.destination,
+		event.data.country || "UNKNOWN"
+	)
+}
+
 
 async function getLinkInfoFromKv(env: Env, id: string) {
     const linkInfo = await env.CACHE.get(id)

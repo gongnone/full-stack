@@ -1,3 +1,4 @@
+import path from "path";
 import { defineConfig } from "vite";
 import viteReact from "@vitejs/plugin-react";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
@@ -11,6 +12,8 @@ export default defineConfig({
     alias: {
       // /esm/icons/index.mjs only exports the icons statically, so no separate chunks are created
       "@tabler/icons-react": "@tabler/icons-react/dist/esm/icons/index.mjs",
+      // Explicit alias for workspace package to ensure SSR build resolves it
+      "@repo/data-ops": path.resolve(__dirname, "../../packages/data-ops/dist"),
     },
   },
   plugins: [

@@ -1,3 +1,2 @@
 # cf-services-the-course-playground
-
-updated URL for connection to data service
+stage deploy of data service failed - retrying

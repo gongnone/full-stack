@@ -1,4 +1,7 @@
-/** ffb0b27b-7c2c-48bb-933a-d3038598d003
+/** 
+  Stage "database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003"
+  Production "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750",
+  "service": "data-service-stage",
  * For more details on how to configure Wrangler, refer to:
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
@@ -16,20 +19,32 @@
   },
   "env": {
     "stage": {
-       "d1_databases": [
-    {
-      "binding": "DB",
-      "database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
-    },
-  ],
-  "services": [
-    {
-      "binding": "BACKEND_SERVICE",
-      "service": "data-service-stage",
-    },
-  ]
+      "routes": [
+        {
+          "custom_domain": true,
+          "pattern": "stage.williamjshaw.ca",
+        },
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
+        },
+      ],
+      "services": [
+        {
+          "binding": "BACKEND_SERVICE",
+          "service": "data-service-stage",
+        },
+      ]
     },
     "production": {
+      "routes": [
+        {
+          "custom_domain": true,
+          "pattern": "hero.williamjshaw.ca",
+        },
+      ],
       "d1_databases": [
         {
           "binding": "DB",

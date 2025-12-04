@@ -9,7 +9,7 @@ import tailwindcss from "@tailwindcss/vite";
 const dataOpsPath = path.resolve(__dirname, "../../packages/data-ops/dist");
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       // /esm/icons/index.mjs only exports the icons statically, so no separate chunks are created
@@ -28,11 +28,11 @@ export default defineConfig({
     tanstackRouter({ autoCodeSplitting: true }),
     viteReact(),
     tailwindcss(),
-    cloudflare(),
+    cloudflare({ viteEnvironment: { name: mode } }),
   ],
   server: {
     watch: {
       ignored: ["**/.wrangler/state/**"],
     },
   },
-});
+}));

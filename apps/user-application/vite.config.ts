@@ -16,7 +16,6 @@ export default defineConfig({
       "@tabler/icons-react": "@tabler/icons-react/dist/esm/icons/index.mjs",
       // Explicit aliases for workspace package subpaths
       "@repo/data-ops/database": path.join(dataOpsPath, "db/database.js"),
-      "@repo/data-ops/queries/link": path.join(dataOpsPath, "queries/link.js"),
       "@repo/data-ops/queries/links": path.join(dataOpsPath, "queries/links.js"),
       "@repo/data-ops/queries/evaluations": path.join(dataOpsPath, "queries/evaluations.js"),
       "@repo/data-ops/zod-schema/links": path.join(dataOpsPath, "zod/links.js"),

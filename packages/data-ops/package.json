@@ -15,10 +15,6 @@
       "types": "./dist/db/database.d.ts",
       "import": "./dist/db/database.js"
     },
-    "./queries/link": {
-      "types": "./dist/queries/link.d.ts",
-      "import": "./dist/queries/link.js"
-    },
     "./queries/links": {
       "types": "./dist/queries/links.d.ts",
       "import": "./dist/queries/links.js"

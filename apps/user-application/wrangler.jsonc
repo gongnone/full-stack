@@ -16,7 +16,11 @@
   },
   "env": {
     "stage": {
-     "routes": [
+     "vars": {
+     "VITE_BASE_HOST": "stage.williamjshaw.ca",
+     "CLOUDFLARE_ENV": "stage"
+      },
+      "routes": [
         {
           "custom_domain": true,
           "pattern": "stage.williamjshaw.ca",

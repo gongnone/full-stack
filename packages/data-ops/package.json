@@ -13,23 +13,23 @@
   "exports": {
     "./database": {
       "types": "./dist/db/database.d.ts",
-      "default": "./dist/db/database.js"
+      "import": "./dist/db/database.js"
     },
     "./queries/*": {
       "types": "./dist/queries/*.d.ts",
-      "default": "./dist/queries/*.js"
+      "import": "./dist/queries/*.js"
     },
     "./zod-schema/*": {
       "types": "./dist/zod/*.d.ts",
-      "default": "./dist/zod/*.js"
+      "import": "./dist/zod/*.js"
     },
     "./durable-objects-helpers": {
       "types": "./dist/durable-objects-helpers/*.d.ts",
-      "default": "./dist/durable-objects-helpers/*.js"
+      "import": "./dist/durable-objects-helpers/*.js"
     },
     "./auth": {
       "types": "./dist/better-auth/auth.d.ts",
-      "default": "./dist/better-auth/auth.js"
+      "import": "./dist/better-auth/auth.js"
     }
   },
   "keywords": [],

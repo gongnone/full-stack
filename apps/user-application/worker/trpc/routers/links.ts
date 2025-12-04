@@ -4,7 +4,7 @@ import {
   createLinkSchema,
   destinationsSchema,
 } from "@repo/data-ops/zod-schema/links";
-import { createLink, getLink, getLinks, updateLinkDestinations, updateLinkName } from "@repo/data-ops/queries/link";
+import { createLink, getLink, getLinks, updateLinkDestinations, updateLinkName } from "@repo/data-ops/queries/links";
 import { TRPCError } from "@trpc/server";
 import {
   ACTIVE_LINKS_LAST_HOUR,

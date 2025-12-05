@@ -1,5 +1,5 @@
 import { scheduleEvalWorkflow } from "@/helpers/routes-ops";
-import { addLinkClick } from "@repo/data-ops/queries/links";
+import { addLinkClick, getLink } from "@repo/data-ops/queries/links";
 import { LinkClickMessageType } from "@repo/data-ops/zod-schema/queue";
 
 

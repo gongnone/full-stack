@@ -1,4 +1,4 @@
-import { getLink } from "@repo/data-ops/queries/link";
+import { getLink } from "@repo/data-ops/queries/links";
 import { linkSchema, LinkSchemaType} from "@repo/data-ops/zod-schema/links"; 
 import { LinkClickMessageType } from "@repo/data-ops/zod-schema/queue";
 import moment from "moment";

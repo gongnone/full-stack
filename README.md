@@ -1,2 +1,2 @@
 # cf-services-the-course-playground
-stage deploy of data service failed - retrying
+production is running with auth now ... committing changes to stage ...

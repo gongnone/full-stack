@@ -1,12 +1,12 @@
-import { createBetterAuth } from "@/auth";
+import { createBetterAuth } from "../src/auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { betterAuth } from "better-auth";
 
-
-
-export const auth: ReturnType<typeof betterAuth> = createBetterAuth(drizzleAdapter(
-  {},
+// This config is ONLY for schema generation - uses dummy values
+export const auth = createBetterAuth(
+  drizzleAdapter({}, { provider: "sqlite" }),
   {
-    provider: "sqlite"
+    stripeWebhookSecret: "dummy",
+    stripeApiKey: "dummy",
+    plans: [],
   }
-))
+);

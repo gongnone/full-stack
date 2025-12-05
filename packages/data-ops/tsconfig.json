@@ -10,6 +10,7 @@
     "declaration": true,
     "strict": true,
     "skipLibCheck": true,
+    "rootDir": ".",
     "outDir": "./dist",
     "types": ["@cloudflare/workers-types"],
     "lib": ["ESNext"],
@@ -17,5 +18,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "auth-gen"]
+  "include": ["src"]
 }

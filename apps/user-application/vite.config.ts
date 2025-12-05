@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => ({
     tanstackRouter({ autoCodeSplitting: true }),
     viteReact(),
     tailwindcss(),
-    cloudflare({ viteEnvironment: { name: mode } }),
+    cloudflare({ viteEnvironment: { name: mode }, persistState: false }),
   ],
   server: {
     watch: {

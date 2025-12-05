@@ -21,6 +21,10 @@
   },
   "env": {
     "stage": {
+      "vars": {
+        "STRIPE_PRODUCT_BASIC": "price_1Sb2JRJM6cAn49gquuNTPlU0",
+        "STRIPE_PRODUCT_PREMIUM": "price_1Sb2NDJM6cAn49gqJezNsHZG",
+      }
       "routes": [
         {
           "custom_domain": true,

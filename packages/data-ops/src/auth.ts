@@ -34,9 +34,6 @@ export function createBetterAuth(
         stripe({
           stripeClient: new Stripe(
             stripeConfig?.stripeApiKey || process.env.STRIPE_KEY!,
-            {
-              apiVersion: "2025-11-17.clover",
-            },
           ),
           stripeWebhookSecret:
           stripeConfig?.stripeWebhookSecret ??

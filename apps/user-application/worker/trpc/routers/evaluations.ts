@@ -8,7 +8,12 @@ import {
 
 export const evaluationsTrpcRoutes = t.router({
   problematicDestinations: t.procedure.query(async ({ ctx }) => {
-    return await getNotAvailableEvaluations(ctx.userInfo.userId);
+    try {
+      return await getNotAvailableEvaluations(ctx.userInfo.userId);
+    } catch (error) {
+      console.error("problematicDestinations query failed", error);
+      return [];
+    }
   }),
   recentEvaluations: t.procedure
     .input(

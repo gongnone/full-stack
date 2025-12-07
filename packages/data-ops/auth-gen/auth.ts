@@ -1,6 +1,12 @@
-import { betterAuth } from "better-auth";
-import Database from "better-sqlite3";
+import { createBetterAuth } from "../src/auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
-export const auth = betterAuth({
-  database: new Database("./sqlite.db"),
-});
+// This config is ONLY for schema generation - uses dummy values
+export const auth = createBetterAuth(
+  drizzleAdapter({}, { provider: "sqlite" }),
+  {
+    stripeWebhookSecret: "dummy",
+    stripeApiKey: "dummy",
+    plans: [],
+  }
+);

@@ -12,32 +12,24 @@
   },
   "exports": {
     "./database": {
-      "types": "./dist/db/database.d.ts",
-      "import": "./dist/db/database.js"
+      "types": "./dist/src/db/database.d.ts",
+      "default": "./dist/src/db/database.js"
     },
-    "./queries/links": {
-      "types": "./dist/queries/links.d.ts",
-      "import": "./dist/queries/links.js"
+    "./queries/*": {
+      "types": "./dist/src/queries/*.d.ts",
+      "default": "./dist/src/queries/*.js"
     },
-    "./queries/evaluations": {
-      "types": "./dist/queries/evaluations.d.ts",
-      "import": "./dist/queries/evaluations.js"
+    "./zod-schema/*": {
+      "types": "./dist/src/zod/*.d.ts",
+      "default": "./dist/src/zod/*.js"
     },
-    "./zod-schema/links": {
-      "types": "./dist/zod/links.d.ts",
-      "import": "./dist/zod/links.js"
-    },
-    "./zod-schema/queue": {
-      "types": "./dist/zod/queue.d.ts",
-      "import": "./dist/zod/queue.js"
-    },
-    "./durable-objects-helpers/geo-link-clicks": {
-      "types": "./dist/durable-object-helpers/geo-link-clicks.d.ts",
-      "import": "./dist/durable-object-helpers/geo-link-clicks.js"
+    "./durable-objects-helpers": {
+      "types": "./dist/src/durable-objects-helpers/*.d.ts",
+      "default": "./dist/src/durable-objects-helpers/*.js"
     },
     "./auth": {
-      "types": "./dist/better-auth/auth.d.ts",
-      "import": "./dist/better-auth/auth.js"
+      "types": "./dist/src/auth.d.ts",
+      "default": "./dist/src/auth.js"
     }
   },
   "keywords": [],

@@ -1,3 +1,2 @@
 # cf-services-the-course-playground
-
-updated URL for connection to data service
+production is running with auth now ... committing changes to stage ...

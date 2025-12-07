@@ -10,15 +10,21 @@
   "name": "user-application",
   "main": "worker/index.ts",
   "compatibility_date": "2025-07-11",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/auth/*", "/trpc/*", "/click-socket"]
   },
   "observability": {
     "enabled": true,
   },
   "env": {
     "stage": {
+      "vars": {
+        "STRIPE_PRODUCT_BASIC": "price_1Sb2JRJM6cAn49gquuNTPlU0",
+        "STRIPE_PRODUCT_PREMIUM": "price_1Sb2NDJM6cAn49gqJezNsHZG",
+      },
       "routes": [
         {
           "custom_domain": true,
@@ -29,6 +35,7 @@
         {
           "binding": "DB",
           "database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
+          "remote": true
         },
       ],
       "services": [

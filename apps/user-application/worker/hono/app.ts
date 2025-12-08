@@ -23,7 +23,8 @@ const getAuthInstance = (env: Env) => {
          {name: "premium",
         priceId: env.STRIPE_PRODUCT_PREMIUM},
       ]
-    }
+    },
+    env.APP_SECRET,
   )
 }
 

@@ -36,6 +36,7 @@
   },
   "env": {
     "stage": {
+      "name": "user-application-stage",
       "vars": {
         "STRIPE_PRODUCT_BASIC": "price_1Sb2JRJM6cAn49gquuNTPlU0",
         "STRIPE_PRODUCT_PREMIUM": "price_1Sb2NDJM6cAn49gqJezNsHZG",
@@ -73,6 +74,7 @@
       }
     },
     "production": {
+      "name": "user-application-production",
       "routes": [
         {
           "custom_domain": true,
@@ -86,7 +88,7 @@
         },
       ],
       "assets": {
-        "directory": "./dist/production",
+        "directory": "./dist/client",
         "binding": "ASSETS"
       },
       "queues": {

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,10 +16,11 @@ import { toast } from "sonner";
 
 export function GenerationForm() {
     const [prompt, setPrompt] = useState("");
+    const [type, setType] = useState<"tweet" | "image" | "video_script" | "offer_architect">("tweet");
     const [campaignId, setCampaignId] = useState<string | undefined>(undefined);
 
     // Fetch campaigns
-    const { data: campaigns } = trpc.campaigns.list.useQuery();
+    const { data: campaigns } = useQuery(trpc.campaigns.list.queryOptions());
 
     const queryClient = useQueryClient();
 

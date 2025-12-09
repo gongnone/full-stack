@@ -11,26 +11,15 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { AlertTriangle, Copy, Info } from "lucide-react";
-import { useNavigate } from "@tanstack/react-router";
+
 
 export function ProblematicLinksTable() {
-  const navigate = useNavigate();
-
   const { data: problematicDestinations } = useSuspenseQuery(
     trpc.evaluations.problematicDestinations.queryOptions(),
   );
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-  };
-
-  const handleRowClick = (linkId: string) => {
-    navigate({
-      to: "/app/link/$id",
-      params: {
-        id: linkId,
-      },
-    });
   };
 
   return (
@@ -57,7 +46,7 @@ export function ProblematicLinksTable() {
                 <TableRow
                   key={destination.id}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleRowClick(destination.linkId)}
+
                 >
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">

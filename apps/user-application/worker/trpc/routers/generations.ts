@@ -3,6 +3,8 @@ import { t } from "@/worker/trpc/trpc-instance";
 import { createGenerationSchema } from "@repo/data-ops/zod-schema/generations";
 import { createGenerationRecord, getRecentGenerations } from "@repo/data-ops/queries/generations";
 import { TRPCError } from "@trpc/server";
+import { userCredits } from "@repo/data-ops/schema";
+import { eq, sql } from "drizzle-orm";
 
 // Costs in Credits
 const GENERATION_COSTS: Record<string, number> = {
@@ -23,8 +25,6 @@ export const generationsRouter = t.router({
       const cost = GENERATION_COSTS[input.type] || 5;
 
       // 1. Check & Deduct Credits
-      const { userCredits } = await import("@repo/data-ops/schema");
-      const { eq, sql } = await import("drizzle-orm");
 
       // Get current balance
       let creditRecord = await ctx.db
@@ -79,9 +79,6 @@ export const generationsRouter = t.router({
   // New endpoint for UI to poll
   getCredits: t.procedure.query(async ({ ctx }) => {
     if (!ctx.userId) return { balance: 0 };
-
-    const { userCredits } = await import("@repo/data-ops/schema");
-    const { eq } = await import("drizzle-orm");
 
     const record = await ctx.db
       .select()

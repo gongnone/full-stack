@@ -22,7 +22,6 @@ import {
 import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { trpc } from "@/router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
 type Evaluation = {
@@ -36,7 +35,6 @@ type Evaluation = {
 };
 
 export function EvaluationsTable() {
-  const navigate = useNavigate();
   const [createdBefore, setCreatedBefore] = useState<string | undefined>(
     undefined,
   );
@@ -178,9 +176,9 @@ export function EvaluationsTable() {
                     {header.isPlaceholder
                       ? null
                       : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -193,12 +191,7 @@ export function EvaluationsTable() {
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => {
-                    navigate({
-                      to: "/app/link/$id",
-                      params: { id: row.original.linkId },
-                    });
-                  }}
+
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

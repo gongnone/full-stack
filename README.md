@@ -1,2 +1,2 @@
 # cf-services-the-course-playground
-production is running with auth now ... committing changes to stage ...
+# redploy-test #

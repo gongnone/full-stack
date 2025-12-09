@@ -1,8 +1,7 @@
 import {
   IconCirclePlusFilled,
   IconDashboard,
-  IconLink,
-  IconReport,
+
 } from "@tabler/icons-react";
 
 import {
@@ -26,22 +25,9 @@ export function NavMain() {
         }),
       icon: IconDashboard,
     },
-    {
-      title: "Links",
-      navigate: () =>
-        nav({
-          to: "/app/links",
-        }),
-      icon: IconLink,
-    },
-    {
-      title: "Evaluations",
-      navigate: () =>
-        nav({
-          to: "/app/evaluations",
-        }),
-      icon: IconReport,
-    },
+
+
+
   ];
 
   return (
@@ -52,15 +38,16 @@ export function NavMain() {
             <SidebarMenuButton
               onClick={() =>
                 nav({
-                  to: "/app/create",
+                  to: "/app/projects/new",
                 })
               }
-              tooltip="Quick Create"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
+              tooltip="Create Campaign"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear mb-2"
             >
               <IconCirclePlusFilled />
-              <span>Create Link</span>
+              <span>Create Campaign</span>
             </SidebarMenuButton>
+
           </SidebarMenuItem>
         </SidebarMenu>
         <SidebarMenu>

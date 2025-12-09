@@ -10,11 +10,9 @@ import {
 import { formatRelativeTime } from "@/lib/utils";
 import { trpc } from "@/router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
 import { MousePointer } from "lucide-react";
 
 export function ActiveLinksTable() {
-  const navigate = useNavigate();
 
   const { data } = useSuspenseQuery(
     trpc.links.activeLinks.queryOptions(undefined, {
@@ -48,14 +46,6 @@ export function ActiveLinksTable() {
               {data.map((link, index) => (
                 <TableRow
                   key={index}
-                  onClick={() =>
-                    navigate({
-                      to: "/app/link/$id",
-                      params: {
-                        id: link.linkId,
-                      },
-                    })
-                  }
                   className="cursor-pointer hover:bg-muted"
                 >
                   <TableCell className="font-medium">

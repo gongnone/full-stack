@@ -4,6 +4,7 @@ let db: ReturnType<typeof drizzle>;
 
 export function initDatabase(bindingDb: D1Database) {
   db = drizzle(bindingDb);
+  return db;
 }
 
 export function getDb() {

@@ -30,6 +30,18 @@
     "./auth": {
       "types": "./dist/src/auth.d.ts",
       "default": "./dist/src/auth.js"
+    },
+    "./auth-schema": {
+      "types": "./dist/src/drizzle-out/auth-schema.d.ts",
+      "default": "./dist/src/drizzle-out/auth-schema.js"
+    },
+    "./schema": {
+      "types": "./dist/src/schema.d.ts",
+      "default": "./dist/src/schema.js"
+    },
+    "./schema-app": {
+      "types": "./dist/src/schema-app.d.ts",
+      "default": "./dist/src/schema-app.js"
     }
   },
   "keywords": [],

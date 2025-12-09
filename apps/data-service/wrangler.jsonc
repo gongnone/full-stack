@@ -3,10 +3,27 @@
   "name": "data-service",
   "main": "src/index.ts",
   "compatibility_date": "2025-06-17",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "observability": {
     "enabled": true
   },
+  "queues": {
+    "consumers": [
+      {
+        "queue": "social-media-generation-queue",
+        "max_batch_size": 5
+      }
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
+      "preview_database_id": "DB"
+    }
+  ],
   "env": {
     "stage": {
       "d1_databases": [
@@ -27,6 +44,10 @@
         "consumers": [
           {
             "queue": "smart-data-queue-stage"
+          },
+          {
+            "queue": "social-media-generation-queue",
+            "max_batch_size": 5
           }
         ],
         "producers": [
@@ -70,11 +91,15 @@
       "migrations": [
         {
           "tag": "v1",
-          "new_classes": ["EvaluationScheduler"]
+          "new_classes": [
+            "EvaluationScheduler"
+          ]
         },
         {
           "tag": "v2",
-          "new_sqlite_classes": ["LinkClickTracker"]
+          "new_sqlite_classes": [
+            "LinkClickTracker"
+          ]
         }
       ]
     },
@@ -138,11 +163,15 @@
       "migrations": [
         {
           "tag": "v1",
-          "new_classes": ["EvaluationScheduler"]
+          "new_classes": [
+            "EvaluationScheduler"
+          ]
         },
         {
           "tag": "v2",
-          "new_sqlite_classes": ["LinkClickTracker"]
+          "new_sqlite_classes": [
+            "LinkClickTracker"
+          ]
         }
       ]
     }

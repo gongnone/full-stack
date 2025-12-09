@@ -1,3 +1,5 @@
+import { initDatabase } from "@repo/data-ops/database";
+
 export async function createContext({
   req,
   env,
@@ -13,9 +15,8 @@ export async function createContext({
     req,
     env,
     workerCtx,
-    userInfo: {
-      userId: userId,
-    },
+    userId,
+    db: initDatabase(env.DB),
   };
 }
 

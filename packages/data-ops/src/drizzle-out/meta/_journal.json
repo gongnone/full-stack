@@ -15,6 +15,20 @@
       "when": 1764945843489,
       "tag": "0001_nebulous_slipstream",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1765229392690,
+      "tag": "0002_premium_chameleon",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1765232851802,
+      "tag": "0003_third_hydra",
+      "breakpoints": true
     }
   ]
 }

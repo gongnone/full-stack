@@ -18,10 +18,14 @@ const getAuthInstance = (env: Env) => {
       stripeWebhookSecret: env.STRIPE_WEBHOOK_KEY,
       stripeApiKey: env.STRIPE_KEY,
       plans: [
-        {name: "basic",
-        priceId: env.STRIPE_PRODUCT_BASIC},
-         {name: "premium",
-        priceId: env.STRIPE_PRODUCT_PREMIUM},
+        {
+          name: "basic",
+          priceId: env.STRIPE_PRODUCT_BASIC
+        },
+        {
+          name: "premium",
+          priceId: env.STRIPE_PRODUCT_PREMIUM
+        },
       ]
     }
   )
@@ -59,5 +63,5 @@ App.get("/click-socket", authMiddleware, async (c) => {
 
 App.on(["POST", "GET"], "/api/auth/*", (c) => {
   const auth = getAuthInstance(c.env)
-	return auth.handler(c.req.raw);
+  return auth.handler(c.req.raw);
 });

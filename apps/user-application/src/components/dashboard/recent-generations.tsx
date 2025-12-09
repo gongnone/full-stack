@@ -24,10 +24,10 @@ export function RecentGenerations() {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case "completed": return "bg-green-500/15 text-green-700 hover:bg-green-500/25";
-            case "processing": return "bg-blue-500/15 text-blue-700 hover:bg-blue-500/25 animate-pulse";
-            case "failed": return "bg-red-500/15 text-red-700 hover:bg-red-500/25";
-            default: return "bg-gray-500/15 text-gray-700";
+            case "completed": return "bg-green-500/20 text-green-600 hover:bg-green-500/30 border-green-500/50";
+            case "processing": return "bg-blue-500/20 text-blue-600 hover:bg-blue-500/30 border-blue-500/50 animate-pulse";
+            case "failed": return "bg-red-500/20 text-red-600 hover:bg-red-500/30 border-red-500/50";
+            default: return "bg-slate-500/20 text-slate-600 hover:bg-slate-500/30 border-slate-500/50";
         }
     };
 

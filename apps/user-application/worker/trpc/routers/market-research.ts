@@ -10,13 +10,13 @@ export const marketResearchRouter = t.router({
         }))
         .mutation(async ({ ctx, input }) => {
             // 1. Create the Project Container
-            const projectId = await createProject(ctx.userInfo.userId, input.name);
+            const projectId = await createProject(ctx.userId, input.name);
 
             // 2. SIMULATION: In a real app, we'd trigger a Cloudflare Workflow here.
             // For now, we just save some dummy "AI" data immediately to prove the flow.
             await saveMarketResearch({
                 projectId,
-                userId: ctx.userInfo.userId,
+                userId: ctx.userId,
                 topic: input.topic,
                 rawAnalysis: "SIMULATED AI RESPONSE: This niche is highly profitable...",
                 competitors: ["Competitor A", "Competitor B"],
@@ -28,6 +28,6 @@ export const marketResearchRouter = t.router({
         }),
 
     getAll: t.procedure.query(async ({ ctx }) => {
-        return await getProjects(ctx.userInfo.userId);
+        return await getProjects(ctx.userId);
     }),
 });

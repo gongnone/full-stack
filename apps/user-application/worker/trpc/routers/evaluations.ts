@@ -9,7 +9,7 @@ import {
 export const evaluationsTrpcRoutes = t.router({
   problematicDestinations: t.procedure.query(async ({ ctx }) => {
     try {
-      return await getNotAvailableEvaluations(ctx.userInfo.userId);
+      return await getNotAvailableEvaluations(ctx.userId);
     } catch (error) {
       console.error("problematicDestinations query failed", error);
       return [];
@@ -24,7 +24,7 @@ export const evaluationsTrpcRoutes = t.router({
         .optional(),
     )
     .query(async ({ ctx }) => {
-      const evaluations = await getEvaluations(ctx.userInfo.userId);
+      const evaluations = await getEvaluations(ctx.userId);
 
       const oldestCreatedAt =
         evaluations.length > 0

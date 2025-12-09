@@ -9,6 +9,14 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "user-application",
   "main": "worker/index.ts",
+  "queues": {
+    "producers": [
+      {
+        "binding": "GENERATION_QUEUE",
+        "queue": "social-media-generation-queue"
+      }
+    ]
+  },
   "compatibility_date": "2025-07-11",
   "compatibility_flags": [
     "nodejs_compat"

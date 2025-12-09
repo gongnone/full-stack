@@ -12,19 +12,19 @@ import {
 } from "./dummy-data";
 
 export const linksTrpcRoutes = t.router({
-linkList: t.procedure
+  linkList: t.procedure
     .input(
       z.object({
         offset: z.number().optional(),
       }),
     )
-    .query(async ({ctx, input}) => {
+    .query(async ({ ctx, input }) => {
 
-      return await getLinks(ctx.userInfo.userId, input.offset?.toString())
+      return await getLinks(ctx.userId, input.offset?.toString())
     }),
-  createLink: t.procedure.input(createLinkSchema).mutation(async ({ctx, input}) => {
+  createLink: t.procedure.input(createLinkSchema).mutation(async ({ ctx, input }) => {
     const linkId = await createLink({
-      accountId: ctx.userInfo.userId,
+      accountId: ctx.userId,
       ...input,
     });
     return linkId;
@@ -46,9 +46,9 @@ linkList: t.procedure
         linkId: z.string(),
       }),
     )
-    .query(async ({input}) => {
+    .query(async ({ input }) => {
       const data = await getLink(input.linkId)
- 
+
       if (!data) throw new TRPCError({ code: "NOT_FOUND" });
       return data;
     }),

@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 export function GenerationForm() {
     const [prompt, setPrompt] = useState("");
-    const [type, setType] = useState<"tweet" | "image" | "video_script">("tweet");
+    const [type, setType] = useState<"tweet" | "image" | "video_script" | "offer_architect">("tweet");
 
     const queryClient = useQueryClient();
 
@@ -66,6 +66,7 @@ export function GenerationForm() {
                                 <SelectItem value="tweet">Tweet</SelectItem>
                                 <SelectItem value="image">Image</SelectItem>
                                 <SelectItem value="video_script">Video Script</SelectItem>
+                                <SelectItem value="offer_architect">Offer Architect</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

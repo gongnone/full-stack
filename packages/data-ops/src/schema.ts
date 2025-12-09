@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const generations = sqliteTable("generations", {
@@ -12,6 +12,11 @@ export const generations = sqliteTable("generations", {
     createdAt: integer("created_at", { mode: "timestamp" })
         .default(sql`(unixepoch())`)
         .notNull(),
+    // Usage Tracking
+    usagePromptTokens: integer("usage_prompt_tokens"),
+    usageCompletionTokens: integer("usage_completion_tokens"),
+    costEstimatedUsd: real("cost_estimated_usd"),
+    providerMetadata: text("provider_metadata"), // JSON string
 });
 
 export const userCredits = sqliteTable("user_credits", {

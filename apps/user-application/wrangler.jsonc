@@ -66,7 +66,11 @@
           "binding": "BACKEND_SERVICE",
           "service": "data-service-stage",
         },
-      ]
+      ],
+      "assets": {
+        "directory": "./dist/client",
+        "binding": "ASSETS"
+      }
     },
     "production": {
       "routes": [
@@ -81,6 +85,18 @@
           "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750",
         },
       ],
+      "assets": {
+        "directory": "./dist/production",
+        "binding": "ASSETS"
+      },
+      "queues": {
+        "producers": [
+          {
+            "binding": "GENERATION_QUEUE",
+            "queue": "social-media-generation-queue"
+          }
+        ]
+      },
       "services": [
         {
           "binding": "BACKEND_SERVICE",

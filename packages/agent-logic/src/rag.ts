@@ -23,12 +23,9 @@ export async function searchKnowledge(query: string, env: Env, phaseTag?: string
     // 3. Filter by phase if provided
     // Assuming metadata has 'phase' field to filter on
     if (phaseTag) {
-        // Note: Check if Vectorize supports exact match filtering in this version.
-        // If strict filtering is required, we use the filter property.
+        // Use direct property match for metadata filtering
         queryOptions.filter = {
-            selector: {
-                phase: phaseTag
-            }
+            phase: phaseTag
         };
     }
 

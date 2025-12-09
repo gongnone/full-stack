@@ -62,6 +62,14 @@ App.get("/click-socket", authMiddleware, async (c) => {
   return c.env.BACKEND_SERVICE.fetch(proxiedRequest);
 });
 
+App.get("/api/ws", authMiddleware, async (c) => {
+  const userId = c.get("userId")
+  const headers = new Headers(c.req.raw.headers);
+  headers.set("account-id", userId);
+  const proxiedRequest = new Request(c.req.raw, { headers });
+  return c.env.BACKEND_SERVICE.fetch(proxiedRequest);
+});
+
 App.on(["POST", "GET"], "/api/auth/*", (c) => {
   const auth = getAuthInstance(c.env)
   return auth.handler(c.req.raw);

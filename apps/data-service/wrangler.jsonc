@@ -91,6 +91,10 @@
 					{
 						"name": "EVALUATION_SCHEDULAR",
 						"class_name": "EvaluationScheduler"
+					},
+					{
+						"name": "CHAT_SESSION",
+						"class_name": "ChatSession"
 					}
 				]
 			},
@@ -105,6 +109,12 @@
 					"tag": "v2",
 					"new_sqlite_classes": [
 						"LinkClickTracker"
+					]
+				},
+				{
+					"tag": "v3",
+					"new_classes": [
+						"ChatSession"
 					]
 				}
 			]
@@ -169,6 +179,10 @@
 					{
 						"name": "EVALUATION_SCHEDULAR",
 						"class_name": "EvaluationScheduler"
+					},
+					{
+						"name": "CHAT_SESSION",
+						"class_name": "ChatSession"
 					}
 				]
 			},
@@ -183,6 +197,12 @@
 					"tag": "v2",
 					"new_sqlite_classes": [
 						"LinkClickTracker"
+					]
+				},
+				{
+					"tag": "v3",
+					"new_classes": [
+						"ChatSession"
 					]
 				}
 			]

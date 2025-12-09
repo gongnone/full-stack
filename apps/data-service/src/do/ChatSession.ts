@@ -16,9 +16,48 @@ interface PhaseData {
 export class ChatSession extends DurableObject<Env> {
     currentPhase: string = "research"; // Start at research
     phaseData: PhaseData = {};
+    sessions: Map<WebSocket, any> = new Map();
 
     constructor(ctx: DurableObjectState, env: Env) {
         super(ctx, env);
+    }
+
+    async fetch(request: Request) {
+        if (request.headers.get("Upgrade") === "websocket") {
+            const pair = new WebSocketPair();
+            await this.handleSession(pair[1]);
+            return new Response(null, { status: 101, webSocket: pair[0] });
+        }
+
+        if (request.method === "POST") {
+            const { message, phase } = await request.json() as any;
+            if (phase) this.currentPhase = phase;
+            const response = await this.message(message);
+            return new Response(response);
+        }
+        return new Response("ChatSession DO", { status: 200 });
+    }
+
+    async handleSession(webSocket: WebSocket) {
+        this.ctx.acceptWebSocket(webSocket);
+        this.sessions.set(webSocket, { connectedAt: Date.now() });
+    }
+
+    async webSocketMessage(webSocket: WebSocket, message: string | ArrayBuffer) {
+        try {
+            const data = JSON.parse(message as string);
+            if (data.type === 'message') {
+                const userMessage = data.content;
+                const response = await this.message(userMessage);
+                webSocket.send(JSON.stringify({ type: 'message', content: response }));
+            }
+        } catch (err) {
+            webSocket.send(JSON.stringify({ type: 'error', content: 'Invalid message format' }));
+        }
+    }
+
+    async webSocketClose(webSocket: WebSocket, code: number, reason: string, wasClean: boolean) {
+        this.sessions.delete(webSocket);
     }
 
     async message(userMessage: string) {
@@ -113,16 +152,5 @@ export class ChatSession extends DurableObject<Env> {
         });
 
         return `[System: Campaign '${name}' saved successfully with ID: ${campaignId}. You can now use this context in the Generator.]`;
-    }
-
-    // Boilerplate to allow invoking via fetch
-    async fetch(request: Request) {
-        if (request.method === "POST") {
-            const { message, phase } = await request.json() as any;
-            if (phase) this.currentPhase = phase;
-            const response = await this.message(message);
-            return new Response(response);
-        }
-        return new Response("ChatSession DO", { status: 200 });
     }
 }

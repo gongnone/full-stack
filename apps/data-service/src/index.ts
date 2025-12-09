@@ -55,8 +55,10 @@ export default class DataService extends WorkerEntrypoint<Env> {
 								prompt: body.prompt || "Abstract AI art",
 							});
 							output = image.data[0].url || "";
-							// Mock tokens for image to track cost approx
-							// $0.04 ~= 2600 output tokens @ GPT4o price? Let's just track 0 tokens and explicit cost later if needed.
+							// Fixed cost for DALL-E 3 standard
+							usage = { prompt_tokens: 0, completion_tokens: 0 };
+							// We will handle cost assignment below since it's usage-based there.
+							// Actually, let's override cost for images specifically or use a cost variable.
 							break;
 						case "offer_architect":
 							console.log("Starting Offer Architect run...");
@@ -95,8 +97,14 @@ export default class DataService extends WorkerEntrypoint<Env> {
 							output = "Unknown type";
 					}
 
-					// Cost Calculation (GPT-4o approx)
-					const cost = (usage.prompt_tokens * 0.000005) + (usage.completion_tokens * 0.000015);
+					// Cost Calculation
+					let cost = 0;
+					if (body.type === 'image') {
+						cost = 0.040; // Fixed price for DALL-E 3
+					} else {
+						// GPT-4o approx
+						cost = (usage.prompt_tokens * 0.000005) + (usage.completion_tokens * 0.000015);
+					}
 
 					// 2. Update DB
 					const db = initDatabase(this.env.DB);
@@ -108,6 +116,7 @@ export default class DataService extends WorkerEntrypoint<Env> {
 						usagePromptTokens: usage.prompt_tokens,
 						usageCompletionTokens: usage.completion_tokens,
 						costEstimatedUsd: cost,
+						providerMetadata: JSON.stringify(usage),
 					});
 
 					console.log(`Processed generation ${body.generationId}`);

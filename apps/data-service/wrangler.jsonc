@@ -3,7 +3,9 @@
   "name": "data-service",
   "main": "src/index.ts",
   "compatibility_date": "2025-06-17",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "observability": {
     "enabled": true
   },
@@ -27,6 +29,10 @@
         "consumers": [
           {
             "queue": "smart-data-queue-stage"
+          },
+          {
+            "queue": "social-media-generation-queue",
+            "max_batch_size": 5
           }
         ],
         "producers": [
@@ -70,11 +76,15 @@
       "migrations": [
         {
           "tag": "v1",
-          "new_classes": ["EvaluationScheduler"]
+          "new_classes": [
+            "EvaluationScheduler"
+          ]
         },
         {
           "tag": "v2",
-          "new_sqlite_classes": ["LinkClickTracker"]
+          "new_sqlite_classes": [
+            "LinkClickTracker"
+          ]
         }
       ]
     },
@@ -138,11 +148,15 @@
       "migrations": [
         {
           "tag": "v1",
-          "new_classes": ["EvaluationScheduler"]
+          "new_classes": [
+            "EvaluationScheduler"
+          ]
         },
         {
           "tag": "v2",
-          "new_sqlite_classes": ["LinkClickTracker"]
+          "new_sqlite_classes": [
+            "LinkClickTracker"
+          ]
         }
       ]
     }

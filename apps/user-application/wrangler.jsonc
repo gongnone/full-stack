@@ -44,6 +44,14 @@
           "migrations_dir": "../../packages/data-ops/src/drizzle-out"
         },
       ],
+      "queues": {
+        "producers": [
+          {
+            "binding": "GENERATION_QUEUE",
+            "queue": "social-media-generation-queue"
+          }
+        ]
+      },
       "services": [
         {
           "binding": "BACKEND_SERVICE",

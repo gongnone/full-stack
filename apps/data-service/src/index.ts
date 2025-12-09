@@ -6,13 +6,24 @@ import { handleLinkClick } from './queue-handlers/link-clicks';
 export { DestinationEvaluationWorkflow } from '@/workflows/destination-evalutation-workflow';
 export { EvaluationScheduler } from "@/durable-objects/evaluation-scheduler";
 export { LinkClickTracker } from "@/durable-objects/link-click-tracker";
+export { ChatSession } from "./do/ChatSession";
 
 export default class DataService extends WorkerEntrypoint<Env> {
 	constructor(ctx: ExecutionContext, env: Env) {
 		super(ctx, env)
 		initDatabase(env.DB)
 	}
-	fetch(request: Request) {
+	async fetch(request: Request) {
+		const url = new URL(request.url);
+		if (request.method === "POST" && url.pathname === "/api/internal/ingest") {
+			const { upsertKnowledge } = await import("@repo/agent-logic/rag");
+			const body = await request.json() as { items: any[] };
+			if (!body.items || !Array.isArray(body.items)) {
+				return new Response("Invalid body: 'items' array required", { status: 400 });
+			}
+			const count = await upsertKnowledge(this.env, body.items);
+			return new Response(JSON.stringify({ success: true, count }), { headers: { "Content-Type": "application/json" } });
+		}
 		return App.fetch(request, this.env, this.ctx)
 	}
 

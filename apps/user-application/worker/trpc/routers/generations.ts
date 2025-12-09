@@ -57,13 +57,34 @@ export const generationsRouter = t.router({
         })
         .where(eq(userCredits.userId, ctx.userId));
 
-      // 2. Create DB Record
-      const record = await createGenerationRecord(ctx.db, ctx.userId, input);
+      // 2. Enrich Prompt with Campaign Context
+      let finalPrompt = input.prompt;
+      if (input.campaignId) {
+        const { campaigns } = await import("@repo/data-ops/schema");
+        const campaign = await ctx.db.select().from(campaigns).where(eq(campaigns.id, input.campaignId)).get();
+        if (campaign) {
+          const contextBlock = `
+CONTEXT FROM CAMPAIGN "${campaign.name}":
+- Brand Voice: ${JSON.stringify(campaign.brandVoice)}
+- Research: ${JSON.stringify(campaign.researchData)}
+- Offer: ${JSON.stringify(campaign.offerData)}
+`;
+          finalPrompt = `${contextBlock}\n\nTASK: ${input.prompt}`;
+        }
+      }
 
-      // 3. Send to Queue
+      // 3. Create DB Record
+      const record = await createGenerationRecord(ctx.db, ctx.userId, {
+        ...input,
+        prompt: finalPrompt // Save the enriched prompt or keep original? Usually better to save input, but here we modify the prompt sent to AI.
+        // Correct approach: Save metadata or save modified prompt. Let's save modified for debugging transparency.
+      });
+
+      // 4. Send to Queue
       await ctx.env.GENERATION_QUEUE.send({
         generationId: record.id,
         type: input.type,
+        prompt: finalPrompt
       });
 
       return { ...record, costDeducted: cost };

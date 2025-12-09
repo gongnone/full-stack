@@ -1,179 +1,191 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "data-service",
-  "main": "src/index.ts",
-  "compatibility_date": "2025-06-17",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "observability": {
-    "enabled": true
-  },
-  "queues": {
-    "consumers": [
-      {
-        "queue": "social-media-generation-queue",
-        "max_batch_size": 5
-      }
-    ]
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
-      "preview_database_id": "DB"
-    }
-  ],
-  "env": {
-    "stage": {
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
-          "remote": true
-        }
-      ],
-      "kv_namespaces": [
-        {
-          "binding": "CACHE",
-          "id": "4c3bbe472d204bce99a8c84de8501dd8",
-          "remote": true
-        }
-      ],
-      "queues": {
-        "consumers": [
-          {
-            "queue": "smart-data-queue-stage"
-          },
-          {
-            "queue": "social-media-generation-queue",
-            "max_batch_size": 5
-          }
-        ],
-        "producers": [
-          {
-            "binding": "QUEUE",
-            "queue": "smart-data-queue-stage"
-          }
-        ]
-      },
-      "workflows": [
-        {
-          "binding": "DESTINATION_EVALUATION_WORKFLOW",
-          "name": "destination-evaluation-workflow-production",
-          "class_name": "DestinationEvaluationWorkflow"
-        }
-      ],
-      "browser": {
-        "binding": "VIRTUAL_BROWSER"
-      },
-      "ai": {
-        "binding": "AI"
-      },
-      "r2_buckets": [
-        {
-          "binding": "BUCKET",
-          "bucket_name": "smart-eval-bucket-stage"
-        }
-      ],
-      "durable_objects": {
-        "bindings": [
-          {
-            "class_name": "LinkClickTracker",
-            "name": "LINK_CLICK_TRACKER_OBJECT"
-          },
-          {
-            "name": "EVALUATION_SCHEDULAR",
-            "class_name": "EvaluationScheduler"
-          }
-        ]
-      },
-      "migrations": [
-        {
-          "tag": "v1",
-          "new_classes": [
-            "EvaluationScheduler"
-          ]
-        },
-        {
-          "tag": "v2",
-          "new_sqlite_classes": [
-            "LinkClickTracker"
-          ]
-        }
-      ]
-    },
-    "production": {
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750"
-        }
-      ],
-      "kv_namespaces": [
-        {
-          "binding": "CACHE",
-          "id": "25cee7b23a8340d1a2b4912ef0e75e20"
-        }
-      ],
-      "queues": {
-        "consumers": [
-          {
-            "queue": "smart-data-queue-production"
-          }
-        ],
-        "producers": [
-          {
-            "binding": "QUEUE",
-            "queue": "smart-data-queue-production"
-          }
-        ]
-      },
-      "workflows": [
-        {
-          "binding": "DESTINATION_EVALUATION_WORKFLOW",
-          "name": "destination-evaluation-workflow",
-          "class_name": "DestinationEvaluationWorkflow"
-        }
-      ],
-      "browser": {
-        "binding": "VIRTUAL_BROWSER"
-      },
-      "ai": {
-        "binding": "AI"
-      },
-      "r2_buckets": [
-        {
-          "binding": "BUCKET",
-          "bucket_name": "smart-eval-bucket-production"
-        }
-      ],
-      "durable_objects": {
-        "bindings": [
-          {
-            "class_name": "LinkClickTracker",
-            "name": "LINK_CLICK_TRACKER_OBJECT"
-          },
-          {
-            "name": "EVALUATION_SCHEDULAR",
-            "class_name": "EvaluationScheduler"
-          }
-        ]
-      },
-      "migrations": [
-        {
-          "tag": "v1",
-          "new_classes": [
-            "EvaluationScheduler"
-          ]
-        },
-        {
-          "tag": "v2",
-          "new_sqlite_classes": [
-            "LinkClickTracker"
-          ]
-        }
-      ]
-    }
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "data-service",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-06-17",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"observability": {
+		"enabled": true
+	},
+	"queues": {
+		"consumers": [
+			{
+				"queue": "social-media-generation-queue",
+				"max_batch_size": 5
+			}
+		]
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
+			"preview_database_id": "DB"
+		}
+	],
+	"env": {
+		"stage": {
+			"vectorize": [
+				{
+					"binding": "KNOWLEDGE_BASE",
+					"index_name": "saas-knowledge-index"
+				}
+			],
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
+					"remote": true
+				}
+			],
+			"kv_namespaces": [
+				{
+					"binding": "CACHE",
+					"id": "4c3bbe472d204bce99a8c84de8501dd8",
+					"remote": true
+				}
+			],
+			"queues": {
+				"consumers": [
+					{
+						"queue": "smart-data-queue-stage"
+					},
+					{
+						"queue": "social-media-generation-queue",
+						"max_batch_size": 5
+					}
+				],
+				"producers": [
+					{
+						"binding": "QUEUE",
+						"queue": "smart-data-queue-stage"
+					}
+				]
+			},
+			"workflows": [
+				{
+					"binding": "DESTINATION_EVALUATION_WORKFLOW",
+					"name": "destination-evaluation-workflow-production",
+					"class_name": "DestinationEvaluationWorkflow"
+				}
+			],
+			"browser": {
+				"binding": "VIRTUAL_BROWSER"
+			},
+			"ai": {
+				"binding": "AI"
+			},
+			"r2_buckets": [
+				{
+					"binding": "BUCKET",
+					"bucket_name": "smart-eval-bucket-stage"
+				}
+			],
+			"durable_objects": {
+				"bindings": [
+					{
+						"class_name": "LinkClickTracker",
+						"name": "LINK_CLICK_TRACKER_OBJECT"
+					},
+					{
+						"name": "EVALUATION_SCHEDULAR",
+						"class_name": "EvaluationScheduler"
+					}
+				]
+			},
+			"migrations": [
+				{
+					"tag": "v1",
+					"new_classes": [
+						"EvaluationScheduler"
+					]
+				},
+				{
+					"tag": "v2",
+					"new_sqlite_classes": [
+						"LinkClickTracker"
+					]
+				}
+			]
+		},
+		"production": {
+			"vectorize": [
+				{
+					"binding": "KNOWLEDGE_BASE",
+					"index_name": "saas-knowledge-index"
+				}
+			],
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750"
+				}
+			],
+			"kv_namespaces": [
+				{
+					"binding": "CACHE",
+					"id": "25cee7b23a8340d1a2b4912ef0e75e20"
+				}
+			],
+			"queues": {
+				"consumers": [
+					{
+						"queue": "smart-data-queue-production"
+					}
+				],
+				"producers": [
+					{
+						"binding": "QUEUE",
+						"queue": "smart-data-queue-production"
+					}
+				]
+			},
+			"workflows": [
+				{
+					"binding": "DESTINATION_EVALUATION_WORKFLOW",
+					"name": "destination-evaluation-workflow",
+					"class_name": "DestinationEvaluationWorkflow"
+				}
+			],
+			"browser": {
+				"binding": "VIRTUAL_BROWSER"
+			},
+			"ai": {
+				"binding": "AI"
+			},
+			"r2_buckets": [
+				{
+					"binding": "BUCKET",
+					"bucket_name": "smart-eval-bucket-production"
+				}
+			],
+			"durable_objects": {
+				"bindings": [
+					{
+						"class_name": "LinkClickTracker",
+						"name": "LINK_CLICK_TRACKER_OBJECT"
+					},
+					{
+						"name": "EVALUATION_SCHEDULAR",
+						"class_name": "EvaluationScheduler"
+					}
+				]
+			},
+			"migrations": [
+				{
+					"tag": "v1",
+					"new_classes": [
+						"EvaluationScheduler"
+					]
+				},
+				{
+					"tag": "v2",
+					"new_sqlite_classes": [
+						"LinkClickTracker"
+					]
+				}
+			]
+		}
+	}
 }

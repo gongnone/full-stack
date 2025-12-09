@@ -19,6 +19,7 @@
 		"wrangler": "^4.42.2"
 	},
 	"dependencies": {
+		"@repo/agent-logic": "workspace:*",
 		"@repo/data-ops": "workspace:*",
 		"ai": "^5.0.68",
 		"hono": "^4.8.3",

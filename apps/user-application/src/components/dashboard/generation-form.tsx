@@ -16,7 +16,10 @@ import { toast } from "sonner";
 
 export function GenerationForm() {
     const [prompt, setPrompt] = useState("");
-    const [type, setType] = useState<"tweet" | "image" | "video_script" | "offer_architect">("tweet");
+    const [campaignId, setCampaignId] = useState<string | undefined>(undefined);
+
+    // Fetch campaigns
+    const { data: campaigns } = trpc.campaigns.list.useQuery();
 
     const queryClient = useQueryClient();
 
@@ -40,7 +43,7 @@ export function GenerationForm() {
             toast.warning("Please enter a prompt");
             return;
         }
-        createMutation.mutate({ prompt, type, model: "gpt-4o" });
+        createMutation.mutate({ prompt, type, model: "gpt-4o", campaignId: campaignId === "none" ? undefined : campaignId });
     };
 
     return (
@@ -56,6 +59,23 @@ export function GenerationForm() {
             </CardHeader>
             <CardContent className="flex-1">
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 h-full">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Load Context / Campaign</label>
+                        <Select value={campaignId || "none"} onValueChange={(v) => setCampaignId(v)}>
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select a Campaign" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="none">None (No Context)</SelectItem>
+                                {campaigns?.map((c) => (
+                                    <SelectItem key={c.id} value={c.id}>
+                                        {c.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Content Type</label>
                         <Select value={type} onValueChange={(v) => setType(v as any)}>

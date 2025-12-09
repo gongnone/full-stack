@@ -39,10 +39,13 @@ export function useAgentSocket(sessionId: string): UseAgentSocketReturn {
         };
 
         ws.onmessage = (event) => {
+            console.log('WebSocket Received Raw:', event.data);
             try {
                 const data = JSON.parse(event.data);
                 if (data.type === 'message') {
                     setMessages((prev) => [...prev, { role: 'assistant', content: data.content }]);
+                } else if (data.type === 'error') {
+                    setMessages((prev) => [...prev, { role: 'system', content: `Error: ${data.message || data.content}` }]);
                 }
                 // Handle other message types like 'status', 'error' etc if needed
             } catch (e) {

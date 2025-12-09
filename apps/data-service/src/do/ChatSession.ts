@@ -45,14 +45,16 @@ export class ChatSession extends DurableObject<Env> {
 
     async webSocketMessage(webSocket: WebSocket, message: string | ArrayBuffer) {
         try {
+            console.log('1. Message Received:', message);
             const data = JSON.parse(message as string);
             if (data.type === 'message') {
                 const userMessage = data.content;
                 const response = await this.message(userMessage);
                 webSocket.send(JSON.stringify({ type: 'message', content: response }));
             }
-        } catch (err) {
-            webSocket.send(JSON.stringify({ type: 'error', content: 'Invalid message format' }));
+        } catch (err: any) {
+            console.error('ChatSession Error:', err);
+            webSocket.send(JSON.stringify({ type: 'error', message: err.message || 'Unknown error' }));
         }
     }
 
@@ -61,6 +63,7 @@ export class ChatSession extends DurableObject<Env> {
     }
 
     async message(userMessage: string) {
+        console.log('2. Running RAG Search...');
         // 1. Retrieve relevant context
         // Search current phase AND previous phases if needed, but primarily current phase knowledge base
         const context = await searchKnowledge(userMessage, this.env, this.currentPhase);
@@ -68,6 +71,7 @@ export class ChatSession extends DurableObject<Env> {
         // 2. Construct System Prompt with History/Context
         const systemPrompt = this.constructSystemPrompt(context);
 
+        console.log('3. Calling OpenAI...');
         // 3. Call LLM (Workers AI)
         // Note: For pure Llama 3.1 on Workers AI, function calling might need manual parsing or a specific tool definition structure.
         // We will instruct the model to output a specific JSON structure if it wants to complete the phase.

@@ -15,7 +15,6 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppAuthedRouteImport } from './routes/app/_authed'
 import { Route as AppAuthedIndexRouteImport } from './routes/app/_authed/index'
 import { Route as AppAuthedUpgradeRouteImport } from './routes/app/_authed/upgrade'
-import { Route as AppAuthedEvaluationsRouteImport } from './routes/app/_authed/evaluations'
 import { Route as AppAuthedProjectsNewRouteImport } from './routes/app/_authed/projects/new'
 import { Route as AppAuthedProjectsProjectIdRouteImport } from './routes/app/_authed/projects/$projectId'
 
@@ -45,11 +44,6 @@ const AppAuthedUpgradeRoute = AppAuthedUpgradeRouteImport.update({
   path: '/upgrade',
   getParentRoute: () => AppAuthedRoute,
 } as any)
-const AppAuthedEvaluationsRoute = AppAuthedEvaluationsRouteImport.update({
-  id: '/evaluations',
-  path: '/evaluations',
-  getParentRoute: () => AppAuthedRoute,
-} as any)
 const AppAuthedProjectsNewRoute = AppAuthedProjectsNewRouteImport.update({
   id: '/projects/new',
   path: '/projects/new',
@@ -65,7 +59,6 @@ const AppAuthedProjectsProjectIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppAuthedRouteWithChildren
-  '/app/evaluations': typeof AppAuthedEvaluationsRoute
   '/app/upgrade': typeof AppAuthedUpgradeRoute
   '/app/': typeof AppAuthedIndexRoute
   '/app/projects/$projectId': typeof AppAuthedProjectsProjectIdRoute
@@ -74,7 +67,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppAuthedIndexRoute
-  '/app/evaluations': typeof AppAuthedEvaluationsRoute
   '/app/upgrade': typeof AppAuthedUpgradeRoute
   '/app/projects/$projectId': typeof AppAuthedProjectsProjectIdRoute
   '/app/projects/new': typeof AppAuthedProjectsNewRoute
@@ -84,7 +76,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/app/_authed': typeof AppAuthedRouteWithChildren
-  '/app/_authed/evaluations': typeof AppAuthedEvaluationsRoute
   '/app/_authed/upgrade': typeof AppAuthedUpgradeRoute
   '/app/_authed/': typeof AppAuthedIndexRoute
   '/app/_authed/projects/$projectId': typeof AppAuthedProjectsProjectIdRoute
@@ -95,7 +86,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
-    | '/app/evaluations'
     | '/app/upgrade'
     | '/app/'
     | '/app/projects/$projectId'
@@ -104,7 +94,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/app'
-    | '/app/evaluations'
     | '/app/upgrade'
     | '/app/projects/$projectId'
     | '/app/projects/new'
@@ -113,7 +102,6 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/app/_authed'
-    | '/app/_authed/evaluations'
     | '/app/_authed/upgrade'
     | '/app/_authed/'
     | '/app/_authed/projects/$projectId'
@@ -162,13 +150,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuthedUpgradeRouteImport
       parentRoute: typeof AppAuthedRoute
     }
-    '/app/_authed/evaluations': {
-      id: '/app/_authed/evaluations'
-      path: '/evaluations'
-      fullPath: '/app/evaluations'
-      preLoaderRoute: typeof AppAuthedEvaluationsRouteImport
-      parentRoute: typeof AppAuthedRoute
-    }
     '/app/_authed/projects/new': {
       id: '/app/_authed/projects/new'
       path: '/projects/new'
@@ -187,7 +168,6 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppAuthedRouteChildren {
-  AppAuthedEvaluationsRoute: typeof AppAuthedEvaluationsRoute
   AppAuthedUpgradeRoute: typeof AppAuthedUpgradeRoute
   AppAuthedIndexRoute: typeof AppAuthedIndexRoute
   AppAuthedProjectsProjectIdRoute: typeof AppAuthedProjectsProjectIdRoute
@@ -195,7 +175,6 @@ interface AppAuthedRouteChildren {
 }
 
 const AppAuthedRouteChildren: AppAuthedRouteChildren = {
-  AppAuthedEvaluationsRoute: AppAuthedEvaluationsRoute,
   AppAuthedUpgradeRoute: AppAuthedUpgradeRoute,
   AppAuthedIndexRoute: AppAuthedIndexRoute,
   AppAuthedProjectsProjectIdRoute: AppAuthedProjectsProjectIdRoute,

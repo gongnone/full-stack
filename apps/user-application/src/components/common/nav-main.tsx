@@ -1,7 +1,7 @@
 import {
   IconCirclePlusFilled,
   IconDashboard,
-  IconReport,
+
 } from "@tabler/icons-react";
 
 import {
@@ -27,14 +27,7 @@ export function NavMain() {
     },
 
 
-    {
-      title: "Evaluations",
-      navigate: () =>
-        nav({
-          to: "/app/evaluations",
-        }),
-      icon: IconReport,
-    },
+
   ];
 
   return (

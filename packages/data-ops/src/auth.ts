@@ -25,6 +25,13 @@ export function createBetterAuth(
   stripeConfig?: StripeConfig,
   google?: { clientId: string; clientSecret: string },
 ): ReturnType<typeof betterAuth> {
+  const stripeKey = stripeConfig?.stripeApiKey || process.env.STRIPE_KEY;
+  const stripeWebhookSecret = stripeConfig?.stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!stripeKey || !stripeWebhookSecret) {
+    console.warn("⚠️ Stripe API Key or Webhook Secret is missing. Stripe plugin will NOT be initialized.");
+  }
+
   return betterAuth({
     database,
     secret: secret,
@@ -37,21 +44,17 @@ export function createBetterAuth(
         clientSecret: google?.clientSecret ?? "",
       },
     },
-    plugins: [
+    plugins: stripeKey && stripeWebhookSecret ? [
       stripe({
-        stripeClient: new Stripe(
-          stripeConfig?.stripeApiKey || process.env.STRIPE_KEY!,
-        ),
-        stripeWebhookSecret:
-          stripeConfig?.stripeWebhookSecret ??
-          process.env.STRIPE_WEBHOOK_SECRET!,
+        stripeClient: new Stripe(stripeKey),
+        stripeWebhookSecret: stripeWebhookSecret,
         createCustomerOnSignUp: true,
         subscription: {
           enabled: true,
           plans: stripeConfig?.plans ?? [],
         },
       }),
-    ],
+    ] : [],
   });
 }
 

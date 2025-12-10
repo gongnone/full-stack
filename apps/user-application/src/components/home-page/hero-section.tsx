@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Globe, Shield, Zap, Sparkles } from "lucide-react";
 import { authClient } from "@/components/auth/client";
@@ -47,25 +47,24 @@ export function HeroSection() {
 
           {/* CTA Section */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <div className="flex gap-2 w-full sm:w-auto max-w-md">
-              <Input
-                placeholder="Enter your URL to shorten"
-                className="h-11 text-base"
-              />
+            <div className="flex gap-2 w-full sm:w-auto mt-4">
               {data ? (
                 <Button
                   size="lg"
-                  className="h-11 px-6"
+                  className="h-11 px-8 text-base shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
                   onClick={handleStartFree}
                 >
                   Start Free
-                  <ArrowRight className="ml-1 h-4 w-4" />
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
                 <LoginPopup>
-                  <Button size="lg" className="h-11 px-6">
+                  <Button
+                    size="lg"
+                    className="h-11 px-8 text-base shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
+                  >
                     Start Free
-                    <ArrowRight className="ml-1 h-4 w-4" />
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </LoginPopup>
               )}

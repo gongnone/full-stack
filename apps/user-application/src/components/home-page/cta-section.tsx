@@ -8,11 +8,11 @@ export function CtaSection() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight mb-6">
-            Ready to stop losing revenue to broken links?
+            Ready to Turn Deep Research into Dominant Brands?
           </h2>
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join thousands of businesses protecting their revenue with smart
-            link management. Start your free trial today—no credit card
+            Join thousands of businesses transforming their research into high-converting
+            content with AudienceHero. Start your free trial today—no credit card
             required.
           </p>
 

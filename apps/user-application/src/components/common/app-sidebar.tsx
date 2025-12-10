@@ -1,5 +1,5 @@
 import * as React from "react";
-import { IconInnerShadowTop } from "@tabler/icons-react";
+import { BrainCircuit } from "lucide-react";
 
 import { NavMain } from "@/components/common/nav-main";
 import { NavUser } from "@/components/common/nav-user";
@@ -24,8 +24,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               className="data-[slot=sidebar-menu-button]:!p-1.5"
             >
               <a href="#">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">SmrtLnks</span>
+                <BrainCircuit className="!size-5" />
+                <span className="text-base font-semibold">AudienceHero</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

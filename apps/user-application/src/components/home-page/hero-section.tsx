@@ -33,16 +33,16 @@ export function HeroSection() {
 
           {/* Main headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
-            Stop Losing Revenue to{" "}
+            Turn Deep Research into{" "}
             <span className="bg-gradient-to-r from-primary via-primary to-purple-600 bg-clip-text text-transparent">
-              Broken Links
+              Dominant Brands
             </span>
           </h1>
 
           {/* Subheading */}
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-            Smart link management with AI monitoring and geo-routing that keeps
-            your traffic flowing and revenue growing.
+            An automated workflow to research your market, craft your offer, and
+            generate on-brand content in minutes.
           </p>
 
           {/* CTA Section */}
@@ -76,15 +76,15 @@ export function HeroSection() {
           <div className="flex flex-wrap justify-center items-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-primary" />
-              <span>Instant Link Creation</span>
+              <span>Deep Market Research</span>
             </div>
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-primary" />
-              <span>Geo-based Routing</span>
+              <span>Offer Strategy</span>
             </div>
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-primary" />
-              <span>AI Link Monitoring</span>
+              <span>Multimodal Content</span>
             </div>
           </div>
         </div>

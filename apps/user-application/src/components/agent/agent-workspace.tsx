@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Bot, Send, ArrowRight } from "lucide-react";
 import { useAgentSocket } from "@/hooks/use-agent-socket";
 import { ChatMessage } from "./chat-message";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { PanelRightOpen } from "lucide-react";
 
 interface AgentWorkspaceProps {
@@ -84,7 +84,10 @@ export function AgentWorkspace({ sessionId }: AgentWorkspaceProps) {
                             <SheetContent>
                                 <div className="h-full flex flex-col">
                                     <div className="py-4 border-b border-zinc-200 dark:border-zinc-800">
-                                        <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">Mission Parameters</h3>
+                                        <SheetTitle className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">Mission Parameters</SheetTitle>
+                                        <SheetDescription className="sr-only">
+                                            Current mission status and phase details.
+                                        </SheetDescription>
                                     </div>
                                     <div className="py-4 space-y-6">
                                         <div className="space-y-2">

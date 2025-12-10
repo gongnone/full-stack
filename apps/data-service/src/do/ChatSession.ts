@@ -60,6 +60,13 @@ export class ChatSession extends DurableObject<Env> {
     }
 
     async message(userMessage: string) {
+        // DEBUG TOOL: Direct access to RAG
+        if (userMessage.startsWith("/debug-rag")) {
+            const query = userMessage.replace("/debug-rag", "").trim();
+            const context = await searchKnowledge(query, this.env, this.currentPhase);
+            return `[DEBUG RAG RESULT]\nQuery: ${query}\nPhase: ${this.currentPhase}\nResults found: ${context.length > 0 ? "YES" : "NO"}\n\nContent Preview:\n${context.substring(0, 500)}...`;
+        }
+
         console.log('2. Running RAG Search...');
         // 1. Retrieve relevant context
         // Search current phase AND previous phases if needed, but primarily current phase knowledge base

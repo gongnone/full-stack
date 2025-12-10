@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Bot, Send, ArrowRight } from "lucide-react";
 import { useAgentSocket } from "@/hooks/use-agent-socket";
 import { ChatMessage } from "./chat-message";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { PanelRightOpen } from "lucide-react";
 
 interface AgentWorkspaceProps {
     sessionId: string;
@@ -39,11 +41,11 @@ export function AgentWorkspace({ sessionId }: AgentWorkspaceProps) {
     };
 
     return (
-        <div className="flex h-full bg-zinc-50 dark:bg-zinc-950">
+        <div className="flex h-[calc(100dvh-64px)] bg-zinc-50 dark:bg-zinc-950">
             {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col h-full relative">
+            <div className="flex-1 flex flex-col h-full relative min-w-0">
                 {/* Header */}
-                <div className="px-6 py-4 flex items-center justify-between bg-white/80 dark:bg-zinc-900/80 backdrop-blur border-b border-zinc-200 dark:border-zinc-800 z-10">
+                <div className="px-6 py-4 flex items-center justify-between bg-white/80 dark:bg-zinc-900/80 backdrop-blur border-b border-zinc-200 dark:border-zinc-800 z-10 sticky top-0">
                     <div className="flex items-center gap-3">
                         <div className="bg-zinc-900 dark:bg-white p-2 rounded-xl text-white dark:text-zinc-900 shadow-sm">
                             <Bot className="w-5 h-5" />
@@ -69,6 +71,36 @@ export function AgentWorkspace({ sessionId }: AgentWorkspaceProps) {
                                 )}
                             </div>
                         </div>
+                    </div>
+
+                    {/* Mobile Sidebar Toggle */}
+                    <div className="lg:hidden">
+                        <Sheet>
+                            <SheetTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-zinc-500">
+                                    <PanelRightOpen className="w-5 h-5" />
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent>
+                                <div className="h-full flex flex-col">
+                                    <div className="py-4 border-b border-zinc-200 dark:border-zinc-800">
+                                        <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">Mission Parameters</h3>
+                                    </div>
+                                    <div className="py-4 space-y-6">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Phase</label>
+                                            <div className="bg-zinc-50 dark:bg-zinc-900 rounded-lg p-3 border border-zinc-100 dark:border-zinc-800">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                                                    <span className="text-sm font-medium text-zinc-900 dark:text-white">Research</span>
+                                                </div>
+                                                <div className="text-xs text-zinc-500">Gathering intelligence on target audience and market positioning.</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </SheetContent>
+                        </Sheet>
                     </div>
                 </div>
 
@@ -116,7 +148,7 @@ export function AgentWorkspace({ sessionId }: AgentWorkspaceProps) {
                 </div>
 
                 {/* Input Area */}
-                <div className="p-6 bg-gradient-to-t from-zinc-50 via-zinc-50 to-transparent dark:from-zinc-950 dark:via-zinc-950">
+                <div className="p-4 md:p-6 bg-gradient-to-t from-zinc-50 via-zinc-50 to-transparent dark:from-zinc-950 dark:via-zinc-950 pb-[env(safe-area-inset-bottom)]">
                     <div className="max-w-3xl mx-auto relative group">
                         <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-200 to-zinc-300 dark:from-zinc-800 dark:to-zinc-700 rounded-full opacity-50 blur group-hover:opacity-75 transition duration-500" />
                         <div className="relative flex items-center bg-white dark:bg-zinc-900 rounded-full shadow-xl shadow-zinc-200/50 dark:shadow-black/50 p-2 pr-2 ring-1 ring-zinc-200 dark:ring-zinc-800 focus-within:ring-2 focus-within:ring-zinc-900 dark:focus-within:ring-zinc-100 transition-all">
@@ -126,7 +158,7 @@ export function AgentWorkspace({ sessionId }: AgentWorkspaceProps) {
                                 onKeyDown={handleKeyDown}
                                 placeholder={isConnected ? "Message the agent..." : "Connecting..."}
                                 disabled={!isConnected}
-                                className="border-none shadow-none focus-visible:ring-0 bg-transparent px-6 py-6 h-auto text-base placeholder:text-zinc-400"
+                                className="border-none shadow-none focus-visible:ring-0 bg-transparent px-4 py-4 md:px-6 md:py-6 h-auto text-base placeholder:text-zinc-400"
                             />
                             <Button
                                 onClick={handleSend}
@@ -138,7 +170,7 @@ export function AgentWorkspace({ sessionId }: AgentWorkspaceProps) {
                                 <span className="sr-only">Send</span>
                             </Button>
                         </div>
-                        <div className="absolute -bottom-6 left-0 right-0 text-center">
+                        <div className="absolute -bottom-6 left-0 right-0 text-center hidden md:block">
                             <span className="text-[10px] text-zinc-400 font-medium tracking-wide uppercase">
                                 Secure Session • AI-Powered
                             </span>
@@ -147,8 +179,8 @@ export function AgentWorkspace({ sessionId }: AgentWorkspaceProps) {
                 </div>
             </div>
 
-            {/* Sidebar (Right Column) - Placeholder for Mission Status or Context */}
-            <div className="w-80 border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 hidden xl:flex flex-col">
+            {/* Sidebar (Right Column) - Desktop Only */}
+            <div className="w-80 border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 hidden lg:flex flex-col">
                 <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
                     <h3 className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">Mission Parameters</h3>
                 </div>
@@ -163,7 +195,6 @@ export function AgentWorkspace({ sessionId }: AgentWorkspaceProps) {
                             <div className="text-xs text-zinc-500">Gathering intelligence on target audience and market positioning.</div>
                         </div>
                     </div>
-                    {/* Add more context widgets here later */}
                 </div>
             </div>
         </div>

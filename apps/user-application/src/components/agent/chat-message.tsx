@@ -52,9 +52,20 @@ export function ChatMessage({ role, content, isStreaming }: ChatMessageProps) {
                 )}>
                     <div className={cn(
                         "prose prose-sm dark:prose-invert max-w-none break-words",
+                        "prose-table:text-sm prose-th:bg-zinc-100 dark:prose-th:bg-zinc-800 prose-td:px-3 prose-td:py-2 prose-th:px-3 prose-th:py-2",
                         isUser && "prose-headings:text-white prose-p:text-white prose-strong:text-white prose-li:text-white"
                     )}>
-                        <ReactMarkdown>{content}</ReactMarkdown>
+                        <ReactMarkdown
+                            components={{
+                                table: ({ node, ...props }) => (
+                                    <div className="overflow-x-auto my-4 border rounded-lg border-zinc-200 dark:border-zinc-700">
+                                        <table {...props} className="w-full text-left" />
+                                    </div>
+                                )
+                            }}
+                        >
+                            {content}
+                        </ReactMarkdown>
                         {isStreaming && (
                             <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-emerald-500 animate-pulse" />
                         )}

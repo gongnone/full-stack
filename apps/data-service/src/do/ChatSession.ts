@@ -59,12 +59,17 @@ export class ChatSession extends DurableObject<Env> {
         this.sessions.delete(webSocket);
     }
 
+    history: { role: string, content: string }[] = [];
+
     async message(userMessage: string) {
         // DEBUG TOOL: Direct access to RAG
         if (userMessage.startsWith("/debug-rag")) {
             const query = userMessage.replace("/debug-rag", "").trim();
             const context = await searchKnowledge(query, this.env, this.currentPhase);
             return `[DEBUG RAG RESULT]\nQuery: ${query}\nPhase: ${this.currentPhase}\nResults found: ${context.length > 0 ? "YES" : "NO"}\n\nContent Preview:\n${context.substring(0, 500)}...`;
+        } else if (userMessage.startsWith("/clear")) {
+            this.history = [];
+            return "[System: Memory cleared]";
         }
 
         console.log('2. Running RAG Search...');
@@ -77,67 +82,83 @@ export class ChatSession extends DurableObject<Env> {
         }
 
         // 2. Construct System Prompt with History/Context
+        // We do NOT bake the user message into this anymore.
         const systemPrompt = this.constructSystemPrompt(context);
 
-        console.log('3. Calling OpenAI...');
-        // 3. Call LLM (Workers AI)
-        // Note: For pure Llama 3.1 on Workers AI, function calling might need manual parsing or a specific tool definition structure.
-        // We will instruct the model to output a specific JSON structure if it wants to complete the phase.
-        const fullPrompt = `${systemPrompt}\n\nUser: ${userMessage}\n\nINSTRUCTION: 
+        // 3. Add Instructions as a wrapper or suffix to system prompt
+        // Llama 3 instruction following is best when instructions are clear in system or very last user message.
+        // We'll append it to system prompt.
+        const specializedInstructions = `
+        \n\nSYSTEM INSTRUCTIONS:
         1. If you are done with a phase (research/offer), output JSON: { "tool": "completePhase", "summary": "...", "nextPhaseData": { ... } }
         2. If you need to search the web for information (e.g., market stats, competitor info), output JSON: { "tool": "searchWeb", "query": "..." }
         3. If you are in the 'content' phase and have finalized the Brand Voice and strategy, output JSON: { "tool": "finalizeCampaign", "name": "Campaign Name", "brandVoice": { ... } }
-        Otherwise, reply normally.`;
+        4. If the user says "ULTRATEST", immediately generate the final mock data and output the "completePhase" JSON tool call.
+        
+        Maintain the persona defined above.
+        `;
 
-        // Using Llama 3.3 70B for better instruction following
+        const finalSystemPrompt = systemPrompt + specializedInstructions;
+
+        // 4. Update History
+        this.history.push({ role: "user", content: userMessage });
+
+        // Optimize history size - keep last 20 messages to prevent token overflow
+        if (this.history.length > 20) {
+            this.history = this.history.slice(this.history.length - 20);
+        }
+
+        console.log('3. Calling OpenAI (Workers AI)...');
+
         const response = await this.env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
             messages: [
-                { role: "system", content: fullPrompt }
+                { role: "system", content: finalSystemPrompt },
+                ...this.history
             ]
         });
 
         const output = (response as any).response || "";
 
-        // 4. Check for tool usage / phase completion
+        // 5. Save Assistant Response to History
+        this.history.push({ role: "assistant", content: output });
+
+        // 6. Check for tool usage / phase completion
         try {
             // Naive check for JSON output for tool call
             if (output.trim().startsWith('{')) {
                 const action = JSON.parse(output);
 
                 if (action.tool === "completePhase") {
-                    return this.completePhase(action.summary, action.nextPhaseData);
+                    const result = this.completePhase(action.summary, action.nextPhaseData);
+                    // Add system result to history so model knows it happened
+                    this.history.push({ role: "system", content: result });
+                    return result;
                 }
 
                 if (action.tool === "finalizeCampaign") {
-                    return await this.finalizeCampaign(action.name, action.brandVoice);
+                    const result = await this.finalizeCampaign(action.name, action.brandVoice);
+                    this.history.push({ role: "system", content: result });
+                    return result;
                 }
 
                 if (action.tool === "searchWeb") {
-                    // Since we don't have a real search tool bound yet, we'll simulate or use RAG if applicable, 
-                    // but for now let's notify the user or return a placeholder. 
-                    // Ideally, this should call a search service. 
-                    // Given the user asked for "Research functions", let's hook this up to the RAG again as a fallback 
-                    // or return a specific "I'm searching..." message and then recursively call message() with the results?
-                    // For this iteration, let's just return the tool call result to the model context? 
-                    // No, this is a DO message handler, it returns a string to the WebSocket.
-
-                    // Let's implement a basic "simulated" search using RAG for now, as we verified RAG works.
-                    // Or better, tell the model "Searching..." and then feed the result back?
-                    // Complexity: true recursive agent loop is risky in a single request.
-
-                    // Let's simplified return for now and let the user see it? 
-                    // No, the agent should do it.
-
-                    // I will assume for now we fallback to RAG for "web search" requests since we saw RAG working.
-                    // But strictly speaking, the user wants NEW tools.
-                    // I will implement the tool handling by just calling searchKnowledge again with the new query
-
                     const searchResults = await searchKnowledge(action.query, this.env);
-                    // Recursive call with the search results injected as a system message?
-                    // A bit complex. Let's start by just upgrading the model and adding the tool definition
-                    // so the model KNOWS it can search, even if I map it to RAG for now.
+                    const result = `[System: Performed search for '${action.query}'. Results: ${searchResults.substring(0, 500)}... (Simulated via Knowledge Base)]`;
 
-                    return `[System: Performed search for '${action.query}'. Results: ${searchResults.substring(0, 200)}... (Simulated via Knowledge Base)]\n\nBased on this, here is what I found...`;
+                    // We need to feed this back to the model to get a natural response
+                    this.history.push({ role: "system", content: result });
+
+                    // Recursive call (one level deep) to get the AI explanation
+                    const followUp = await this.env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+                        messages: [
+                            { role: "system", content: finalSystemPrompt },
+                            ...this.history
+                        ]
+                    });
+
+                    const followUpOutput = (followUp as any).response || "";
+                    this.history.push({ role: "assistant", content: followUpOutput });
+                    return followUpOutput;
                 }
             }
         } catch (e) {

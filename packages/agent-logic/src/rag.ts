@@ -29,7 +29,14 @@ export async function searchKnowledge(query: string, env: Env, phaseTag?: string
         };
     }
 
+    console.log(`[RAG] Searching for: "${query}" with phase: "${phaseTag || 'ALL'}"`);
+
     const matches = await env.KNOWLEDGE_BASE.query(embedding, queryOptions);
+
+    console.log(`[RAG] Found ${matches.matches.length} matches.`);
+    if (matches.matches.length > 0) {
+        console.log(`[RAG] Top match score: ${matches.matches[0].score}`);
+    }
 
     // 4. Return top 3 chunks as string
     const texts = matches.matches

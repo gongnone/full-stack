@@ -64,6 +64,10 @@ export class ChatSession extends DurableObject<Env> {
         // 1. Retrieve relevant context
         // Search current phase AND previous phases if needed, but primarily current phase knowledge base
         const context = await searchKnowledge(userMessage, this.env, this.currentPhase);
+        console.log(`[ChatSession] RAG Context Length: ${context.length}`);
+        if (context.length > 0) {
+            console.log(`[ChatSession] RAG Context Preview: ${context.substring(0, 100)}...`);
+        }
 
         // 2. Construct System Prompt with History/Context
         const systemPrompt = this.constructSystemPrompt(context);

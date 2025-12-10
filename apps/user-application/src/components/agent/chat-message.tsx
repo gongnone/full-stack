@@ -29,28 +29,31 @@ export function ChatMessage({ role, content, isStreaming }: ChatMessageProps) {
     return (
         <div className={cn(
             "flex w-full mb-6",
-            isUser ? "justify-end" : "justify-start"
+            isUser ? "flex-row-reverse" : "flex-row"
         )}>
             <div className={cn(
-                "flex max-w-[80%] gap-3",
+                "flex max-w-[85%] md:max-w-[75%] gap-3",
                 isUser ? "flex-row-reverse" : "flex-row"
             )}>
                 {/* Avatar */}
                 <div className={cn(
-                    "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-                    isUser ? "bg-zinc-800 text-white" : "bg-emerald-500/10 text-emerald-500"
+                    "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-1",
+                    isUser ? "bg-blue-600 text-white shadow-sm" : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-emerald-500 shadow-sm"
                 )}>
                     {isUser ? <User size={16} /> : <Bot size={16} />}
                 </div>
 
                 {/* Message Bubble */}
                 <div className={cn(
-                    "px-4 py-2.5 rounded-2xl shadow-sm text-sm leading-relaxed",
+                    "px-5 py-3.5 shadow-sm text-sm leading-relaxed",
                     isUser
-                        ? "bg-zinc-800 text-white rounded-br-none"
-                        : "bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 rounded-bl-none"
+                        ? "bg-blue-600 text-white rounded-2xl rounded-tr-sm"
+                        : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 rounded-2xl rounded-tl-sm"
                 )}>
-                    <div className="prose dark:prose-invert prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0">
+                    <div className={cn(
+                        "prose prose-sm dark:prose-invert max-w-none break-words",
+                        isUser && "prose-headings:text-white prose-p:text-white prose-strong:text-white prose-li:text-white"
+                    )}>
                         <ReactMarkdown>{content}</ReactMarkdown>
                         {isStreaming && (
                             <span className="inline-block w-1.5 h-4 ml-1 align-middle bg-emerald-500 animate-pulse" />

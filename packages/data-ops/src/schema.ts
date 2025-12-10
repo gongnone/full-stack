@@ -17,6 +17,19 @@ export const generations = sqliteTable("generations", {
     usageCompletionTokens: integer("usage_completion_tokens"),
     costEstimatedUsd: real("cost_estimated_usd"),
     providerMetadata: text("provider_metadata"), // JSON string
+    campaignId: text("campaign_id").references(() => campaigns.id),
+});
+
+export const campaigns = sqliteTable("campaigns", {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    name: text("name").notNull(),
+    researchData: text("research_data", { mode: "json" }),
+    offerData: text("offer_data", { mode: "json" }),
+    brandVoice: text("brand_voice", { mode: "json" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
+        .default(sql`(unixepoch())`)
+        .notNull(),
 });
 
 export const userCredits = sqliteTable("user_credits", {

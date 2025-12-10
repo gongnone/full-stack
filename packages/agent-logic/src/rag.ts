@@ -34,16 +34,43 @@ export async function searchKnowledge(query: string, env: Env, phaseTag?: string
     const matches = await env.KNOWLEDGE_BASE.query(embedding, queryOptions);
 
     console.log(`[RAG] Found ${matches.matches.length} matches.`);
-    if (matches.matches.length > 0) {
-        console.log(`[RAG] Top match score: ${matches.matches[0].score}`);
+
+    // 4. Retry without filter if no matches found
+    if (matches.matches.length === 0 && phaseTag) {
+        console.warn(`[RAG] Zero matches found for phase "${phaseTag}". Retrying without filter...`);
+        delete queryOptions.filter;
+        const fallbackMatches = await env.KNOWLEDGE_BASE.query(embedding, queryOptions);
+
+        console.log(`[RAG] Fallback Found ${fallbackMatches.matches.length} matches.`);
+
+        if (fallbackMatches.matches.length > 0) {
+            console.log(`[RAG] Fallback Text Sample: ${(fallbackMatches.matches[0].metadata as any)?.text?.substring(0, 100)}...`);
+            // Use these matches
+            return fallbackMatches.matches
+                .map(match => (match.metadata as any)?.text)
+                .filter(text => text !== undefined && text !== null)
+                .map(text => cleanTranscript(text))
+                .join("\n\n");
+        }
     }
 
-    // 4. Return top 3 chunks as string
+    // 5. Return top 3 chunks as string
     const texts = matches.matches
         .map(match => (match.metadata as any)?.text)
-        .filter(text => text !== undefined && text !== null);
+        .filter(text => text !== undefined && text !== null)
+        .map(text => cleanTranscript(text));
 
     return texts.join("\n\n");
+}
+
+function cleanTranscript(text: string): string {
+    // Remove VTT/SRT timestamps (e.g., 00:00:12.345 --> 00:00:14.567)
+    return text.replace(/\d{2}:\d{2}:\d{2}\.\d{3}\s-->\s\d{2}:\d{2}:\d{2}\.\d{3}/g, "")
+        // Remove single timestamps (e.g., 00:00:12)
+        .replace(/\d{2}:\d{2}:\d{2}/g, "")
+        // Clean up extra whitespace left behind
+        .replace(/\s+/g, " ")
+        .trim();
 }
 
 export async function upsertKnowledge(env: Env, items: { text: string, phase: string, source: string }[]) {

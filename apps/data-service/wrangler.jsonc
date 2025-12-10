@@ -30,6 +30,11 @@
 				{
 					"binding": "KNOWLEDGE_BASE",
 					"index_name": "saas-knowledge-index"
+				},
+				{
+					"binding": "VECTORIZE",
+					"index_name": "saas-knowledge-index",
+					"remote": true
 				}
 			],
 			"d1_databases": [

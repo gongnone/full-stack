@@ -200,13 +200,6 @@ export class ChatSession extends DurableObject<Env> {
         3. If you are in the 'content' phase and have finalized the Brand Voice and strategy, output JSON: { "tool": "finalizeCampaign", "name": "Campaign Name", "brandVoice": { ... } }
         4. If the user says "ULTRATEST", immediately generate the final mock data and output the "completePhase" JSON tool call.
         
-        5. GROUNDING & KNOWLEDGE:
-           - You HAVE ACCESS to the user's project context via the "RELEVANT KNOWLEDGE" section below.
-           - Treat "RELEVANT KNOWLEDGE" as your primary source of truth.
-           - If the user asks about specific files or folders, consult "RELEVANT KNOWLEDGE".
-           - NEVER apologize for "not having access" to transcripts or documentation. You DO have access to the text provided below.
-           - If the answer is not in the context, say "I don't see that in my current knowledge base" instead of guessing or apologizing for your nature as an AI.
-
         Maintain the persona defined above.
         `;
     }
@@ -220,7 +213,11 @@ export class ChatSession extends DurableObject<Env> {
             basePrompt += `\n\nCONTEXT FROM OFFER PHASE:\nSummary: ${this.phaseData.offer.summary}\nPrice: ${this.phaseData.offer.price}`;
         }
 
-        basePrompt += `\n\nRELEVANT KNOWLEDGE:\n${ragContext}`;
+        // Inject Internal Knowledge (Silent context)
+        if (ragContext && ragContext.length > 0) {
+            basePrompt += `\n\n### ACTIVE MEMORY (Internal Knowledge):\n${ragContext}`;
+        }
+
         return basePrompt;
     }
 

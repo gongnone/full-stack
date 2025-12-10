@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Bot, Send, ArrowRight } from "lucide-react";
 import { useAgentSocket } from "@/hooks/use-agent-socket";
-import { cn } from "@/lib/utils";
 import { ChatMessage } from "./chat-message";
 
 interface AgentWorkspaceProps {

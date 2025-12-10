@@ -1,11 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
 import { searchKnowledge } from "@repo/agent-logic/rag";
+import { PHASE_PROMPTS } from "@repo/agent-logic/prompts";
 
-const PHASE_PROMPTS: Record<string, string> = {
-    "research": "You are a research assistant. Help the user identify their target audience and problem.",
-    "offer": "You are an offer architect. Help the user structure a compelling offer.",
-    "content": "You are a content strategist. Help the user create content for their offer."
-};
+
 
 // Define Phase Data Interface
 interface PhaseData {
@@ -108,7 +105,7 @@ export class ChatSession extends DurableObject<Env> {
     }
 
     constructSystemPrompt(ragContext: string): string {
-        let basePrompt = PHASE_PROMPTS[this.currentPhase] || "You are a helpful assistant.";
+        let basePrompt = (PHASE_PROMPTS as any)[this.currentPhase] || "You are a helpful assistant.";
 
         // Inject Previous Phase Context
         if (this.currentPhase === "offer" && this.phaseData.research) {

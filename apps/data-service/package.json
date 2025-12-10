@@ -8,7 +8,8 @@
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest",
-		"cf-typegen": "wrangler types --env-interface BaseEnv --env stage"
+		"cf-typegen": "wrangler types --env-interface BaseEnv --env stage",
+		"wrangler": "wrangler"
 	},
 	"devDependencies": {
 		"@cloudflare/puppeteer": "^1.0.3",

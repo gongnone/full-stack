@@ -1,5 +1,6 @@
 import { Bot, User } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -56,6 +57,7 @@ export function ChatMessage({ role, content, isStreaming }: ChatMessageProps) {
                         isUser && "prose-headings:text-white prose-p:text-white prose-strong:text-white prose-li:text-white"
                     )}>
                         <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
                             components={{
                                 table: ({ node, ...props }) => (
                                     <div className="overflow-x-auto my-4 border rounded-lg border-zinc-200 dark:border-zinc-700">

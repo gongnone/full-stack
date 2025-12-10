@@ -6,7 +6,8 @@
     "exports": {
         ".": "./src/index.ts",
         "./rag": "./src/rag.ts",
-        "./prompts": "./src/prompts.ts"
+        "./prompts": "./src/prompts.ts",
+        "./tools": "./src/tools.ts"
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"

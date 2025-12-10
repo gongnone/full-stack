@@ -44,6 +44,11 @@ export function useAgentSocket(sessionId: string): UseAgentSocketReturn {
                 const data = JSON.parse(event.data);
                 if (data.type === 'message') {
                     setMessages((prev) => [...prev, { role: 'assistant', content: data.content }]);
+                } else if (data.type === 'init') {
+                    console.log('Initializing Chat:', data.phase, data.messages.length);
+                    // Filter out system messages from UI if desired, or keep them
+                    // Since the backend sends everything, we might want to ensure 'role' is valid for UI
+                    setMessages(data.messages);
                 } else if (data.type === 'error') {
                     setMessages((prev) => [...prev, { role: 'system', content: `Error: ${data.message || data.content}` }]);
                 }

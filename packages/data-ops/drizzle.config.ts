@@ -4,7 +4,7 @@ const config: Config = {
   out: "./src/drizzle-out",
   dialect: "sqlite",
   driver: "d1-http",
-  schema: ["./src/drizzle-out/auth-schema.ts", "./src/schema-app.ts", "./src/schema.ts"],
+  schema: ["./src/drizzle-out/auth-schema.ts", "./src/schema.ts"],
   dbCredentials: {
     accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
     databaseId: process.env.CLOUDFLARE_DATABASE_ID!,

@@ -70,9 +70,19 @@
 			},
 			"workflows": [
 				{
-					"binding": "DESTINATION_EVALUATION_WORKFLOW",
-					"name": "destination-evaluation-workflow-production",
-					"class_name": "DestinationEvaluationWorkflow"
+					"binding": "HALO_RESEARCH_WORKFLOW",
+					"name": "halo-research-workflow-stage",
+					"class_name": "HaloResearchWorkflow"
+				},
+				{
+					"binding": "GOLDEN_PHEASANT_WORKFLOW",
+					"name": "golden-pheasant-workflow-stage",
+					"class_name": "GoldenPheasantWorkflow"
+				},
+				{
+					"binding": "GODFATHER_OFFER_WORKFLOW",
+					"name": "godfather-offer-workflow-stage",
+					"class_name": "GodfatherOfferWorkflow"
 				}
 			],
 			"browser": {
@@ -89,14 +99,6 @@
 			],
 			"durable_objects": {
 				"bindings": [
-					{
-						"class_name": "LinkClickTracker",
-						"name": "LINK_CLICK_TRACKER_OBJECT"
-					},
-					{
-						"name": "EVALUATION_SCHEDULAR",
-						"class_name": "EvaluationScheduler"
-					},
 					{
 						"name": "CHAT_SESSION",
 						"class_name": "ChatSession"
@@ -158,9 +160,19 @@
 			},
 			"workflows": [
 				{
-					"binding": "DESTINATION_EVALUATION_WORKFLOW",
-					"name": "destination-evaluation-workflow",
-					"class_name": "DestinationEvaluationWorkflow"
+					"binding": "HALO_RESEARCH_WORKFLOW",
+					"name": "halo-research-workflow",
+					"class_name": "HaloResearchWorkflow"
+				},
+				{
+					"binding": "GOLDEN_PHEASANT_WORKFLOW",
+					"name": "golden-pheasant-workflow",
+					"class_name": "GoldenPheasantWorkflow"
+				},
+				{
+					"binding": "GODFATHER_OFFER_WORKFLOW",
+					"name": "godfather-offer-workflow",
+					"class_name": "GodfatherOfferWorkflow"
 				}
 			],
 			"browser": {

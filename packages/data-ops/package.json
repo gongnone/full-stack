@@ -38,10 +38,6 @@
     "./schema": {
       "types": "./dist/src/schema.d.ts",
       "default": "./dist/src/schema.js"
-    },
-    "./schema-app": {
-      "types": "./dist/src/schema-app.d.ts",
-      "default": "./dist/src/schema-app.js"
     }
   },
   "keywords": [],

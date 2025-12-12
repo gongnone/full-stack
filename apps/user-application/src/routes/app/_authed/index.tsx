@@ -1,16 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { CreditDisplay } from "@/components/credits/credit-display";
-import { Activity } from "lucide-react";
-import { GenerationForm } from "@/components/dashboard/generation-form";
-import { RecentGenerations } from "@/components/dashboard/recent-generations";
-import { CampaignStarter } from "@/components/dashboard/campaign-starter";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { ArrowRightIcon } from "lucide-react";
 
 export const Route = createFileRoute("/app/_authed/")({
   component: DashboardComponent,
@@ -18,59 +8,20 @@ export const Route = createFileRoute("/app/_authed/")({
 
 function DashboardComponent() {
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Mission Control</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your AI generation campaigns and settings.
-          </p>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 p-6 text-center">
+      <div className="max-w-2xl">
+        <h1 className="text-4xl font-bold tracking-tight mb-4">Welcome to AntiGravity</h1>
+        <p className="text-xl text-muted-foreground mb-8">
+          The all-in-one AI agent for Market Research, Competitor Intelligence, and Irresistible Offers.
+        </p>
+
+        <div className="flex gap-4 justify-center">
+          <Button asChild size="lg">
+            <Link to="/app/projects">
+              View Projects <ArrowRightIcon className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
         </div>
-      </div>
-
-      {/* Main Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-
-        {/* Full Width Campaign Starter */}
-        <div className="md:col-span-3">
-          <CampaignStarter />
-        </div>
-
-        {/* Card 1: New Generation (Context Aware) */}
-        <div className="md:col-span-2">
-          <GenerationForm />
-        </div>
-
-        {/* Card 3: Usage & Billing */}
-        <div className="md:col-span-1">
-          <Card className="shadow-md hover:shadow-lg transition-shadow h-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary" />
-                Usage & Billing
-              </CardTitle>
-              <CardDescription>Monitor your credit usage</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50">
-                  <span className="text-sm font-medium">Current Balance</span>
-                  <CreditDisplay />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Next refill date: <span className="font-mono">Oct 1, 2025</span>
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Generations (Spans full width or 3 cols) */}
-        <div className="md:col-span-3">
-          <RecentGenerations />
-        </div>
-
       </div>
     </div>
   );

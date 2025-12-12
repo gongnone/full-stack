@@ -33,15 +33,13 @@ export function SiteHeader() {
 }
 
 function CreditBalance() {
-  // Use the generations.getCredits endpoint if it exists
-  // If not available, show a default or create the endpoint
-  const { data: credits, isLoading } = useQuery({
+  const { data: credits, isLoading, isError } = useQuery({
     ...trpc.generations.getCredits.queryOptions(),
-    retry: false, // Don't retry if endpoint doesn't exist
+    retry: 1,
+    staleTime: 30000,
   });
 
-  // Fallback if the query fails or endpoint doesn't exist
-  const balance = credits?.balance ?? 100;
+  const balance = isError ? 0 : (credits?.balance ?? 0);
 
   return (
     <div className="flex items-center gap-2 px-3 py-1 bg-secondary rounded-full text-sm font-medium">

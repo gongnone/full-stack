@@ -58,9 +58,13 @@ export const projectsRouter = t.router({
 
             // 2. Trigger Workflow
             console.log("Starting research for project", input.projectId);
-            if (!ctx.env.HALO_RESEARCH_WORKFLOW) {
-                console.error("HALO_RESEARCH_WORKFLOW binding is missing!");
-                throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Workflow binding missing" });
+            // 2. Trigger Workflow
+            console.log("Starting research for project", input.projectId);
+
+            // FIX: Check for the Service Binding, not the Workflow Binding
+            if (!ctx.env.BACKEND_SERVICE) {
+                console.error("BACKEND_SERVICE binding is missing!");
+                throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Backend Service disconnected" });
             }
 
             try {

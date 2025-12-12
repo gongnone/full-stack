@@ -10,21 +10,37 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FolderOpen, Loader2 } from "lucide-react";
+import { Plus, FolderOpen, Loader2, AlertCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
+// NOTE: Trailing slash is important for index route match
 export const Route = createFileRoute("/app/_authed/projects/")({
     component: ProjectsListPage,
 });
 
 function ProjectsListPage() {
-    const { data: projects, isLoading } = useQuery(
+    const { data: projects, isLoading, error } = useQuery(
         trpc.marketResearch.getAll.queryOptions()
     );
 
+    if (error) {
+        return (
+            <div className="p-6">
+                <Card className="border-destructive">
+                    <CardContent className="flex items-center gap-3 py-4">
+                        <AlertCircle className="w-5 h-5 text-destructive" />
+                        <div>
+                            <p className="font-medium text-destructive">Failed to load campaigns</p>
+                            <p className="text-sm text-muted-foreground">{error.message}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 space-y-6">
-            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Campaigns</h1>
@@ -40,7 +56,6 @@ function ProjectsListPage() {
                 </Button>
             </div>
 
-            {/* Projects Grid */}
             {isLoading ? (
                 <div className="flex items-center justify-center min-h-[200px]">
                     <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -64,7 +79,7 @@ function ProjectsListPage() {
                                                     ? "bg-green-500/10 text-green-600 border-green-500/30"
                                                     : project.status === "archived"
                                                         ? "bg-gray-500/10 text-gray-600 border-gray-500/30"
-                                                        : ""
+                                                        : "bg-yellow-500/10 text-yellow-600 border-yellow-500/30"
                                             }
                                         >
                                             {project.status}
@@ -73,14 +88,17 @@ function ProjectsListPage() {
                                     <CardTitle className="mt-4">{project.name}</CardTitle>
                                     <CardDescription>
                                         Created{" "}
-                                        {project.createdAt ? formatDistanceToNow(new Date(project.createdAt), {
-                                            addSuffix: true,
-                                        }) : 'Just now'}
+                                        {project.createdAt ? formatDistanceToNow(
+                                            typeof project.createdAt === 'number'
+                                                ? new Date(project.createdAt * 1000)
+                                                : new Date(project.createdAt),
+                                            { addSuffix: true }
+                                        ) : 'Just now'}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-sm text-muted-foreground">
-                                        Click to view campaign details and research results.
+                                        Click to view campaign details and workflow status.
                                     </p>
                                 </CardContent>
                             </Card>
@@ -93,8 +111,7 @@ function ProjectsListPage() {
                         <FolderOpen className="w-12 h-12 text-muted-foreground mb-4" />
                         <h3 className="text-lg font-medium mb-2">No campaigns yet</h3>
                         <p className="text-muted-foreground text-center mb-4">
-                            Create your first marketing campaign to start researching your
-                            market.
+                            Create your first marketing campaign to get started.
                         </p>
                         <Button asChild>
                             <Link to="/app/projects/new">

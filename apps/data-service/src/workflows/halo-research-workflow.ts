@@ -14,6 +14,7 @@ interface HaloResearchParams {
 }
 
 interface ProcessedItem extends ScrapeResult {
+    id?: string;
     sophistication?: { class: string; score: number };
     error?: boolean;
 }
@@ -110,11 +111,12 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
 
                     results.push({
                         ...item,
+                        id: crypto.randomUUID(), // FIX: Generate ID here to link D1 and Vectorize
                         sophistication: analysis
                     });
                 } catch (err) {
                     console.error('Sophistication filter error', err);
-                    results.push({ ...item, error: true });
+                    results.push({ ...item, id: crypto.randomUUID(), error: true });
                 }
             }
             return results;
@@ -170,7 +172,7 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
                 // Bulk insert is tricky with different structures, loop for now or map carefully
                 for (const item of filteredData) {
                     await db.insert(researchSources).values({
-                        id: crypto.randomUUID(),
+                        id: item.id || crypto.randomUUID(), // FIX: Use the shared ID
                         projectId,
                         sourceType: item.sourceType,
                         sourceUrl: item.url,
@@ -221,15 +223,8 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
         await step.do('ingest-rag', async () => {
             if (filteredData.length === 0) return { skipped: true };
 
-            // We need IDs if we want to link back to DB sources. 
-            // Since we just inserted them in step 8 but didn't retrieve IDs easily (unless we refactor step 8), 
-            // we might just generate new IDs here for the vector store or try to match.
-            // A better approach is to generate UUIDs in the workflow logic or return them from step 8.
-            // For simplicity now, we will just use random UUIDs for the vector store, 
-            // knowing that strict linkage might be loose for now.
-
             const itemsToIngest = filteredData.map(item => ({
-                id: crypto.randomUUID(),
+                id: item.id || crypto.randomUUID(), // FIX: Use the SAME ID
                 content: item.rawContent,
                 projectId: projectId,
                 metadata: {

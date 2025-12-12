@@ -44,6 +44,9 @@
 					"remote": true
 				}
 			],
+			"vars": {
+				"REDDIT_USER_AGENT": "HaloOps/1.0"
+			},
 			"kv_namespaces": [
 				{
 					"binding": "CACHE",
@@ -139,6 +142,9 @@
 					"database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750"
 				}
 			],
+			"vars": {
+				"REDDIT_USER_AGENT": "HaloOps/1.0"
+			},
 			"kv_namespaces": [
 				{
 					"binding": "CACHE",
@@ -224,5 +230,4 @@
 				}
 			]
 		}
-	}
-}
+	}}

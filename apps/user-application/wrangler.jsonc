@@ -69,14 +69,6 @@
           "service": "data-service-stage",
         },
       ],
-      "workflows": [
-        {
-          "name": "HALO_RESEARCH_WORKFLOW",
-          "binding": "HALO_RESEARCH_WORKFLOW",
-          "class_name": "HaloResearchWorkflow",
-          "script_name": "data-service-stage"
-        }
-      ],
       "assets": {
         "directory": "./dist/client",
         "binding": "ASSETS",
@@ -133,14 +125,6 @@
           "service": "data-service-production",
         },
       ],
-      "workflows": [
-        {
-          "name": "HALO_RESEARCH_WORKFLOW",
-          "binding": "HALO_RESEARCH_WORKFLOW",
-          "class_name": "HaloResearchWorkflow",
-          "script_name": "data-service-production"
-        }
-      ]
     }
   }
 }

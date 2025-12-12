@@ -15,27 +15,49 @@ export function safeParseAIResponse<T>(response: string): T {
             } catch (innerError: any) {
                 console.error(`[safeParseAIResponse] Failed to parse regex-extracted block:`, jsonMatch[0].substring(0, 500));
 
-                // 4. Try Code-Based Repair (Simple Heuristics)
+                // 4. Try Code-Based Repair
+                let repaired = jsonMatch[0];
+
+                // 1. Remove trailing commas before closing braces/brackets
+                repaired = repaired.replace(/,(\s*[}\]])/g, '$1');
+
+                // 2. Fix missing commas between properties
+                // Case A: "val" "key" -> "val", "key"
+                repaired = repaired.replace(/"\s+(?=")/g, '", ');
+                // Case B: number "key" -> number, "key"
+                repaired = repaired.replace(/(\d+)\s+(?=")/g, '$1, ');
+                // Case C: boolean/null "key" -> boolean/null, "key"
+                repaired = repaired.replace(/(true|false|null)\s+(?=")/g, '$1, ');
+                // Case D: } "key" -> }, "key" (end of object)
+                repaired = repaired.replace(/}\s+(?=")/g, '}, ');
+                // Case E: ] "key" -> ], "key" (end of array)
+                repaired = repaired.replace(/]\s+(?=")/g, '], ');
+
+                // 3. Fix unescaped newlines
+                repaired = repaired.replace(/\n/g, '\\n');
+
                 try {
-                    const repaired = jsonMatch[0]
-                        // Remove trailing commas before closing braces/brackets
-                        .replace(/,(\s*[}\]])/g, '$1')
-                        // Aggressive: Fix missing commas between double quotes (e.g. "val" "key" -> "val", "key")
-                        // matches a quote, whitespace, then lookahead for another quote
-                        .replace(/"\s+(?=")/g, '", ')
-                        // Fix unescaped newlines in strings
-                        .replace(/\n/g, '\\n')
-                        // Re-normalize actual newlines for formatting if needed, but JSON.parse hates real newlines in strings
-                        // For this specific error "Expected , or }", it's often a missing comma between fields
-                        // e.g. "key": "val" "key2": "val"
-                        // It is hard to fix that safely with regex.
-                        ;
-                    // We won't go too crazy with regex to avoid corruption.
-                    // A simple trailing comma fix is the safest.
-                    const trailingCommaFixed = jsonMatch[0].replace(/,(\s*[}\]])/g, '$1');
-                    return JSON.parse(trailingCommaFixed);
+                    return JSON.parse(repaired);
                 } catch (repairError) {
-                    // Fallthrough to throw original error
+                    // 5. Fix Unbalanced Braces (Truncated JSON)
+                    // If parsing still failed, it might be due to missing closing braces
+                    const openBraces = (repaired.match(/{/g) || []).length;
+                    const closeBraces = (repaired.match(/}/g) || []).length;
+                    const openBrackets = (repaired.match(/\[/g) || []).length;
+                    const closeBrackets = (repaired.match(/\]/g) || []).length;
+
+                    if (openBraces > closeBraces) {
+                        repaired += '}'.repeat(openBraces - closeBraces);
+                    }
+                    if (openBrackets > closeBrackets) {
+                        repaired += ']'.repeat(openBrackets - closeBrackets);
+                    }
+
+                    try {
+                        return JSON.parse(repaired);
+                    } catch (finalError) {
+                        // Only throw original error if all repairs fail
+                    }
                 }
 
                 throw new Error(`Found JSON-like block but failed to parse: ${innerError.message}`);

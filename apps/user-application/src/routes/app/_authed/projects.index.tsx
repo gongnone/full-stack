@@ -1,51 +1,110 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { ProjectCard } from '@/components/dashboard/project-card';
-import { CreateProjectDialog } from '@/components/dashboard/create-project-dialog';
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { trpc } from "@/lib/trpc";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Plus, FolderOpen, Loader2 } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
-// import { trpc } from '@/lib/trpc'; // Assuming we have TRPC or just fetch for now?
-// For MVP execution plan, we will stick to what's easiest. We might not have TRPC routers for projects yet.
-// We'll mock for now or use direct fetch if we made an API?
-// The plan said "View: List of all projects".
-// We didn't explicitly build a GET /projects endpoint in data-service yet... 
-// Wait, I missed that in the plan! I only built WORKFLOW endpoints.
-// I need a way to list projects. 
-// I will mock the data for Navigation purposes first, then add the fetch later or rely on local state if I must, 
-// but realistically we need a fetch.
-// I'll add a TODO to fetch real data.
+export const Route = createFileRoute("/app/_authed/projects/")({
+    component: ProjectsListPage,
+});
 
-
-
-import { trpc } from '@/lib/trpc';
-import { useQuery } from '@tanstack/react-query';
-
-export const Route = createFileRoute('/app/_authed/projects/')({
-    component: ProjectsPage,
-})
-
-function ProjectsPage() {
-    const { data: projects, isLoading } = useQuery(trpc.projects.list.queryOptions());
-
-    if (isLoading) {
-        return <div className="container mx-auto py-8">Loading projects...</div>;
-    }
-
-    const projectList = projects || [];
+function ProjectsListPage() {
+    const { data: projects, isLoading } = useQuery(
+        trpc.marketResearch.getAll.queryOptions()
+    );
 
     return (
-        <div className="container mx-auto py-8">
-            <div className="flex justify-between items-center mb-8">
+        <div className="p-6 space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
-                    <p className="text-muted-foreground mt-2">Manage your research and offer generation campaigns.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">Campaigns</h1>
+                    <p className="text-muted-foreground mt-1">
+                        Manage your marketing campaigns and research projects.
+                    </p>
                 </div>
-                <CreateProjectDialog />
+                <Button asChild>
+                    <Link to="/app/projects/new">
+                        <Plus className="w-4 h-4 mr-2" />
+                        New Campaign
+                    </Link>
+                </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {projectList.map((project: any) => (
-                    <ProjectCard key={project.id} project={project} />
-                ))}
-            </div>
+            {/* Projects Grid */}
+            {isLoading ? (
+                <div className="flex items-center justify-center min-h-[200px]">
+                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                </div>
+            ) : projects && projects.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {projects.map((project) => (
+                        <Link
+                            key={project.id}
+                            to="/app/projects/$projectId"
+                            params={{ projectId: project.id }}
+                        >
+                            <Card className="h-full hover:shadow-lg transition-all cursor-pointer hover:border-primary/50">
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <FolderOpen className="w-8 h-8 text-primary" />
+                                        <Badge
+                                            variant="outline"
+                                            className={
+                                                project.status === "active"
+                                                    ? "bg-green-500/10 text-green-600 border-green-500/30"
+                                                    : project.status === "archived"
+                                                        ? "bg-gray-500/10 text-gray-600 border-gray-500/30"
+                                                        : ""
+                                            }
+                                        >
+                                            {project.status}
+                                        </Badge>
+                                    </div>
+                                    <CardTitle className="mt-4">{project.name}</CardTitle>
+                                    <CardDescription>
+                                        Created{" "}
+                                        {project.createdAt ? formatDistanceToNow(new Date(project.createdAt), {
+                                            addSuffix: true,
+                                        }) : 'Just now'}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground">
+                                        Click to view campaign details and research results.
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        </Link>
+                    ))}
+                </div>
+            ) : (
+                <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                        <FolderOpen className="w-12 h-12 text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-medium mb-2">No campaigns yet</h3>
+                        <p className="text-muted-foreground text-center mb-4">
+                            Create your first marketing campaign to start researching your
+                            market.
+                        </p>
+                        <Button asChild>
+                            <Link to="/app/projects/new">
+                                <Plus className="w-4 h-4 mr-2" />
+                                Create Campaign
+                            </Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 }

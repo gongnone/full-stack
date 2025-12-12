@@ -1,6 +1,7 @@
 import {
   IconDashboard,
   IconBrain,
+  IconFolder,
 } from "@tabler/icons-react";
 
 import {
@@ -18,19 +19,18 @@ export function NavMain() {
   const items = [
     {
       title: "Dashboard",
-      navigate: () =>
-        nav({
-          to: "/app",
-        }),
+      navigate: () => nav({ to: "/app" }),
       icon: IconDashboard,
     },
     {
+      title: "Campaigns",
+      navigate: () => nav({ to: "/app/projects" }),
+      icon: IconFolder,
+    },
+    {
       title: "War Room",
-      navigate: () =>
-        nav({
-          to: "/app/agent",
-        }),
-      icon: IconBrain, // Need to import IconBrain
+      navigate: () => nav({ to: "/app/agent" }),
+      icon: IconBrain,
     },
   ];
 

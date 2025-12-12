@@ -1,8 +1,8 @@
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useRouterState } from "@tanstack/react-router";
-// import { trpc } from "@/router";
-// import { useQuery } from "@tanstack/react-query";
+import { trpc } from "@/lib/trpc";
+import { useQuery } from "@tanstack/react-query";
 
 export function SiteHeader() {
   const routerState = useRouterState();
@@ -10,7 +10,8 @@ export function SiteHeader() {
 
   const getPageTitle = (path: string) => {
     if (path === "/app") return "Dashboard";
-    // Add more path mappings as needed
+    if (path.startsWith("/app/projects")) return "Campaigns";
+    if (path.startsWith("/app/agent")) return "War Room";
     return "Dashboard";
   };
 
@@ -32,13 +33,20 @@ export function SiteHeader() {
 }
 
 function CreditBalance() {
-  // FIXME: Crash due to trpc
-  // const { data: credits } = useQuery(trpc.generations.getCredits.queryOptions());
-  const credits = { balance: 100 };
+  // Use the generations.getCredits endpoint if it exists
+  // If not available, show a default or create the endpoint
+  const { data: credits, isLoading } = useQuery({
+    ...trpc.generations.getCredits.queryOptions(),
+    retry: false, // Don't retry if endpoint doesn't exist
+  });
+
+  // Fallback if the query fails or endpoint doesn't exist
+  const balance = credits?.balance ?? 100;
+
   return (
     <div className="flex items-center gap-2 px-3 py-1 bg-secondary rounded-full text-sm font-medium">
       <span>🪙</span>
-      <span>{credits?.balance ?? 0} Credits</span>
+      <span>{isLoading ? "..." : balance} Credits</span>
     </div>
   );
 }

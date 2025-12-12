@@ -17,6 +17,7 @@ import { Route as AppAuthedIndexRouteImport } from './routes/app/_authed/index'
 import { Route as AppAuthedUpgradeRouteImport } from './routes/app/_authed/upgrade'
 import { Route as AppAuthedAgentRouteImport } from './routes/app/_authed/agent'
 import { Route as AppAuthedProjectsIndexRouteImport } from './routes/app/_authed/projects.index'
+import { Route as AppAuthedProjectsNewRouteImport } from './routes/app/_authed/projects.new'
 import { Route as AppAuthedProjectsProjectIdRouteImport } from './routes/app/_authed/projects.$projectId'
 import { Route as AppAuthedProjectsProjectIdResearchRouteImport } from './routes/app/_authed/projects.$projectId.research'
 import { Route as AppAuthedProjectsProjectIdOfferRouteImport } from './routes/app/_authed/projects.$projectId.offer'
@@ -58,6 +59,11 @@ const AppAuthedProjectsIndexRoute = AppAuthedProjectsIndexRouteImport.update({
   path: '/projects/',
   getParentRoute: () => AppAuthedRoute,
 } as any)
+const AppAuthedProjectsNewRoute = AppAuthedProjectsNewRouteImport.update({
+  id: '/projects/new',
+  path: '/projects/new',
+  getParentRoute: () => AppAuthedRoute,
+} as any)
 const AppAuthedProjectsProjectIdRoute =
   AppAuthedProjectsProjectIdRouteImport.update({
     id: '/projects/$projectId',
@@ -90,6 +96,7 @@ export interface FileRoutesByFullPath {
   '/app/upgrade': typeof AppAuthedUpgradeRoute
   '/app/': typeof AppAuthedIndexRoute
   '/app/projects/$projectId': typeof AppAuthedProjectsProjectIdRouteWithChildren
+  '/app/projects/new': typeof AppAuthedProjectsNewRoute
   '/app/projects': typeof AppAuthedProjectsIndexRoute
   '/app/projects/$projectId/competitors': typeof AppAuthedProjectsProjectIdCompetitorsRoute
   '/app/projects/$projectId/offer': typeof AppAuthedProjectsProjectIdOfferRoute
@@ -101,6 +108,7 @@ export interface FileRoutesByTo {
   '/app/agent': typeof AppAuthedAgentRoute
   '/app/upgrade': typeof AppAuthedUpgradeRoute
   '/app/projects/$projectId': typeof AppAuthedProjectsProjectIdRouteWithChildren
+  '/app/projects/new': typeof AppAuthedProjectsNewRoute
   '/app/projects': typeof AppAuthedProjectsIndexRoute
   '/app/projects/$projectId/competitors': typeof AppAuthedProjectsProjectIdCompetitorsRoute
   '/app/projects/$projectId/offer': typeof AppAuthedProjectsProjectIdOfferRoute
@@ -115,6 +123,7 @@ export interface FileRoutesById {
   '/app/_authed/upgrade': typeof AppAuthedUpgradeRoute
   '/app/_authed/': typeof AppAuthedIndexRoute
   '/app/_authed/projects/$projectId': typeof AppAuthedProjectsProjectIdRouteWithChildren
+  '/app/_authed/projects/new': typeof AppAuthedProjectsNewRoute
   '/app/_authed/projects/': typeof AppAuthedProjectsIndexRoute
   '/app/_authed/projects/$projectId/competitors': typeof AppAuthedProjectsProjectIdCompetitorsRoute
   '/app/_authed/projects/$projectId/offer': typeof AppAuthedProjectsProjectIdOfferRoute
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/app/upgrade'
     | '/app/'
     | '/app/projects/$projectId'
+    | '/app/projects/new'
     | '/app/projects'
     | '/app/projects/$projectId/competitors'
     | '/app/projects/$projectId/offer'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/app/agent'
     | '/app/upgrade'
     | '/app/projects/$projectId'
+    | '/app/projects/new'
     | '/app/projects'
     | '/app/projects/$projectId/competitors'
     | '/app/projects/$projectId/offer'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/app/_authed/upgrade'
     | '/app/_authed/'
     | '/app/_authed/projects/$projectId'
+    | '/app/_authed/projects/new'
     | '/app/_authed/projects/'
     | '/app/_authed/projects/$projectId/competitors'
     | '/app/_authed/projects/$projectId/offer'
@@ -215,6 +227,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuthedProjectsIndexRouteImport
       parentRoute: typeof AppAuthedRoute
     }
+    '/app/_authed/projects/new': {
+      id: '/app/_authed/projects/new'
+      path: '/projects/new'
+      fullPath: '/app/projects/new'
+      preLoaderRoute: typeof AppAuthedProjectsNewRouteImport
+      parentRoute: typeof AppAuthedRoute
+    }
     '/app/_authed/projects/$projectId': {
       id: '/app/_authed/projects/$projectId'
       path: '/projects/$projectId'
@@ -271,6 +290,7 @@ interface AppAuthedRouteChildren {
   AppAuthedUpgradeRoute: typeof AppAuthedUpgradeRoute
   AppAuthedIndexRoute: typeof AppAuthedIndexRoute
   AppAuthedProjectsProjectIdRoute: typeof AppAuthedProjectsProjectIdRouteWithChildren
+  AppAuthedProjectsNewRoute: typeof AppAuthedProjectsNewRoute
   AppAuthedProjectsIndexRoute: typeof AppAuthedProjectsIndexRoute
 }
 
@@ -279,6 +299,7 @@ const AppAuthedRouteChildren: AppAuthedRouteChildren = {
   AppAuthedUpgradeRoute: AppAuthedUpgradeRoute,
   AppAuthedIndexRoute: AppAuthedIndexRoute,
   AppAuthedProjectsProjectIdRoute: AppAuthedProjectsProjectIdRouteWithChildren,
+  AppAuthedProjectsNewRoute: AppAuthedProjectsNewRoute,
   AppAuthedProjectsIndexRoute: AppAuthedProjectsIndexRoute,
 }
 

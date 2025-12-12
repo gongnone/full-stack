@@ -17,11 +17,10 @@ export const Route = createFileRoute('/app/_authed/projects/$projectId/research'
 
 function ResearchTab() {
     // const { projectId } = Route.useParams();
-    const { projectId } = Route.useParams(); // Get real ID
+    const { projectId } = Route.useParams();
     const [isLoading, setIsLoading] = useState(false);
-    const [hasResults, setHasResults] = useState(false); // Mock state for now, ideally fetch status
 
-    // In real app, we would fetch current project state to see if research is done.
+    const { data: research, refetch } = (trpc.marketResearch as any).getResearch.useQuery({ projectId });
 
     const startResearch = useMutation({
         ...trpc.projects.startResearch.mutationOptions(),
@@ -32,7 +31,8 @@ function ResearchTab() {
                 return;
             }
             toast.success("Research started! This may take a few minutes.");
-            setHasResults(true); // Optimistic update
+            // Poll or refetch
+            refetch();
         },
         onError: (err: any) => {
             toast.error("Network error: " + err.message);
@@ -82,30 +82,44 @@ function ResearchTab() {
                 </CardContent>
             </Card>
 
-            {hasResults && (
+            {research && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card className="md:col-span-2 bg-slate-900/50 border-slate-800">
                         <CardHeader>
-                            <CardTitle>Dream Buyer Avatar: "The Growth Stressed Founder"</CardTitle>
+                            <CardTitle>Dream Buyer Avatar: "{research.topic || "Target Audience"}"</CardTitle>
                             <CardDescription>Based on analysis of 150+ discussions.</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div>
-                                <h4 className="font-semibold text-primary">Hopes & Dreams</h4>
-                                <ul className="list-disc ml-5 text-sm text-muted-foreground mt-1">
-                                    <li>Automate repetitive marketing tasks to save 20h/week.</li>
-                                    <li>Scale to $100k MRR without hiring more agencies.</li>
-                                    <li>Be seen as a market leader in innovation.</li>
-                                </ul>
-                            </div>
-                            <div>
-                                <h4 className="font-semibold text-red-400">Pains & Fears</h4>
-                                <ul className="list-disc ml-5 text-sm text-muted-foreground mt-1">
-                                    <li>Fear of being left behind by AI competitors.</li>
-                                    <li>Frustration with complex tools that require a PhD to use.</li>
-                                    <li>Wasting budget on ad spend that doesn't convert.</li>
-                                </ul>
-                            </div>
+                            {research.desires && research.desires.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold text-primary">Hopes & Dreams</h4>
+                                    <ul className="list-disc ml-5 text-sm text-muted-foreground mt-1">
+                                        {research.desires.map((item: string, idx: number) => (
+                                            <li key={idx}>{item}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                            {research.painPoints && research.painPoints.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold text-red-400">Pains & Fears</h4>
+                                    <ul className="list-disc ml-5 text-sm text-muted-foreground mt-1">
+                                        {research.painPoints.map((item: string, idx: number) => (
+                                            <li key={idx}>{item}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                            {research.competitors && research.competitors.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold text-blue-400">Competitors Identified</h4>
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                        {research.competitors.map((item: string, idx: number) => (
+                                            <span key={idx} className="bg-slate-800 text-xs px-2 py-1 rounded-full border border-slate-700">{item}</span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

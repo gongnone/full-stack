@@ -3,26 +3,38 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from "@/components/ui/button";
 import { useState } from 'react';
 import { Loader2, Wand2 } from 'lucide-react';
+import { trpc } from '@/lib/trpc';
+import { useMutation } from '@tanstack/react-query';
 
 export const Route = createFileRoute('/app/_authed/projects/$projectId/offer')({
     component: OfferTab,
 })
 
 function OfferTab() {
+    const { projectId } = Route.useParams();
     const [isGenerating, setIsGenerating] = useState(false);
-    const [offer, setOffer] = useState<{ headline: string, promise: string, guarantees: string[], score: number } | null>(null);
+
+    // Poll for results
+    const { data: offer } = (trpc.generations as any).getGodfatherOffer.useQuery({ projectId }, {
+        refetchInterval: (data: any) => data ? false : 3000 // Poll every 3s if no offer yet
+    });
+
+    const startGeneration = useMutation({
+        ...(trpc.generations as any).startOfferWorkflow.mutationOptions(),
+        onSuccess: (data: any) => {
+            if (data.success) {
+                setIsGenerating(true);
+                // Simple timeout to stop 'generating' spinner locally, actual polling handles data
+                setTimeout(() => setIsGenerating(false), 5000);
+            } else {
+                // handle error
+            }
+        }
+    });
 
     const handleGenerate = () => {
         setIsGenerating(true);
-        setTimeout(() => {
-            setIsGenerating(false);
-            setOffer({
-                headline: "The 'Growth Architect' System: Add $50k MRR in 90 Days",
-                promise: "We will build your entire AI marketing funnel and handing you the keys, guaranteed.",
-                guarantees: ["Double your investment or we pay you $5,000 for wasting your time."],
-                score: 8.5
-            });
-        }, 2500);
+        startGeneration.mutate({ projectId } as any);
     };
 
     return (
@@ -35,7 +47,7 @@ function OfferTab() {
                     </p>
                     <Button size="lg" onClick={handleGenerate} disabled={isGenerating}>
                         {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                        Generate Godfather Offer
+                        {isGenerating ? "Synthesizing Strategy..." : "Generate Godfather Offer"}
                     </Button>
                 </div>
             )}
@@ -46,11 +58,11 @@ function OfferTab() {
                         <CardHeader>
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <CardTitle className="text-2xl text-primary">{offer.headline}</CardTitle>
+                                    <CardTitle className="text-2xl text-primary">{offer.headline || "Generated Offer"}</CardTitle>
                                     <CardDescription>Proposed Flagship Offer</CardDescription>
                                 </div>
                                 <div className="text-center">
-                                    <span className="text-3xl font-bold p-2 block">{offer.score}</span>
+                                    <span className="text-3xl font-bold p-2 block">{offer.score || "N/A"}</span>
                                     <span className="text-xs text-muted-foreground uppercase tracking-wider">Score</span>
                                 </div>
                             </div>
@@ -58,15 +70,19 @@ function OfferTab() {
                         <CardContent className="space-y-6">
                             <div>
                                 <h4 className="font-semibold mb-2">The Promise</h4>
-                                <p className="text-lg italic text-muted-foreground">"{offer.promise}"</p>
+                                <p className="text-lg italic text-muted-foreground">"{offer.bigPromise}"</p>
                             </div>
                             <div>
                                 <h4 className="font-semibold mb-2">Power Guarantee</h4>
                                 <ul className="list-disc ml-5">
-                                    {offer.guarantees.map((g, i) => (
+                                    {offer.guarantees && (offer.guarantees as string[]).map((g: string, i: number) => (
                                         <li key={i}>{g}</li>
                                     ))}
                                 </ul>
+                            </div>
+                            <div>
+                                <h4 className="font-semibold mb-2">The Mechanism</h4>
+                                <p className="text-sm text-muted-foreground">{offer.mechanism}</p>
                             </div>
                         </CardContent>
                         <CardFooter>

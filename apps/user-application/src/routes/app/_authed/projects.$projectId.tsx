@@ -1,225 +1,181 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { trpc } from "@/lib/trpc";
+import { createFileRoute, Outlet, Link, useLocation } from '@tanstack/react-router';
+import { trpc } from '@/lib/trpc';
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
+    LayoutDashboard,
     Search,
-    Gift,
-    Megaphone,
-    Lightbulb,
-    ArrowLeft,
-    CheckCircle,
-    Clock,
-    AlertCircle,
-    Loader2,
-} from "lucide-react";
+    Swords,
+    ScrollText,
+    Lock,
+    CheckCircle2,
+    ArrowRight
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export const Route = createFileRoute("/app/_authed/projects/$projectId")({
-    component: RouteComponent,
+export const Route = createFileRoute('/app/_authed/projects/$projectId')({
+    component: ProjectLayout,
 });
 
-const WORKFLOW_STEPS = [
-    {
-        id: "market_research",
-        title: "Market Research",
-        description: "AI-powered analysis of your niche, competitors, and target audience",
-        icon: Search,
-        dataKey: "marketResearch" as const,
-    },
-    {
-        id: "offer_creation",
-        title: "Offer Creation",
-        description: "Generate irresistible Godfather Offers with the 7 pillars",
-        icon: Gift,
-        dataKey: "offer" as const,
-    },
-    {
-        id: "brand_pillars",
-        title: "Brand Pillars",
-        description: "Define your voice, tone, and messaging pillars",
-        icon: Megaphone,
-        dataKey: "brandPillars" as const,
-    },
-    {
-        id: "content_ideas",
-        title: "Content Ideas",
-        description: "AI-generated content ideas aligned with your strategy",
-        icon: Lightbulb,
-        dataKey: "contentIdeas" as const,
-    },
-];
-
-function RouteComponent() {
+function ProjectLayout() {
     const { projectId } = Route.useParams();
+    const location = useLocation();
 
-    const { data: project, isLoading: projectLoading } = useQuery(
-        trpc.marketResearch.getProject.queryOptions({ projectId })
-    );
+    // Fetch computed status
+    const { data, isLoading } = (trpc.projects as any).getDashboardStatus.useQuery({ projectId });
 
-    const { data: research } = useQuery(
-        trpc.marketResearch.getResearch.queryOptions({ projectId })
-    );
+    if (isLoading) return <DashboardSkeleton />;
 
-    if (projectLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-            </div>
-        );
-    }
-
-    if (!project) {
-        return (
-            <div className="p-6">
-                <p className="text-destructive">Project not found</p>
-                <Button asChild variant="outline" className="mt-4">
-                    <Link to="/app/projects">Back to Projects</Link>
-                </Button>
-            </div>
-        );
-    }
-
-    const getStepStatus = (dataKey: string) => {
-        switch (dataKey) {
-            case "marketResearch":
-                return research ? "complete" : "pending";
-            // Add more cases as you wire up other data
-            default:
-                return "pending";
+    const phases = [
+        {
+            id: 'research',
+            label: 'Halo Research',
+            icon: Search,
+            path: `/app/projects/${projectId}/research`,
+            status: data?.phases.research.status,
+            meta: data?.phases.research.meta,
+            description: "Market psychology & avatar extraction"
+        },
+        {
+            id: 'competitors',
+            label: 'Golden Pheasant',
+            icon: Swords,
+            path: `/app/projects/${projectId}/competitors`,
+            status: data?.phases.competitors.status,
+            meta: data?.phases.competitors.meta,
+            description: "Competitive intelligence & weakness finding"
+        },
+        {
+            id: 'offer',
+            label: 'Godfather Offer',
+            icon: ScrollText,
+            path: `/app/projects/${projectId}/offer`,
+            status: data?.phases.offer.status,
+            meta: data?.phases.offer.meta,
+            description: "Irresistible offer construction"
         }
-    };
+    ];
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case "complete":
-                return (
-                    <Badge className="bg-green-500/20 text-green-600 border-green-500/50">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Complete
-                    </Badge>
-                );
-            case "processing":
-                return (
-                    <Badge className="bg-blue-500/20 text-blue-600 border-blue-500/50 animate-pulse">
-                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                        Processing
-                    </Badge>
-                );
-            case "error":
-                return (
-                    <Badge className="bg-red-500/20 text-red-600 border-red-500/50">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Error
-                    </Badge>
-                );
-            default:
-                return (
-                    <Badge variant="outline" className="text-muted-foreground">
-                        <Clock className="w-3 h-3 mr-1" />
-                        Pending
-                    </Badge>
-                );
-        }
-    };
+    // Check if we are on a sub-route (e.g. /research)
+    // IMPORTANT: Verify strict equality or logic to detect root
+    const isRoot = location.pathname === `/app/projects/${projectId}` || location.pathname === `/app/projects/${projectId}/`;
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="flex flex-col h-full space-y-6 p-8 max-w-7xl mx-auto">
             {/* Header */}
-            <div className="flex items-center gap-4">
-                <Button asChild variant="ghost" size="icon">
-                    <Link to="/app/projects">
-                        <ArrowLeft className="w-5 h-5" />
-                    </Link>
-                </Button>
+            <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold">{project.name}</h1>
-                    <p className="text-muted-foreground">Campaign Dashboard</p>
+                    <h1 className="text-3xl font-bold tracking-tight">{data?.project.name}</h1>
+                    <p className="text-muted-foreground">{data?.project.industry || 'New Project'}</p>
                 </div>
-                <Badge variant="outline" className="ml-auto capitalize">
-                    {project.status}
-                </Badge>
             </div>
 
-            {/* Workflow Steps Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {WORKFLOW_STEPS.map((step) => {
-                    const status = getStepStatus(step.dataKey);
-                    const Icon = step.icon;
-
-                    return (
-                        <Card
-                            key={step.id}
-                            className={`transition-all hover:shadow-md ${status === "complete"
-                                ? "border-green-500/30 bg-green-500/5"
-                                : ""
-                                }`}
-                        >
-                            <CardHeader className="pb-2">
-                                <div className="flex items-center justify-between">
-                                    <div className="p-2 rounded-lg bg-primary/10">
-                                        <Icon className="w-5 h-5 text-primary" />
-                                    </div>
-                                    {getStatusBadge(status)}
-                                </div>
-                                <CardTitle className="text-lg mt-2">{step.title}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <CardDescription>{step.description}</CardDescription>
-                            </CardContent>
-                        </Card>
-                    );
-                })}
+            {/* Mission Control Tiles - Only show on Root, or show as condensed nav on sub-pages */}
+            <div className={cn(
+                "grid gap-4 transition-all duration-300",
+                isRoot ? "grid-cols-1 md:grid-cols-3 h-48" : "grid-cols-3 h-20" // Condensed mode
+            )}>
+                {phases.map((phase) => (
+                    <PhaseTile
+                        key={phase.id}
+                        phase={phase}
+                        active={location.pathname.includes(phase.id)}
+                        compact={!isRoot}
+                    />
+                ))}
             </div>
 
-            {/* Market Research Results (if available) */}
-            {research && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Market Research Results</CardTitle>
-                        <CardDescription>Topic: {research.topic}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        {research.competitors && research.competitors.length > 0 && (
-                            <div>
-                                <h4 className="font-medium mb-2">Competitors</h4>
-                                <div className="flex flex-wrap gap-2">
-                                    {research.competitors.map((c: string, i: number) => (
-                                        <Badge key={i} variant="secondary">{c}</Badge>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        {research.painPoints && research.painPoints.length > 0 && (
-                            <div>
-                                <h4 className="font-medium mb-2">Pain Points</h4>
-                                <ul className="list-disc list-inside text-muted-foreground">
-                                    {research.painPoints.map((p: string, i: number) => (
-                                        <li key={i}>{p}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                        {research.desires && research.desires.length > 0 && (
-                            <div>
-                                <h4 className="font-medium mb-2">Desires</h4>
-                                <ul className="list-disc list-inside text-muted-foreground">
-                                    {research.desires.map((d: string, i: number) => (
-                                        <li key={i}>{d}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
+            {/* The Active Workspace */}
+            <div className="flex-1 bg-slate-950/50 rounded-xl border border-slate-800 p-6 shadow-sm min-h-[500px]">
+                {isRoot ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
+                        <LayoutDashboard className="h-16 w-16 text-slate-700" />
+                        <h3 className="text-xl font-semibold">Ready to Launch</h3>
+                        <p className="text-muted-foreground max-w-md">
+                            Select a module above to begin. We recommend starting with
+                            <span className="text-primary font-bold"> Halo Research</span> to unlock the other modules.
+                        </p>
+                    </div>
+                ) : (
+                    <Outlet />
+                )}
+            </div>
+        </div>
+    );
+}
+
+// --- Sub Components ---
+
+function PhaseTile({ phase, active, compact }: { phase: any, active: boolean, compact: boolean }) {
+    const isLocked = phase.status === 'locked';
+    const isComplete = phase.status === 'completed';
+
+    if (isLocked) {
+        return (
+            <div className={cn(
+                "relative flex flex-col justify-between p-6 rounded-xl border border-slate-800 bg-slate-900/20 grayscale opacity-70 cursor-not-allowed",
+                compact && "p-4 flex-row items-center"
+            )}>
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-slate-800 rounded-lg"><phase.icon className="h-5 w-5" /></div>
+                    <div>
+                        <h3 className="font-semibold">{phase.label}</h3>
+                        {!compact && <p className="text-xs text-muted-foreground">Prerequisite missing</p>}
+                    </div>
+                </div>
+                {!compact && <Lock className="absolute top-6 right-6 h-5 w-5 text-slate-700" />}
+            </div>
+        );
+    }
+
+    return (
+        <Link
+            to={phase.path}
+            className={cn(
+                "relative flex flex-col justify-between p-6 rounded-xl border transition-all hover:shadow-lg group",
+                active
+                    ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
+                    : "border-slate-700 bg-slate-900/50 hover:border-slate-600",
+                compact && "p-4 flex-row items-center"
             )}
+        >
+            <div className="flex items-center gap-3">
+                <div className={cn(
+                    "p-2 rounded-lg transition-colors",
+                    active ? "bg-primary text-primary-foreground" : "bg-slate-800 text-slate-400 group-hover:text-slate-200"
+                )}>
+                    <phase.icon className="h-5 w-5" />
+                </div>
+                <div>
+                    <h3 className={cn("font-semibold", active && "text-primary")}>{phase.label}</h3>
+                    {!compact && <p className="text-sm text-muted-foreground mt-1">{phase.description}</p>}
+                </div>
+            </div>
+
+            {!compact && (
+                <div className="flex justify-between items-center mt-4">
+                    <span className="text-xs font-mono text-slate-500 bg-slate-900 py-1 px-2 rounded">
+                        {phase.meta}
+                    </span>
+                    {isComplete ? (
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    ) : (
+                        <ArrowRight className="h-5 w-5 text-slate-500 group-hover:translate-x-1 transition-transform" />
+                    )}
+                </div>
+            )}
+        </Link>
+    );
+}
+
+function DashboardSkeleton() {
+    return (
+        <div className="p-8 space-y-6">
+            <Skeleton className="h-12 w-1/3" />
+            <div className="grid grid-cols-3 gap-4 h-48">
+                <Skeleton />
+                <Skeleton />
+                <Skeleton />
+            </div>
         </div>
     );
 }

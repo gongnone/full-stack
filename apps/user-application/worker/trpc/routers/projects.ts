@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { t } from "@/worker/trpc/trpc-instance";
-import { projects } from "@repo/data-ops/schema";
-import { eq, desc } from "drizzle-orm";
+import { projects, researchSources, haloAnalysis, competitors, godfatherOffer } from "@repo/data-ops/schema";
+import { eq, desc, count } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const projectsRouter = t.router({
@@ -58,8 +58,6 @@ export const projectsRouter = t.router({
 
             // 2. Trigger Workflow
             console.log("Starting research for project", input.projectId);
-            // 2. Trigger Workflow
-            console.log("Starting research for project", input.projectId);
 
             // FIX: Check for the Service Binding, not the Workflow Binding
             if (!ctx.env.BACKEND_SERVICE) {
@@ -92,5 +90,54 @@ export const projectsRouter = t.router({
                     details: e.stack
                 };
             }
+        }),
+
+    getDashboardStatus: t.procedure
+        .input(z.object({ projectId: z.string() }))
+        .output(z.object({
+            project: z.any(),
+            phases: z.object({
+                research: z.object({ status: z.string(), meta: z.string() }),
+                competitors: z.object({ status: z.string(), meta: z.string() }),
+                offer: z.object({ status: z.string(), meta: z.string() })
+            })
+        }))
+        .query(async ({ ctx, input }) => {
+            const db = ctx.db;
+
+            // Parallel fetch for speed
+            const [project, sourceCount, analysis, competitorCount, offer] = await Promise.all([
+                db.select().from(projects).where(eq(projects.id, input.projectId)).get(),
+                db.select({ count: count() }).from(researchSources).where(eq(researchSources.projectId, input.projectId)).get(),
+                db.select().from(haloAnalysis).where(eq(haloAnalysis.projectId, input.projectId)).get(),
+                db.select({ count: count() }).from(competitors).where(eq(competitors.projectId, input.projectId)).get(),
+                db.select().from(godfatherOffer).where(eq(godfatherOffer.projectId, input.projectId)).get(),
+            ]);
+
+            if (!project) throw new TRPCError({ code: "NOT_FOUND" });
+
+            // Logic to determine phase status
+            const hasResearch = (sourceCount?.count || 0) > 0;
+            const hasHalo = !!analysis;
+            const hasCompetitors = (competitorCount?.count || 0) > 0;
+            const hasOffer = !!offer;
+
+            return {
+                project,
+                phases: {
+                    research: {
+                        status: hasHalo ? 'completed' : hasResearch ? 'in_progress' : 'pending',
+                        meta: `${sourceCount?.count || 0} Sources`
+                    },
+                    competitors: {
+                        status: hasCompetitors ? 'completed' : hasHalo ? 'pending' : 'locked',
+                        meta: `${competitorCount?.count || 0} Tracked`
+                    },
+                    offer: {
+                        status: hasOffer ? 'completed' : hasCompetitors ? 'pending' : 'locked',
+                        meta: hasOffer ? 'Draft Ready' : 'Not Started'
+                    }
+                }
+            };
         }),
 });

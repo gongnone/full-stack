@@ -1,13 +1,130 @@
 import { z } from "zod";
 import { t } from "@/worker/trpc/trpc-instance";
-import { projects, researchSources, haloAnalysis, competitors, godfatherOffer } from "@repo/data-ops/schema";
-import { eq, desc, count } from "drizzle-orm";
+import {
+    projects,
+    researchSources,
+    haloAnalysis,
+    competitors,
+    godfatherOffer,
+    dreamBuyerAvatar,
+    workflowRuns,
+    vectorMetadata,
+    hvcoTitles,
+    competitorOfferMap,
+    goldenPheasantUploads
+} from "@repo/data-ops/schema";
+import { eq, desc, count, inArray, and, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const projectsRouter = t.router({
-    list: t.procedure.query(async ({ ctx }) => {
-        return ctx.db.select().from(projects).orderBy(desc(projects.updatedAt));
-    }),
+    delete: t.procedure
+        .input(z.object({ id: z.string() }))
+        .mutation(async ({ ctx, input }) => {
+            await ctx.db.transaction(async (tx) => {
+                const projectId = input.id;
+
+                // 1. Delete Dependencies first (Leaves of the tree)
+                // Vector Metadata
+                await tx.delete(vectorMetadata).where(eq(vectorMetadata.projectId, projectId));
+
+                // Workflow Runs
+                await tx.delete(workflowRuns).where(eq(workflowRuns.projectId, projectId));
+
+                // HVCO Titles
+                await tx.delete(hvcoTitles).where(eq(hvcoTitles.projectId, projectId));
+
+                // Godfather Offer
+                await tx.delete(godfatherOffer).where(eq(godfatherOffer.projectId, projectId));
+
+                // Competitor Related (Sub-dependencies)
+                const projectCompetitors = await tx.select({ id: competitors.id }).from(competitors).where(eq(competitors.projectId, projectId));
+                const competitorIds = projectCompetitors.map(c => c.id);
+
+                if (competitorIds.length > 0) {
+                    await tx.delete(competitorOfferMap).where(inArray(competitorOfferMap.competitorId, competitorIds));
+                    await tx.delete(goldenPheasantUploads).where(inArray(goldenPheasantUploads.competitorId, competitorIds));
+                    await tx.delete(competitors).where(eq(competitors.projectId, projectId));
+                }
+
+                // Dream Buyer Avatar
+                await tx.delete(dreamBuyerAvatar).where(eq(dreamBuyerAvatar.projectId, projectId));
+
+                // Halo Analysis
+                await tx.delete(haloAnalysis).where(eq(haloAnalysis.projectId, projectId));
+
+                // Research Sources
+                await tx.delete(researchSources).where(eq(researchSources.projectId, projectId));
+
+                // 2. Finally, delete the Project
+                await tx.delete(projects).where(eq(projects.id, projectId));
+            });
+
+            return { success: true };
+        }),
+    update: t.procedure
+        .input(z.object({
+            id: z.string(),
+            name: z.string().min(1).optional(),
+            industry: z.string().optional(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const updateData: any = { updatedAt: new Date() };
+            if (input.name) updateData.name = input.name;
+            if (input.industry !== undefined) updateData.industry = input.industry;
+
+            await ctx.db.update(projects)
+                .set(updateData)
+                .where(eq(projects.id, input.id));
+
+            return { success: true };
+        }),
+
+    list: t.procedure
+        .input(z.object({
+            limit: z.number().min(1).max(100).nullish(),
+            cursor: z.number().nullish(), // Unix timestamp of updatedAt
+            search: z.string().nullish(),
+        }).optional())
+        .query(async ({ ctx, input }) => {
+            const limit = input?.limit ?? 20;
+            const cursor = input?.cursor;
+            const search = input?.search;
+
+            const conditions = [];
+
+            if (search) {
+                // simple case-insensitive like search
+                // SQLite's LIKE is case-insensitive by default for ASCII
+                conditions.push(sql`lower(${projects.name}) LIKE lower(${'%' + search + '%'})`);
+            }
+
+            if (cursor) {
+                conditions.push(sql`${projects.updatedAt} < ${cursor}`);
+            }
+
+            const whereClause = conditions.length > 0
+                ? conditions.reduce((acc, condition) => and(acc, condition)!)
+                : undefined;
+
+            const items = await ctx.db.select()
+                .from(projects)
+                .where(whereClause)
+                .orderBy(desc(projects.updatedAt))
+                .limit(limit + 1);
+
+            let nextCursor: typeof cursor | undefined = undefined;
+            if (items.length > limit) {
+                const nextItem = items.pop();
+                // Ensure nextCursor is a number (unix timestamp)
+                const nextDate = nextItem!.updatedAt;
+                nextCursor = nextDate instanceof Date ? Math.floor(nextDate.getTime() / 1000) : (nextDate as number);
+            }
+
+            return {
+                items,
+                nextCursor,
+            };
+        }),
 
     getById: t.procedure
         .input(z.object({ id: z.string() }))
@@ -45,13 +162,17 @@ export const projectsRouter = t.router({
         .input(z.object({
             projectId: z.string(),
             keywords: z.string(),
+            industry: z.string().optional(),
+            targetAudience: z.string().optional(),
+            productDescription: z.string().optional(),
         }))
         .mutation(async ({ ctx, input }) => {
             // 1. Update Project Data
             await ctx.db.update(projects)
                 .set({
-                    // Store keywords in valueProposition temporarily or structured field if exists
-                    // For now, let's just update timestamp
+                    industry: input.industry || undefined,
+                    // If these columns don't exist yet, we only update what we can. 
+                    // Assuming 'industry' exists based on 'create' procedure.
                     updatedAt: new Date(),
                 })
                 .where(eq(projects.id, input.projectId));
@@ -68,22 +189,20 @@ export const projectsRouter = t.router({
             try {
                 const params = {
                     projectId: input.projectId,
-                    keywords: input.keywords.split(',').map(k => k.trim())
+                    keywords: input.keywords.split(',').map(k => k.trim()),
+                    industry: input.industry,
+                    targetAudience: input.targetAudience,
+                    productDescription: input.productDescription
                 };
                 console.log("Triggering workflow via RPC with params:", JSON.stringify(params));
 
                 // Use RPC call to Data Service
-                if (!ctx.env.BACKEND_SERVICE) {
-                    throw new Error("BACKEND_SERVICE binding is missing");
-                }
-
                 // @ts-ignore - Implicit type from Service Binding
                 await ctx.env.BACKEND_SERVICE.startHaloResearch(params);
 
                 return { success: true, workflowId: input.projectId };
             } catch (e: any) {
                 console.error("Workflow trigger failed:", e.message, e.stack);
-                // Return error as value to debug the 500
                 return {
                     success: false,
                     error: "Workflow failed: " + e.message,
@@ -94,14 +213,6 @@ export const projectsRouter = t.router({
 
     getDashboardStatus: t.procedure
         .input(z.object({ projectId: z.string() }))
-        .output(z.object({
-            project: z.any(),
-            phases: z.object({
-                research: z.object({ status: z.string(), meta: z.string() }),
-                competitors: z.object({ status: z.string(), meta: z.string() }),
-                offer: z.object({ status: z.string(), meta: z.string() })
-            })
-        }))
         .query(async ({ ctx, input }) => {
             const db = ctx.db;
 

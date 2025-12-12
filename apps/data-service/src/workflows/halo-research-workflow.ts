@@ -7,10 +7,14 @@ import { initDatabase } from '@repo/data-ops/database';
 import { researchSources, haloAnalysis, dreamBuyerAvatar, projects } from '@repo/data-ops/schema';
 import { eq } from 'drizzle-orm';
 import { ingestIntoRag } from './steps/rag-ingest';
+import { safeParseAIResponse } from '../helpers/json-ops';
 
 interface HaloResearchParams {
     projectId: string;
     keywords: string[];
+    industry?: string;
+    targetAudience?: string;
+    productDescription?: string;
 }
 
 interface ProcessedItem extends ScrapeResult {
@@ -22,7 +26,7 @@ interface ProcessedItem extends ScrapeResult {
 
 export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchParams> {
     async run(event: WorkflowEvent<HaloResearchParams>, step: WorkflowStep) {
-        const { projectId, keywords } = event.payload;
+        const { projectId, keywords, industry, targetAudience, productDescription } = event.payload;
 
         // 1. Initialize
         await step.do('init', async () => {
@@ -30,6 +34,33 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
             // Optional: Update project status to 'researching'
             return { status: 'started' };
         });
+
+        // 1.5 Expand Query (Query Expansion)
+        const expandedKeywords = await step.do('expand-query', async () => {
+            const contextBuffer = [];
+            if (industry) contextBuffer.push(`Industry: ${industry}`);
+            if (targetAudience) contextBuffer.push(`Target Audience: ${targetAudience}`);
+            if (productDescription) contextBuffer.push(`Product Concept: ${productDescription}`);
+
+            const contextStr = contextBuffer.length > 0 ? `\nContext:\n${contextBuffer.join('\n')}` : '';
+
+            const prompt = `You are a Research Assistant. The user provided these keywords/topic: "${keywords.join(', ')}".${contextStr}
+            
+            Generate 3-5 distinct, high-quality search queries to gather comprehensive market analysis (reviews, complaints, trends, reddit discussions).
+            Return valid JSON only: { "queries": ["query1", "query2", ...] }`;
+
+            try {
+                const result = await this.runStrictJsonWithRetry<{ queries: string[] }>(prompt);
+                console.log(`Expanded queries: ${result.queries.join(', ')}`);
+                return result.queries;
+            } catch (e) {
+                console.warn('Failed to expand queries, falling back to original keywords', e);
+                return keywords;
+            }
+        });
+
+        // Use expanded keywords for scraping
+        const searchTerms = expandedKeywords.length > 0 ? expandedKeywords : keywords;
 
         // 2. Scrape Reddit (Browser)
         const redditData = await step.do('scrape-reddit', async () => {
@@ -40,7 +71,7 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
             const browser = await puppeteer.launch(this.env.VIRTUAL_BROWSER);
             const allPosts = [];
             try {
-                for (const keyword of keywords) {
+                for (const keyword of searchTerms) {
                     const posts = await scrapeReddit(browser, keyword, 10);
                     allPosts.push(...posts);
                 }
@@ -59,7 +90,7 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
             const browser = await puppeteer.launch(this.env.VIRTUAL_BROWSER);
             const results = [];
             try {
-                for (const keyword of keywords) {
+                for (const keyword of searchTerms) {
                     const data = await scrapeQuora(browser, keyword);
                     results.push(...data);
                 }
@@ -78,7 +109,7 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
             const browser = await puppeteer.launch(this.env.VIRTUAL_BROWSER);
             const results = [];
             try {
-                for (const keyword of keywords) {
+                for (const keyword of searchTerms) {
                     const data = await scrapeAnswerThePublic(browser, keyword);
                     results.push(...data);
                 }
@@ -103,23 +134,11 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
                 const batchResults = await Promise.all(batch.map(async (item) => {
                     const prompt = PHASE_PROMPTS.halo_strategy.sophistication_filter.replace('{content}', item.rawContent.substring(0, 1000));
                     try {
-                        const response = await this.env.AI.run('@cf/meta/llama-3-8b-instruct', {
-                            messages: [
-                                { role: 'system', content: 'You are a JSON-only API. return valid JSON.' },
-                                { role: 'user', content: prompt }
-                            ]
-                        }) as any;
-
-                        // Parse JSON from response
-                        let content = response.response;
-                        // Simple cleanup if MD text is returned
-                        content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-                        const analysis = JSON.parse(content);
-
+                        const sophistication = await this.runStrictJsonWithRetry<any>(prompt);
                         return {
                             ...item,
                             id: crypto.randomUUID(), // FIX: Generate ID here to link D1 and Vectorize
-                            sophistication: analysis
+                            sophistication
                         } as ProcessedItem;
                     } catch (err) {
                         console.error('Sophistication filter error', err);
@@ -142,16 +161,7 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
 
             const prompt = PHASE_PROMPTS.halo_strategy.halo_extraction.replace('{content}', aggregatedText);
 
-            const response = await this.env.AI.run('@cf/meta/llama-3-8b-instruct', {
-                messages: [
-                    { role: 'system', content: 'You are a JSON-only API. return valid JSON.' },
-                    { role: 'user', content: prompt }
-                ]
-            }) as any;
-
-            let content = response.response;
-            content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-            return JSON.parse(content);
+            return this.runStrictJsonWithRetry<any>(prompt);
         });
 
         // 7. Generate Dream Buyer Avatar (LLM)
@@ -160,16 +170,7 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
 
             const prompt = PHASE_PROMPTS.halo_strategy.dream_buyer_avatar.replace('{aggregated_data}', JSON.stringify(haloInsights));
 
-            const response = await this.env.AI.run('@cf/meta/llama-3-8b-instruct', {
-                messages: [
-                    { role: 'system', content: 'You are a JSON-only API. return valid JSON.' },
-                    { role: 'user', content: prompt }
-                ]
-            }) as any;
-
-            let content = response.response;
-            content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-            return JSON.parse(content);
+            return this.runStrictJsonWithRetry<any>(prompt);
         });
 
         // 8. Save Results
@@ -247,5 +248,50 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
             const result = await ingestIntoRag(this.env, itemsToIngest);
             return result;
         });
+    }
+
+    private async runStrictJsonWithRetry<T>(prompt: string, model: any = '@cf/meta/llama-3-8b-instruct'): Promise<T> {
+        const systemPrompt = 'You are a JSON-only API. Return valid JSON only. Do not include markdown formatting. Do not use trailing commas. Ensure all quotes are properly escaped.';
+
+        // 1. First Attempt
+        let firstResponseStr: string = '';
+        try {
+            const response = await this.env.AI.run(model, {
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: prompt }
+                ]
+            }) as any;
+            firstResponseStr = response.response;
+            return safeParseAIResponse<T>(firstResponseStr);
+        } catch (e: any) {
+            console.warn(`[runStrictJsonWithRetry] Initial parse failed: ${e.message}. Attempting self-correction...`);
+
+            // 2. Repair Attempt
+            const repairPrompt = `You generated invalid JSON. The error was: "${e.message}".
+            
+Common Mistakes to Check:
+- Missing commas between properties (e.g., "a":1 "b":2) -> Fix: "a":1, "b":2
+- Trailing commas before closing braces (e.g., "a":1, }) -> Fix: "a":1 }
+- Unescaped quotes inside strings (e.g., "key": "some "text" here") -> Fix: "key": "some \"text\" here"
+
+Invalid Output:
+${firstResponseStr.substring(0, 3000)}
+
+Please return ONLY the corrected, valid JSON.`;
+
+            try {
+                const repairResponse = await this.env.AI.run(model, {
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: repairPrompt }
+                    ]
+                }) as any;
+                return safeParseAIResponse<T>(repairResponse.response);
+            } catch (repairError: any) {
+                console.error(`[runStrictJsonWithRetry] Repair failed: ${repairError.message}`);
+                throw new Error(`Failed to generate valid JSON after retry. Original error: ${e.message}`);
+            }
+        }
     }
 }

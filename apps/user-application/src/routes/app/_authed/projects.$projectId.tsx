@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, Link, useLocation } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
 import { trpc } from '@/lib/trpc';
 import {
     LayoutDashboard,
@@ -21,15 +22,18 @@ function ProjectLayout() {
     const location = useLocation();
 
     // Fetch computed status
-    const { data, isLoading } = (trpc.projects as any).getDashboardStatus.useQuery({ projectId });
+    // Fetch computed status
+    // Use proper TanStack Query v5 syntax
+    const { data: rawData, isLoading, error } = useQuery((trpc.projects as any).getDashboardStatus.queryOptions({ projectId }));
+    const data = rawData as any;
 
     if (isLoading) return <DashboardSkeleton />;
+    if (error) return <div className="p-8 text-red-500">Error loading project: {error.message}</div>;
 
     const phases = [
         {
             id: 'research',
             label: 'Halo Research',
-            icon: Search,
             path: `/app/projects/${projectId}/research`,
             status: data?.phases.research.status,
             meta: data?.phases.research.meta,
@@ -38,7 +42,6 @@ function ProjectLayout() {
         {
             id: 'competitors',
             label: 'Golden Pheasant',
-            icon: Swords,
             path: `/app/projects/${projectId}/competitors`,
             status: data?.phases.competitors.status,
             meta: data?.phases.competitors.meta,
@@ -47,7 +50,6 @@ function ProjectLayout() {
         {
             id: 'offer',
             label: 'Godfather Offer',
-            icon: ScrollText,
             path: `/app/projects/${projectId}/offer`,
             status: data?.phases.offer.status,
             meta: data?.phases.offer.meta,
@@ -56,7 +58,6 @@ function ProjectLayout() {
     ];
 
     // Check if we are on a sub-route (e.g. /research)
-    // IMPORTANT: Verify strict equality or logic to detect root
     const isRoot = location.pathname === `/app/projects/${projectId}` || location.pathname === `/app/projects/${projectId}/`;
 
     return (
@@ -109,6 +110,15 @@ function PhaseTile({ phase, active, compact }: { phase: any, active: boolean, co
     const isLocked = phase.status === 'locked';
     const isComplete = phase.status === 'completed';
 
+    const Icon = () => {
+        switch (phase.id) {
+            case 'research': return <Search className="h-5 w-5" />;
+            case 'competitors': return <Swords className="h-5 w-5" />;
+            case 'offer': return <ScrollText className="h-5 w-5" />;
+            default: return null;
+        }
+    };
+
     if (isLocked) {
         return (
             <div className={cn(
@@ -116,7 +126,7 @@ function PhaseTile({ phase, active, compact }: { phase: any, active: boolean, co
                 compact && "p-4 flex-row items-center"
             )}>
                 <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-800 rounded-lg"><phase.icon className="h-5 w-5" /></div>
+                    <div className="p-2 bg-slate-800 rounded-lg"><Icon /></div>
                     <div>
                         <h3 className="font-semibold">{phase.label}</h3>
                         {!compact && <p className="text-xs text-muted-foreground">Prerequisite missing</p>}
@@ -143,7 +153,7 @@ function PhaseTile({ phase, active, compact }: { phase: any, active: boolean, co
                     "p-2 rounded-lg transition-colors",
                     active ? "bg-primary text-primary-foreground" : "bg-slate-800 text-slate-400 group-hover:text-slate-200"
                 )}>
-                    <phase.icon className="h-5 w-5" />
+                    <Icon />
                 </div>
                 <div>
                     <h3 className={cn("font-semibold", active && "text-primary")}>{phase.label}</h3>

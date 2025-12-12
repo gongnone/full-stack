@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from 'react';
 import { Loader2, Wand2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 export const Route = createFileRoute('/app/_authed/projects/$projectId/offer')({
     component: OfferTab,
@@ -15,9 +15,11 @@ function OfferTab() {
     const [isGenerating, setIsGenerating] = useState(false);
 
     // Poll for results
-    const { data: offer } = (trpc.generations as any).getGodfatherOffer.useQuery({ projectId }, {
-        refetchInterval: (data: any) => data ? false : 3000 // Poll every 3s if no offer yet
+    const { data: rawOffer } = useQuery({
+        ...(trpc.generations as any).getGodfatherOffer.queryOptions({ projectId }),
+        refetchInterval: (data: any) => data ? false : 3000
     });
+    const offer = rawOffer as any;
 
     const startGeneration = useMutation({
         ...(trpc.generations as any).startOfferWorkflow.mutationOptions(),

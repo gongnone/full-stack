@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useState } from 'react';
-import { Loader2, PlusIcon } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { UploadAssetDialog } from "@/components/dashboard/upload-asset-dialog";
 
 export const Route = createFileRoute('/app/_authed/projects/$projectId/competitors')({
@@ -44,7 +44,7 @@ function CompetitorsTab() {
                             <Input id="url" placeholder="https://competitor.com" />
                         </div>
                         <Button type="submit" disabled={isAdding}>
-                            {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlusIcon className="h-4 w-4" />}
+                            {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                             <span className="ml-2">Analyze</span>
                         </Button>
                     </form>

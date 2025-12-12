@@ -9,7 +9,7 @@ import { Loader2 } from 'lucide-react';
 
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
 export const Route = createFileRoute('/app/_authed/projects/$projectId/research')({
     component: ResearchTab,
@@ -20,7 +20,8 @@ function ResearchTab() {
     const { projectId } = Route.useParams();
     const [isLoading, setIsLoading] = useState(false);
 
-    const { data: research, refetch } = (trpc.marketResearch as any).getResearch.useQuery({ projectId });
+    const { data: rawResearch, refetch } = useQuery((trpc.marketResearch as any).getResearch.queryOptions({ projectId }));
+    const research = rawResearch as any;
 
     const startResearch = useMutation({
         ...trpc.projects.startResearch.mutationOptions(),
@@ -44,11 +45,17 @@ function ResearchTab() {
         setIsLoading(true);
 
         const keywords = (document.getElementById('keywords') as HTMLInputElement).value;
+        const industry = (document.getElementById('industry') as HTMLInputElement).value;
+        const targetAudience = (document.getElementById('targetAudience') as HTMLInputElement).value;
+        const productDescription = (document.getElementById('productDescription') as HTMLInputElement).value;
 
         try {
             await startResearch.mutateAsync({
                 projectId,
-                keywords
+                keywords,
+                industry,
+                targetAudience,
+                productDescription
             });
         } catch (e) {
             // handled in onError
@@ -69,6 +76,14 @@ function ResearchTab() {
                         <div className="grid w-full items-center gap-1.5">
                             <Label htmlFor="industry">Industry / Niche</Label>
                             <Input id="industry" placeholder="e.g. SaaS Marketing" defaultValue="SaaS Marketing" />
+                        </div>
+                        <div className="grid w-full items-center gap-1.5">
+                            <Label htmlFor="targetAudience">Target Audience</Label>
+                            <Input id="targetAudience" placeholder="e.g. Agency Owners, Busy Moms" defaultValue="Agency Owners" />
+                        </div>
+                        <div className="grid w-full items-center gap-1.5">
+                            <Label htmlFor="productDescription">Product Concept</Label>
+                            <Input id="productDescription" placeholder="e.g. AI-powered email writing tool" defaultValue="AI Copywriting Tool" />
                         </div>
                         <div className="grid w-full items-center gap-1.5">
                             <Label htmlFor="keywords">Keywords (comma separated)</Label>

@@ -117,7 +117,7 @@ export const projectsRouter = t.router({
                 const nextItem = items.pop();
                 // Ensure nextCursor is a number (unix timestamp)
                 const nextDate = nextItem!.updatedAt;
-                nextCursor = nextDate instanceof Date ? Math.floor(nextDate.getTime() / 1000) : (nextDate as number);
+                nextCursor = nextDate instanceof Date ? Math.floor(nextDate.getTime() / 1000) : (nextDate as unknown as number);
             }
 
             return {

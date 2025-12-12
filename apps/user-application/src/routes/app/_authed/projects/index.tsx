@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { trpc } from "@/lib/trpc";
@@ -31,7 +31,6 @@ export const Route = createFileRoute("/app/_authed/projects/")({
 function ProjectsListPage() {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
-    const loadMoreRef = useRef<HTMLDivElement>(null);
     const [editProject, setEditProject] = useState<{ id: string, name: string, industry: string } | null>(null);
 
     // Infinite Query with Search
@@ -88,7 +87,7 @@ function ProjectsListPage() {
 
     const handleDelete = (id: string) => {
         if (window.confirm("Are you sure you want to delete this campaign? This action cannot be undone.")) {
-            deleteMutation.mutate({ id });
+            deleteMutation.mutate({ id } as any);
         }
     };
 
@@ -99,7 +98,7 @@ function ProjectsListPage() {
                 id: editProject.id,
                 name: editProject.name,
                 industry: editProject.industry
-            });
+            } as any);
         }
     };
 

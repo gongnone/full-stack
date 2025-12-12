@@ -26,6 +26,8 @@ export default class DataService extends WorkerEntrypoint<Env> {
 			const count = await upsertKnowledge(this.env, body.items);
 			return new Response(JSON.stringify({ success: true, count }), { headers: { "Content-Type": "application/json" } });
 		}
+
+
 		return App.fetch(request, this.env, this.ctx)
 	}
 

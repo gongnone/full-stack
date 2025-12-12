@@ -31,16 +31,21 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
             return { status: 'started' };
         });
 
-        // 2. Scrape Reddit (API)
+        // 2. Scrape Reddit (Browser)
         const redditData = await step.do('scrape-reddit', async () => {
+            if (!this.env.VIRTUAL_BROWSER) {
+                console.warn('VIRTUAL_BROWSER binding not found. Skipping Reddit scrape.');
+                return [];
+            }
+            const browser = await puppeteer.launch(this.env.VIRTUAL_BROWSER);
             const allPosts = [];
-            for (const keyword of keywords) {
-                // Simple heuristic: treat keyword as subreddit if applicable, or search term
-                // For simplicity in this scraper, we assume keyword might be a subreddit or we search
-                // The current scraper implementation takes 'topic' which creates r/{topic}. 
-                // We might want to adjust scraper to search if r/ fails, but for now we trust specific subreddit names or general topics.
-                const posts = await scrapeReddit(keyword, 10);
-                allPosts.push(...posts);
+            try {
+                for (const keyword of keywords) {
+                    const posts = await scrapeReddit(browser, keyword, 10);
+                    allPosts.push(...posts);
+                }
+            } finally {
+                await browser.close();
             }
             return allPosts;
         });
@@ -92,32 +97,37 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
             // For prototype, we'll process top 5 items from each source type to save tokens/time
             const sample = allRawData.slice(0, 15);
 
-            for (const item of sample) {
-                const prompt = PHASE_PROMPTS.halo_strategy.sophistication_filter.replace('{content}', item.rawContent.substring(0, 1000));
+            for (let i = 0; i < sample.length; i += 5) {
+                const batch = sample.slice(i, i + 5);
 
-                try {
-                    const response = await this.env.AI.run('@cf/meta/llama-3-8b-instruct', {
-                        messages: [
-                            { role: 'system', content: 'You are a JSON-only API. return valid JSON.' },
-                            { role: 'user', content: prompt }
-                        ]
-                    }) as any;
+                const batchResults = await Promise.all(batch.map(async (item) => {
+                    const prompt = PHASE_PROMPTS.halo_strategy.sophistication_filter.replace('{content}', item.rawContent.substring(0, 1000));
+                    try {
+                        const response = await this.env.AI.run('@cf/meta/llama-3-8b-instruct', {
+                            messages: [
+                                { role: 'system', content: 'You are a JSON-only API. return valid JSON.' },
+                                { role: 'user', content: prompt }
+                            ]
+                        }) as any;
 
-                    // Parse JSON from response
-                    let content = response.response;
-                    // Simple cleanup if MD text is returned
-                    content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-                    const analysis = JSON.parse(content);
+                        // Parse JSON from response
+                        let content = response.response;
+                        // Simple cleanup if MD text is returned
+                        content = content.replace(/```json/g, '').replace(/```/g, '').trim();
+                        const analysis = JSON.parse(content);
 
-                    results.push({
-                        ...item,
-                        id: crypto.randomUUID(), // FIX: Generate ID here to link D1 and Vectorize
-                        sophistication: analysis
-                    });
-                } catch (err) {
-                    console.error('Sophistication filter error', err);
-                    results.push({ ...item, id: crypto.randomUUID(), error: true });
-                }
+                        return {
+                            ...item,
+                            id: crypto.randomUUID(), // FIX: Generate ID here to link D1 and Vectorize
+                            sophistication: analysis
+                        } as ProcessedItem;
+                    } catch (err) {
+                        console.error('Sophistication filter error', err);
+                        return { ...item, id: crypto.randomUUID(), error: true } as ProcessedItem;
+                    }
+                }));
+
+                results.push(...batchResults);
             }
             return results;
         });

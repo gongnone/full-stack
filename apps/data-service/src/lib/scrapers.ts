@@ -1,3 +1,6 @@
+/// <reference lib="dom" />
+import puppeteer from '@cloudflare/puppeteer';
+
 export interface ScrapeResult {
     sourceType: 'reddit' | 'quora' | 'answer_the_public';
     url: string;
@@ -5,37 +8,103 @@ export interface ScrapeResult {
     metadata?: Record<string, any>;
 }
 
-export async function scrapeReddit(topic: string, limit: number = 10): Promise<ScrapeResult[]> {
-    // Use public JSON API for Reddit
-    const url = `https://www.reddit.com/r/${topic}/top.json?limit=${limit}&t=year`;
+export async function scrapeReddit(browser: puppeteer.Browser, topic: string, limit: number = 10): Promise<ScrapeResult[]> {
+    // 1. Attempt Direct Scrape (old.reddit.com)
     try {
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
-            }
-        });
+        const page = await browser.newPage();
+        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36');
 
-        if (!response.ok) {
-            console.warn(`Reddit scrape failed for ${topic}: ${response.statusText}`);
-            return [];
+        // Use old.reddit.com for easier scraping structure
+        const searchUrl = `https://old.reddit.com/search?q=${encodeURIComponent(topic)}&sort=relevance&t=year`;
+
+        try {
+            await page.goto(searchUrl, { waitUntil: 'networkidle0' });
+
+            // Check for 403 or specific blocked text just in case (though we rely on try/catch mostly)
+            const content = await page.content();
+            if (content.includes('Forbidden') || content.includes('403 Forbidden')) {
+                throw new Error('Access Forbidden (403)');
+            }
+
+            const posts = await page.evaluate((limit: number) => {
+                const things = document.querySelectorAll('.search-result-link');
+                return Array.from(things).slice(0, limit).map(thing => {
+                    const titleEl = thing.querySelector('.search-title');
+                    const link = titleEl?.getAttribute('href') || '';
+                    const title = titleEl?.textContent || '';
+                    const score = thing.querySelector('.search-score')?.textContent || '0';
+                    const comments = thing.querySelector('.search-comments')?.textContent || '0 comments';
+                    const author = thing.querySelector('.author')?.textContent || 'unknown';
+
+                    return {
+                        sourceType: 'reddit' as const,
+                        url: link.startsWith('/') ? `https://old.reddit.com${link}` : link,
+                        rawContent: title,
+                        metadata: {
+                            score: score.replace(/\D/g, ''),
+                            comments: comments.replace(/\D/g, ''),
+                            author,
+                            source_method: 'direct_scrape'
+                        }
+                    };
+                });
+            }, limit);
+
+            if (posts.length > 0) {
+                return posts;
+            }
+            console.warn(`Direct Reddit scrape yielded 0 results for ${topic}. Triggering fallback.`);
+
+        } finally {
+            await page.close();
         }
-
-        const data = await response.json() as any;
-        const posts = data.data.children.map((child: any) => ({
-            sourceType: 'reddit' as const,
-            url: `https://www.reddit.com${child.data.permalink}`,
-            rawContent: `${child.data.title}\n${child.data.selftext}`,
-            metadata: {
-                score: child.data.score,
-                comments: child.data.num_comments,
-                author: child.data.author
-            }
-        }));
-
-        return posts;
     } catch (error) {
-        console.error(`Error scraping Reddit topic ${topic}:`, error);
+        console.warn(`Direct Reddit scrape failed for ${topic}:`, error);
+    }
+
+    // 2. Fallback: Google Search Proxy ("Google-Fu")
+    console.log(`Attempting Google-Fu fallback for Reddit: ${topic}`);
+    return scrapeGoogleRedditFallback(browser, topic, limit);
+}
+
+async function scrapeGoogleRedditFallback(browser: puppeteer.Browser, topic: string, limit: number): Promise<ScrapeResult[]> {
+    const page = await browser.newPage();
+    try {
+        await page.setUserAgent('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36');
+        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(`site:reddit.com ${topic}`)}`;
+        await page.goto(searchUrl, { waitUntil: 'networkidle0' });
+
+        const results = await page.evaluate((limit: number) => {
+            // Broad Google selector strategy
+            const elements = Array.from(document.querySelectorAll('.g'));
+            return elements.slice(0, limit).map(el => {
+                const titleEl = el.querySelector('h3');
+                const linkEl = el.querySelector('a');
+                const snippetEl = el.querySelector('.VwiC3b') || el.querySelector('.IsZvec'); // Common snippet classes
+
+                const title = titleEl?.innerText || 'No Title';
+                const url = linkEl?.href || '';
+                const snippet = (snippetEl as HTMLElement)?.innerText || '';
+
+                if (!url.includes('reddit.com')) return null;
+
+                return {
+                    sourceType: 'reddit' as const,
+                    url: url,
+                    rawContent: `${title}\n${snippet}`,
+                    metadata: {
+                        source_method: 'google_proxy'
+                    }
+                };
+            }).filter((item): item is any => item !== null);
+        }, limit);
+
+        return results;
+    } catch (error) {
+        console.error(`Google-Fu fallback failed for ${topic}:`, error);
         return [];
+    } finally {
+        await page.close();
     }
 }
 
@@ -53,11 +122,11 @@ export async function scrapeQuora(browser: puppeteer.Browser, topic: string): Pr
             const items = document.querySelectorAll('.q-box.qu-mb--tiny'); // Generic selector, might need tuning
             return Array.from(items).map(item => ({
                 text: (item as HTMLElement).innerText,
-                href: item.closest('a')?.href || ''
+                href: (item.closest('a') as HTMLAnchorElement | null)?.href || ''
             }));
         });
 
-        results.push(...snippets.map(s => ({
+        results.push(...snippets.map((s: { text: string; href: string }) => ({
             sourceType: 'quora' as const,
             url: s.href || searchUrl,
             rawContent: s.text,

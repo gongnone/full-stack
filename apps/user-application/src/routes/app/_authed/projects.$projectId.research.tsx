@@ -99,44 +99,59 @@ function ResearchTab() {
 
             {research && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card className="md:col-span-2 bg-slate-900/50 border-slate-800">
-                        <CardHeader>
-                            <CardTitle>Dream Buyer Avatar: "{research.topic || "Target Audience"}"</CardTitle>
-                            <CardDescription>Based on analysis of 150+ discussions.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {research.desires && research.desires.length > 0 && (
-                                <div>
-                                    <h4 className="font-semibold text-primary">Hopes & Dreams</h4>
-                                    <ul className="list-disc ml-5 text-sm text-muted-foreground mt-1">
-                                        {research.desires.map((item: string, idx: number) => (
-                                            <li key={idx}>{item}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                            {research.painPoints && research.painPoints.length > 0 && (
-                                <div>
-                                    <h4 className="font-semibold text-red-400">Pains & Fears</h4>
-                                    <ul className="list-disc ml-5 text-sm text-muted-foreground mt-1">
-                                        {research.painPoints.map((item: string, idx: number) => (
-                                            <li key={idx}>{item}</li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-                            {research.competitors && research.competitors.length > 0 && (
-                                <div>
-                                    <h4 className="font-semibold text-blue-400">Competitors Identified</h4>
-                                    <div className="flex flex-wrap gap-2 mt-1">
-                                        {research.competitors.map((item: string, idx: number) => (
-                                            <span key={idx} className="bg-slate-800 text-xs px-2 py-1 rounded-full border border-slate-700">{item}</span>
-                                        ))}
+                    {/* Empty State Check */}
+                    {(!research.desires || research.desires.length === 0) && (!research.painPoints || research.painPoints.length === 0) ? (
+                        <div className="md:col-span-2 p-8 border border-dashed border-slate-700 rounded-xl bg-slate-900/30 text-center space-y-4">
+                            <div className="mx-auto w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                                <span className="text-2xl">⚠️</span>
+                            </div>
+                            <h3 className="text-lg font-semibold text-slate-200">No Insights Found</h3>
+                            <p className="text-muted-foreground max-w-md mx-auto">
+                                The research workflow completed but couldn't extract enough high-quality data.
+                                This usually happens if the keywords are too niche or if the scrapers were blocked.
+                            </p>
+                            <Button variant="outline" onClick={() => refetch()}>Refresh Data</Button>
+                        </div>
+                    ) : (
+                        <Card className="md:col-span-2 bg-slate-900/50 border-slate-800">
+                            <CardHeader>
+                                <CardTitle>Dream Buyer Avatar: "{research.topic || "Target Audience"}"</CardTitle>
+                                <CardDescription>Based on analysis of 150+ discussions.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {research.desires && research.desires.length > 0 && (
+                                    <div>
+                                        <h4 className="font-semibold text-primary">Hopes & Dreams</h4>
+                                        <ul className="list-disc ml-5 text-sm text-muted-foreground mt-1">
+                                            {research.desires.map((item: string, idx: number) => (
+                                                <li key={idx}>{item}</li>
+                                            ))}
+                                        </ul>
                                     </div>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+                                )}
+                                {research.painPoints && research.painPoints.length > 0 && (
+                                    <div>
+                                        <h4 className="font-semibold text-red-400">Pains & Fears</h4>
+                                        <ul className="list-disc ml-5 text-sm text-muted-foreground mt-1">
+                                            {research.painPoints.map((item: string, idx: number) => (
+                                                <li key={idx}>{item}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                                {research.competitors && research.competitors.length > 0 && (
+                                    <div>
+                                        <h4 className="font-semibold text-blue-400">Competitors Identified</h4>
+                                        <div className="flex flex-wrap gap-2 mt-1">
+                                            {research.competitors.map((item: string, idx: number) => (
+                                                <span key={idx} className="bg-slate-800 text-xs px-2 py-1 rounded-full border border-slate-700">{item}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             )}
         </div>

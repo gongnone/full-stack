@@ -26,6 +26,7 @@ export const researchSources = sqliteTable('research_sources', {
     sophisticationScore: real('sophistication_score'),
     status: text('status').default('pending'), // pending | processing | complete | failed
     metadata: text('metadata'), // JSON: subreddit, comment_count, etc.
+    isExcluded: integer('is_excluded', { mode: 'boolean' }).default(false),
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
 

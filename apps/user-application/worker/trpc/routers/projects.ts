@@ -187,8 +187,20 @@ export const projectsRouter = t.router({
             }
 
             try {
+                // Create Workflow Run Record
+                const runId = crypto.randomUUID();
+                await ctx.db.insert(workflowRuns).values({
+                    id: runId,
+                    projectId: input.projectId,
+                    workflowType: 'halo_research',
+                    status: 'running',
+                    currentStep: 'init',
+                    startedAt: new Date()
+                });
+
                 const params = {
                     projectId: input.projectId,
+                    runId, // Pass runId to workflow
                     keywords: input.keywords.split(',').map(k => k.trim()),
                     industry: input.industry,
                     targetAudience: input.targetAudience,

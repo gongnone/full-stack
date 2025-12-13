@@ -33,8 +33,8 @@ export function safeParseAIResponse<T>(response: string): T {
                 // Case E: ] "key" -> ], "key" (end of array)
                 repaired = repaired.replace(/]\s+(?=")/g, '], ');
 
-                // 3. Fix unescaped newlines
-                repaired = repaired.replace(/\n/g, '\\n');
+                // 3. Fix unescaped newlines logic REMOVED because it corrupts valid JSON structure
+                // repaired = repaired.replace(/\n/g, '\\n');
 
                 try {
                     return JSON.parse(repaired);

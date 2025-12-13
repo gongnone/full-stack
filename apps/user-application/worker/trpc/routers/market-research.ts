@@ -5,8 +5,11 @@ import {
     saveMarketResearch,
     getProjects,
     getProject,
+    getProject,
     getMarketResearch,
 } from "@repo/data-ops/queries/market-research";
+import { workflowRuns, researchSources } from "@repo/data-ops/schema";
+import { eq, desc } from "drizzle-orm";
 
 export const marketResearchRouter = t.router({
     createProject: t.procedure
@@ -53,5 +56,36 @@ export const marketResearchRouter = t.router({
         .input(z.object({ projectId: z.string() }))
         .query(async ({ input, ctx }) => {
             return await getMarketResearch(ctx.db, input.projectId);
+        }),
+
+    getWorkflowProgress: t.procedure
+        .input(z.object({ projectId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const run = await ctx.db.select()
+                .from(workflowRuns)
+                .where(eq(workflowRuns.projectId, input.projectId))
+                .orderBy(desc(workflowRuns.startedAt))
+                .limit(1)
+                .get();
+            return run;
+        }),
+
+    getSources: t.procedure
+        .input(z.object({ projectId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            return await ctx.db.select()
+                .from(researchSources)
+                .where(eq(researchSources.projectId, input.projectId))
+                .orderBy(desc(researchSources.sophisticationScore))
+                .limit(50);
+        }),
+
+    excludeSource: t.procedure
+        .input(z.object({ sourceId: z.string(), isExcluded: z.boolean() }))
+        .mutation(async ({ ctx, input }) => {
+            await ctx.db.update(researchSources)
+                .set({ isExcluded: input.isExcluded })
+                .where(eq(researchSources.id, input.sourceId));
+            return { success: true };
         }),
 });

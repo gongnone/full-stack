@@ -4,13 +4,14 @@ import puppeteer from '@cloudflare/puppeteer';
 import { scrapeReddit, scrapeQuora, scrapeAnswerThePublic, ScrapeResult } from '../lib/scrapers';
 import { PHASE_PROMPTS } from '@repo/agent-logic/prompts';
 import { initDatabase } from '@repo/data-ops/database';
-import { researchSources, haloAnalysis, dreamBuyerAvatar, projects } from '@repo/data-ops/schema';
+import { researchSources, haloAnalysis, dreamBuyerAvatar, projects, workflowRuns } from '@repo/data-ops/schema';
 import { eq } from 'drizzle-orm';
 import { ingestIntoRag } from './steps/rag-ingest';
 import { safeParseAIResponse } from '../helpers/json-ops';
 
 interface HaloResearchParams {
     projectId: string;
+    runId?: string;
     keywords: string[];
     industry?: string;
     targetAudience?: string;
@@ -26,17 +27,24 @@ interface ProcessedItem extends ScrapeResult {
 
 export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchParams> {
     async run(event: WorkflowEvent<HaloResearchParams>, step: WorkflowStep) {
-        const { projectId, keywords, industry, targetAudience, productDescription } = event.payload;
+        const { projectId, runId, keywords, industry, targetAudience, productDescription } = event.payload;
+
+        const updateStatus = async (s: string) => {
+            if (!runId) return;
+            const db = initDatabase(this.env.DB);
+            await db.update(workflowRuns).set({ currentStep: s, status: 'running' }).where(eq(workflowRuns.id, runId));
+        };
 
         // 1. Initialize
         await step.do('init', async () => {
             console.log(`Starting Halo Research for project ${projectId} with keywords: ${keywords.join(', ')} `);
-            // Optional: Update project status to 'researching'
+            await updateStatus('init');
             return { status: 'started' };
         });
 
         // 1.5 Expand Query (Query Expansion)
         const expandedKeywords = await step.do('expand-query', async () => {
+            await updateStatus('expanding_query');
             const contextBuffer = [];
             if (industry) contextBuffer.push(`Industry: ${industry}`);
             if (targetAudience) contextBuffer.push(`Target Audience: ${targetAudience}`);
@@ -64,6 +72,7 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
 
         // 2. Scrape Reddit (Browser)
         const redditData = await step.do('scrape-reddit', async () => {
+            await updateStatus('scraping_reddit');
             if (!this.env.VIRTUAL_BROWSER) {
                 console.warn('VIRTUAL_BROWSER binding not found. Skipping Reddit scrape.');
                 return [];
@@ -123,6 +132,7 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
 
         // 5. Filter Sophistication (LLM)
         const filteredData = await step.do('filter-sophistication', async () => {
+            await updateStatus('filtering_content');
             const results: ProcessedItem[] = [];
             // Process in batches or individually to avoid context limits. 
             // For prototype, we'll process top 5 items from each source type to save tokens/time
@@ -153,6 +163,7 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
 
         // 6. Extract Halo Insights (LLM)
         const haloInsights = await step.do('extract-halo', async () => {
+            await updateStatus('analyzing_halo');
             // Aggregate high-quality content
             const validItems = filteredData.filter(d => !d.error && (d.sophistication?.score || 0) > 0.5);
             if (validItems.length === 0) return null;
@@ -246,6 +257,17 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
             }));
 
             const result = await ingestIntoRag(this.env, itemsToIngest);
+
+            // Final Completion Update
+            if (runId) {
+                const db = initDatabase(this.env.DB);
+                await db.update(workflowRuns).set({
+                    currentStep: 'complete',
+                    status: 'complete',
+                    completedAt: new Date()
+                }).where(eq(workflowRuns.id, runId));
+            }
+
             return result;
         });
     }

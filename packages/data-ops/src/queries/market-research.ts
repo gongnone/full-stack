@@ -72,14 +72,25 @@ export const getProject = async (db: Db, projectId: string) => {
 
 export const getMarketResearch = async (db: Db, projectId: string) => {
     // Fetch analysis and competitors to aggregate into a research object
+    console.log(`[getMarketResearch] Fetching for projectId: ${projectId}`);
+
     const analysis = await db.select()
         .from(haloAnalysis)
         .where(eq(haloAnalysis.projectId, projectId))
         .get();
 
+    console.log(`[getMarketResearch] Analysis found:`, analysis ? "YES" : "NO");
+    if (analysis) {
+        console.log(`[getMarketResearch] Keys present:`, Object.keys(analysis));
+        console.log(`[getMarketResearch] HopesAndDreams length:`, analysis.hopesAndDreams?.length);
+        console.log(`[getMarketResearch] PrimalDesires length:`, analysis.primalDesires?.length);
+    }
+
     const comps = await db.select()
         .from(competitors)
         .where(eq(competitors.projectId, projectId));
+
+    console.log(`[getMarketResearch] Competitors count:`, comps.length);
 
     // Also fetch avatar for desires/pain points if analysis is empty?
     // For now, construct the object expected by the frontend
@@ -87,10 +98,10 @@ export const getMarketResearch = async (db: Db, projectId: string) => {
     const project = await getProject(db, projectId);
 
     return {
-        topic: project?.industry || '',
+        topic: project?.industry || project?.name || 'Market Research',
         competitors: comps.map(c => c.name),
         painPoints: analysis?.painsAndFears ? JSON.parse(analysis.painsAndFears) : [],
-        desires: analysis?.primalDesires ? JSON.parse(analysis.primalDesires) : [],
-        rawAnalysis: '', // Not strictly needed for the summary view
+        desires: analysis?.hopesAndDreams ? JSON.parse(analysis.hopesAndDreams) : [],
+        rawAnalysis: '',
     };
 };

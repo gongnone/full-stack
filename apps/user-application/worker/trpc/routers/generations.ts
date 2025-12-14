@@ -2,6 +2,7 @@ import { t } from "@/worker/trpc/trpc-instance";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { godfatherOffer } from "@repo/data-ops/schema";
+import { getGenerations } from "@repo/data-ops/queries/generations";
 import { eq } from "drizzle-orm";
 
 export const generationsRouter = t.router({
@@ -37,5 +38,11 @@ export const generationsRouter = t.router({
                 console.error("Workflow trigger failed:", e);
                 return { success: false, error: e.message };
             }
+        }),
+    getGenerations: t.procedure
+        .input(z.object({ projectId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const results = await getGenerations(ctx.db, input.projectId);
+            return results;
         }),
 });

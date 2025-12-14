@@ -158,3 +158,14 @@ export const vectorMetadata = sqliteTable('vector_metadata', {
     emotionalTrigger: text('emotional_trigger'), // fear | desire | frustration | hope
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });
+
+// === GENERATED CONTENT (Data Lineage) ===
+
+export const generatedContent = sqliteTable('generated_content', {
+    id: text('id').primaryKey(),
+    projectId: text('project_id').references(() => projects.id),
+    content: text('content').notNull(),
+    citedSourceId: text('cited_source_id').references(() => researchSources.id),
+    status: text('status').default('DRAFT'), // DRAFT | PUBLISHED
+    createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});

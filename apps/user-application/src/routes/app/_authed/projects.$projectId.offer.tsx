@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from 'react';
 import { Loader2, Wand2 } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
+import { CitationCard } from '@/components/generations/CitationCard';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 export const Route = createFileRoute('/app/_authed/projects/$projectId/offer')({
@@ -20,6 +21,11 @@ function OfferTab() {
         refetchInterval: (data: any) => data ? false : 3000
     });
     const offer = rawOffer as any;
+
+    const { data: rawGenerations } = useQuery({
+        ...(trpc.generations as any).getGenerations.queryOptions({ projectId }),
+    });
+    const generations = rawGenerations as any;
 
     const startGeneration = useMutation({
         ...(trpc.generations as any).startOfferWorkflow.mutationOptions(),
@@ -55,7 +61,8 @@ function OfferTab() {
             )}
 
             {offer && (
-                <div className="grid gap-6">
+                <div className="grid gap-8">
+                    {/* MAIN OFFER CARD */}
                     <Card className="border-primary/50 shadow-lg shadow-primary/10">
                         <CardHeader>
                             <div className="flex justify-between items-center">
@@ -91,6 +98,32 @@ function OfferTab() {
                             <Button variant="outline" className="w-full">Export Offer PDF</Button>
                         </CardFooter>
                     </Card>
+
+                    {/* DATA LINEAGE / GENERATED CONTENT */}
+                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
+                        <div className="flex items-center gap-2 mb-4">
+                            <h3 className="text-xl font-semibold">Supporting Content Ideas</h3>
+                            <span className="text-xs text-muted-foreground uppercase tracking-wider border px-2 py-0.5 rounded-full">Proof of Work</span>
+                        </div>
+
+                        {(generations || []).length > 0 ? (
+                            generations?.map((gen: any) => (
+                                <CitationCard
+                                    key={gen.id}
+                                    content={gen.content}
+                                    source={gen.source ? {
+                                        name: gen.source.type || "Market Data",
+                                        snippet: gen.source.content || "",
+                                        sophistication: gen.source.sophistication
+                                    } : null}
+                                />
+                            ))
+                        ) : (
+                            <div className="text-center p-8 border border-dashed rounded-lg text-muted-foreground">
+                                <p>No granular content ideas generated yet.</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

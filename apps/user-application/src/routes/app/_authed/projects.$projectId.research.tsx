@@ -1,157 +1,307 @@
 import { createFileRoute } from '@tanstack/react-router';
-import React from 'react';
+import { type FormEvent } from 'react';
+import { trpc } from '@/lib/trpc';
+import { toast } from 'sonner';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Loader2, Search, Brain, CheckCircle2, AlertCircle, Sparkles, Zap, Shield } from 'lucide-react';
+
+// SAFE IMPORTS ONLY
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
-
-import { trpc } from '@/lib/trpc';
-import { toast } from 'sonner';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { SourcesTable } from '@/components/research/SourcesTable';
 
 export const Route = createFileRoute('/app/_authed/projects/$projectId/research')({
     component: ResearchTab,
-})
+});
 
 function ResearchTab() {
-    // const { projectId } = Route.useParams();
     const { projectId } = Route.useParams();
-    const [isLoading, setIsLoading] = useState(false);
+    const queryClient = useQueryClient();
 
-    const { data: rawResearch, refetch } = useQuery((trpc.marketResearch as any).getResearch.queryOptions({ projectId }));
-    const research = rawResearch as any;
-
-    const startResearch = useMutation({
-        ...trpc.projects.startResearch.mutationOptions(),
-        onSuccess: (data: any) => {
-            if (!data.success) {
-                console.error("Research failed:", data);
-                toast.error(data.error || "Unknown error occurred");
-                return;
-            }
-            toast.success("Research started! This may take a few minutes.");
-            // Poll or refetch
-            refetch();
+    // 1. ROBUST QUERY: Polls every 3s if processing
+    const { data: rawResearch, isLoading, isRefetching } = useQuery({
+        ...trpc.marketResearch.getResearch.queryOptions({ projectId }),
+        refetchInterval: (query) => {
+            const data = query.state.data as any;
+            return (data?.status === 'processing' || data?.status === 'running') ? 3000 : false;
         },
-        onError: (err: any) => {
-            toast.error("Network error: " + err.message);
-        }
     });
 
-    const handleResearch = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
+    const research = rawResearch as any;
 
-        const keywords = (document.getElementById('keywords') as HTMLInputElement).value;
-        const industry = (document.getElementById('industry') as HTMLInputElement).value;
-        const targetAudience = (document.getElementById('targetAudience') as HTMLInputElement).value;
-        const productDescription = (document.getElementById('productDescription') as HTMLInputElement).value;
+    const status = research?.status || 'idle';
+    const isProcessing = status === 'processing' || status === 'running';
+    // Check results by looking for content
+    const hasAvatar = !!research?.avatar?.name;
+    const hasSources = (research?.sources?.length || 0) > 0;
+    const hasResults = status === 'complete' || (hasAvatar && hasSources);
+
+    const launchMutation = useMutation({
+        ...trpc.projects.startResearch.mutationOptions(),
+        onSuccess: () => toast.success("Agent dispatched! Analyzing market signal..."),
+        onError: (err) => toast.error("Launch failed: " + err.message)
+    });
+
+    const handleLaunch = async (e: FormEvent) => {
+        e.preventDefault();
+        const form = e.target as HTMLFormElement;
+        const keywordsInput = form.elements.namedItem('keywords') as HTMLInputElement;
+        const identityInput = form.elements.namedItem('identity') as HTMLInputElement;
+        const struggleInput = form.elements.namedItem('struggle') as HTMLInputElement;
+        const outcomeInput = form.elements.namedItem('outcome') as HTMLInputElement;
+
+        const keywords = keywordsInput?.value || "";
+        const identity = identityInput?.value || "";
+        const struggle = struggleInput?.value || "";
+        const outcome = outcomeInput?.value || "";
+
+        if (!keywords.trim()) {
+            toast.error("Please enter a topic or niche.");
+            return;
+        }
+
+        const targetAudience = `${identity} facing ${struggle}`;
+        const productDescription = `Helping them achieve ${outcome}`;
 
         try {
-            await startResearch.mutateAsync({
+            await launchMutation.mutateAsync({
                 projectId,
-                keywords,
-                industry,
-                targetAudience,
-                productDescription
+                keywords: keywords,
+                industry: keywords, // Use keywords as industry/niche
+                targetAudience: targetAudience,
+                productDescription: productDescription
             });
-        } catch (e) {
-            // handled in onError
-        } finally {
-            setIsLoading(false);
+            toast.success("Agent Deployed", { description: "Halo is now scanning the perimeter." });
+            // FORCE REFRESH: Invalidate query to trigger refetch and show processing state immediately
+            await queryClient.invalidateQueries({
+                queryKey: trpc.marketResearch.getResearch.queryKey({ projectId })
+            });
+        } catch (error) {
+            toast.error("Deployment Failed", { description: "Could not launch agent." });
         }
     };
 
     return (
-        <div className="space-y-6">
-            <Card>
+        <div className="space-y-8 max-w-5xl mx-auto pb-20">
+
+            {/* CONFIGURATION / MISSION CONTROL */}
+            <Card className={hasResults ? "border-l-4 border-l-green-500" : "border-l-4 border-l-blue-500"}>
                 <CardHeader>
-                    <CardTitle>Halo Research Configuration</CardTitle>
-                    <CardDescription>Define the inputs for your market research.</CardDescription>
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <CardTitle>Mission Parameters</CardTitle>
+                            <CardDescription>Target market specification for the Halo Agent.</CardDescription>
+                        </div>
+                        {hasResults && (
+                            <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-200">
+                                <CheckCircle2 className="w-3 h-3 mr-1" /> Research Complete
+                            </Badge>
+                        )}
+                    </div>
                 </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleResearch} className="space-y-4">
-                        <div className="grid w-full items-center gap-1.5">
-                            <Label htmlFor="industry">Industry / Niche</Label>
-                            <Input id="industry" placeholder="e.g. SaaS Marketing" defaultValue="SaaS Marketing" />
+                <CardContent className="space-y-6">
+                    <form onSubmit={handleLaunch} className="flex flex-col gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* 1. Niche / Keywords */}
+                            <div className="space-y-2">
+                                <Label htmlFor="keywords">Target Niche / Keywords</Label>
+                                <Input
+                                    id="keywords"
+                                    name="keywords"
+                                    placeholder="e.g. SaaS for Crossfit Gyms"
+                                    disabled={isProcessing || hasResults}
+                                    defaultValue={research?.topic || ""}
+                                    className="bg-background/50"
+                                />
+                                <p className="text-xs text-muted-foreground">The broad market category to scan.</p>
+                            </div>
+
+                            {/* 2. Target Identity */}
+                            <div className="space-y-2">
+                                <Label htmlFor="identity">Target Identity (Who)</Label>
+                                <Input
+                                    id="identity"
+                                    name="identity"
+                                    placeholder="e.g. Frustrated Agency Owner"
+                                    disabled={isProcessing || hasResults}
+                                    defaultValue={research?.avatar?.name || ""}
+                                    className="bg-background/50"
+                                />
+                                <p className="text-xs text-muted-foreground">The specific persona you want to reach.</p>
+                            </div>
+
+                            {/* 3. Current Struggle (Hell) */}
+                            <div className="space-y-2">
+                                <Label htmlFor="struggle">Current Struggle (Hell)</Label>
+                                <Input
+                                    id="struggle"
+                                    name="struggle"
+                                    placeholder="e.g. Working 80hrs, inconsistent leads"
+                                    disabled={isProcessing || hasResults}
+                                    className="bg-background/50"
+                                />
+                                <p className="text-xs text-muted-foreground">Their painful current reality.</p>
+                            </div>
+
+                            {/* 4. Desired Outcome (Heaven) */}
+                            <div className="space-y-2">
+                                <Label htmlFor="outcome">Desired Outcome (Heaven)</Label>
+                                <Input
+                                    id="outcome"
+                                    name="outcome"
+                                    placeholder="e.g. Productized service, 20hr week"
+                                    disabled={isProcessing || hasResults}
+                                    className="bg-background/50"
+                                />
+                                <p className="text-xs text-muted-foreground">The dream state they crave.</p>
+                            </div>
                         </div>
-                        <div className="grid w-full items-center gap-1.5">
-                            <Label htmlFor="targetAudience">Target Audience</Label>
-                            <Input id="targetAudience" placeholder="e.g. Agency Owners, Busy Moms" defaultValue="Agency Owners" />
+
+                        <div className="flex justify-end pt-2">
+                            {!hasResults && (
+                                <Button type="submit" disabled={isProcessing || launchMutation.isPending} className="w-full md:w-auto">
+                                    {isProcessing ? (
+                                        <span className="flex items-center gap-2">Processing...</span>
+                                    ) : (
+                                        <span className="flex items-center gap-2"><Search className="w-4 h-4" /> Launch Research Agent</span>
+                                    )}
+                                </Button>
+                            )}
+
+                            {hasResults && (
+                                <Button variant="outline" type="button" onClick={() => window.location.reload()}>
+                                    New Mission
+                                </Button>
+                            )}
                         </div>
-                        <div className="grid w-full items-center gap-1.5">
-                            <Label htmlFor="productDescription">Product Concept</Label>
-                            <Input id="productDescription" placeholder="e.g. AI-powered email writing tool" defaultValue="AI Copywriting Tool" />
-                        </div>
-                        <div className="grid w-full items-center gap-1.5">
-                            <Label htmlFor="keywords">Keywords (comma separated)</Label>
-                            <Input id="keywords" placeholder="e.g. churn reduction, customer success" defaultValue="AI Marketing, Automation" />
-                        </div>
-                        <Button type="submit" disabled={isLoading}>
-                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            {isLoading ? "Running Research..." : "Start Research"}
-                        </Button>
                     </form>
+
+                    {/* Native Tailwind Progress */}
+                    {isProcessing && (
+                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 pt-2">
+                            <div className="flex justify-between text-xs text-muted-foreground font-mono">
+                                <span className="flex items-center"><Loader2 className="h-3 w-3 mr-1 animate-spin" /> INTERCEPTING SIGNALS</span>
+                                <span>{isRefetching ? "SYNCING..." : "LIVE"}</span>
+                            </div>
+                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-blue-600 w-[45%] animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" />
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
-            {research && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Empty State Check */}
-                    {(!research.desires || research.desires.length === 0) && (!research.painPoints || research.painPoints.length === 0) ? (
-                        <div className="md:col-span-2 p-8 border border-dashed border-slate-700 rounded-xl bg-slate-900/30 text-center space-y-4">
-                            <div className="mx-auto w-12 h-12 rounded-full bg-yellow-500/10 flex items-center justify-center">
-                                <span className="text-2xl">⚠️</span>
-                            </div>
-                            <h3 className="text-lg font-semibold text-slate-200">No Insights Found</h3>
-                            <p className="text-muted-foreground max-w-md mx-auto">
-                                The research workflow completed but couldn't extract enough high-quality data.
-                                This usually happens if the keywords are too niche or if the scrapers were blocked.
-                            </p>
-                            <Button variant="outline" onClick={() => refetch()}>Refresh Data</Button>
+            {/* RESULTS RENDERING */}
+            {isLoading && !research ? (
+                <div className="space-y-4">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-64 w-full" />
+                </div>
+            ) : null}
+
+            {hasResults && (
+                <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+
+                    {/* 1. DREAM BUYER IDENTITY (Psychographics) */}
+                    <Card className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 text-white border-slate-700 shadow-2xl overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                            <Brain className="w-32 h-32" />
                         </div>
-                    ) : (
-                        <Card className="md:col-span-2 bg-slate-900/50 border-slate-800">
+                        <CardHeader>
+                            <Badge className="w-fit mb-2 bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 border-blue-500/50">
+                                Psychological Profile
+                            </Badge>
+                            <CardTitle className="text-3xl font-bold tracking-tight">
+                                {research?.avatar?.name || "The Unnamed Avatar"}
+                            </CardTitle>
+                            <CardDescription className="text-slate-400">
+                                Derived from {research?.sources?.length || 0} verified data points.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid md:grid-cols-2 gap-10 relative z-10">
+                            {/* Desires */}
+                            <div className="space-y-4">
+                                <h4 className="font-semibold text-emerald-400 flex items-center gap-2 uppercase tracking-wider text-xs">
+                                    <Sparkles className="w-4 h-4" /> Core Desires
+                                </h4>
+                                <ul className="space-y-3">
+                                    {research?.desires?.slice(0, 5).map((desire: string, i: number) => (
+                                        <li key={i} className="text-slate-300 text-sm leading-relaxed border-l-2 border-emerald-500/30 pl-3 py-1">
+                                            "{desire}"
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                            {/* Pains */}
+                            <div className="space-y-4">
+                                <h4 className="font-semibold text-rose-400 flex items-center gap-2 uppercase tracking-wider text-xs">
+                                    <AlertCircle className="w-4 h-4" /> Pains & Fears
+                                </h4>
+                                <ul className="space-y-3">
+                                    {research?.painPoints?.slice(0, 5).map((pain: string, i: number) => (
+                                        <li key={i} className="text-slate-300 text-sm leading-relaxed border-l-2 border-rose-500/30 pl-3 py-1">
+                                            "{pain}"
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* 2. GOLD NUGGETS & QUANTUM GROWTH (Unexpected Insights) */}
+                    <div className="grid md:grid-cols-2 gap-6">
+                        <Card className="border-amber-500/20 bg-amber-500/5">
                             <CardHeader>
-                                <CardTitle>Dream Buyer Avatar: "{research.topic || "Target Audience"}"</CardTitle>
-                                <CardDescription>Based on analysis of 150+ discussions.</CardDescription>
+                                <CardTitle className="flex items-center gap-2 text-amber-500">
+                                    <Zap className="w-5 h-5 fill-current" /> Gold Nuggets
+                                </CardTitle>
+                                <CardDescription>Unexpected insights that invalidate common assumptions.</CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                                {research.desires && research.desires.length > 0 && (
-                                    <div>
-                                        <h4 className="font-semibold text-primary">Hopes & Dreams</h4>
-                                        <ul className="list-disc ml-5 text-sm text-muted-foreground mt-1">
-                                            {research.desires.map((item: string, idx: number) => (
-                                                <li key={idx}>{item}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                                {research.painPoints && research.painPoints.length > 0 && (
-                                    <div>
-                                        <h4 className="font-semibold text-red-400">Pains & Fears</h4>
-                                        <ul className="list-disc ml-5 text-sm text-muted-foreground mt-1">
-                                            {research.painPoints.map((item: string, idx: number) => (
-                                                <li key={idx}>{item}</li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                )}
-                                {research.competitors && research.competitors.length > 0 && (
-                                    <div>
-                                        <h4 className="font-semibold text-blue-400">Competitors Identified</h4>
-                                        <div className="flex flex-wrap gap-2 mt-1">
-                                            {research.competitors.map((item: string, idx: number) => (
-                                                <span key={idx} className="bg-slate-800 text-xs px-2 py-1 rounded-full border border-slate-700">{item}</span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                            <CardContent>
+                                <ul className="space-y-3">
+                                    {(research?.unexpectedInsights || []).length > 0 ? (
+                                        research.unexpectedInsights.map((insight: string, i: number) => (
+                                            <li key={i} className="text-sm text-slate-700 bg-white p-3 rounded-md shadow-sm border border-amber-100">
+                                                {insight}
+                                            </li>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm italic text-muted-foreground">No unexpected anomalies detected.</p>
+                                    )}
+                                </ul>
                             </CardContent>
                         </Card>
-                    )}
+
+                        <Card className="border-indigo-500/20 bg-indigo-500/5">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2 text-indigo-500">
+                                    <Shield className="w-5 h-5" /> Barriers & Uncertainties
+                                </CardTitle>
+                                <CardDescription>Psychological resistance points preventing conversion.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <ul className="space-y-3">
+                                    {(research?.barriers || []).length > 0 ? (
+                                        research.barriers.map((barrier: string, i: number) => (
+                                            <li key={i} className="text-sm text-slate-700 bg-white p-3 rounded-md shadow-sm border border-indigo-100">
+                                                {barrier}
+                                            </li>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm italic text-muted-foreground">No barriers identified.</p>
+                                    )}
+                                </ul>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* 3. TRACEABILITY / PROOF OF WORK */}
+                    <SourcesTable sources={research?.sources || []} projectId={projectId} />
+
                 </div>
             )}
         </div>

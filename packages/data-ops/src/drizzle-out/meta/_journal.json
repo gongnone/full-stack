@@ -57,6 +57,13 @@
       "when": 1765487780757,
       "tag": "0007_bizarre_night_thrasher",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1765731089225,
+      "tag": "0008_small_silk_fever",
+      "breakpoints": true
     }
   ]
 }

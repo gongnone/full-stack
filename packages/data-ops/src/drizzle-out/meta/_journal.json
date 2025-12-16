@@ -71,6 +71,13 @@
       "when": 1765888393286,
       "tag": "0009_lucky_purple_man",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1765912948628,
+      "tag": "0010_adorable_paladin",
+      "breakpoints": true
     }
   ]
 }

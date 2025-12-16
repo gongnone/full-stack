@@ -11,7 +11,9 @@ import {
     dreamBuyerAvatar,
     researchSources,
     workflowRuns,
-    hvcoTitles
+    hvcoTitles,
+    competitors,
+    competitorOfferMap
 } from '../schema';
 import { nanoid } from 'nanoid';
 import { DrizzleD1Database } from "drizzle-orm/d1";
@@ -21,7 +23,8 @@ import type {
     ClassificationResult,
     AvatarSynthesisResult,
     ProblemIdentificationResult,
-    HVCOGenerationResult
+    HVCOGenerationResult,
+    CompetitorReconResult
 } from '../zod/halo-schema-v2';
 
 type Db = DrizzleD1Database<any>;
@@ -38,6 +41,7 @@ export async function saveHaloResearchV2(
         listening: ListeningResult;
         classification: ClassificationResult;
         avatar: AvatarSynthesisResult;
+        competitorRecon?: CompetitorReconResult;
         problems: ProblemIdentificationResult;
         hvco: HVCOGenerationResult;
         topic: string;
@@ -91,7 +95,7 @@ export async function saveHaloResearchV2(
             summary: data.avatar.avatar.psychographics,
             dominantEmotion: data.avatar.avatar.dominantEmotion
         }),
-        dayInTheLife: data.avatar.avatar.dimensions.dayInLife,
+        dayInTheLife: JSON.stringify(data.avatar.avatar.dimensions.dayInLife),
         mediaConsumption: JSON.stringify(data.avatar.avatar.dimensions.informationSources),
         buyingBehavior: JSON.stringify({
             communicationPrefs: data.avatar.avatar.dimensions.communicationPrefs,
@@ -152,6 +156,44 @@ export async function saveHaloResearchV2(
             iteration: 1,
             isWinner: isWinner
         } as any);
+    }
+
+    // 7. Save Competitor Recon (Phase 1.5)
+    if (data.competitorRecon && data.competitorRecon.competitors) {
+        for (const comp of data.competitorRecon.competitors) {
+            const competitorId = nanoid();
+
+            // Save Competitor Profile
+            await db.insert(competitors).values({
+                id: competitorId,
+                projectId: projectId,
+                name: comp.competitorName,
+                websiteUrl: comp.url,
+                entryProductPrice: comp.primaryOffer.price ? parseFloat(comp.primaryOffer.price.replace(/[^0-9.]/g, '')) || 0 : 0,
+                status: 'analyzed'
+            } as any);
+
+            // Save Offer Map
+            await db.insert(competitorOfferMap).values({
+                id: nanoid(),
+                competitorId: competitorId,
+                hvco: comp.hvco,
+
+                // Mapping new Agent fields to existing Schema
+                pricing: JSON.stringify({
+                    entry: comp.primaryOffer.price,
+                    name: comp.primaryOffer.name,
+                    promise: comp.primaryOffer.promise
+                }),
+
+                // Funnel steps -> Value Build
+                valueBuild: JSON.stringify(comp.funnelSteps),
+
+                weaknesses: JSON.stringify(comp.weaknesses),
+                strengths: JSON.stringify([]) // Default empty
+            } as any);
+        }
+        console.log(`[DB V2] Saved ${data.competitorRecon.competitors.length} competitors`);
     }
 
     console.log(`[DB V2] Saved: ${sourcesToSave.length} sources, ${data.hvco.titles.length} HVCO titles`);

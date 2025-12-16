@@ -39,8 +39,11 @@ Generate 8-10 highly specific search queries to find:
    - "[competitor/product] 1 star reviews"
    - "worst [topic] experiences"
 
-5. **Question Sites** (1 query)
    - "[topic] questions site:quora.com"
+
+5. **Amazon Book Reviews** (2 queries)
+   - "amazon book reviews [topic] 3 stars"
+   - "best books on [topic] amazon negative reviews"
 
 IMPORTANT: Make queries SPECIFIC to the topic. Include emotional language like:
 - "frustrated with"
@@ -197,7 +200,16 @@ BUILD THE AVATAR WITH ALL 9 DIMENSIONS:
 **DIMENSION 5 - DEEPEST FEARS:** What are they afraid of? What's the worst case scenario?
 **DIMENSION 6 - COMMUNICATION PREFS:** How do they prefer to communicate? Formal/informal?
 **DIMENSION 7 - VERNACULAR:** What EXACT phrases do they use? (Include 5-10 with sources)
-**DIMENSION 8 - DAY IN THE LIFE:** Write a detailed narrative of their typical day
+**DIMENSION 8 - DAY IN THE LIFE:** Provide a structured timeline:
+   - "wakeTime": e.g. "6:30 AM"
+   - "morningRoutine": Specific actions they take
+   - "checkPhoneFirst": true/false (do they doomscroll?)
+   - "commuteType": Drive/Train/WFH
+   - "peakStressTime": When is anxiety highest?
+   - "downtime": How they relax
+   - "eveningRoutine": What they do before bed
+   - "bedTime": e.g. "11:30 PM"
+   - "bestContactTimes": ["9 AM", "8 PM"]
 **DIMENSION 9 - HAPPINESS TRIGGERS:** What would make them genuinely happy regarding this topic?
 
 IMPORTANT:
@@ -229,7 +241,18 @@ OUTPUT FORMAT (JSON only, no markdown):
         {"phrase": "I'm sick of...", "source": "reddit.com/r/...", "context": "Discussing client acquisition"},
         {"phrase": "Why can't I just...", "source": "...", "context": "..."}
       ],
-      "dayInLife": "They wake up at 6am already stressed about...",
+      "dayInLife": {
+        "wakeTime": "6:30 AM",
+        "morningRoutine": "Coffee, checks email immediately",
+        "checkPhoneFirst": true,
+        "commuteType": "WFH",
+        "peakStressTime": "2:00 PM",
+        "downtime": "Netflix",
+        "eveningRoutine": "doomscrolling LinkedIn",
+        "bedTime": "11:00 PM",
+        "bestContactTimes": ["8:00 AM", "8:00 PM"]
+      },
+      "competitorGapsTheyFeel": ["Course was too theoretical", "No support"],
       "happinessTriggers": ["Predictable client flow", "..."]
     },
     "psychographics": "A 2-3 sentence vivid summary...",
@@ -370,17 +393,17 @@ OUTPUT FORMAT (JSON only, no markdown):
 // ============================================
 
 export function buildContextString(context?: {
-    targetAudience?: string;
-    productDescription?: string;
+  targetAudience?: string;
+  productDescription?: string;
 }): string {
-    if (!context) return '';
+  if (!context) return '';
 
-    let contextString = '';
-    if (context.targetAudience) {
-        contextString += `\nTarget Audience: ${context.targetAudience}`;
-    }
-    if (context.productDescription) {
-        contextString += `\nProduct/Service Context: ${context.productDescription}`;
-    }
-    return contextString;
+  let contextString = '';
+  if (context.targetAudience) {
+    contextString += `\nTarget Audience: ${context.targetAudience}`;
+  }
+  if (context.productDescription) {
+    contextString += `\nProduct/Service Context: ${context.productDescription}`;
+  }
+  return contextString;
 }

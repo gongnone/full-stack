@@ -8,7 +8,7 @@
 // ============================================
 
 export interface WateringHole {
-    platform: 'reddit' | 'youtube' | 'facebook' | 'quora' | 'forum' | 'other';
+    platform: 'reddit' | 'youtube' | 'facebook' | 'quora' | 'forum' | 'amazon_book' | 'other';
     url: string;
     name: string;
     relevanceScore: number; // 0-100
@@ -19,6 +19,31 @@ export interface WateringHole {
 export interface DiscoveryResult {
     wateringHoles: WateringHole[];
     searchQueriesUsed: string[];
+export interface DiscoveryResult {
+    wateringHoles: WateringHole[];
+    searchQueriesUsed: string[];
+    timestamp: string;
+}
+
+// ============================================
+// PHASE 1.5: COMPETITOR RECON
+// ============================================
+
+export interface CompetitorOffer {
+    competitorName: string;
+    url: string;
+    hvco: string;
+    primaryOffer: {
+        name: string;
+        price: string;
+        promise: string;
+    };
+    funnelSteps: string[];
+    weaknesses: string[];
+}
+
+export interface CompetitorReconResult {
+    competitors: CompetitorOffer[];
     timestamp: string;
 }
 
@@ -107,7 +132,18 @@ export interface AvatarDimensions {
     deepestFears: string[];            // Dim 5: Fears
     communicationPrefs: string[];      // Dim 6: How they communicate
     vernacular: VernacularEntry[];     // Dim 7: Their exact language
-    dayInLife: string;                 // Dim 8: Typical day narrative
+    dayInLife: {
+        wakeTime: string;
+        morningRoutine: string;
+        checkPhoneFirst: boolean;
+        commuteType: string;
+        peakStressTime: string;
+        downtime: string;
+        eveningRoutine: string;
+        bedTime: string;
+        bestContactTimes: string[];
+    }; // Dim 8: Typical day narrative
+    competitorGapsTheyFeel: string[];
     happinessTriggers: string[];       // Dim 9: What makes them happy
 }
 
@@ -192,6 +228,7 @@ export interface CompleteHaloResearch {
 
     // Phase outputs
     discovery: DiscoveryResult;
+    competitorRecon?: CompetitorReconResult; // Phase 1.5
     listening: ListeningResult;
     classification: ClassificationResult;
     avatar: AvatarSynthesisResult;

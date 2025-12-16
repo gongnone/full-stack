@@ -11,7 +11,7 @@ import { z } from "zod";
 // ============================================
 
 export const WateringHoleSchema = z.object({
-    platform: z.enum(['reddit', 'youtube', 'facebook', 'quora', 'forum', 'other']),
+    platform: z.enum(['reddit', 'youtube', 'facebook', 'quora', 'forum', 'amazon_book', 'other']),
     url: z.string(),
     name: z.string(),
     relevanceScore: z.number().min(0).max(100),
@@ -110,7 +110,18 @@ export const AvatarDimensionsSchema = z.object({
     deepestFears: z.array(z.string()),
     communicationPrefs: z.array(z.string()),
     vernacular: z.array(VernacularEntrySchema),
-    dayInLife: z.string(),
+    dayInLife: z.object({
+        wakeTime: z.string(),
+        morningRoutine: z.string(),
+        checkPhoneFirst: z.boolean(),
+        commuteType: z.string(),
+        peakStressTime: z.string(),
+        downtime: z.string(),
+        eveningRoutine: z.string(),
+        bedTime: z.string(),
+        bestContactTimes: z.array(z.string())
+    }),
+    competitorGapsTheyFeel: z.array(z.string()),
     happinessTriggers: z.array(z.string())
 });
 
@@ -186,6 +197,28 @@ export const HVCOGenerationResultSchema = z.object({
 });
 
 // ============================================
+// PHASE 1.5: COMPETITOR RECON
+// ============================================
+
+export const CompetitorOfferSchema = z.object({
+    competitorName: z.string(),
+    url: z.string(),
+    hvco: z.string(), // Their lead magnet
+    primaryOffer: z.object({
+        name: z.string(),
+        price: z.string(),
+        promise: z.string()
+    }),
+    funnelSteps: z.array(z.string()),
+    weaknesses: z.array(z.string())
+});
+
+export const CompetitorReconResultSchema = z.object({
+    competitors: z.array(CompetitorOfferSchema),
+    timestamp: z.string()
+});
+
+// ============================================
 // COMPLETE RESEARCH RESULT
 // ============================================
 
@@ -194,6 +227,7 @@ export const CompleteHaloResearchSchema = z.object({
     runId: z.string(),
     topic: z.string(),
     discovery: DiscoveryResultSchema,
+    competitorRecon: CompetitorReconResultSchema.optional(), // Phase 1.5
     listening: ListeningResultSchema,
     classification: ClassificationResultSchema,
     avatar: AvatarSynthesisResultSchema,
@@ -220,6 +254,7 @@ export type HairOnFireProblem = z.infer<typeof HairOnFireProblemSchema>;
 export type ProblemIdentificationResult = z.infer<typeof ProblemIdentificationResultSchema>;
 export type HVCOTitle = z.infer<typeof HVCOTitleSchema>;
 export type HVCOGenerationResult = z.infer<typeof HVCOGenerationResultSchema>;
+export type CompetitorReconResult = z.infer<typeof CompetitorReconResultSchema>;
 export type CompleteHaloResearch = z.infer<typeof CompleteHaloResearchSchema>;
 
 // Legacy compatibility alias

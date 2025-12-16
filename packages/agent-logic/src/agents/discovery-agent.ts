@@ -31,6 +31,7 @@ function detectPlatform(url: string): WateringHole['platform'] {
     if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) return 'youtube';
     if (urlLower.includes('facebook.com') || urlLower.includes('fb.com')) return 'facebook';
     if (urlLower.includes('quora.com')) return 'quora';
+    if (urlLower.includes('amazon.com') || urlLower.includes('amzn.to')) return 'amazon_book';
     if (urlLower.includes('forum') || urlLower.includes('community')) return 'forum';
     return 'other';
 }
@@ -136,7 +137,9 @@ export async function runDiscoveryAgent(
             `${context.topic} questions site:quora.com`,
             `worst things about ${context.topic}`,
             `${context.topic} facebook group`,
-            `${context.topic} struggles youtube`
+            `${context.topic} struggles youtube`,
+            `amazon book reviews ${context.topic} 3 stars`,
+            `best books on ${context.topic} amazon`
         ];
     }
 

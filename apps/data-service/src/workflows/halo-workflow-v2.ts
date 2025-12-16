@@ -14,6 +14,7 @@
 import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from 'cloudflare:workers';
 import {
     runDiscoveryAgent,
+    runCompetitorReconAgent,
     runListeningAgent,
     runClassificationAgent,
     runAvatarAgent,
@@ -72,6 +73,18 @@ export class HaloResearchWorkflowV2 extends WorkflowEntrypoint<Env, Params> {
         // Update workflow status
         await step.do('update-status-1', async () => {
             await this.updateWorkflowStatus(runId, 'discovery_complete', 1);
+        });
+
+        // ========================================
+        // PHASE 1.5: COMPETITOR RECON (Funnel Hacking)
+        // ========================================
+        const competitorRecon = await step.do('phase-1.5-competitor', {
+            retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' }
+        }, async () => {
+            console.log(`[Phase 1.5] Starting Competitor Recon Agent`);
+            const result = await runCompetitorReconAgent(env, context, discovery);
+            console.log(`[Phase 1.5] Analyzed ${result.competitors.length} competitors`);
+            return result;
         });
 
         // ========================================
@@ -164,6 +177,7 @@ export class HaloResearchWorkflowV2 extends WorkflowEntrypoint<Env, Params> {
 
             await saveHaloResearchV2(db, projectId, runId, {
                 discovery,
+                competitorRecon,
                 listening,
                 classification,
                 avatar,

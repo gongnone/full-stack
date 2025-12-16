@@ -24,6 +24,12 @@ export const researchSources = sqliteTable('research_sources', {
     processedContent: text('processed_content'), // Cleaned/filtered
     sophisticationClass: text('sophistication_class'), // A | B | C
     sophisticationScore: real('sophistication_score'),
+
+    // Amazon 3-Star Review Specifics
+    reviewRating: real('review_rating'),
+    whatWasMissing: text('what_was_missing'), // The "Golden Gap"
+    reviewTitle: text('review_title'),
+
     status: text('status').default('pending'), // pending | processing | complete | failed
     metadata: text('metadata'), // JSON: subreddit, comment_count, etc.
     isExcluded: integer('is_excluded', { mode: 'boolean' }).default(false),
@@ -50,7 +56,8 @@ export const dreamBuyerAvatar = sqliteTable('dream_buyer_avatar', {
     projectId: text('project_id').references(() => projects.id),
     demographics: text('demographics'), // JSON: age, gender, location, income
     psychographics: text('psychographics'), // JSON: values, interests, lifestyle
-    dayInTheLife: text('day_in_the_life'), // Narrative description
+    dayInTheLife: text('day_in_the_life'), // JSON: structured timeline (wake time -> bed time)
+    competitorGapsTheyFeel: text('competitor_gaps_they_feel'), // JSON array: What they hate about current solutions
     mediaConsumption: text('media_consumption'), // JSON: platforms, influencers, publications
     buyingBehavior: text('buying_behavior'), // JSON: triggers, objections, decision process
     summaryParagraph: text('summary_paragraph'), // Final avatar summary

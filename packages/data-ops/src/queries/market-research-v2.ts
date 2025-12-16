@@ -350,3 +350,34 @@ export async function getResearchQualityMetrics(db: Db, projectId: string) {
                 dimensionsCovered >= 3 ? 'C' : 'D'
     };
 }
+
+// ============================================
+// PROJECT MANAGEMENT (Migrated from V1)
+// ============================================
+
+export const createProject = async (db: Db, userId: string, name: string) => {
+    const projectId = nanoid();
+    await db.insert(projects).values({
+        id: projectId,
+        accountId: userId,
+        name,
+        industry: '',
+        status: 'research',
+    });
+    return projectId;
+};
+
+export const getProjects = async (db: Db, userId: string) => {
+    return await db.select()
+        .from(projects)
+        .where(eq(projects.accountId, userId))
+        .orderBy(desc(projects.createdAt));
+};
+
+export const getProject = async (db: Db, projectId: string) => {
+    const result = await db.select()
+        .from(projects)
+        .where(eq(projects.id, projectId))
+        .get();
+    return result;
+};

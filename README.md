@@ -1,2 +1,2 @@
 # cf-services-the-course-playground
-# pull request test
+# auto deploy to data-service test

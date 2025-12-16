@@ -110,21 +110,16 @@
 			},
 			"migrations": [
 				{
-					"tag": "v1",
-					"new_classes": [
-						"EvaluationScheduler"
-					]
-				},
-				{
-					"tag": "v2",
-					"new_sqlite_classes": [
-						"LinkClickTracker"
-					]
-				},
-				{
 					"tag": "v3",
 					"new_classes": [
 						"ChatSession"
+					]
+				},
+				{
+					"tag": "v4",
+					"deleted_classes": [
+						"EvaluationScheduler",
+						"LinkClickTracker"
 					]
 				}
 			]
@@ -196,14 +191,6 @@
 			"durable_objects": {
 				"bindings": [
 					{
-						"class_name": "LinkClickTracker",
-						"name": "LINK_CLICK_TRACKER_OBJECT"
-					},
-					{
-						"name": "EVALUATION_SCHEDULAR",
-						"class_name": "EvaluationScheduler"
-					},
-					{
 						"name": "CHAT_SESSION",
 						"class_name": "ChatSession"
 					}
@@ -211,21 +198,16 @@
 			},
 			"migrations": [
 				{
-					"tag": "v1",
-					"new_classes": [
-						"EvaluationScheduler"
-					]
-				},
-				{
-					"tag": "v2",
-					"new_sqlite_classes": [
-						"LinkClickTracker"
-					]
-				},
-				{
 					"tag": "v3",
 					"new_classes": [
 						"ChatSession"
+					]
+				},
+				{
+					"tag": "v4",
+					"deleted_classes": [
+						"EvaluationScheduler",
+						"LinkClickTracker"
 					]
 				}
 			]

@@ -114,6 +114,13 @@
 					"new_classes": [
 						"ChatSession"
 					]
+				},
+				{
+					"tag": "v4",
+					"deleted_classes": [
+						"EvaluationScheduler",
+						"LinkClickTracker"
+					]
 				}
 			]
 		},
@@ -194,6 +201,13 @@
 					"tag": "v3",
 					"new_classes": [
 						"ChatSession"
+					]
+				},
+				{
+					"tag": "v4",
+					"deleted_classes": [
+						"EvaluationScheduler",
+						"LinkClickTracker"
 					]
 				}
 			]

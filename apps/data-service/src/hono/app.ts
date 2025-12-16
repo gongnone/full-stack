@@ -23,17 +23,7 @@ App.get('/api/ws', async (c) => {
 
 // --- Workflow Triggers ---
 
-App.post('/api/workflows/halo-research', async (c) => {
-  const body = await c.req.json();
-  // Validate body? Simple check for now.
-  if (!body.projectId || !body.keywords) return c.text('Missing params', 400);
 
-  const instance = await c.env.HALO_RESEARCH_WORKFLOW.create({
-    params: body
-  });
-
-  return c.json({ id: instance.id, status: 'started' });
-});
 
 App.post('/api/workflows/golden-pheasant', async (c) => {
   const body = await c.req.json();

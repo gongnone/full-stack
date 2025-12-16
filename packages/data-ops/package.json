@@ -24,8 +24,12 @@
       "default": "./dist/src/zod/*.js"
     },
     "./zod/halo-schema": {
-      "types": "./dist/src/zod/halo-schema.d.ts",
-      "default": "./dist/src/zod/halo-schema.js"
+      "types": "./dist/src/zod/halo-schema-v2.d.ts",
+      "default": "./dist/src/zod/halo-schema-v2.js"
+    },
+    "./zod/halo-schema-v2": {
+      "types": "./dist/src/zod/halo-schema-v2.d.ts",
+      "default": "./dist/src/zod/halo-schema-v2.js"
     },
     "./durable-objects-helpers": {
       "types": "./dist/src/durable-objects-helpers/*.d.ts",

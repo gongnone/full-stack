@@ -1,10 +1,9 @@
 export * from './rag';
 
-// Multi-Phase Halo Research Agents (V2)
+// Multi-Phase Halo Research Agents
 export * from './agents';
 
-// V2 Workflow (multi-phase orchestration)
+// Halo Research Workflow (6-phase multi-agent orchestration)
 export { runHaloResearchV2, runHaloResearchV2Legacy } from './workflows/halo-research-v2';
-
-// Legacy V1 (for backward compatibility)
-export { runHaloResearch } from './workflows/halo-research';
+// Alias for backward compatibility
+export { runHaloResearchV2 as runHaloResearch } from './workflows/halo-research-v2';

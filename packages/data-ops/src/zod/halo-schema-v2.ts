@@ -224,3 +224,31 @@ export type CompleteHaloResearch = z.infer<typeof CompleteHaloResearchSchema>;
 
 // Legacy compatibility alias
 export const HaloResearchSchemaV2 = CompleteHaloResearchSchema;
+
+// ============================================
+// V1 COMPATIBILITY - For Frontend Display
+// ============================================
+
+/**
+ * Simplified schema for frontend display compatibility.
+ * Maps V2's rich data structure to the simpler V1 display format.
+ */
+export const HaloResearchSchema = z.object({
+    avatar: z.object({
+        name: z.string(),
+        demographics: z.union([z.string(), z.record(z.any())]),
+        psychographics: z.union([z.string(), z.record(z.any())]),
+    }),
+    painPoints: z.array(z.any()),
+    competitorGaps: z.array(z.any()),
+    marketDesire: z.string(),
+    verbatimQuotes: z.array(z.any()),
+    suggestedAngles: z.array(z.string()).optional(),
+    sources: z.array(z.object({
+        url: z.string(),
+        title: z.string(),
+        content: z.string()
+    })).optional(),
+});
+
+export type HaloResearchData = z.infer<typeof HaloResearchSchema>;

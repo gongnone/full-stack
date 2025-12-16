@@ -1,11 +1,14 @@
 import { WorkerEntrypoint } from 'cloudflare:workers';
 import { App } from './hono/app';
 import { initDatabase } from '@repo/data-ops/database';
-// Import from the new file
-export { HaloResearchWorkflow } from '@/workflows/halo-workflow';
-export { HaloResearchWorkflowV2 } from '@/workflows/halo-workflow-v2'; // New 6-phase workflow
+
+// Workflows
+export { HaloResearchWorkflowV2 } from '@/workflows/halo-workflow-v2'; // 6-phase multi-agent workflow
+export { HaloResearchWorkflowV2 as HaloResearchWorkflow } from '@/workflows/halo-workflow-v2'; // Alias for compatibility
 export { GoldenPheasantWorkflow } from '@/workflows/golden-pheasant-workflow';
 export { GodfatherOfferWorkflow } from '@/workflows/godfather-offer-workflow';
+
+// Durable Objects
 export { ChatSession } from "./do/ChatSession";
 
 // Stubs to prevent deployment failure due to existing DO instances

@@ -1,5 +1,5 @@
 
-import { HaloResearchData } from '@repo/data-ops/zod/halo-schema';
+import { HaloResearchData } from '@repo/data-ops/zod/halo-schema-v2';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

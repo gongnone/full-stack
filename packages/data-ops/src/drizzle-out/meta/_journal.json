@@ -64,6 +64,13 @@
       "when": 1765731089225,
       "tag": "0008_small_silk_fever",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1765888393286,
+      "tag": "0009_lucky_purple_man",
+      "breakpoints": true
     }
   ]
 }

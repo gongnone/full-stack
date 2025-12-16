@@ -9,7 +9,7 @@
         "./prompts": "./src/prompts.ts",
         "./prompts/halo-investigator": "./src/prompts/halo-investigator.ts",
         "./tools": "./src/tools.ts",
-        "./workflows/halo-research": "./src/workflows/halo-research.ts",
+        "./tools": "./src/tools.ts",
         "./agents": "./src/agents/index.ts"
     },
     "scripts": {

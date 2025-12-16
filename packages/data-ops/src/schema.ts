@@ -40,7 +40,6 @@ export const haloAnalysis = sqliteTable('halo_analysis', {
     barriersAndUncertainties: text('barriers_and_uncertainties'), // JSON array
     vernacular: text('vernacular'), // JSON: glossary of market terms
     unexpectedInsights: text('unexpected_insights'), // JSON array
-    visualCues: text('visual_cues'), // JSON: environment, objects, lighting, body_language
     primalDesires: text('primal_desires'), // JSON array
     createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
     updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),

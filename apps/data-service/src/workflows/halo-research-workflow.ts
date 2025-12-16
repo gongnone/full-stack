@@ -142,7 +142,7 @@ export class HaloResearchWorkflow extends WorkflowEntrypoint<Env, HaloResearchPa
                 const batch = sample.slice(i, i + 5);
 
                 const batchResults = await Promise.all(batch.map(async (item) => {
-                    const prompt = PHASE_PROMPTS.halo_strategy.sophistication_filter.replace('{content}', item.rawContent.substring(0, 1000));
+                    const prompt = PHASE_PROMPTS.halo_strategy.source_quality_grader.replace('{content}', item.rawContent.substring(0, 1000));
                     try {
                         const sophistication = await this.runStrictJsonWithRetry<any>(prompt);
                         return {

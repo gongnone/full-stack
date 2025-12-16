@@ -210,7 +210,16 @@ export const projectsRouter = t.router({
 
                 // Use RPC call to Data Service
                 // @ts-ignore - Implicit type from Service Binding
-                await ctx.env.BACKEND_SERVICE.startHaloResearch(params);
+                await ctx.env.BACKEND_SERVICE.startHaloResearch(
+                    input.projectId,
+                    input.keywords,
+                    ctx.userId || 'system',
+                    runId, // Gap 2 Fix: Pass runId
+                    {
+                        targetAudience: input.targetAudience,
+                        productDescription: input.productDescription
+                    }
+                );
 
                 return { success: true, workflowId: input.projectId };
             } catch (e: any) {

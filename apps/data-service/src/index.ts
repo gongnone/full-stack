@@ -1,7 +1,8 @@
 import { WorkerEntrypoint } from 'cloudflare:workers';
 import { App } from './hono/app';
 import { initDatabase } from '@repo/data-ops/database';
-export { HaloResearchWorkflow } from '@/workflows/halo-research-workflow';
+// Import from the new file
+export { HaloResearchWorkflow } from '@/workflows/halo-workflow';
 export { GoldenPheasantWorkflow } from '@/workflows/golden-pheasant-workflow';
 export { GodfatherOfferWorkflow } from '@/workflows/godfather-offer-workflow';
 export { ChatSession } from "./do/ChatSession";
@@ -38,18 +39,31 @@ export default class DataService extends WorkerEntrypoint<Env> {
 	}
 
 	// RPC Method for User Application
-	async startHaloResearch(params: { projectId: string; keywords: string[] }) {
-		console.log("RPC startHaloResearch called", params);
+	// Updated signature to match the new Investigator logic requirements
+	// RPC Method for User Application
+	// Updated signature to match the new Investigator logic requirements
+	async startHaloResearch(projectId: string, topic: string, userId: string, runId: string, additionalContext?: {
+		targetAudience?: string;
+		productDescription?: string;
+	}) {
+		console.log("RPC startHaloResearch called", { projectId, topic, userId, runId, additionalContext });
 		if (!this.env.HALO_RESEARCH_WORKFLOW) {
 			throw new Error("HALO_RESEARCH_WORKFLOW binding is missing in Data Service");
 		}
-		// Use unique ID to allow re-runs. 
-		// We still pass projectId in params so the workflow knows what to update.
-		const workflowId = `${params.projectId}-${Date.now()}`;
+
+		// Use the explicit runId passed from the frontend for traceability
+		const workflowId = runId;
+
 		await this.env.HALO_RESEARCH_WORKFLOW.create({
 			id: workflowId,
-			params
+			params: {
+				projectId,
+				topic,
+				userId,
+				runId, // Gap 2 Fix: Pass runId to workflow
+				additionalContext
+			}
 		});
-		return { success: true, workflowId };
+		return { success: true, workflowId, status: 'started' };
 	}
 }

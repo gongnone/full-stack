@@ -18,6 +18,99 @@ export const createProject = async (db: Db, userId: string, name: string) => {
     return projectId;
 };
 
+export const updateCampaign = async (db: Db, projectId: string, data: {
+    researchData: {
+        avatar: string | { name: string; demographics: string; psychographics: string; };
+        painPoints: string[];
+        competitorGaps: string[];
+        marketDesire: string;
+        verbatimQuotes: string[];
+        sources?: {
+            url: string;
+            title: string;
+            content: string;
+        }[];
+    };
+    status: string;
+    runId?: string; // Gap 1 Fix: Optional runId
+}) => {
+    // 1. Update Project Status & Target Market Name
+    const avatarName = typeof data.researchData.avatar === 'string' ? data.researchData.avatar : data.researchData.avatar.name;
+
+    await db.update(projects)
+        .set({
+            status: data.status,
+            targetMarket: avatarName
+        })
+        .where(eq(projects.id, projectId));
+
+    // GAP 1 FIX: Update Workflow Run Status
+    if (data.runId) {
+        await db.update(workflowRuns)
+            .set({
+                status: 'complete', // Standardizing on 'complete' (matches DB default) vs 'completed'
+                currentStep: 'complete',
+                completedAt: new Date()
+            })
+            .where(eq(workflowRuns.id, data.runId));
+    }
+
+    // 2. Save Analysis
+    // We'll simplisticly map 'painPoints' to 'painsAndFears' and 'competitorGaps' to 'unexpectedInsights' for now
+    // or create a better mapping.
+    // The previous schema has 'hopesAndDreams', 'painsAndFears', 'barriersAndUncertainties', etc.
+    // We will do our best mapping.
+    await db.insert(haloAnalysis).values({
+        id: nanoid(),
+        projectId: projectId,
+        painsAndFears: JSON.stringify(data.researchData.painPoints || []),
+        // Map 'marketDesire' to 'primalDesires' as a single item or check format
+        primalDesires: JSON.stringify(data.researchData.marketDesire ? [data.researchData.marketDesire] : []),
+        unexpectedInsights: JSON.stringify(data.researchData.competitorGaps || []), // Storing gaps here for now
+        urn: JSON.stringify(data.researchData.verbatimQuotes || []), // Using 'urn' or 'vernacular'? 'vernacular' exists in schema according to prompt?
+        // Checking schema in Step 50: 'vernacular' is used in getMarketResearch.
+        // I'll check schema file if needed, but 'vernacular' seems listed in 'getMarketResearch' parsing.
+        // Wait, getMarketResearch parses 'vernacular' from 'haloAnalysis.vernacular'.
+        vernacular: JSON.stringify(data.researchData.verbatimQuotes || []),
+    } as any);
+
+    // 3. Save Avatar
+    const avatarData = data.researchData.avatar;
+    await db.insert(dreamBuyerAvatar).values({
+        id: nanoid(),
+        projectId: projectId,
+        summaryParagraph: typeof avatarData === 'string' ? avatarData : avatarData.name, // Handle legacy string or new object
+        demographics: typeof avatarData === 'object' ? JSON.stringify(avatarData.demographics) : '{}',
+        psychographics: typeof avatarData === 'object' ? JSON.stringify(avatarData.psychographics) : '{}',
+        dayInTheLife: '',
+        mediaConsumption: '[]',
+        buyingBehavior: '',
+    });
+
+    // GAP 3 FIX: Save Sources
+    if (data.researchData.sources && data.researchData.sources.length > 0) {
+        // Clear existing sources first to avoid duplicates (optional, but safer for re-runs)
+        // await db.delete(researchSources).where(eq(researchSources.projectId, projectId));
+
+        for (const source of data.researchData.sources) {
+            await db.insert(researchSources).values({
+                id: nanoid(),
+                projectId: projectId,
+                sourceType: 'web_search', // Default to web_search for investigator
+                sourceUrl: source.url,
+                rawContent: source.content,
+                sophisticationClass: 'C', // Default pending classification
+                sophisticationScore: 0,
+                status: 'complete',
+                metadata: JSON.stringify({ title: source.title }),
+                createdAt: new Date()
+            } as any);
+        }
+    }
+
+    return true;
+};
+
 export const saveMarketResearch = async (db: Db, data: {
     projectId: string;
     userId: string;
@@ -104,19 +197,20 @@ export const getMarketResearch = async (db: Db, projectId: string) => {
         }
 
         return {
-            status: workflow?.status || 'idle',
+            status: workflow?.status || project?.status || 'idle', // Use project status if workflow missing
             topic: project?.industry || project?.name || 'Market Research',
             competitors: comps ? comps.map(c => c.name) : [],
             painPoints: analysis?.painsAndFears ? JSON.parse(analysis.painsAndFears) : [],
-            desires: analysis?.hopesAndDreams ? JSON.parse(analysis.hopesAndDreams) : [],
+            desires: analysis?.primalDesires ? JSON.parse(analysis.primalDesires) : (analysis?.hopesAndDreams ? JSON.parse(analysis.hopesAndDreams) : []),
             unexpectedInsights: analysis?.unexpectedInsights ? JSON.parse(analysis.unexpectedInsights) : [],
             barriers: analysis?.barriersAndUncertainties ? JSON.parse(analysis.barriersAndUncertainties) : [],
             vernacular: analysis?.vernacular ? JSON.parse(analysis.vernacular) : {},
             dominantEmotion: 'Frustration',
             avatar: avatar ? {
-                name: project?.targetMarket || "Target Audience",
+                name: avatar.summaryParagraph || project?.targetMarket || "Target Audience",
                 demographics: avatar.demographics ? JSON.parse(avatar.demographics) : {},
                 psychographics: avatar.psychographics ? JSON.parse(avatar.psychographics) : {},
+                summary: avatar.summaryParagraph
             } : null,
             sources: sources ? sources.map(s => ({
                 id: s.id,

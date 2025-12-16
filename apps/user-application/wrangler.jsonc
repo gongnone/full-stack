@@ -68,6 +68,10 @@
           "binding": "BACKEND_SERVICE",
           "service": "data-service-stage",
         },
+        {
+          "binding": "DATA_SERVICE",
+          "service": "data-service-stage"
+        },
       ],
       "assets": {
         "directory": "./dist/client",
@@ -123,6 +127,10 @@
         {
           "binding": "BACKEND_SERVICE",
           "service": "data-service-production",
+        },
+        {
+          "binding": "DATA_SERVICE",
+          "service": "data-service-production"
         },
       ],
     }

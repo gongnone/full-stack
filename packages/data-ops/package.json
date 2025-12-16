@@ -23,6 +23,10 @@
       "types": "./dist/src/zod/*.d.ts",
       "default": "./dist/src/zod/*.js"
     },
+    "./zod/halo-schema": {
+      "types": "./dist/src/zod/halo-schema.d.ts",
+      "default": "./dist/src/zod/halo-schema.js"
+    },
     "./durable-objects-helpers": {
       "types": "./dist/src/durable-objects-helpers/*.d.ts",
       "default": "./dist/src/durable-objects-helpers/*.js"

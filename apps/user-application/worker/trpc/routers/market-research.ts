@@ -2,7 +2,7 @@ import { t } from "@/worker/trpc/trpc-instance";
 import { z } from "zod";
 import {
     createProject,
-    saveMarketResearch,
+
     getProjects,
     getProject,
 
@@ -20,26 +20,23 @@ export const marketResearchRouter = t.router({
             })
         )
         .mutation(async ({ ctx, input }) => {
-            // 1. Create the Project Container
+            // 1. Create the Project Container (Status: Research)
             const projectId = await createProject(ctx.db, ctx.userId, input.name);
 
-            // 2. Save initial market research data
-            // TODO: In production, trigger a Cloudflare Workflow here instead
-            // For now, create a placeholder that can be updated by the workflow
-            await saveMarketResearch(ctx.db, {
-                projectId,
-                userId: ctx.userId,
-                topic: input.topic,
-                rawAnalysis: "", // Will be populated by workflow
-                competitors: [],
-                painPoints: [],
-                desires: [],
-            });
+            // 2. CALL THE WORKFLOW (via Data Service)
+            // Using BACKEND_SERVICE which corresponds to data-service
+            // We cast to any because Types might not be shared yet for the RPC method
+            try {
+                // @ts-ignore
+                await ctx.env.BACKEND_SERVICE.startHaloResearch(projectId, input.topic, ctx.userId);
+            } catch (error: any) {
+                console.error("Failed to start research workflow via RPC:", error);
+                // Optionally throw or just return with error status, 
+                // but usually we want to return success for the project creation
+                // and maybe update status to 'error' if we could.
+            }
 
-            // TODO: Trigger workflow like this:
-            // await ctx.env.RESEARCH_WORKFLOW.create({ id: projectId, params: { topic: input.topic } });
-
-            return { projectId, status: "active" };
+            return { projectId, status: "processing" };
         }),
 
     getAll: t.procedure.query(async ({ ctx }) => {

@@ -21,6 +21,7 @@ interface Source {
 import { trpc } from "@/lib/trpc";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface SourcesTableProps {
     sources: Source[];
@@ -28,19 +29,22 @@ interface SourcesTableProps {
 }
 
 export function SourcesTable({ sources, projectId }: SourcesTableProps) {
-    const utils = trpc.useUtils();
+    const queryClient = useQueryClient();
 
     // Optimistic UI for Exclusion
-    const excludeMutation = trpc.marketResearch.excludeSource.useMutation({
-        onMutate: async (newExclusion) => {
+    const excludeMutation = useMutation({
+        ...trpc.marketResearch.excludeSource.mutationOptions(),
+        onMutate: async (newExclusion: { sourceId: string; isExcluded: boolean }) => {
+            const queryKey = trpc.marketResearch.getResearch.queryKey({ projectId });
+
             // 1. Cancel ongoing refetches
-            await utils.marketResearch.getResearch.cancel();
+            await queryClient.cancelQueries({ queryKey });
 
             // 2. Snapshot previous value
-            const previousResearch = utils.marketResearch.getResearch.getData({ projectId });
+            const previousResearch = queryClient.getQueryData(queryKey);
 
             // 3. Optimistically update to remove the source from the list
-            utils.marketResearch.getResearch.setData({ projectId }, (old: any) => {
+            queryClient.setQueryData(queryKey, (old: any) => {
                 if (!old) return old;
                 // Explicitly cast or handle structure safely
                 const current = old as { sources: Source[] };
@@ -53,16 +57,18 @@ export function SourcesTable({ sources, projectId }: SourcesTableProps) {
             // 4. Return context
             return { previousResearch };
         },
-        onError: (_err, _newExclusion, context) => {
+        onError: (_err: any, _newExclusion: any, context: any) => {
+            const queryKey = trpc.marketResearch.getResearch.queryKey({ projectId });
             // 5. Rollback on error
             if (context?.previousResearch) {
-                utils.marketResearch.getResearch.setData({ projectId }, context.previousResearch);
+                queryClient.setQueryData(queryKey, context.previousResearch);
             }
             toast.error("Failed to exclude source");
         },
         onSettled: () => {
+            const queryKey = trpc.marketResearch.getResearch.queryKey({ projectId });
             // 6. Refetch to sync
-            utils.marketResearch.getResearch.invalidate({ projectId });
+            queryClient.invalidateQueries({ queryKey });
         },
         onSuccess: () => {
             toast.success("Source excluded from analysis.");

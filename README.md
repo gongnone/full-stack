@@ -1,2 +1,2 @@
 # cf-services-the-course-playground
-# deploytostage
+# deploytostage - cleanup completed

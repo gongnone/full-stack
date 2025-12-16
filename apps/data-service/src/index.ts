@@ -11,9 +11,7 @@ export { GodfatherOfferWorkflow } from '@/workflows/godfather-offer-workflow';
 // Durable Objects
 export { ChatSession } from "./do/ChatSession";
 
-// Stubs to prevent deployment failure due to existing DO instances
-export class EvaluationScheduler { }
-export class LinkClickTracker { }
+
 
 export default class DataService extends WorkerEntrypoint<Env> {
 	constructor(ctx: ExecutionContext, env: Env) {

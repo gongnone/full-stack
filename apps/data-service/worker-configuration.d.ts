@@ -4,7 +4,7 @@
 declare namespace Cloudflare {
     interface GlobalProps {
         mainModule: typeof import("./src/index");
-        durableNamespaces: "EvaluationScheduler" | "LinkClickTracker" | "ChatSession";
+        durableNamespaces: "ChatSession";
     }
     interface Env {
         CACHE: KVNamespace;

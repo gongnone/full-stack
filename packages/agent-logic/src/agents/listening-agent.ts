@@ -77,7 +77,10 @@ async function processResultsWithAI(
             source: {
                 url: extract.source?.url || '',
                 platform: extract.source?.platform || 'other',
-                title: extract.source?.title || ''
+                title: extract.source?.title || '',
+                reviewRating: extract.source?.reviewRating,
+                whatWasMissing: extract.source?.whatWasMissing,
+                reviewTitle: extract.source?.reviewTitle
             },
             content: extract.content || '',
             verbatimQuotes: Array.isArray(extract.verbatimQuotes) ? extract.verbatimQuotes : [],

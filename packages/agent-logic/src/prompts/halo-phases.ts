@@ -95,7 +95,10 @@ OUTPUT FORMAT (JSON only, no markdown):
       "source": {
         "url": "https://...",
         "platform": "reddit|youtube|forum|quora|other",
-        "title": "Original thread/page title"
+        "title": "Original thread/page title",
+        "reviewRating": 3.0,
+        "reviewTitle": "Title of the review",
+        "whatWasMissing": "What specifically did they say was missing?"
       },
       "content": "The full relevant text section",
       "verbatimQuotes": [
@@ -156,7 +159,7 @@ CLASSIFICATION CRITERIA:
 - PAINS_FEARS: Problems, frustrations, worries
 - HOPES_DREAMS: Desired outcomes, goals, aspirations
 - BARRIERS_UNCERTAINTIES: Objections, doubts, obstacles
-- UNEXPECTED_INSIGHTS: Surprising information, unique perspectives
+- UNEXPECTED_INSIGHTS: Market gaps, missing features, "I wish it had", surprising information, unique perspectives
 
 OUTPUT FORMAT (JSON only, no markdown):
 {

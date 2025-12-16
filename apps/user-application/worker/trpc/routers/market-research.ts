@@ -6,10 +6,11 @@ import {
     getProjects,
     getProject,
 
-    getMarketResearch,
-} from "@repo/data-ops/queries/market-research";
+    getMarketResearchV2,
+} from "@repo/data-ops/queries/market-research-v2";
 import { workflowRuns, researchSources } from "@repo/data-ops/schema";
 import { eq, desc } from "drizzle-orm";
+import { nanoid } from "nanoid";
 
 export const marketResearchRouter = t.router({
     createProject: t.procedure
@@ -17,23 +18,30 @@ export const marketResearchRouter = t.router({
             z.object({
                 name: z.string().min(1),
                 topic: z.string().min(1),
+                targetAudience: z.string().optional(),
+                productDescription: z.string().optional()
             })
         )
         .mutation(async ({ ctx, input }) => {
             // 1. Create the Project Container (Status: Research)
             const projectId = await createProject(ctx.db, ctx.userId, input.name);
+            const runId = nanoid();
 
-            // 2. CALL THE WORKFLOW (via Data Service)
-            // Using BACKEND_SERVICE which corresponds to data-service
-            // We cast to any because Types might not be shared yet for the RPC method
+            // 2. CALL THE WORKFLOW (via Data Service V2)
             try {
                 // @ts-ignore
-                await ctx.env.BACKEND_SERVICE.startHaloResearch(projectId, input.topic, ctx.userId);
+                await ctx.env.BACKEND_SERVICE.startHaloResearchV2(
+                    projectId,
+                    input.topic,
+                    ctx.userId,
+                    runId,
+                    {
+                        targetAudience: input.targetAudience,
+                        productDescription: input.productDescription
+                    }
+                );
             } catch (error: any) {
                 console.error("Failed to start research workflow via RPC:", error);
-                // Optionally throw or just return with error status, 
-                // but usually we want to return success for the project creation
-                // and maybe update status to 'error' if we could.
             }
 
             return { projectId, status: "processing" };
@@ -52,7 +60,7 @@ export const marketResearchRouter = t.router({
     getResearch: t.procedure
         .input(z.object({ projectId: z.string() }))
         .query(async ({ input, ctx }) => {
-            return await getMarketResearch(ctx.db, input.projectId);
+            return await getMarketResearchV2(ctx.db, input.projectId);
         }),
 
     getWorkflowProgress: t.procedure

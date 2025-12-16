@@ -79,7 +79,10 @@ export async function saveHaloResearchV2(
         unexpectedInsights: JSON.stringify(
             data.classification.classifiedContent
                 .filter(c => c.category === 'unexpected_insights')
-                .map(c => c.extractId)
+                .map(c => {
+                    const extract = data.listening.rawExtracts.find(e => e.id === c.extractId);
+                    return extract ? extract.content.slice(0, 300) : "Insight content missing";
+                })
         ),
         primalDesires: JSON.stringify([data.problems.primaryProblem.hvcoOpportunity]),
     } as any);
@@ -127,6 +130,10 @@ export async function saveHaloResearchV2(
                 category: classification?.category,
                 engagement: extract.engagement
             }),
+            // New Amazon Fields
+            reviewRating: (extract.source as any).reviewRating || null,
+            whatWasMissing: (extract.source as any).whatWasMissing || null,
+            reviewTitle: (extract.source as any).reviewTitle || null,
             createdAt: new Date()
         };
     });

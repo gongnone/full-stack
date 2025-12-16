@@ -143,6 +143,10 @@ export async function runDiscoveryAgent(
         ];
     }
 
+    // Force-include Amazon Book queries to ensure Market Gap analysis has data
+    searchQueries.push(`site:amazon.com "customer reviews" ${context.topic} books`);
+    searchQueries.push(`site:amazon.com ${context.topic} books 3 star review`);
+
     // Step 2: Execute searches in parallel
     console.log(`[Phase 1] Executing ${searchQueries.length} searches...`);
     const searchPromises = searchQueries.map(q => performWebSearch(q, env.TAVILY_API_KEY));

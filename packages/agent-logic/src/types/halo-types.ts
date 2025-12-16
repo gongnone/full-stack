@@ -55,6 +55,9 @@ export interface ContentSource {
     url: string;
     platform: string;
     title: string;
+    reviewRating?: number;     // for Amazon 3-star analysis
+    whatWasMissing?: string;   // Golden Gap
+    reviewTitle?: string;
 }
 
 export interface RawExtract {

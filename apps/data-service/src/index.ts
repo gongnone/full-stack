@@ -3,6 +3,7 @@ import { App } from './hono/app';
 import { initDatabase } from '@repo/data-ops/database';
 // Import from the new file
 export { HaloResearchWorkflow } from '@/workflows/halo-workflow';
+export { HaloResearchWorkflowV2 } from '@/workflows/halo-workflow-v2'; // New 6-phase workflow
 export { GoldenPheasantWorkflow } from '@/workflows/golden-pheasant-workflow';
 export { GodfatherOfferWorkflow } from '@/workflows/godfather-offer-workflow';
 export { ChatSession } from "./do/ChatSession";
@@ -65,5 +66,46 @@ export default class DataService extends WorkerEntrypoint<Env> {
 			}
 		});
 		return { success: true, workflowId, status: 'started' };
+	}
+
+	/**
+	 * Start Halo Research V2 (6-Phase Multi-Agent Workflow)
+	 *
+	 * This uses the new multi-phase workflow that produces higher quality outputs:
+	 * 1. Discovery - Find watering holes
+	 * 2. Listening - Extract verbatim content
+	 * 3. Classification - Categorize by sophistication/awareness
+	 * 4. Avatar - Build 9-dimension Dream Buyer Avatar
+	 * 5. Problem - Identify hair-on-fire problem
+	 * 6. HVCO - Generate title variants
+	 */
+	async startHaloResearchV2(projectId: string, topic: string, userId: string, runId: string, additionalContext?: {
+		targetAudience?: string;
+		productDescription?: string;
+	}) {
+		console.log("RPC startHaloResearchV2 called", { projectId, topic, userId, runId, additionalContext });
+
+		// @ts-ignore - V2 workflow binding
+		if (!this.env.HALO_RESEARCH_WORKFLOW_V2) {
+			// Fall back to V1 if V2 not configured
+			console.log("V2 workflow not available, falling back to V1");
+			return this.startHaloResearch(projectId, topic, userId, runId, additionalContext);
+		}
+
+		const workflowId = runId;
+
+		// @ts-ignore - V2 workflow binding
+		await this.env.HALO_RESEARCH_WORKFLOW_V2.create({
+			id: workflowId,
+			params: {
+				projectId,
+				topic,
+				userId,
+				runId,
+				additionalContext
+			}
+		});
+
+		return { success: true, workflowId, status: 'started', version: 'v2' };
 	}
 }

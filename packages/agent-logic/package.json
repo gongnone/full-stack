@@ -9,14 +9,16 @@
         "./prompts": "./src/prompts.ts",
         "./prompts/halo-investigator": "./src/prompts/halo-investigator.ts",
         "./tools": "./src/tools.ts",
-        "./workflows/halo-research": "./src/workflows/halo-research.ts"
+        "./workflows/halo-research": "./src/workflows/halo-research.ts",
+        "./agents": "./src/agents/index.ts"
     },
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "dependencies": {
         "openai": "^4.0.0",
-        "zod": "^4.2.0"
+        "zod": "^4.2.0",
+        "nanoid": "^5.1.5"
     },
     "devDependencies": {
         "@cloudflare/workers-types": "^4.20240208.0",

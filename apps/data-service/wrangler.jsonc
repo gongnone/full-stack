@@ -78,6 +78,11 @@
 					"class_name": "HaloResearchWorkflow"
 				},
 				{
+					"binding": "HALO_RESEARCH_WORKFLOW_V2",
+					"name": "halo-research-workflow-v2-stage",
+					"class_name": "HaloResearchWorkflowV2"
+				},
+				{
 					"binding": "GOLDEN_PHEASANT_WORKFLOW",
 					"name": "golden-pheasant-workflow-stage",
 					"class_name": "GoldenPheasantWorkflow"
@@ -169,6 +174,11 @@
 					"binding": "HALO_RESEARCH_WORKFLOW",
 					"name": "halo-research-workflow",
 					"class_name": "HaloResearchWorkflow"
+				},
+				{
+					"binding": "HALO_RESEARCH_WORKFLOW_V2",
+					"name": "halo-research-workflow-v2",
+					"class_name": "HaloResearchWorkflowV2"
 				},
 				{
 					"binding": "GOLDEN_PHEASANT_WORKFLOW",

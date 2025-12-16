@@ -3,8 +3,8 @@
 	"version": "0.0.0",
 	"private": true,
 	"scripts": {
-		"stage:deploy": "wrangler deploy --env stage",
-		"production:deploy": "wrangler deploy --env production",
+		"stage:deploy": "pnpm run build && wrangler deploy --env stage",
+		"production:deploy": "pnpm run build && wrangler deploy --env production",
 		"dev": "wrangler dev",
 		"start": "wrangler dev",
 		"test": "vitest",

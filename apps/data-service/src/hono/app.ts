@@ -1,21 +1,5 @@
-import { captureLinkClickInBackground, getDestinationForCountry, getRoutingDestinations } from '@/helpers/routes-ops';
-import { cloudflareInfoSchema } from '@repo/data-ops/zod-schema/links';
-import { LinkClickMessageType } from '@repo/data-ops/zod-schema/queue';
 import { Hono } from 'hono';
 export const App = new Hono<{ Bindings: Env }>();
-
-App.get('/click-socket', async (c) => {
-  const upgradeHeader = c.req.header('Upgrade');
-  if (!upgradeHeader || upgradeHeader !== 'websocket') {
-    return c.text('Expected Upgrade: websocket', 426);
-  }
-
-  const accountId = c.req.header('account-id')
-  if (!accountId) return c.text('No Headers', 404);
-  const doId = c.env.LINK_CLICK_TRACKER_OBJECT.idFromName(accountId);
-  const stub = c.env.LINK_CLICK_TRACKER_OBJECT.get(doId);
-  return await stub.fetch(c.req.raw)
-})
 
 App.get('/api/ws', async (c) => {
   const upgradeHeader = c.req.header('Upgrade');
@@ -37,44 +21,50 @@ App.get('/api/ws', async (c) => {
   return stub.fetch(c.req.raw);
 });
 
-App.get('/link-click/:accountId', async (c) => {
-  const accountId = c.req.param('accountId')
-  const doId = c.env.LINK_CLICK_TRACKER_OBJECT.idFromName(accountId);
-  const stub = c.env.LINK_CLICK_TRACKER_OBJECT.get(doId);
-  return await stub.fetch(c.req.raw)
-})
+// --- Workflow Triggers ---
 
 
-App.get('/:id', async (c) => {
-  const id = c.req.param('id');
 
-  const linkInfo = await getRoutingDestinations(c.env, id)
-  if (!linkInfo) {
-    return c.text('Destination not found', 404);
+App.post('/api/workflows/golden-pheasant', async (c) => {
+  const body = await c.req.json();
+  if (!body.projectId || !body.competitorUrl) return c.text('Missing params', 400);
+
+  const instance = await c.env.GOLDEN_PHEASANT_WORKFLOW.create({
+    params: body
+  });
+
+  return c.json({ id: instance.id, status: 'started' });
+});
+
+App.post('/api/workflows/godfather-offer', async (c) => {
+  const body = await c.req.json();
+  if (!body.projectId) return c.text('Missing params', 400);
+
+  const instance = await c.env.GODFATHER_OFFER_WORKFLOW.create({
+    params: body
+  });
+
+  return c.json({ id: instance.id, status: 'started' });
+});
+
+App.post('/api/workflows/events/upload-complete', async (c) => {
+  const body = await c.req.json();
+  if (!body.workflowId || !body.objectKey) return c.text('Missing params', 400);
+
+  try {
+    const instance = await c.env.GOLDEN_PHEASANT_WORKFLOW.get(body.workflowId);
+    // 'upload-complete' must match what we waitForEvent
+    // Note: Workers Types might rely on specific method names. 
+    // Usually `sendEvent` implies sending the event. 
+    // Cloudflare Docs: instance.sendEvent(eventName, eventData)
+    // We'll trust this API exists on the binding interface. 
+    // If TS fails, we might need to cast or check types.
+    // @ts-ignore
+    await instance.sendEvent('upload-complete', { objectKey: body.objectKey });
+
+    return c.json({ success: true });
+  } catch (e) {
+    console.error('Failed to send event', e);
+    return c.json({ success: false, error: String(e) }, 500);
   }
-
-  const cfHeader = cloudflareInfoSchema.safeParse(c.req.raw.cf)
-  if (!cfHeader.success) {
-    return c.text('Invalid Cloudflare headers', 400);
-  }
-
-  const headers = cfHeader.data
-  const destination = getDestinationForCountry(linkInfo, headers.country)
-
-  const queueMessage: LinkClickMessageType = {
-    type: "LINK_CLICK",
-    data: {
-      id: id,
-      country: headers.country,
-      destination: destination,
-      accountId: linkInfo.accountId,
-      latitude: headers.latitude,
-      longitude: headers.longitude,
-      timestamp: new Date().toISOString()
-    }
-  }
-  c.executionCtx.waitUntil(
-    captureLinkClickInBackground(c.env, queueMessage)
-  )
-  return c.redirect(destination)
-})
+});

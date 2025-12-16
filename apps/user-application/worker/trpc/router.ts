@@ -1,16 +1,16 @@
 import { t } from "@/worker/trpc/trpc-instance";
-import { linksTrpcRoutes } from "@/worker/trpc/routers/links";
-import { marketResearchRouter } from "@/worker/trpc/routers/market-research";
 import { userRouter } from "@/worker/trpc/routers/user";
+import { projectsRouter } from "@/worker/trpc/routers/projects";
+import { marketResearchRouter } from "@/worker/trpc/routers/market-research";
+import { linksTrpcRoutes } from "@/worker/trpc/routers/links";
 import { generationsRouter } from "@/worker/trpc/routers/generations";
-import { campaignsRouter } from "@/worker/trpc/routers/campaigns";
 
 export const appRouter = t.router({
-  links: linksTrpcRoutes,
-  marketResearch: marketResearchRouter,
   user: userRouter,
+  projects: projectsRouter,
+  marketResearch: marketResearchRouter,
+  links: linksTrpcRoutes,
   generations: generationsRouter,
-  campaigns: campaignsRouter,
 });
 
 export type AppRouter = typeof appRouter;

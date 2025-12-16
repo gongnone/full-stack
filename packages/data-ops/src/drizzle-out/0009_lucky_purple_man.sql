@@ -1,0 +1,1 @@
+ALTER TABLE `halo_analysis` DROP COLUMN `visual_cues`;

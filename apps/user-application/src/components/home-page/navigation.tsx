@@ -18,10 +18,10 @@ export function Navigation() {
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">
-                SL
+                AH
               </span>
             </div>
-            <span className="font-semibold text-foreground">SmrtLnks</span>
+            <span className="font-semibold text-foreground">AudienceHero</span>
           </div>
           {isPending ? (
             <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />

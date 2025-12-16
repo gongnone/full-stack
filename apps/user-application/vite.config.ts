@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => ({
       "@repo/data-ops/zod-schema/links": path.join(dataOpsPath, "src/zod/links.js"),
       "@repo/data-ops/zod-schema/queue": path.join(dataOpsPath, "src/zod/queue.js"),
       "@repo/data-ops/auth": path.join(dataOpsPath, "src/auth.js"),
+      "@repo/data-ops/queries/market-research": path.join(dataOpsPath, "src/queries/market-research.js"),
     },
   },
   plugins: [

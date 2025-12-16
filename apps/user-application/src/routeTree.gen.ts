@@ -16,8 +16,12 @@ import { Route as AppAuthedRouteImport } from './routes/app/_authed'
 import { Route as AppAuthedIndexRouteImport } from './routes/app/_authed/index'
 import { Route as AppAuthedUpgradeRouteImport } from './routes/app/_authed/upgrade'
 import { Route as AppAuthedAgentRouteImport } from './routes/app/_authed/agent'
-import { Route as AppAuthedProjectsNewRouteImport } from './routes/app/_authed/projects/new'
-import { Route as AppAuthedProjectsProjectIdRouteImport } from './routes/app/_authed/projects/$projectId'
+import { Route as AppAuthedProjectsIndexRouteImport } from './routes/app/_authed/projects/index'
+import { Route as AppAuthedProjectsNewRouteImport } from './routes/app/_authed/projects.new'
+import { Route as AppAuthedProjectsProjectIdRouteImport } from './routes/app/_authed/projects.$projectId'
+import { Route as AppAuthedProjectsProjectIdResearchRouteImport } from './routes/app/_authed/projects.$projectId.research'
+import { Route as AppAuthedProjectsProjectIdOfferRouteImport } from './routes/app/_authed/projects.$projectId.offer'
+import { Route as AppAuthedProjectsProjectIdCompetitorsRouteImport } from './routes/app/_authed/projects.$projectId.competitors'
 
 const AppRouteImport = createFileRoute('/app')()
 
@@ -50,6 +54,11 @@ const AppAuthedAgentRoute = AppAuthedAgentRouteImport.update({
   path: '/agent',
   getParentRoute: () => AppAuthedRoute,
 } as any)
+const AppAuthedProjectsIndexRoute = AppAuthedProjectsIndexRouteImport.update({
+  id: '/projects/',
+  path: '/projects/',
+  getParentRoute: () => AppAuthedRoute,
+} as any)
 const AppAuthedProjectsNewRoute = AppAuthedProjectsNewRouteImport.update({
   id: '/projects/new',
   path: '/projects/new',
@@ -61,6 +70,24 @@ const AppAuthedProjectsProjectIdRoute =
     path: '/projects/$projectId',
     getParentRoute: () => AppAuthedRoute,
   } as any)
+const AppAuthedProjectsProjectIdResearchRoute =
+  AppAuthedProjectsProjectIdResearchRouteImport.update({
+    id: '/research',
+    path: '/research',
+    getParentRoute: () => AppAuthedProjectsProjectIdRoute,
+  } as any)
+const AppAuthedProjectsProjectIdOfferRoute =
+  AppAuthedProjectsProjectIdOfferRouteImport.update({
+    id: '/offer',
+    path: '/offer',
+    getParentRoute: () => AppAuthedProjectsProjectIdRoute,
+  } as any)
+const AppAuthedProjectsProjectIdCompetitorsRoute =
+  AppAuthedProjectsProjectIdCompetitorsRouteImport.update({
+    id: '/competitors',
+    path: '/competitors',
+    getParentRoute: () => AppAuthedProjectsProjectIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,16 +95,24 @@ export interface FileRoutesByFullPath {
   '/app/agent': typeof AppAuthedAgentRoute
   '/app/upgrade': typeof AppAuthedUpgradeRoute
   '/app/': typeof AppAuthedIndexRoute
-  '/app/projects/$projectId': typeof AppAuthedProjectsProjectIdRoute
+  '/app/projects/$projectId': typeof AppAuthedProjectsProjectIdRouteWithChildren
   '/app/projects/new': typeof AppAuthedProjectsNewRoute
+  '/app/projects': typeof AppAuthedProjectsIndexRoute
+  '/app/projects/$projectId/competitors': typeof AppAuthedProjectsProjectIdCompetitorsRoute
+  '/app/projects/$projectId/offer': typeof AppAuthedProjectsProjectIdOfferRoute
+  '/app/projects/$projectId/research': typeof AppAuthedProjectsProjectIdResearchRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppAuthedIndexRoute
   '/app/agent': typeof AppAuthedAgentRoute
   '/app/upgrade': typeof AppAuthedUpgradeRoute
-  '/app/projects/$projectId': typeof AppAuthedProjectsProjectIdRoute
+  '/app/projects/$projectId': typeof AppAuthedProjectsProjectIdRouteWithChildren
   '/app/projects/new': typeof AppAuthedProjectsNewRoute
+  '/app/projects': typeof AppAuthedProjectsIndexRoute
+  '/app/projects/$projectId/competitors': typeof AppAuthedProjectsProjectIdCompetitorsRoute
+  '/app/projects/$projectId/offer': typeof AppAuthedProjectsProjectIdOfferRoute
+  '/app/projects/$projectId/research': typeof AppAuthedProjectsProjectIdResearchRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -87,8 +122,12 @@ export interface FileRoutesById {
   '/app/_authed/agent': typeof AppAuthedAgentRoute
   '/app/_authed/upgrade': typeof AppAuthedUpgradeRoute
   '/app/_authed/': typeof AppAuthedIndexRoute
-  '/app/_authed/projects/$projectId': typeof AppAuthedProjectsProjectIdRoute
+  '/app/_authed/projects/$projectId': typeof AppAuthedProjectsProjectIdRouteWithChildren
   '/app/_authed/projects/new': typeof AppAuthedProjectsNewRoute
+  '/app/_authed/projects/': typeof AppAuthedProjectsIndexRoute
+  '/app/_authed/projects/$projectId/competitors': typeof AppAuthedProjectsProjectIdCompetitorsRoute
+  '/app/_authed/projects/$projectId/offer': typeof AppAuthedProjectsProjectIdOfferRoute
+  '/app/_authed/projects/$projectId/research': typeof AppAuthedProjectsProjectIdResearchRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -100,6 +139,10 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/projects/$projectId'
     | '/app/projects/new'
+    | '/app/projects'
+    | '/app/projects/$projectId/competitors'
+    | '/app/projects/$projectId/offer'
+    | '/app/projects/$projectId/research'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -108,6 +151,10 @@ export interface FileRouteTypes {
     | '/app/upgrade'
     | '/app/projects/$projectId'
     | '/app/projects/new'
+    | '/app/projects'
+    | '/app/projects/$projectId/competitors'
+    | '/app/projects/$projectId/offer'
+    | '/app/projects/$projectId/research'
   id:
     | '__root__'
     | '/'
@@ -118,6 +165,10 @@ export interface FileRouteTypes {
     | '/app/_authed/'
     | '/app/_authed/projects/$projectId'
     | '/app/_authed/projects/new'
+    | '/app/_authed/projects/'
+    | '/app/_authed/projects/$projectId/competitors'
+    | '/app/_authed/projects/$projectId/offer'
+    | '/app/_authed/projects/$projectId/research'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -169,6 +220,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuthedAgentRouteImport
       parentRoute: typeof AppAuthedRoute
     }
+    '/app/_authed/projects/': {
+      id: '/app/_authed/projects/'
+      path: '/projects'
+      fullPath: '/app/projects'
+      preLoaderRoute: typeof AppAuthedProjectsIndexRouteImport
+      parentRoute: typeof AppAuthedRoute
+    }
     '/app/_authed/projects/new': {
       id: '/app/_authed/projects/new'
       path: '/projects/new'
@@ -183,23 +241,66 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuthedProjectsProjectIdRouteImport
       parentRoute: typeof AppAuthedRoute
     }
+    '/app/_authed/projects/$projectId/research': {
+      id: '/app/_authed/projects/$projectId/research'
+      path: '/research'
+      fullPath: '/app/projects/$projectId/research'
+      preLoaderRoute: typeof AppAuthedProjectsProjectIdResearchRouteImport
+      parentRoute: typeof AppAuthedProjectsProjectIdRoute
+    }
+    '/app/_authed/projects/$projectId/offer': {
+      id: '/app/_authed/projects/$projectId/offer'
+      path: '/offer'
+      fullPath: '/app/projects/$projectId/offer'
+      preLoaderRoute: typeof AppAuthedProjectsProjectIdOfferRouteImport
+      parentRoute: typeof AppAuthedProjectsProjectIdRoute
+    }
+    '/app/_authed/projects/$projectId/competitors': {
+      id: '/app/_authed/projects/$projectId/competitors'
+      path: '/competitors'
+      fullPath: '/app/projects/$projectId/competitors'
+      preLoaderRoute: typeof AppAuthedProjectsProjectIdCompetitorsRouteImport
+      parentRoute: typeof AppAuthedProjectsProjectIdRoute
+    }
   }
 }
+
+interface AppAuthedProjectsProjectIdRouteChildren {
+  AppAuthedProjectsProjectIdCompetitorsRoute: typeof AppAuthedProjectsProjectIdCompetitorsRoute
+  AppAuthedProjectsProjectIdOfferRoute: typeof AppAuthedProjectsProjectIdOfferRoute
+  AppAuthedProjectsProjectIdResearchRoute: typeof AppAuthedProjectsProjectIdResearchRoute
+}
+
+const AppAuthedProjectsProjectIdRouteChildren: AppAuthedProjectsProjectIdRouteChildren =
+  {
+    AppAuthedProjectsProjectIdCompetitorsRoute:
+      AppAuthedProjectsProjectIdCompetitorsRoute,
+    AppAuthedProjectsProjectIdOfferRoute: AppAuthedProjectsProjectIdOfferRoute,
+    AppAuthedProjectsProjectIdResearchRoute:
+      AppAuthedProjectsProjectIdResearchRoute,
+  }
+
+const AppAuthedProjectsProjectIdRouteWithChildren =
+  AppAuthedProjectsProjectIdRoute._addFileChildren(
+    AppAuthedProjectsProjectIdRouteChildren,
+  )
 
 interface AppAuthedRouteChildren {
   AppAuthedAgentRoute: typeof AppAuthedAgentRoute
   AppAuthedUpgradeRoute: typeof AppAuthedUpgradeRoute
   AppAuthedIndexRoute: typeof AppAuthedIndexRoute
-  AppAuthedProjectsProjectIdRoute: typeof AppAuthedProjectsProjectIdRoute
+  AppAuthedProjectsProjectIdRoute: typeof AppAuthedProjectsProjectIdRouteWithChildren
   AppAuthedProjectsNewRoute: typeof AppAuthedProjectsNewRoute
+  AppAuthedProjectsIndexRoute: typeof AppAuthedProjectsIndexRoute
 }
 
 const AppAuthedRouteChildren: AppAuthedRouteChildren = {
   AppAuthedAgentRoute: AppAuthedAgentRoute,
   AppAuthedUpgradeRoute: AppAuthedUpgradeRoute,
   AppAuthedIndexRoute: AppAuthedIndexRoute,
-  AppAuthedProjectsProjectIdRoute: AppAuthedProjectsProjectIdRoute,
+  AppAuthedProjectsProjectIdRoute: AppAuthedProjectsProjectIdRouteWithChildren,
   AppAuthedProjectsNewRoute: AppAuthedProjectsNewRoute,
+  AppAuthedProjectsIndexRoute: AppAuthedProjectsIndexRoute,
 }
 
 const AppAuthedRouteWithChildren = AppAuthedRoute._addFileChildren(

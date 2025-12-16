@@ -1,8 +1,8 @@
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { useRouterState } from "@tanstack/react-router";
-// import { trpc } from "@/router";
-// import { useQuery } from "@tanstack/react-query";
+import { trpc } from "@/lib/trpc";
+import { useQuery } from "@tanstack/react-query";
 
 export function SiteHeader() {
   const routerState = useRouterState();
@@ -10,7 +10,8 @@ export function SiteHeader() {
 
   const getPageTitle = (path: string) => {
     if (path === "/app") return "Dashboard";
-    // Add more path mappings as needed
+    if (path.startsWith("/app/projects")) return "Campaigns";
+    if (path.startsWith("/app/agent")) return "War Room";
     return "Dashboard";
   };
 
@@ -32,13 +33,18 @@ export function SiteHeader() {
 }
 
 function CreditBalance() {
-  // FIXME: Crash due to trpc
-  // const { data: credits } = useQuery(trpc.generations.getCredits.queryOptions());
-  const credits = { balance: 100 };
+  const { data: credits, isLoading, isError } = useQuery({
+    ...trpc.generations.getCredits.queryOptions(),
+    retry: 1,
+    staleTime: 30000,
+  });
+
+  const balance = isError ? 0 : (credits?.balance ?? 0);
+
   return (
     <div className="flex items-center gap-2 px-3 py-1 bg-secondary rounded-full text-sm font-medium">
       <span>🪙</span>
-      <span>{credits?.balance ?? 0} Credits</span>
+      <span>{isLoading ? "..." : balance} Credits</span>
     </div>
   );
 }

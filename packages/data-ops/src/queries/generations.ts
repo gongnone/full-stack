@@ -1,53 +1,26 @@
-import { DrizzleD1Database } from "drizzle-orm/d1";
-import { generations } from "../schema";
-import { CreateGenerationInput } from "../zod/generations";
-import { nanoid } from "nanoid";
+import { DrizzleD1Database } from 'drizzle-orm/d1';
+import { generatedContent, researchSources } from '../schema';
+import { eq, desc } from 'drizzle-orm';
 
-export async function createGenerationRecord(
-    db: DrizzleD1Database<any>,
-    userId: string,
-    data: CreateGenerationInput
-) {
-    const id = nanoid();
-    const result = await db
-        .insert(generations)
-        .values({
-            id,
-            userId,
-            type: data.type,
-            status: "queued",
-            prompt: data.prompt,
-            modelUsed: data.model,
-        })
-        .returning();
-
-    return result[0];
-}
-
-export async function getRecentGenerations(
-    db: DrizzleD1Database<any>,
-    userId: string,
-    limit = 10
-) {
-    // Import desq and eq here to avoid circular dependencies if any
-    const { desc, eq } = await import("drizzle-orm");
-    return await db
-        .select()
-        .from(generations)
-        .where(eq(generations.userId, userId))
-        .orderBy(desc(generations.createdAt))
-        .limit(limit);
-}
-
-export async function updateGeneration(
-    db: DrizzleD1Database<any>,
-    id: string,
-    data: Partial<typeof generations.$inferInsert>
-) {
-    const { eq } = await import("drizzle-orm");
-    return await db
-        .update(generations)
-        .set(data)
-        .where(eq(generations.id, id))
-        .returning();
+export async function getGenerations(db: DrizzleD1Database<any>, projectId: string) {
+    return await db.select({
+        id: generatedContent.id,
+        content: generatedContent.content,
+        status: generatedContent.status,
+        createdAt: generatedContent.createdAt,
+        citedSourceId: generatedContent.citedSourceId,
+        source: {
+            id: researchSources.id,
+            type: researchSources.sourceType,
+            content: researchSources.rawContent,
+            sophistication: researchSources.sophisticationClass,
+            url: researchSources.sourceUrl,
+            metadata: researchSources.metadata
+        }
+    })
+        .from(generatedContent)
+        .leftJoin(researchSources, eq(generatedContent.citedSourceId, researchSources.id))
+        .where(eq(generatedContent.projectId, projectId))
+        .orderBy(desc(generatedContent.createdAt))
+        .all();
 }

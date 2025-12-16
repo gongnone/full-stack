@@ -53,10 +53,15 @@ export class ChatSession extends DurableObject<Env> {
         this.ctx.acceptWebSocket(webSocket);
         this.sessions.set(webSocket, { connectedAt: Date.now() });
 
+        // Filter out internal system messages (like raw search results) before sending to UI
+        const visibleMessages = this.messages.filter(msg =>
+            !(msg.role === "system" && msg.content.startsWith("[System: Performed live web search"))
+        );
+
         // HYDRATION: Send full history and current phase on connection
         webSocket.send(JSON.stringify({
             type: 'init',
-            messages: this.messages,
+            messages: visibleMessages,
             phase: this.currentPhase
         }));
     }
@@ -100,16 +105,58 @@ export class ChatSession extends DurableObject<Env> {
         console.log(`[ChatSession] RAG Context Length: ${context.length}`);
 
         // 2. Construct System Prompt with Instructions
-        const systemPrompt = this.constructSystemPrompt(context) + this.getInstructions();
+        const systemPrompt = this.constructSystemPrompt(context, true);
 
         // 3. Update History
         this.messages.push({ role: "user", content: userMessage });
         await this.saveState();
 
-        console.log('3. Calling OpenAI (Workers AI)...');
+        console.log('3. Calling OpenAI (Workers AI) with Tools...');
 
-        // 4. Call LLM with Sliding Window Context
-        // Take system prompt + last 20 messages
+        // Tool Definitions
+        const tools = [
+            {
+                name: "searchWeb",
+                description: "Search the web for live information (prices, competitors, trends).",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        query: {
+                            type: "string",
+                            description: "The search query (e.g. 'ClickFunnels pricing 2024').",
+                        },
+                    },
+                    required: ["query"],
+                },
+            },
+            {
+                name: "completePhase",
+                description: "Mark the current phase as complete. YOU MUST PROVIDE 'audience' (if research) or 'price' (if offer).",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        summary: { type: "string", description: "Summary of the phase findings." },
+                        audience: { type: "string", description: "REQUIRED for Research Phase: The defined target audience (e.g. 'High-income moms')." },
+                        price: { type: "number", description: "REQUIRED for Offer Phase: The defined price point (e.g. 97)." }
+                    },
+                    required: ["summary"]
+                }
+            },
+            {
+                name: "finalizeCampaign",
+                description: "Finalize the campaign content.",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" },
+                        brandVoice: { type: "object" }
+                    },
+                    required: ["name"]
+                }
+            }
+        ];
+
+        // 4. First Call with Tools
         const slidingWindowMessages = [
             { role: "system", content: systemPrompt },
             ...this.messages.slice(-20)
@@ -117,94 +164,115 @@ export class ChatSession extends DurableObject<Env> {
 
         const response = await this.env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
             messages: slidingWindowMessages,
-            max_tokens: 2048
-        });
+            tools: tools,
+            tool_choice: "auto", // Auto-select helpful tool
+            max_tokens: 4096
+        } as any);
 
-        const output = (response as any).response || "";
+        // Handle Response (Check for Tool Calls)
+        // Note: CF Workers AI response structure for tools may vary, handling standard OpenAI-like or JSON output
+        let output = (response as any).response || "";
+        let toolCalls = (response as any).tool_calls;
 
-        // 5. Save Assistant Response to History
-        this.messages.push({ role: "assistant", content: output });
-        await this.saveState();
-
-        // 6. Check for tool usage / phase completion
-        try {
-            if (output.trim().startsWith('{')) {
-                const action = JSON.parse(output);
-
-                if (action.tool === "completePhase") {
-                    const result = await this.completePhase(action.summary, action.nextPhaseData);
-                    this.messages.push({ role: "system", content: result });
-                    await this.saveState();
-                    return result;
+        // Fallback: Check if output is a JSON string simulating a tool call (Legacy Prompt Support)
+        if (!toolCalls && output.trim().startsWith('{')) {
+            try {
+                const legacyAction = JSON.parse(output);
+                if (legacyAction.tool) {
+                    toolCalls = [{
+                        name: legacyAction.tool,
+                        arguments: legacyAction
+                    }];
                 }
+            } catch (e) { /* Not JSON */ }
+        }
 
-                if (action.tool === "finalizeCampaign") {
-                    const result = await this.finalizeCampaign(action.name, action.brandVoice);
-                    this.messages.push({ role: "system", content: result });
+        // 5. Process Tool Calls (Loop)
+        if (toolCalls && toolCalls.length > 0) {
+            console.log('⚡ Handling Tool Calls:', JSON.stringify(toolCalls));
+
+            // Allow multiple tool calls, but usually just one
+            for (const call of toolCalls) {
+                const toolName = call.name;
+                const args = call.arguments;
+
+                if (toolName === "searchWeb") {
+                    console.log('⚡ Executing Search Tool for:', args.query);
+                    const searchResults = await performWebSearch(args.query, this.env.TAVILY_API_KEY || "no-key");
+
+                    // Append Tool Result
+                    const toolResultMsg = `[System: Performed live web search for '${args.query}'. Results: ${searchResults.substring(0, 1500)}...]`;
+                    this.messages.push({ role: "system", content: toolResultMsg });
                     await this.saveState();
-                    return result;
-                }
 
-                if (action.tool === "searchWeb") {
-                    const searchResults = await performWebSearch(action.query, this.env.TAVILY_API_KEY || "no-key");
-                    const result = `[System: Performed live web search for '${action.query}'. Results: ${searchResults.substring(0, 1500)}...]`;
+                    // 6. Second Call (Final Answer)
+                    console.log('4. Calling OpenAI (Second Pass with Results)...');
 
-                    // Feed back to model (recurse one level)
-                    this.messages.push({ role: "system", content: result });
-                    await this.saveState();
+                    // Re-construct prompt WITHOUT tool instructions to prevent JSON hallucinations
+                    const strictSystemPrompt = this.constructSystemPrompt(context, false);
 
                     const followUpMessages = [
-                        { role: "system", content: systemPrompt },
+                        { role: "system", content: strictSystemPrompt },
                         ...this.messages.slice(-20)
                     ];
 
-                    const followUp = await this.env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
+                    const followUpResponse = await this.env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', {
                         messages: followUpMessages,
-                        max_tokens: 2048,
-                        tools: [
-                            {
-                                name: "searchWeb",
-                                description: "Search the web for information.",
-                                parameters: {
-                                    type: "object",
-                                    properties: {
-                                        query: {
-                                            type: "string",
-                                            description: "The search query.",
-                                        },
-                                    },
-                                    required: ["query"],
-                                },
-                            },
-                        ],
-                    });
+                        // tools: tools - Removed to force text response
+                        max_tokens: 4096
+                    } as any);
 
-                    const followUpOutput = (followUp as any).response || "";
-                    this.messages.push({ role: "assistant", content: followUpOutput });
+                    output = (followUpResponse as any).response || "";
+
+                }
+                else if (toolName === "completePhase") {
+                    const result = await this.completePhase(args.summary, args.audience, args.price);
+                    this.messages.push({ role: "system", content: result });
                     await this.saveState();
-                    return followUpOutput;
+                    return result;
+                }
+                else if (toolName === "finalizeCampaign") {
+                    const result = await this.finalizeCampaign(args.name, args.brandVoice);
+                    this.messages.push({ role: "system", content: result });
+                    await this.saveState();
+                    return result;
                 }
             }
-        } catch (e) {
-            // Not JSON
         }
+
+        // 7. Save and Return Final Assistant Response
+        this.messages.push({ role: "assistant", content: output });
+        await this.saveState();
 
         return output;
     }
 
-    getInstructions(): string {
-        return `
-        \n\nSYSTEM INSTRUCTIONS:
-        1. If you are done with a phase (research/offer), output JSON: { "tool": "completePhase", "summary": "...", "nextPhaseData": { ... } }
-        2. If you need to search the web for information (e.g., market stats, competitor info), output JSON: { "tool": "searchWeb", "query": "..." }
-        3. If you are in the 'content' phase and have finalized the Brand Voice and strategy, output JSON: { "tool": "finalizeCampaign", "name": "Campaign Name", "brandVoice": { ... } }
-        4. If the user says "ULTRATEST", immediately generate the final mock data and output the "completePhase" JSON tool call.
-        
+    getInstructions(toolsEnabled: boolean): string {
+        const baseInstructions = `
         Maintain the persona defined above.
         `;
+
+        if (toolsEnabled) {
+            return `
+            \n\nSYSTEM INSTRUCTIONS:
+            1. If you are done with a phase (research/offer), output JSON: { "tool": "completePhase", "summary": "...", "audience": "...", "price": ... }
+            2. If you need to search the web for information (e.g., market stats, competitor info), output JSON: { "tool": "searchWeb", "query": "..." }
+            3. If you are in the 'content' phase and have finalized the Brand Voice and strategy, output JSON: { "tool": "finalizeCampaign", "name": "Campaign Name", "brandVoice": { ... } }
+            4. If the user says "ULTRATEST", immediately generate the final mock data and output the "completePhase" JSON tool call.
+            ${baseInstructions}
+            `;
+        } else {
+            return `
+            \n\nSYSTEM INSTRUCTIONS:
+            1. You have just performed a web search and received the results (in the system history).
+            2. Do NOT output JSON. Do NOT trying to search again.
+            3. Synthesize the search results into a comprehensive, text-based answer for the user.
+            ${baseInstructions}
+            `;
+        }
     }
 
-    constructSystemPrompt(ragContext: string): string {
+    constructSystemPrompt(ragContext: string, toolsEnabled: boolean = true): string {
         let basePrompt = (PHASE_PROMPTS as any)[this.currentPhase] || "You are a helpful assistant.";
 
         if (this.currentPhase === "offer" && this.phaseData.research) {
@@ -218,17 +286,17 @@ export class ChatSession extends DurableObject<Env> {
             basePrompt += `\n\n### ACTIVE MEMORY (Internal Knowledge):\n${ragContext}`;
         }
 
-        return basePrompt;
+        return basePrompt + this.getInstructions(toolsEnabled);
     }
 
-    async completePhase(summary: string, data: any): Promise<string> {
+    async completePhase(summary: string, audience?: string, price?: number): Promise<string> {
         if (this.currentPhase === "research") {
-            this.phaseData.research = { summary, audience: data.audience || "Unknown" };
+            this.phaseData.research = { summary, audience: audience || "Unknown" };
             this.currentPhase = "offer";
             await this.saveState();
             return `[System: Phase 'research' completed. Switching to 'offer'.] Based on your research about ${this.phaseData.research.audience}, let's build your offer.`;
         } else if (this.currentPhase === "offer") {
-            this.phaseData.offer = { summary, price: data.price || 0 };
+            this.phaseData.offer = { summary, price: price || 0 };
             this.currentPhase = "content";
             await this.saveState();
             return `[System: Phase 'offer' completed. Switching to 'content'.] Great, with an offer price of $${this.phaseData.offer.price}, let's write some content.`;

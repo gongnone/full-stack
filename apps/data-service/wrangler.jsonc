@@ -44,6 +44,9 @@
 					"remote": true
 				}
 			],
+			"vars": {
+				"REDDIT_USER_AGENT": "HaloOps/1.0"
+			},
 			"kv_namespaces": [
 				{
 					"binding": "CACHE",
@@ -70,9 +73,19 @@
 			},
 			"workflows": [
 				{
-					"binding": "DESTINATION_EVALUATION_WORKFLOW",
-					"name": "destination-evaluation-workflow-production",
-					"class_name": "DestinationEvaluationWorkflow"
+					"binding": "HALO_RESEARCH_WORKFLOW_V2",
+					"name": "halo-research-workflow-v2-stage",
+					"class_name": "HaloResearchWorkflowV2"
+				},
+				{
+					"binding": "GOLDEN_PHEASANT_WORKFLOW",
+					"name": "golden-pheasant-workflow-stage",
+					"class_name": "GoldenPheasantWorkflow"
+				},
+				{
+					"binding": "GODFATHER_OFFER_WORKFLOW",
+					"name": "godfather-offer-workflow-stage",
+					"class_name": "GodfatherOfferWorkflow"
 				}
 			],
 			"browser": {
@@ -89,14 +102,6 @@
 			],
 			"durable_objects": {
 				"bindings": [
-					{
-						"class_name": "LinkClickTracker",
-						"name": "LINK_CLICK_TRACKER_OBJECT"
-					},
-					{
-						"name": "EVALUATION_SCHEDULAR",
-						"class_name": "EvaluationScheduler"
-					},
 					{
 						"name": "CHAT_SESSION",
 						"class_name": "ChatSession"
@@ -137,6 +142,9 @@
 					"database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750"
 				}
 			],
+			"vars": {
+				"REDDIT_USER_AGENT": "HaloOps/1.0"
+			},
 			"kv_namespaces": [
 				{
 					"binding": "CACHE",
@@ -158,9 +166,19 @@
 			},
 			"workflows": [
 				{
-					"binding": "DESTINATION_EVALUATION_WORKFLOW",
-					"name": "destination-evaluation-workflow",
-					"class_name": "DestinationEvaluationWorkflow"
+					"binding": "HALO_RESEARCH_WORKFLOW_V2",
+					"name": "halo-research-workflow-v2",
+					"class_name": "HaloResearchWorkflowV2"
+				},
+				{
+					"binding": "GOLDEN_PHEASANT_WORKFLOW",
+					"name": "golden-pheasant-workflow",
+					"class_name": "GoldenPheasantWorkflow"
+				},
+				{
+					"binding": "GODFATHER_OFFER_WORKFLOW",
+					"name": "godfather-offer-workflow",
+					"class_name": "GodfatherOfferWorkflow"
 				}
 			],
 			"browser": {

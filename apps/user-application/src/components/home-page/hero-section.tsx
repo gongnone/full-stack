@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Globe, Shield, Zap, Sparkles } from "lucide-react";
 import { authClient } from "@/components/auth/client";
@@ -33,39 +33,38 @@ export function HeroSection() {
 
           {/* Main headline */}
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-6">
-            Stop Losing Revenue to{" "}
+            Turn Deep Research into{" "}
             <span className="bg-gradient-to-r from-primary via-primary to-purple-600 bg-clip-text text-transparent">
-              Broken Links
+              Dominant Brands
             </span>
           </h1>
 
           {/* Subheading */}
           <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-            Smart link management with AI monitoring and geo-routing that keeps
-            your traffic flowing and revenue growing.
+            An automated workflow to research your market, craft your offer, and
+            generate on-brand content in minutes.
           </p>
 
           {/* CTA Section */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            <div className="flex gap-2 w-full sm:w-auto max-w-md">
-              <Input
-                placeholder="Enter your URL to shorten"
-                className="h-11 text-base"
-              />
+            <div className="flex gap-2 w-full sm:w-auto mt-4">
               {data ? (
                 <Button
                   size="lg"
-                  className="h-11 px-6"
+                  className="h-11 px-8 text-base shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
                   onClick={handleStartFree}
                 >
                   Start Free
-                  <ArrowRight className="ml-1 h-4 w-4" />
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               ) : (
                 <LoginPopup>
-                  <Button size="lg" className="h-11 px-6">
+                  <Button
+                    size="lg"
+                    className="h-11 px-8 text-base shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all"
+                  >
                     Start Free
-                    <ArrowRight className="ml-1 h-4 w-4" />
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </LoginPopup>
               )}
@@ -76,15 +75,15 @@ export function HeroSection() {
           <div className="flex flex-wrap justify-center items-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Zap className="h-4 w-4 text-primary" />
-              <span>Instant Link Creation</span>
+              <span>Deep Market Research</span>
             </div>
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-primary" />
-              <span>Geo-based Routing</span>
+              <span>Offer Strategy</span>
             </div>
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-primary" />
-              <span>AI Link Monitoring</span>
+              <span>Multimodal Content</span>
             </div>
           </div>
         </div>

@@ -52,36 +52,75 @@ export function ResearchResults({ data }: { data: any }) {
                         🎯 Target: {research.avatar.name || "Dream Buyer"}
                     </CardTitle>
                 </CardHeader>
-                <CardContent className="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <h4 className="font-semibold mb-2">Demographics</h4>
-                        {typeof research.avatar.demographics === 'object' ? (
-                            <ul className="text-sm space-y-1">
-                                {Object.entries(research.avatar.demographics).map(([key, value]) => (
-                                    <li key={key}>
-                                        <span className="font-medium capitalize">{key}: </span>
-                                        <span className="text-muted-foreground">{renderValue(value)}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">{research.avatar.demographics}</p>
-                        )}
-                    </div>
-                    <div>
-                        <h4 className="font-semibold mb-2">Psychographics</h4>
-                        {typeof research.avatar.psychographics === 'object' ? (
-                            <ul className="text-sm space-y-1">
-                                {Object.entries(research.avatar.psychographics).map(([key, value]) => (
-                                    <li key={key}>
-                                        <span className="font-medium capitalize">{key}: </span>
-                                        <span className="text-muted-foreground">{renderValue(value)}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">{research.avatar.psychographics}</p>
-                        )}
+                <CardContent>
+                    {/* Premium Grid Layout for Avatar */}
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {/* 1. Identity & Demographics */}
+                        <div className="space-y-3 p-4 bg-slate-50/50 rounded-lg border border-slate-100">
+                            <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                                <span className="text-xl">🪪</span>
+                                <h4 className="font-bold text-sm uppercase tracking-wide text-slate-500">Identity</h4>
+                            </div>
+                            {typeof research.avatar.demographics === 'object' ? (
+                                <ul className="text-sm space-y-2">
+                                    {Object.entries(research.avatar.demographics).map(([key, value]) => (
+                                        <li key={key} className="flex justify-between">
+                                            <span className="font-medium capitalize text-slate-600">{key}:</span>
+                                            <span className="text-slate-900 font-semibold text-right">{renderValue(value)}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-sm text-slate-700">{research.avatar.demographics}</p>
+                            )}
+                        </div>
+
+                        {/* 2. Inner Drive (Psychographics) */}
+                        <div className="space-y-3 p-4 bg-slate-50/50 rounded-lg border border-slate-100">
+                            <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                                <span className="text-xl">🧠</span>
+                                <h4 className="font-bold text-sm uppercase tracking-wide text-slate-500">Inner Psychology</h4>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <span className="text-xs font-semibold text-blue-600 uppercase">Primary Desire</span>
+                                    <p className="text-sm font-medium leading-relaxed">{research.marketDesire}</p>
+                                </div>
+                                <div className="text-xs text-slate-500">
+                                    <span className="font-semibold text-slate-600 block mb-1">PSYCHOGRAPHICS:</span>
+                                    {typeof research.avatar.psychographics === 'string'
+                                        ? research.avatar.psychographics
+                                        : "Analysis complete."}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 3. Environment (Watering Holes) */}
+                        <div className="space-y-3 p-4 bg-slate-50/50 rounded-lg border border-slate-100 col-span-1 md:col-span-2 lg:col-span-1">
+                            <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                                <span className="text-xl">📍</span>
+                                <h4 className="font-bold text-sm uppercase tracking-wide text-slate-500">Habitat</h4>
+                            </div>
+                            {(() => {
+                                const avatar = research.avatar as any;
+                                const wateringHoles = avatar.dimensions?.wateringHoles || [];
+                                const infoSources = avatar.dimensions?.informationSources || [];
+                                const combined = [...wateringHoles, ...infoSources].slice(0, 5);
+
+                                if (combined.length === 0) return <p className="text-sm text-muted-foreground italic">No habitat data identified.</p>;
+
+                                return (
+                                    <ul className="space-y-2">
+                                        {combined.map((place: string, i: number) => (
+                                            <li key={i} className="flex items-start gap-2 text-sm">
+                                                <Badge variant="outline" className="shrink-0 bg-white">Source</Badge>
+                                                <span className="text-slate-700">{place}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                );
+                            })()}
+                        </div>
                     </div>
                 </CardContent>
             </Card>
@@ -92,6 +131,7 @@ export function ResearchResults({ data }: { data: any }) {
                     <TabsTrigger value="gaps">🛡️ Competitor Gaps</TabsTrigger>
                     <TabsTrigger value="voice">🗣️ Market Voice</TabsTrigger>
                     <TabsTrigger value="timeline">⏰ Timeline</TabsTrigger>
+                    <TabsTrigger value="headlines">⚡ Headlines</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="pains" className="mt-4">
@@ -205,6 +245,36 @@ export function ResearchResults({ data }: { data: any }) {
                                     return <p className="text-sm text-muted-foreground">Timeline data format unrecognized.</p>;
                                 }
                             })()}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="headlines" className="mt-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Killer Headlines (HVCO)</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid gap-3">
+                                {research.hvcoTitles?.map((t: any, i: number) => (
+                                    <div key={i} className={`p-4 rounded-lg border flex justify-between items-start gap-4 ${t.isWinner ? 'bg-green-50/50 border-green-200' : 'bg-slate-50/50 border-slate-100'}`}>
+                                        <div className="space-y-1">
+                                            <h4 className="font-medium text-slate-900 leading-snug">"{t.title}"</h4>
+                                            <div className="flex gap-2 text-xs">
+                                                <Badge variant="outline" className="font-mono text-[10px] text-slate-500">{t.formula}</Badge>
+                                                {t.isWinner && <Badge className="bg-green-600">🏆 Recommended</Badge>}
+                                            </div>
+                                        </div>
+                                        <div className="text-right shrink-0">
+                                            <div className="text-2xl font-bold text-slate-900">{t.totalScore}</div>
+                                            <div className="text-[10px] uppercase text-slate-500 font-bold">Score</div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {(!research.hvcoTitles || research.hvcoTitles.length === 0) && (
+                                    <p className="text-muted-foreground text-sm italic">No headlines generated yet.</p>
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

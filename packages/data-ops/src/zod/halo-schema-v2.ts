@@ -284,6 +284,7 @@ export const HaloResearchSchema = z.object({
         title: z.string(),
         content: z.string()
     })).optional(),
+    hvcoTitles: z.array(z.any()).optional(), // V2 Phase 6 Output
 });
 
 export type HaloResearchData = z.infer<typeof HaloResearchSchema>;

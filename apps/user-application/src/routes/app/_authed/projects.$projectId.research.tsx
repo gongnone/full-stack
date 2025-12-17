@@ -100,7 +100,8 @@ function ResearchTab() {
         painPoints: research.painPoints || [],
         competitorGaps: research.unexpectedInsights || [],
         marketDesire: Array.isArray(research.desires) ? research.desires[0] : (research.desires || "Undetermined"),
-        verbatimQuotes: research.verbatimQuotes || [] // V2 Mapping: Use aggregated quotes from Source Metadata
+        verbatimQuotes: research.verbatimQuotes || [], // V2 Mapping: Use aggregated quotes from Source Metadata
+        hvcoTitles: research.hvcoTitles || []          // V2 Mapping: Phase 6 Titles
     } : null;
 
 

@@ -171,8 +171,8 @@ export const projectsRouter = t.router({
             await ctx.db.update(projects)
                 .set({
                     industry: input.industry || undefined,
-                    // If these columns don't exist yet, we only update what we can. 
-                    // Assuming 'industry' exists based on 'create' procedure.
+                    targetMarket: input.targetAudience || undefined,       // Map V2 Target Audience
+                    valueProposition: input.productDescription || undefined, // Map V2 Product Context
                     updatedAt: new Date(),
                 })
                 .where(eq(projects.id, input.projectId));

@@ -62,22 +62,17 @@ function ResearchTab() {
         e.preventDefault();
         const form = e.target as HTMLFormElement;
         const keywordsInput = form.elements.namedItem('keywords') as HTMLInputElement;
-        const identityInput = form.elements.namedItem('identity') as HTMLInputElement;
-        const struggleInput = form.elements.namedItem('struggle') as HTMLInputElement;
-        const outcomeInput = form.elements.namedItem('outcome') as HTMLInputElement;
+        const audienceInput = form.elements.namedItem('audience') as HTMLInputElement;
+        const productInput = form.elements.namedItem('product') as HTMLTextAreaElement;
 
         const keywords = keywordsInput?.value || "";
-        const identity = identityInput?.value || "";
-        const struggle = struggleInput?.value || "";
-        const outcome = outcomeInput?.value || "";
+        const targetAudience = audienceInput?.value || "";
+        const productDescription = productInput?.value || "";
 
         if (!keywords.trim()) {
             toast.error("Please enter a topic or niche.");
             return;
         }
-
-        const targetAudience = `${identity} facing ${struggle}`;
-        const productDescription = `Helping them achieve ${outcome}`;
 
         try {
             await launchMutation.mutateAsync({
@@ -129,7 +124,7 @@ function ResearchTab() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <form onSubmit={handleLaunch} className="flex flex-col gap-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4">
                             {/* 1. Niche / Keywords */}
                             <div className="space-y-2">
                                 <Label htmlFor="keywords">Target Niche / Keywords</Label>
@@ -144,44 +139,32 @@ function ResearchTab() {
                                 <p className="text-xs text-muted-foreground">The broad market category to scan.</p>
                             </div>
 
-                            {/* 2. Target Identity */}
+                            {/* 2. Target Audience */}
                             <div className="space-y-2">
-                                <Label htmlFor="identity">Target Identity (Who)</Label>
+                                <Label htmlFor="audience">Target Audience</Label>
                                 <Input
-                                    id="identity"
-                                    name="identity"
-                                    placeholder="e.g. Frustrated Agency Owner"
+                                    id="audience"
+                                    name="audience"
+                                    placeholder="e.g. Frustrated Agency Owner facing burnout"
                                     disabled={isProcessing || hasResults}
-                                    defaultValue={research?.avatar?.name || ""}
+                                    defaultValue={research?.targetAudience || research?.avatar?.name || ""}
                                     className="bg-background/50"
                                 />
-                                <p className="text-xs text-muted-foreground">The specific persona you want to reach.</p>
+                                <p className="text-xs text-muted-foreground">Who are we trying to reach?</p>
                             </div>
 
-                            {/* 3. Current Struggle (Hell) */}
+                            {/* 3. Product / Offer Context */}
                             <div className="space-y-2">
-                                <Label htmlFor="struggle">Current Struggle (Hell)</Label>
-                                <Input
-                                    id="struggle"
-                                    name="struggle"
-                                    placeholder="e.g. Working 80hrs, inconsistent leads"
+                                <Label htmlFor="product">Product / Offer Context</Label>
+                                <textarea
+                                    id="product"
+                                    name="product"
+                                    placeholder="Describe what you are selling. E.g. 'A high-ticket coaching program helping agency owners scale to $50k/mo by removing themselves from delivery.'"
                                     disabled={isProcessing || hasResults}
-                                    className="bg-background/50"
+                                    defaultValue={research?.productDescription || ""}
+                                    className="flex w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px]"
                                 />
-                                <p className="text-xs text-muted-foreground">Their painful current reality.</p>
-                            </div>
-
-                            {/* 4. Desired Outcome (Heaven) */}
-                            <div className="space-y-2">
-                                <Label htmlFor="outcome">Desired Outcome (Heaven)</Label>
-                                <Input
-                                    id="outcome"
-                                    name="outcome"
-                                    placeholder="e.g. Productized service, 20hr week"
-                                    disabled={isProcessing || hasResults}
-                                    className="bg-background/50"
-                                />
-                                <p className="text-xs text-muted-foreground">The dream state they crave.</p>
+                                <p className="text-xs text-muted-foreground">Give the agent context on what you are selling (optional but recommended).</p>
                             </div>
                         </div>
 

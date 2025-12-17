@@ -256,6 +256,8 @@ export async function getMarketResearchV2(db: Db, projectId: string) {
             status: workflow?.status || project?.status || 'idle',
             progress: workflow?.currentStep || 'unknown',
             topic: project?.industry || project?.name || 'Market Research',
+            targetAudience: project?.targetMarket || 'Target Audience', // V2 Mapping
+            productDescription: project?.valueProposition || '',        // V2 Mapping
 
             // Competitor Gaps (Aggregated)
             competitorGaps: allCompetitorGaps,

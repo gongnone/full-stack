@@ -155,28 +155,69 @@ export async function runDiscoveryAgent(
     // Step 3: Process results into watering holes
     const wateringHolesMap = new Map<string, WateringHole>();
 
-    searchResults.forEach(result => {
-        result.results.forEach(item => {
-            // Deduplicate by URL
-            if (!wateringHolesMap.has(item.url)) {
-                const platform = detectPlatform(item.url);
-                const relevanceScore = calculateRelevanceScore(item.content, context.topic);
-                const sampleTopics = extractSampleTopics(item.content);
+    const processResults = (results: any[]) => {
+        results.forEach(result => {
+            result.results.forEach((item: any) => {
+                if (!wateringHolesMap.has(item.url)) {
+                    const platform = detectPlatform(item.url);
+                    const relevanceScore = calculateRelevanceScore(item.content, context.topic);
+                    const sampleTopics = extractSampleTopics(item.content);
 
-                wateringHolesMap.set(item.url, {
-                    platform,
-                    url: item.url,
-                    name: item.title,
-                    relevanceScore,
-                    estimatedAudience: platform === 'reddit' ? 'Community members' :
-                        platform === 'youtube' ? 'Video viewers' :
-                            platform === 'quora' ? 'Question seekers' :
-                                'Forum participants',
-                    sampleTopics
-                });
-            }
+                    wateringHolesMap.set(item.url, {
+                        platform,
+                        url: item.url,
+                        name: item.title,
+                        relevanceScore,
+                        estimatedAudience: platform === 'reddit' ? 'Community members' :
+                            platform === 'youtube' ? 'Video viewers' :
+                                platform === 'quora' ? 'Question seekers' :
+                                    'Forum participants',
+                        sampleTopics
+                    });
+                }
+            });
         });
+    };
+
+    processResults(searchResults);
+
+    // Step 3.5: Recursive Discovery (Reflection)
+    const initialTitles = Array.from(wateringHolesMap.values()).map(w => w.name).join('\n');
+    console.log(`[Phase 1] Reflecting on ${wateringHolesMap.size} initial findings...`);
+
+    const reflectionResponse = await env.AI.run(MODEL, {
+        messages: [
+            { role: 'system', content: 'You are a research strategist identifying missing angles.' },
+            {
+                role: 'user',
+                content: `
+                I have searched for "${context.topic}" and found these results:
+                ${initialTitles}
+
+                Identify 3 SPECIFIC "Rabbit Hole" search queries for entities (Gurus, Specific Competitor Products, or Controversies) that appear in these titles but weren't fully explored.
+                e.g. If you see "Dr. Huberman", search "Dr. Huberman controversy reddit".
+                
+                Return JSON: { "newQueries": ["query1", "query2", "query3"] }
+                `
+            }
+        ]
     });
+
+    try {
+        const cleaned = cleanJson(reflectionResponse.response);
+        const parsed = JSON.parse(cleaned);
+        const newQueries = parsed.newQueries || [];
+
+        if (newQueries.length > 0) {
+            console.log(`[Phase 1] Recursive Discovery Triggered:`, newQueries);
+            const recursivePromises = newQueries.map((q: string) => performWebSearch(q, env.TAVILY_API_KEY));
+            const recursiveResults = await Promise.all(recursivePromises);
+            processResults(recursiveResults);
+            searchQueries.push(...newQueries);
+        }
+    } catch (e) {
+        console.error(`[Phase 1] Recursive discovery failed (skipping):`, e);
+    }
 
     // Step 4: Sort by relevance and take top results
     const wateringHoles = Array.from(wateringHolesMap.values())

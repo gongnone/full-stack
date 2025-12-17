@@ -192,7 +192,7 @@ async function buildAvatarWithAI(
                 deepestFears: avatarData.dimensions?.deepestFears || [],
                 communicationPrefs: avatarData.dimensions?.communicationPrefs || ['Direct', 'Practical'],
                 vernacular: vernacular,
-                dayInLife: avatarData.dimensions?.dayInLife || {
+                dayInLife: (typeof avatarData.dimensions?.dayInLife === 'object') ? avatarData.dimensions.dayInLife : {
                     wakeTime: "7:00 AM",
                     morningRoutine: "Coffee",
                     checkPhoneFirst: true,

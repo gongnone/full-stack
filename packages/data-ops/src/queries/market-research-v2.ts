@@ -102,7 +102,8 @@ export async function saveHaloResearchV2(
         mediaConsumption: JSON.stringify(data.avatar.avatar.dimensions.informationSources),
         buyingBehavior: JSON.stringify({
             communicationPrefs: data.avatar.avatar.dimensions.communicationPrefs,
-            happinessTriggers: data.avatar.avatar.dimensions.happinessTriggers
+            happinessTriggers: data.avatar.avatar.dimensions.happinessTriggers,
+            competitorGapsTheyFeel: data.avatar.avatar.dimensions.competitorGapsTheyFeel
         })
     });
 
@@ -224,23 +225,42 @@ export async function getMarketResearchV2(db: Db, projectId: string) {
         const avatar = await db.select().from(dreamBuyerAvatar).where(eq(dreamBuyerAvatar.projectId, projectId)).get();
         const analysis = await db.select().from(haloAnalysis).where(eq(haloAnalysis.projectId, projectId)).get();
         const sources = await db.select().from(researchSources).where(eq(researchSources.projectId, projectId)).orderBy(desc(researchSources.sophisticationScore)).limit(50);
-        const titles = await db.select().from(hvcoTitles).where(eq(hvcoTitles.projectId, projectId)).orderBy(desc(hvcoTitles.criticScore)).limit(20);
-        const workflow = await db.select().from(workflowRuns).where(eq(workflowRuns.projectId, projectId)).orderBy(desc(workflowRuns.startedAt)).limit(1).get();
+
+        // Fetch Phase 1.5 Competitor Data for Gaps
+        const compOffers = await db.select().from(competitorOfferMap)
+            .leftJoin(competitors, eq(competitorOfferMap.competitorId, competitors.id))
+            .where(eq(competitors.projectId, projectId));
 
         // Parse stored JSON data
         const demographics = avatar?.demographics ? JSON.parse(avatar.demographics) : {};
         const psychographics = avatar?.psychographics ? JSON.parse(avatar.psychographics) : {};
+        const buyingBehavior = avatar?.buyingBehavior ? JSON.parse(avatar.buyingBehavior) : {};
         const vernacular = analysis?.vernacular ? JSON.parse(analysis.vernacular) : [];
         const painsAndFears = analysis?.painsAndFears ? JSON.parse(analysis.painsAndFears) : [];
         const hopesAndDreams = analysis?.hopesAndDreams ? JSON.parse(analysis.hopesAndDreams) : [];
         const barriers = analysis?.barriersAndUncertainties ? JSON.parse(analysis.barriersAndUncertainties) : [];
+
+        const titles = await db.select().from(hvcoTitles).where(eq(hvcoTitles.projectId, projectId)).orderBy(desc(hvcoTitles.criticScore)).limit(20);
+        const workflow = await db.select().from(workflowRuns).where(eq(workflowRuns.projectId, projectId)).orderBy(desc(workflowRuns.startedAt)).limit(1).get();
+
+        // Aggregate Competitor Gaps
+        const competitorWeaknesses = compOffers.flatMap(c => {
+            const weaknesses = c.competitor_offer_map?.weaknesses ? JSON.parse(c.competitor_offer_map.weaknesses) : [];
+            return weaknesses.map((w: string) => `${c.competitors?.name || 'Competitor'}: ${w}`);
+        });
+
+        const avatarGaps = buyingBehavior.competitorGapsTheyFeel || [];
+        const allCompetitorGaps = [...competitorWeaknesses, ...avatarGaps];
 
         return {
             status: workflow?.status || project?.status || 'idle',
             progress: workflow?.currentStep || 'unknown',
             topic: project?.industry || project?.name || 'Market Research',
 
-            // Avatar (9 Dimensions)
+            // Competitor Gaps (Aggregated)
+            competitorGaps: allCompetitorGaps,
+
+            // ... rest of object
             avatar: avatar ? {
                 name: avatar.summaryParagraph || project?.targetMarket || "Target Audience",
                 demographics,

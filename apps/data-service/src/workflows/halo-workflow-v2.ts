@@ -110,7 +110,7 @@ export class HaloResearchWorkflowV2 extends WorkflowEntrypoint<Env, Params> {
             retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' }
         }, async () => {
             console.log(`[Phase 3] Starting Classification Agent`);
-            const result = await runClassificationAgent(env, listening);
+            const result = await runClassificationAgent(env, listening, context);
             console.log(`[Phase 3] Classified ${result.classifiedContent.length} items`);
             return result;
         });

@@ -316,6 +316,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^1.0.11
         version: 1.3.24(zod@3.25.67)
+      '@cloudflare/puppeteer':
+        specifier: ^1.0.3
+        version: 1.0.3
       '@repo/data-ops':
         specifier: workspace:*
         version: link:../data-ops

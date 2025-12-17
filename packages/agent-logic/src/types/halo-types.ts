@@ -19,9 +19,6 @@ export interface WateringHole {
 export interface DiscoveryResult {
     wateringHoles: WateringHole[];
     searchQueriesUsed: string[];
-export interface DiscoveryResult {
-    wateringHoles: WateringHole[];
-    searchQueriesUsed: string[];
     timestamp: string;
 }
 
@@ -95,6 +92,8 @@ export interface ClassifiedContent {
     emotionalState: EmotionalState;
     category: ContentCategory;
     confidence: number; // 0-100
+    relevanceScore: number; // 0-100 (Relevance to topic)
+    isRelevant: boolean; // Should be included?
     reasoning: string;
 }
 
@@ -252,6 +251,7 @@ export interface AgentEnv {
     AI: any;                           // Cloudflare Workers AI binding
     TAVILY_API_KEY: string;
     DB: any;                           // D1 Database binding
+    VIRTUAL_BROWSER?: any;             // Cloudflare Browser Binding
 }
 
 export interface AgentContext {

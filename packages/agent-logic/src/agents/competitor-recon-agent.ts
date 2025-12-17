@@ -4,6 +4,8 @@ import { generateObject } from 'ai';
 import { createOpenAI } from '@ai-sdk/openai';
 import { AgentContext, AgentEnv } from '../types/halo-types';
 import { CompetitorReconResultSchema, DiscoveryResultSchema } from '@repo/data-ops/zod/halo-schema-v2';
+import { scrapePageContent } from '../tools/browser-tools';
+import { performWebSearch } from '../tools';
 
 export async function runCompetitorReconAgent(
     env: AgentEnv,
@@ -17,42 +19,94 @@ export async function runCompetitorReconAgent(
 
     const model = openai('gpt-4o-2024-08-06');
 
-    // Extract competitor names from discovery if possible, or search for them
+    // 1. Initial ID of competitors via LLM logic
     const potentialCompetitors = discovery.wateringHoles
-        .filter(wh => wh.platform === 'other' || wh.platform === 'forum') // Loose proxy for now, but better to just ask LLM
+        .filter(wh => wh.platform === 'other' || wh.platform === 'forum')
         .map(wh => wh.name)
         .join(', ');
 
-    const result = await generateObject({
+    console.log(`[Competitor Recon] Identifying competitors...`);
+
+    // First pass: Just get Names + URLs from LLM/Search
+    const initialIdentification = await generateObject({
         model,
-        schema: CompetitorReconResultSchema,
+        schema: z.object({
+            competitors: z.array(z.object({
+                name: z.string(),
+                url: z.string().describe("Estimated URL, will be verified"),
+                searchQuery: z.string().describe("Query to find their sales page")
+            })).length(3)
+        }),
         prompt: `
-            You are the "Golden Pheasant" Competitor Reconnaissance Agent.
-            Your job is to identify the top 3-5 direct competitors for the topic: "${context.topic}".
+            Identify top 3 direct competitors for "${context.topic}".
+            Context: ${potentialCompetitors}
             
-            PROJECT CONTEXT:
-            Topic: ${context.topic}
-            Target Audience: ${context.targetAudience || 'General market'}
-            Product Description: ${context.productDescription || 'N/A'}
-
-            INSTRUCTIONS:
-            1. Identify 3-5 major competitors selling information products, courses, or coaching in this niche.
-            2. For each competitor, "Funnel Hack" them (simulate the buying process):
-               - URL: Find their landing page.
-               - HVCO (High Value Content Offer): What is their lead magnet? (e.g. Free PDF, Webinar, Quiz).
-               - Primary Offer: The main thing they sell immediately after the lead magnet.
-               - Price: Estimate or find the price point.
-               - Promise: What is the "Big Promise" of the offer?
-               - Funnel Steps: What happens next? (Upsell? Email sequence?)
-               - Weaknesses: What are they doing poorly? (Bad design, weak copy, no guarantee, etc.)
-
-            Valid Sources from Discovery Phase:
-            ${potentialCompetitors}
-
-            Output must be strict JSON matching the schema.
+            Return their names and a search query to find their main sales page.
         `,
-        temperature: 0.7, // Higher temp for creative finding
     });
 
-    return result.object;
+    // 2. Verified Data Collection (The Tier 2 Upgrade)
+    const verifiedCompetitors = [];
+
+    for (const comp of initialIdentification.object.competitors) {
+        console.log(`[Competitor Recon] Analyzing ${comp.name}...`);
+
+        let targetUrl = comp.url;
+        let pageContent = "";
+
+        // Search to confirm verification URL
+        const searchRes = await performWebSearch(comp.searchQuery, env.TAVILY_API_KEY);
+        if (searchRes.results.length > 0) {
+            targetUrl = searchRes.results[0].url; // Take top result
+        }
+
+        // Active Scraping
+        if (env.VIRTUAL_BROWSER) {
+            console.log(`[Competitor Recon] Scraping ${targetUrl}...`);
+            const scraped = await scrapePageContent(env.VIRTUAL_BROWSER, targetUrl);
+            pageContent = scraped.content.slice(0, 10000); // Limit context
+        } else {
+            // Fallback to Tavily snippet
+            pageContent = searchRes.results[0]?.content || "";
+        }
+
+        // 3. Extract details from REAL content
+        const extraction = await generateObject({
+            model,
+            schema: z.object({
+                hvco: z.string(),
+                primaryOffer: z.object({
+                    name: z.string(),
+                    price: z.string(),
+                    promise: z.string()
+                }),
+                funnelSteps: z.array(z.string()),
+                weaknesses: z.array(z.string())
+            }),
+            prompt: `
+                Analyze this LANDING PAGE CONTENT for competitor "${comp.name}".
+                
+                URL: ${targetUrl}
+                CONTENT:
+                ${pageContent}
+                
+                Extract:
+                1. HVCO (Lead Magnet)
+                2. Primary Offer Name & Price (Be precise, look for $ symbols)
+                3. The Big Promise
+                4. Weaknesses in their copy/offer based on Alex Hormozi's $100M Offers framework.
+            `
+        });
+
+        verifiedCompetitors.push({
+            competitorName: comp.name,
+            url: targetUrl,
+            ...extraction.object
+        });
+    }
+
+    return {
+        competitors: verifiedCompetitors,
+        timestamp: new Date().toISOString()
+    };
 }

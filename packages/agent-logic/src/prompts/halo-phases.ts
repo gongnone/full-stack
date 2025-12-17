@@ -161,6 +161,11 @@ CLASSIFICATION CRITERIA:
 - BARRIERS_UNCERTAINTIES: Objections, doubts, obstacles
 - UNEXPECTED_INSIGHTS: Market gaps, missing features, "I wish it had", surprising information, unique perspectives
 
+**RELEVANCE SCORING:**
+- Score 0-100 based on direct relevance to TOPIC: "{topic}" and AUDIENCE: "{audience}".
+- IRRELEVANT (0-40): Generic complaints, unrelated to niche, or spam.
+- RELEVANT (60-100): Specifically addresses the topic and target persona problems.
+
 OUTPUT FORMAT (JSON only, no markdown):
 {
   "classifications": [
@@ -170,6 +175,8 @@ OUTPUT FORMAT (JSON only, no markdown):
       "awarenessLevel": "unaware|problem_aware|solution_aware|product_aware|most_aware",
       "emotionalState": "frustrated|hopeful|fearful|confused|excited|skeptical",
       "category": "pains_fears|hopes_dreams|barriers_uncertainties|unexpected_insights",
+      "relevanceScore": 85,
+      "isRelevant": true,
       "confidence": 85,
       "reasoning": "Brief explanation"
     }
@@ -203,7 +210,7 @@ BUILD THE AVATAR WITH ALL 9 DIMENSIONS:
 **DIMENSION 5 - DEEPEST FEARS:** What are they afraid of? What's the worst case scenario?
 **DIMENSION 6 - COMMUNICATION PREFS:** How do they prefer to communicate? Formal/informal?
 **DIMENSION 7 - VERNACULAR:** What EXACT phrases do they use? (Include 5-10 with sources)
-**DIMENSION 8 - DAY IN THE LIFE:** Provide a structured timeline:
+**DIMENSION 8 - DAY IN THE LIFE:** Provide a structured timeline (JSON OBJECT ONLY - No narratives):
    - "wakeTime": e.g. "6:30 AM"
    - "morningRoutine": Specific actions they take
    - "checkPhoneFirst": true/false (do they doomscroll?)
@@ -300,21 +307,20 @@ MUST INCLUDE:
 OUTPUT FORMAT (JSON only, no markdown):
 {
   "primaryProblem": {
-    "problem": "Clear, specific problem statement",
+    "problem": "Synthesized insight statement (e.g., 'Moms feel judged by doctors')",
     "frequencyScore": 75,
     "intensityScore": 90,
     "totalScore": 84,
     "evidenceQuotes": [
       {"quote": "Exact words from research...", "source": "reddit.com/..."},
-      {"quote": "Another exact quote...", "source": "youtube.com/..."},
-      {"quote": "Third quote...", "source": "..."}
+      {"quote": "Another exact quote...", "source": "youtube.com/..."}
     ],
     "relatedPains": ["Connected issue 1", "Connected issue 2"],
     "hvcoOpportunity": "A free guide showing how to solve X would directly address this because..."
   },
   "secondaryProblems": [
     {
-      "problem": "Second biggest problem",
+      "problem": "Second biggest synthesized problem",
       "frequencyScore": 60,
       "intensityScore": 70,
       "totalScore": 66,

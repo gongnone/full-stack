@@ -154,13 +154,20 @@ export function ResearchResults({ data }: { data: any }) {
                     <Card>
                         <CardHeader><CardTitle>Market Gaps (Opportunities)</CardTitle></CardHeader>
                         <CardContent>
-                            <ul className="space-y-2">
+                            <ul className="space-y-3">
                                 {research.competitorGaps?.map((gap: any, i: number) => (
-                                    <li key={i} className="flex items-center gap-2">
-                                        <span className="text-green-500">✅</span>
-                                        <span>{renderValue(gap)}</span>
+                                    <li key={i} className="flex items-start gap-3 p-3 bg-red-50/50 rounded-lg border border-red-100">
+                                        <span className="text-xl shrink-0">🛡️</span>
+                                        <span className="text-sm font-medium text-slate-800 pt-0.5">{renderValue(gap)}</span>
                                     </li>
                                 ))}
+                                {(!research.competitorGaps || research.competitorGaps.length === 0) && (
+                                    <div className="text-center py-8 text-muted-foreground flex flex-col items-center gap-2">
+                                        <span className="text-4xl opacity-20">🤷‍♂️</span>
+                                        <p>No competitor gaps identified yet.</p>
+                                        <p className="text-xs">Try running a wider search or check the "Headlines" tab.</p>
+                                    </div>
+                                )}
                             </ul>
                         </CardContent>
                     </Card>

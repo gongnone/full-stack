@@ -98,7 +98,7 @@ function ResearchTab() {
         avatar: research.avatar || { name: 'Unknown', demographics: {}, psychographics: {} },
         // Gap 4 Fix: Correct mapping from Backend -> Frontend
         painPoints: research.painPoints || [],
-        competitorGaps: research.unexpectedInsights || [],
+        competitorGaps: research.competitorGaps || [], // Fix: Use pre-aggregated gaps from backend
         marketDesire: Array.isArray(research.desires) ? research.desires[0] : (research.desires || "Undetermined"),
         verbatimQuotes: research.verbatimQuotes || [], // V2 Mapping: Use aggregated quotes from Source Metadata
         hvcoTitles: research.hvcoTitles || []          // V2 Mapping: Phase 6 Titles
@@ -124,53 +124,53 @@ function ResearchTab() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <form onSubmit={handleLaunch} className="flex flex-col gap-6">
-                        <div className="grid grid-cols-1 gap-4">
-                            {/* 1. Niche / Keywords */}
-                            <div className="space-y-2">
-                                <Label htmlFor="keywords">Target Niche / Keywords</Label>
-                                <Input
-                                    id="keywords"
-                                    name="keywords"
-                                    placeholder="e.g. SaaS for Crossfit Gyms"
-                                    disabled={isProcessing || hasResults}
-                                    defaultValue={research?.topic || ""}
-                                    className="bg-background/50"
-                                />
-                                <p className="text-xs text-muted-foreground">The broad market category to scan.</p>
+                    {!hasResults ? (
+                        <form onSubmit={handleLaunch} className="flex flex-col gap-6">
+                            <div className="grid grid-cols-1 gap-4">
+                                {/* 1. Niche / Keywords */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="keywords">Target Niche / Keywords</Label>
+                                    <Input
+                                        id="keywords"
+                                        name="keywords"
+                                        placeholder="e.g. SaaS for Crossfit Gyms"
+                                        disabled={isProcessing}
+                                        defaultValue={research?.topic || ""}
+                                        className="bg-background/50"
+                                    />
+                                    <p className="text-xs text-muted-foreground">The broad market category to scan.</p>
+                                </div>
+
+                                {/* 2. Target Audience */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="audience">Target Audience</Label>
+                                    <Input
+                                        id="audience"
+                                        name="audience"
+                                        placeholder="e.g. Frustrated Agency Owner facing burnout"
+                                        disabled={isProcessing}
+                                        defaultValue={research?.targetAudience || research?.avatar?.name || ""}
+                                        className="bg-background/50"
+                                    />
+                                    <p className="text-xs text-muted-foreground">Who are we trying to reach?</p>
+                                </div>
+
+                                {/* 3. Product / Offer Context */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="product">Product / Offer Context</Label>
+                                    <textarea
+                                        id="product"
+                                        name="product"
+                                        placeholder="Describe what you are selling. E.g. 'A high-ticket coaching program helping agency owners scale to $50k/mo by removing themselves from delivery.'"
+                                        disabled={isProcessing}
+                                        defaultValue={research?.productDescription || ""}
+                                        className="flex w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px]"
+                                    />
+                                    <p className="text-xs text-muted-foreground">Give the agent context on what you are selling (optional but recommended).</p>
+                                </div>
                             </div>
 
-                            {/* 2. Target Audience */}
-                            <div className="space-y-2">
-                                <Label htmlFor="audience">Target Audience</Label>
-                                <Input
-                                    id="audience"
-                                    name="audience"
-                                    placeholder="e.g. Frustrated Agency Owner facing burnout"
-                                    disabled={isProcessing || hasResults}
-                                    defaultValue={research?.targetAudience || research?.avatar?.name || ""}
-                                    className="bg-background/50"
-                                />
-                                <p className="text-xs text-muted-foreground">Who are we trying to reach?</p>
-                            </div>
-
-                            {/* 3. Product / Offer Context */}
-                            <div className="space-y-2">
-                                <Label htmlFor="product">Product / Offer Context</Label>
-                                <textarea
-                                    id="product"
-                                    name="product"
-                                    placeholder="Describe what you are selling. E.g. 'A high-ticket coaching program helping agency owners scale to $50k/mo by removing themselves from delivery.'"
-                                    disabled={isProcessing || hasResults}
-                                    defaultValue={research?.productDescription || ""}
-                                    className="flex w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px]"
-                                />
-                                <p className="text-xs text-muted-foreground">Give the agent context on what you are selling (optional but recommended).</p>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-2">
-                            {!hasResults && (
+                            <div className="flex justify-end pt-2">
                                 <Button type="submit" disabled={isProcessing || launchMutation.isPending} className="w-full md:w-auto">
                                     {isProcessing ? (
                                         <span className="flex items-center gap-2">Processing...</span>
@@ -178,15 +178,18 @@ function ResearchTab() {
                                         <span className="flex items-center gap-2"><Search className="w-4 h-4" /> Launch Research Agent</span>
                                     )}
                                 </Button>
-                            )}
-
-                            {hasResults && (
-                                <Button variant="outline" type="button" onClick={() => window.location.reload()}>
-                                    New Mission
-                                </Button>
-                            )}
+                            </div>
+                        </form>
+                    ) : (
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-2">
+                            <div className="text-sm text-muted-foreground">
+                                <span className="font-semibold text-slate-700">Topic:</span> {research?.topic} • <span className="font-semibold text-slate-700">Target:</span> {research?.targetAudience}
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+                                Start New Mission
+                            </Button>
                         </div>
-                    </form>
+                    )}
 
                     {/* Native Tailwind Progress */}
                     {isProcessing && (

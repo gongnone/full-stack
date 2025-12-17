@@ -252,6 +252,12 @@ export async function getMarketResearchV2(db: Db, projectId: string) {
         const avatarGaps = buyingBehavior.competitorGapsTheyFeel || [];
         const allCompetitorGaps = [...competitorWeaknesses, ...avatarGaps];
 
+        // Aggregate Verbatim Quotes from Sources
+        const allVerbatimQuotes = sources.flatMap(s => {
+            const metadata = s.metadata ? JSON.parse(s.metadata) : {};
+            return metadata.verbatimQuotes || [];
+        }).slice(0, 20); // Top 20 quotes
+
         return {
             status: workflow?.status || project?.status || 'idle',
             progress: workflow?.currentStep || 'unknown',
@@ -261,6 +267,9 @@ export async function getMarketResearchV2(db: Db, projectId: string) {
 
             // Competitor Gaps (Aggregated)
             competitorGaps: allCompetitorGaps,
+
+            // Verbatim Quotes (Aggregated from Sources)
+            verbatimQuotes: allVerbatimQuotes,
 
             // ... rest of object
             avatar: avatar ? {

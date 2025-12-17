@@ -91,6 +91,7 @@ export function ResearchResults({ data }: { data: any }) {
                     <TabsTrigger value="pains">🩸 Bleeding Necks</TabsTrigger>
                     <TabsTrigger value="gaps">🛡️ Competitor Gaps</TabsTrigger>
                     <TabsTrigger value="voice">🗣️ Market Voice</TabsTrigger>
+                    <TabsTrigger value="timeline">⏰ Timeline</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="pains" className="mt-4">
@@ -134,6 +135,76 @@ export function ResearchResults({ data }: { data: any }) {
                                     "{renderValue(quote)}"
                                 </blockquote>
                             ))}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="timeline" className="mt-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Day in the Life Protocol</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {(() => {
+                                try {
+                                    // Parse if string, or use if object
+                                    const avatar = research.avatar as any;
+                                    const dil = typeof avatar.dimensions?.dayInLife === 'string'
+                                        ? JSON.parse(avatar.dimensions.dayInLife)
+                                        : avatar.dimensions?.dayInLife;
+
+                                    if (!dil || typeof dil !== 'object') return <p>No timeline data available.</p>;
+
+                                    return (
+                                        <div className="space-y-6 relative border-l-2 border-slate-200 ml-4 pl-8 py-2">
+                                            {/* Wake Up */}
+                                            <div className="relative">
+                                                <span className="absolute -left-[45px] flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-blue-600 font-bold text-xs ring-4 ring-white">
+                                                    ☀️
+                                                </span>
+                                                <h4 className="font-bold text-sm text-slate-900">{dil.wakeTime || 'Morning'}</h4>
+                                                <p className="text-sm text-slate-600 mt-1">{dil.morningRoutine}</p>
+                                                {dil.checkPhoneFirst && (
+                                                    <Badge variant="outline" className="mt-2 text-xs border-red-200 bg-red-50 text-red-600">
+                                                        📱 Checks Phone Immediately
+                                                    </Badge>
+                                                )}
+                                            </div>
+
+                                            {/* Commute */}
+                                            <div className="relative">
+                                                <span className="absolute -left-[45px] flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 font-bold text-xs ring-4 ring-white">
+                                                    🚗
+                                                </span>
+                                                <div className="flex flex-col">
+                                                    <h4 className="font-bold text-sm text-slate-900">The Commute</h4>
+                                                    <p className="text-sm text-slate-600 mt-1">{dil.commuteType}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Peak Stress */}
+                                            <div className="relative">
+                                                <span className="absolute -left-[45px] flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-red-600 font-bold text-xs ring-4 ring-white">
+                                                    🔥
+                                                </span>
+                                                <h4 className="font-bold text-sm text-slate-900">{dil.peakStressTime || 'Mid-Day'} - Peak Stress</h4>
+                                                <p className="text-sm text-slate-600 mt-1">{dil.peakStressTime ? 'High pressure moment' : ''}</p>
+                                            </div>
+
+                                            {/* Bedtime */}
+                                            <div className="relative">
+                                                <span className="absolute -left-[45px] flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 font-bold text-xs ring-4 ring-white">
+                                                    🌙
+                                                </span>
+                                                <h4 className="font-bold text-sm text-slate-900">{dil.bedTime || 'Night'}</h4>
+                                                <p className="text-sm text-slate-600 mt-1">{dil.eveningRoutine}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                } catch (e) {
+                                    return <p className="text-sm text-muted-foreground">Timeline data format unrecognized.</p>;
+                                }
+                            })()}
                         </CardContent>
                     </Card>
                 </TabsContent>

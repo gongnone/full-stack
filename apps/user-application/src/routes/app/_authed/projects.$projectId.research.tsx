@@ -217,7 +217,7 @@ function ResearchTab() {
             {/* 🛡️ QA: Toggle this to MOCK_DATA for layout testing */}
             {(hasResults && researchData) ? (
                 <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <ResearchResults data={researchData} />
+                    <ResearchResults data={researchData} fullData={research} />
 
                     {/* 3. TRACEABILITY / PROOF OF WORK */}
                     <SourcesTable sources={research?.sources || []} projectId={projectId} />

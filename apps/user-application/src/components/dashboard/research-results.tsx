@@ -3,6 +3,8 @@ import { HaloResearchData } from '@repo/data-ops/zod/halo-schema-v2';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
+import { FullResearchReport } from "./full-research-report";
+
 /**
  * Safely render any value - handles arrays, objects, and primitives
  */
@@ -34,7 +36,7 @@ function renderValue(value: unknown): string {
     return String(value);
 }
 
-export function ResearchResults({ data }: { data: any }) {
+export function ResearchResults({ data, fullData }: { data: any, fullData?: any }) {
     // Safe cast or parsing
     const research = data as HaloResearchData;
 
@@ -47,9 +49,12 @@ export function ResearchResults({ data }: { data: any }) {
             {/* 1. HERO: The Dream Buyer Passport */}
             <Card className="border-l-4 border-l-primary shadow-sm overflow-hidden bg-card/80 backdrop-blur-sm">
                 <CardHeader className="bg-muted/10 pb-4">
-                    <CardTitle className="text-2xl flex items-center gap-2 font-serif tracking-tight">
-                        <span className="text-3xl">🎯</span> Target: <span className="text-primary">{research.avatar.name || "Dream Buyer"}</span>
-                    </CardTitle>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <CardTitle className="text-2xl flex items-center gap-2 font-serif tracking-tight">
+                            <span className="text-3xl">🎯</span> Target: <span className="text-primary">{research.avatar.name || "Dream Buyer"}</span>
+                        </CardTitle>
+                        {fullData && <FullResearchReport data={fullData} />}
+                    </div>
                 </CardHeader>
                 <CardContent className="pt-6">
                     {/* Premium Grid Layout for Avatar */}
@@ -201,7 +206,7 @@ export function ResearchResults({ data }: { data: any }) {
             {/* 4. DEEP DIVES: Timeline & Voice */}
             <div className="grid lg:grid-cols-3 gap-6">
                 {/* Timeline (2 cols) */}
-                <Card className="lg:col-span-2 border-l-4 border-l-blue-400 shadow-sm">
+                <Card className="lg:col-span-2 border-l-4 border-l-primary/70 shadow-sm">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <span>⏰</span> Day in the Life
@@ -249,7 +254,7 @@ export function ResearchResults({ data }: { data: any }) {
                 </Card>
 
                 {/* Market Voice (1 col) */}
-                <Card className="border-l-4 border-l-indigo-400 shadow-sm">
+                <Card className="border-l-4 border-l-primary shadow-sm">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <span>🗣️</span> Market Voice

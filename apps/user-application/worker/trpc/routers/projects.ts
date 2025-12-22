@@ -192,11 +192,11 @@ export const projectsRouter = t.router({
                 await ctx.db.insert(workflowRuns).values({
                     id: runId,
                     projectId: input.projectId,
-                    workflowType: 'halo_research',
+                    workflowType: 'competitor_recon',
                     status: 'running',
-                    currentStep: 'init',
-                    startedAt: new Date()
-                });
+                    current_step: 'Discovery',
+                    progress: 0,
+                }).run();
 
                 const params = {
                     projectId: input.projectId,

@@ -21,6 +21,27 @@ App.get('/api/ws', async (c) => {
   return stub.fetch(c.req.raw);
 });
 
+App.get('/api/assets/:key{.+}', async (c) => {
+  const key = c.req.param('key');
+  const object = await c.env.BUCKET.get(key);
+
+  if (!object) {
+    return c.text('Asset not found', 404);
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set('etag', object.httpEtag);
+
+  // Convert Headers to plain object for Hono
+  const headerObj: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    headerObj[key] = value;
+  });
+
+  return c.body(object.body as any, 200, headerObj);
+});
+
 // --- Workflow Triggers ---
 
 

@@ -81,11 +81,21 @@ export const authRouter = t.router({
     return {
       user: userResult,
       profile: profile || null,
-      // For MVP, use userId as clientId (each user = one client workspace)
-      // Epic 7 will add proper multi-client support with client selection
-      clientId: ctx.accountId || ctx.userId,
+      // Priority: profile.active_client_id > first client in client_members > accountId
+      clientId: profile?.active_client_id || await this.getFirstClientId(ctx) || ctx.accountId || ctx.userId,
     };
   }),
+
+  /**
+   * Helper to get the first available client ID for a user
+   */
+  async getFirstClientId(ctx: Context): Promise<string | null> {
+    const membership = await ctx.db
+      .prepare('SELECT client_id FROM client_members WHERE user_id = ? LIMIT 1')
+      .bind(ctx.userId)
+      .first<{ client_id: string }>();
+    return membership?.client_id || null;
+  },
 
   /**
    * Update user profile

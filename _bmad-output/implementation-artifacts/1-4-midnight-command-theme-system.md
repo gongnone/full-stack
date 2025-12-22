@@ -1,7 +1,7 @@
 ---
 story_key: 1-4-midnight-command-theme-system
 epic: Epic 1 - Project Foundation & User Access
-status: in-progress
+status: done
 created: 2025-12-21
 reviewed: 2025-12-21
 reviewer: Sonnet 4.5 (Adversarial Code Review)

@@ -3,7 +3,7 @@ import { type FormEvent } from 'react';
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Search, CheckCircle2 } from 'lucide-react';
+import { Search, CheckCircle2 } from 'lucide-react';
 
 // SAFE IMPORTS ONLY
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SourcesTable } from '@/components/research/SourcesTable';
+import { WorkflowProgress } from '@/components/research/WorkflowProgress';
 // IMPORT NEW COMPONENT
 import { ResearchResults } from "@/components/dashboard/research-results";
 
@@ -191,16 +192,14 @@ function ResearchTab() {
                         </div>
                     )}
 
-                    {/* Native Tailwind Progress */}
+                    {/* Workflow Progress - Step-based display */}
                     {isProcessing && (
-                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 pt-2">
-                            <div className="flex justify-between text-xs text-muted-foreground font-mono">
-                                <span className="flex items-center"><Loader2 className="h-3 w-3 mr-1 animate-spin" /> INTERCEPTING SIGNALS</span>
-                                <span>{isRefetching ? "SYNCING..." : "LIVE"}</span>
-                            </div>
-                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-600 w-[45%] animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" />
-                            </div>
+                        <div className="pt-2">
+                            <WorkflowProgress
+                                currentStep={research?.progress}
+                                status={status}
+                                isRefetching={isRefetching}
+                            />
                         </div>
                     )}
                 </CardContent>

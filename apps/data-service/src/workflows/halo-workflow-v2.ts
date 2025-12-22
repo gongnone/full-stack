@@ -87,6 +87,10 @@ export class HaloResearchWorkflowV2 extends WorkflowEntrypoint<Env, Params> {
             return result;
         });
 
+        await step.do('update-status-1.5', async () => {
+            await this.updateWorkflowStatus(runId, 'competitor_complete', 1.5);
+        });
+
         // ========================================
         // PHASE 2: DEEP LISTENING (Extract Content)
         // ========================================
@@ -163,6 +167,10 @@ export class HaloResearchWorkflowV2 extends WorkflowEntrypoint<Env, Params> {
             return result;
         });
 
+        await step.do('update-status-6', async () => {
+            await this.updateWorkflowStatus(runId, 'hvco_complete', 6);
+        });
+
         // ========================================
         // SAVE ALL RESULTS
         // ========================================
@@ -205,7 +213,7 @@ export class HaloResearchWorkflowV2 extends WorkflowEntrypoint<Env, Params> {
             const db = drizzle(this.env.DB);
             await db.update(workflowRuns)
                 .set({
-                    currentStep: step,
+                    current_step: step,
                     progress: Math.round((phaseNum / 6) * 100)
                 })
                 .where(eq(workflowRuns.id, runId));

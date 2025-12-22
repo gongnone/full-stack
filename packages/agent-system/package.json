@@ -1,0 +1,30 @@
+{
+  "name": "@repo/agent-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./creator": "./src/creator/index.ts",
+    "./critic": "./src/critic/index.ts",
+    "./grounding": "./src/grounding/index.ts",
+    "./quality-gates": "./src/quality-gates/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@repo/foundry-core": "workspace:*",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

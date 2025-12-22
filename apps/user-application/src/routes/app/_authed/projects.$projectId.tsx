@@ -8,7 +8,8 @@ import {
     ScrollText,
     Lock,
     CheckCircle2,
-    ArrowRight
+    ArrowRight,
+    Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -54,6 +55,14 @@ function ProjectLayout() {
             status: data?.phases.offer.status,
             meta: data?.phases.offer.meta,
             description: "Irresistible offer construction"
+        },
+        {
+            id: 'sprint',
+            label: 'Content Sprint',
+            path: `/app/projects/${projectId}/sprint`,
+            status: 'available', // Always available for now
+            meta: '10 items',
+            description: "High-velocity content review"
         }
     ];
 
@@ -73,7 +82,7 @@ function ProjectLayout() {
             {/* Mission Control Tiles - Only show on Root, or show as condensed nav on sub-pages */}
             <div className={cn(
                 "grid gap-4 transition-all duration-300",
-                isRoot ? "grid-cols-1 md:grid-cols-3 h-48" : "grid-cols-3 h-20" // Condensed mode
+                isRoot ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-4 h-48" : "grid-cols-4 h-20" // Condensed mode
             )}>
                 {phases.map((phase) => (
                     <PhaseTile
@@ -115,6 +124,7 @@ function PhaseTile({ phase, active, compact }: { phase: any, active: boolean, co
             case 'research': return <Search className="h-5 w-5" />;
             case 'competitors': return <Swords className="h-5 w-5" />;
             case 'offer': return <ScrollText className="h-5 w-5" />;
+            case 'sprint': return <Zap className="h-5 w-5" />;
             default: return null;
         }
     };
@@ -181,7 +191,8 @@ function DashboardSkeleton() {
     return (
         <div className="p-8 space-y-6">
             <Skeleton className="h-12 w-1/3" />
-            <div className="grid grid-cols-3 gap-4 h-48">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 h-48">
+                <Skeleton />
                 <Skeleton />
                 <Skeleton />
                 <Skeleton />

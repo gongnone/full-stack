@@ -1,7 +1,6 @@
 import { initDatabase } from '@repo/data-ops/database';
 import { vectorMetadata } from '@repo/data-ops/schema';
 import { upsertKnowledge } from '@repo/agent-logic/rag'; // leveraging existing logic if compatible, or rewrite
-import { Ai } from '@cloudflare/workers-types';
 
 interface RagIngestItem {
     id: string; // Source ID

@@ -5,78 +5,8 @@
     {
       "idx": 0,
       "version": "6",
-      "when": 1764890976610,
-      "tag": "0000_worthless_captain_america",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "6",
-      "when": 1764945843489,
-      "tag": "0001_nebulous_slipstream",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "6",
-      "when": 1765229392690,
-      "tag": "0002_premium_chameleon",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "6",
-      "when": 1765232851802,
-      "tag": "0003_third_hydra",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "6",
-      "when": 1765244759750,
-      "tag": "0004_gray_revanche",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "6",
-      "when": 1765274419879,
-      "tag": "0005_premium_bloodstorm",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "6",
-      "when": 1765309874789,
-      "tag": "0006_tiresome_terror",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "6",
-      "when": 1765487780757,
-      "tag": "0007_bizarre_night_thrasher",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "6",
-      "when": 1765731089225,
-      "tag": "0008_small_silk_fever",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "6",
-      "when": 1765888393286,
-      "tag": "0009_lucky_purple_man",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "6",
-      "when": 1765912948628,
-      "tag": "0010_adorable_paladin",
+      "when": 1766433576626,
+      "tag": "0000_zippy_peter_parker",
       "breakpoints": true
     }
   ]

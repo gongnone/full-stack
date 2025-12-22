@@ -14,6 +14,10 @@ const buttonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
+        // Midnight Command theme variants
+        approve: 'bg-[var(--approve)] text-white hover:opacity-90 btn-approve',
+        kill: 'border border-[var(--kill)] text-[var(--kill)] bg-transparent hover:bg-[var(--kill-glow)] btn-kill',
+        cancel: 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]',
       },
       size: {
         default: 'h-9 px-4 py-2',

@@ -30,16 +30,34 @@ function renderList(items: any[], emptyMsg = "No data") {
     );
 }
 
+/**
+ * Safely parse JSON if it's a string, otherwise return object
+ */
+function safeParse(val: any, defaultVal = {}) {
+    if (!val) return defaultVal;
+    if (typeof val === 'object') return val;
+    try {
+        return JSON.parse(val);
+    } catch (e) {
+        console.error("Failed to parse JSON field:", val);
+        return defaultVal;
+    }
+}
+
 export function FullResearchReport({ data }: { data: any }) {
     if (!data) return null;
 
     // Helper: Access deeply nested optional fields safely
+    // CRITICAL FIX: Backend returns JSON fields as strings (D1 limitation). We must parse them.
     const avatar = data.avatar || {};
     const dimensions = avatar.dimensions || {};
-    const discovery = data.discovery || {};
-    const competitors = data.competitorRecon?.competitors || [];
-    const problems = data.problems || {};
-    const hvco = data.hvco || {};
+
+    const discovery = safeParse(data.discovery);
+    const competitorRecon = safeParse(data.competitorRecon);
+    const competitors = competitorRecon.competitors || [];
+
+    const problems = safeParse(data.problems);
+    const hvco = safeParse(data.hvco);
 
     return (
         <Sheet>
@@ -55,7 +73,7 @@ export function FullResearchReport({ data }: { data: any }) {
 
                         {/* HEADER */}
                         <SheetHeader className="pb-4 border-b">
-                            <SheetTitle className="text-2xl font-serif">Full Intelligence Report</SheetTitle>
+                            <SheetTitle className="text-2xl font-sans tracking-tight font-bold">Full Intelligence Report</SheetTitle>
                             <SheetDescription>
                                 Raw data extraction from Halo Agent Run: <span className="font-mono text-xs">{data.runId || 'N/A'}</span>
                             </SheetDescription>

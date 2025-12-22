@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { siGoogle } from "simple-icons";
+import { siGoogle, siGithub } from "simple-icons"; // Import siGithub
 
 import { useState } from "react";
 import { authClient } from "./client";
@@ -28,20 +28,29 @@ export function LoginPopup({ children }: LoginPopupProps) {
     setLoading(false);
   };
 
+  const signInWithGithub = async () => { // Add signInWithGithub function
+    setLoading(true);
+    await authClient.signIn.social({
+      provider: "github",
+      callbackURL: "/app",
+    });
+    setLoading(false);
+  };
+
   return (
     <Dialog>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="text-center space-y-4">
           <DialogTitle className="text-2xl font-bold">
-            Continue with Google
-          </DialogTitle>
+            Continue with Google or GitHub
+          </DialogTitle> {/* Update title */}
           <p className="text-muted-foreground text-sm">
-            Login or signup by continuing with Google
-          </p>
+            Login or signup by continuing with your preferred social account
+          </p> {/* Update description */}
         </DialogHeader>
 
-        <div className="mt-6">
+        <div className="mt-6 space-y-4"> {/* Add space-y-4 for vertical spacing */}
           <Button
             onClick={signInWithGoogle}
             variant="outline"
@@ -63,6 +72,31 @@ export function LoginPopup({ children }: LoginPopupProps) {
                   <path d={siGoogle.path} />
                 </svg>
                 Continue with Google
+              </>
+            )}
+          </Button>
+
+          <Button // New GitHub button
+            onClick={signInWithGithub}
+            variant="outline"
+            className="w-full h-12 text-base font-medium relative overflow-hidden group hover:bg-accent/50 transition-colors"
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <div className="w-5 h-5 mr-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Signing in...
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-5 h-5 mr-3"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d={siGithub.path} />
+                </svg>
+                Continue with GitHub
               </>
             )}
           </Button>

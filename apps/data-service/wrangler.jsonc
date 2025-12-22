@@ -86,6 +86,11 @@
 					"binding": "GODFATHER_OFFER_WORKFLOW",
 					"name": "godfather-offer-workflow-stage",
 					"class_name": "GodfatherOfferWorkflow"
+				},
+				{
+					"binding": "SPOKE_GENERATION_WORKFLOW",
+					"name": "spoke-generation-workflow-stage",
+					"class_name": "SpokeGenerationWorkflow"
 				}
 			],
 			"browser": {
@@ -101,28 +106,39 @@
 				}
 			],
 			"durable_objects": {
-				"bindings": [
-					{
-						"name": "CHAT_SESSION",
-						"class_name": "ChatSession"
-					}
-				]
-			},
-			"migrations": [
-				{
-					"tag": "v3",
-					"new_classes": [
-						"ChatSession"
-					]
-				},
-				{
-					"tag": "v4",
-					"deleted_classes": [
-						"EvaluationScheduler",
-						"LinkClickTracker"
-					]
-				}
-			]
+									"bindings": [
+										{
+											"name": "CHAT_SESSION",
+											"class_name": "ChatSession"
+										},
+										{
+											"name": "INGESTION_TRACKER",
+											"class_name": "IngestionTracker"
+										}
+									]
+								},
+								"migrations": [
+									{
+										"tag": "v3",
+										"new_classes": [
+											"ChatSession"
+										]
+									},
+									{
+										"tag": "v4",
+										"deleted_classes": [
+											"EvaluationScheduler",
+											"LinkClickTracker"
+										]
+									},
+									{
+										"tag": "v5",
+										"new_classes": [
+											"IngestionTracker"
+										]
+									}
+								]
+				
 		},
 		"production": {
 			"vectorize": [
@@ -174,6 +190,11 @@
 					"binding": "GODFATHER_OFFER_WORKFLOW",
 					"name": "godfather-offer-workflow",
 					"class_name": "GodfatherOfferWorkflow"
+				},
+				{
+					"binding": "SPOKE_GENERATION_WORKFLOW",
+					"name": "spoke-generation-workflow",
+					"class_name": "SpokeGenerationWorkflow"
 				}
 			],
 			"browser": {

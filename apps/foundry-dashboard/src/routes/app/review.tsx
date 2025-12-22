@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { z } from 'zod';
 import { ActionButton, ScoreBadge, KeyboardHint } from '@/components/ui';
+import { trpc } from '@/lib/trpc-client';
+import { useClientId } from '@/lib/use-client-id';
 
 const reviewSearchSchema = z.object({
   filter: z.string().optional().catch('needs-review'),
@@ -12,75 +14,71 @@ export const Route = createFileRoute('/app/review')({
   component: ReviewPage,
 });
 
-// Mock Spokes for the swipe interface
-const MOCK_SPOKES = [
-  {
-    id: 'spoke-1',
-    platform: 'linkedin',
-    content: "Why the best leaders change their minds publicly.\n\nReal decisiveness isn't 'I've made up my mind.' It's 'I'm secure enough to change it when I'm wrong.'\n\nIn high-stakes environments, stubbornness is a liability. Agility is the only real moat.",
-    psychological_angle: 'Contrarian Authority',
-    g2_score: 92,
-    g4_result: 'pass',
-    g5_result: 'pass',
-    g7_score: 9.4,
-  },
-  {
-    id: 'spoke-2',
-    platform: 'twitter',
-    content: "Stop using the 'professional consultant' tone. \n\nThis founder is a high-stakes gambler. Use betting metaphors. \n\nTalk about 'doubling down' and 'expected value', not 'strategic planning'.",
-    psychological_angle: 'Pattern Interrupt',
-    g2_score: 88,
-    g4_result: 'pass',
-    g5_result: 'pass',
-    g7_score: 8.9,
-  },
-  {
-    id: 'spoke-3',
-    platform: 'linkedin',
-    content: "The Volume vs. Quality paradox is a lie.\n\nYou don't need to choose. You need a deterministic foundry.\n\n300 pieces of high-engagement content per month isn't 'slop' if it's built on proven psychology.",
-    psychological_angle: 'Paradox Resolution',
-    g2_score: 95,
-    g4_result: 'pass',
-    g5_result: 'pass',
-    g7_score: 9.8,
-  }
-];
-
 function ReviewPage() {
-  const { filter = 'needs-review' } = Route.useSearch();
+  const { filter } = Route.useSearch();
+  const clientId = useClientId();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
   const [isComplete, setIsComplete] = useState(false);
 
-  const currentSpoke = MOCK_SPOKES[currentIndex];
+  // tRPC Queries
+  const queueQuery = trpc.review.getQueue.useQuery(
+    { 
+      clientId: clientId!, 
+      filter: filter === 'high-confidence' ? 'top10' : filter === 'conflicts' ? 'flagged' : 'all' 
+    },
+    { enabled: !!clientId }
+  );
+
+  const swipeMutation = trpc.review.swipeAction.useMutation();
+
+  const spokes = useMemo(() => queueQuery.data?.items || [], [queueQuery.data]);
+  const currentSpoke = spokes[currentIndex];
 
   const handleAction = useCallback((action: 'approve' | 'kill') => {
+    if (!currentSpoke || !clientId) return;
+
     setDirection(action === 'approve' ? 'right' : 'left');
     
+    // Call mutation
+    swipeMutation.mutate({
+      clientId,
+      spokeId: currentSpoke.id,
+      action: action === 'approve' ? 'approve' : 'reject'
+    });
+
     // Fast transition for high-velocity feel (< 200ms)
     setTimeout(() => {
-      if (currentIndex < MOCK_SPOKES.length - 1) {
+      if (currentIndex < spokes.length - 1) {
         setCurrentIndex((prev) => prev + 1);
         setDirection(null);
       } else {
         setIsComplete(true);
       }
     }, 150);
-  }, [currentIndex]);
+  }, [currentIndex, spokes, clientId, currentSpoke, swipeMutation]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isComplete) return;
+      if (isComplete || !currentSpoke) return;
       if (e.key === 'ArrowRight' || e.key === 'Enter') handleAction('approve');
       if (e.key === 'ArrowLeft' || e.key === 'Backspace') handleAction('kill');
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleAction, isComplete]);
+  }, [handleAction, isComplete, currentSpoke]);
 
-  if (isComplete || !currentSpoke) {
+  if (queueQuery.isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--edit)]" />
+      </div>
+    );
+  }
+
+  if (isComplete || spokes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center animate-fadeIn">
         <div className="w-20 h-20 rounded-full bg-[var(--approve-glow)] flex items-center justify-center mb-6">
@@ -88,9 +86,14 @@ function ReviewPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-[var(--text-primary)]">Sprint Complete!</h2>
+        <h2 className="text-2xl font-bold text-[var(--text-primary)]">
+          {spokes.length === 0 ? 'No Items Found' : 'Sprint Complete!'}
+        </h2>
         <p className="text-[var(--text-secondary)] mt-2 max-w-md">
-          You've reviewed all items in the {filter.replace('-', ' ')} queue.
+          {spokes.length === 0 
+            ? `There is no content in the ${filter.replace('-', ' ')} queue.`
+            : `You've reviewed all items in the ${filter.replace('-', ' ')} queue.`
+          }
         </p>
         <div className="mt-8 flex gap-4">
           <ActionButton variant="approve" onClick={() => window.location.href = '/app'}>
@@ -117,7 +120,7 @@ function ReviewPage() {
             Progress
           </div>
           <div className="text-lg font-bold text-[var(--text-primary)]">
-            {currentIndex + 1} / {MOCK_SPOKES.length}
+            {currentIndex + 1} / {spokes.length}
           </div>
         </div>
       </div>
@@ -125,6 +128,7 @@ function ReviewPage() {
       {/* High-Velocity Card Container */}
       <div className="relative min-h-[500px] flex items-center justify-center">
         <div 
+          key={currentSpoke.id}
           className={`
             w-full max-w-2xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-2xl p-8 shadow-2xl transition-all duration-150 ease-out relative
             ${direction === 'right' ? 'translate-x-[100px] opacity-0 rotate-6 bg-[var(--approve-glow)] border-[var(--approve)]' : ''}
@@ -144,17 +148,17 @@ function ReviewPage() {
               </div>
               <div>
                 <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                  Psychological Angle
+                  Pillar
                 </div>
                 <div className="text-sm font-semibold text-[var(--text-primary)]">
-                  {currentSpoke.psychological_angle}
+                  {currentSpoke.pillarId || 'General'}
                 </div>
               </div>
             </div>
             
             <div className="flex gap-2">
-              <ScoreBadge score={currentSpoke.g7_score} gate="G7" showGate size="sm" />
-              <ScoreBadge score={currentSpoke.g2_score / 10} gate="G2" showGate size="sm" />
+              <ScoreBadge score={currentSpoke.qualityScores?.g7_engagement || 0} label="G7" size="sm" />
+              <ScoreBadge score={(currentSpoke.qualityScores?.g2_hook || 0) / 10} label="G2" size="sm" />
             </div>
           </div>
 
@@ -167,11 +171,15 @@ function ReviewPage() {
           <div className="grid grid-cols-2 gap-4 mb-2">
             <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
               <span className="text-xs font-medium text-[var(--text-secondary)]">Voice (G4)</span>
-              <span className="text-xs font-bold text-[var(--approve)]">PASSED</span>
+              <span className={`text-xs font-bold ${currentSpoke.qualityScores?.g4_voice ? 'text-[var(--approve)]' : 'text-[var(--kill)]'}`}>
+                {currentSpoke.qualityScores?.g4_voice ? 'PASSED' : 'FAILED'}
+              </span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
               <span className="text-xs font-medium text-[var(--text-secondary)]">Platform (G5)</span>
-              <span className="text-xs font-bold text-[var(--approve)]">PASSED</span>
+              <span className={`text-xs font-bold ${currentSpoke.qualityScores?.g5_platform ? 'text-[var(--approve)]' : 'text-[var(--kill)]'}`}>
+                {currentSpoke.qualityScores?.g5_platform ? 'PASSED' : 'FAILED'}
+              </span>
             </div>
           </div>
         </div>
@@ -227,7 +235,9 @@ function ReviewPage() {
             className="rounded-full w-12 h-12 p-0 flex items-center justify-center"
             onClick={() => handleAction('approve')}
           >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            <svg className="w-10 h-10 text-[var(--approve)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
           </ActionButton>
           <KeyboardHint keys={['→']} action="Approve" size="sm" />
         </div>

@@ -1,0 +1,40 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - heading "Sign in to Foundry" [level=3] [ref=e6]
+      - paragraph [ref=e7]: Enter your email and password to access your dashboard
+    - generic [ref=e8]:
+      - alert [ref=e9]:
+        - generic [ref=e10]: Failed to sign in
+      - generic [ref=e11]:
+        - button "Continue with Google" [ref=e12]:
+          - img [ref=e13]
+          - text: Continue with Google
+        - button "Continue with GitHub" [ref=e18]:
+          - img [ref=e19]
+          - text: Continue with GitHub
+      - generic [ref=e22]: Or continue with email
+      - generic [ref=e23]:
+        - generic [ref=e24]:
+          - text: Email
+          - textbox "Email" [ref=e25]:
+            - /placeholder: you@example.com
+            - text: test@foundry.local
+        - generic [ref=e26]:
+          - text: Password
+          - textbox "Password" [ref=e27]:
+            - /placeholder: ••••••••
+            - text: TestPassword123!
+        - button "Sign in" [ref=e28]
+    - paragraph [ref=e30]:
+      - text: Don't have an account?
+      - link "Sign up" [ref=e31] [cursor=pointer]:
+        - /url: /signup
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications (F8)":
+    - list
+```

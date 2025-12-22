@@ -2,6 +2,10 @@ import {
   IconDashboard,
   IconBrain,
   IconFolder,
+  IconSwords,
+  IconStack2,
+  IconEye,
+  IconSettings,
 } from "@tabler/icons-react";
 
 import {
@@ -32,10 +36,34 @@ export function NavMain() {
       icon: IconFolder,
     },
     {
+      title: "Hubs",
+      path: "/app/hubs",
+      navigate: () => (nav as any)({ to: "/app/hubs" }),
+      icon: IconStack2,
+    },
+    {
+      title: "Review",
+      path: "/app/review",
+      navigate: () => (nav as any)({ to: "/app/review" }),
+      icon: IconEye,
+    },
+    {
       title: "War Room",
       path: "/app/agent",
       navigate: () => nav({ to: "/app/agent" }),
       icon: IconBrain,
+    },
+    {
+      title: "Creative Conflicts",
+      path: "/app/creative-conflicts",
+      navigate: () => nav({ to: "/app/creative-conflicts" }),
+      icon: IconSwords,
+    },
+    {
+      title: "Settings",
+      path: "/app/settings",
+      navigate: () => (nav as any)({ to: "/app/settings" }),
+      icon: IconSettings,
     },
   ];
 

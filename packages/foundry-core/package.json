@@ -1,0 +1,31 @@
+{
+  "name": "@repo/foundry-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts",
+    "./queries": "./src/queries/index.ts",
+    "./zod": "./src/zod/index.ts",
+    "./types": "./src/types/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 execute foundry-global --remote --file=migrations/0001_initial_schema.sql",
+    "db:migrate:local": "wrangler d1 execute foundry-global --local --file=migrations/0001_initial_schema.sql",
+    "db:studio": "drizzle-kit studio",
+    "db:list": "wrangler d1 execute foundry-global --remote --command=\"SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;\""
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.36.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.28.0",
+    "typescript": "^5.7.0"
+  }
+}

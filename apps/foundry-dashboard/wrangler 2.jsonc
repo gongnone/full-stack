@@ -1,0 +1,70 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "foundry-dashboard",
+  "main": "worker/index.ts",
+  "compatibility_date": "2024-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+
+  "observability": {
+    "enabled": true
+  },
+
+  // Stage environment
+  "env": {
+    "stage": {
+      "name": "foundry-dashboard-stage",
+      "routes": [
+        {
+          "pattern": "foundry-stage.williamjshaw.ca",
+          "custom_domain": true
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "stage"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "foundry-db-stage",
+          "database_id": "YOUR_STAGE_D1_ID"
+        }
+      ],
+      "services": [
+        {
+          "binding": "CONTENT_ENGINE",
+          "service": "foundry-engine-stage"
+        }
+      ]
+    },
+    "production": {
+      "name": "foundry-dashboard-production",
+      "routes": [
+        {
+          "pattern": "foundry.williamjshaw.ca",
+          "custom_domain": true
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "production"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "foundry-db-production",
+          "database_id": "YOUR_PRODUCTION_D1_ID"
+        }
+      ],
+      "services": [
+        {
+          "binding": "CONTENT_ENGINE",
+          "service": "foundry-engine-production"
+        }
+      ]
+    }
+  }
+}

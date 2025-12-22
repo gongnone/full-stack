@@ -33,7 +33,30 @@
     ]
   },
   "observability": {
-    "enabled": true,
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "foundry-global-local",
+      "database_id": "a7b557ad-e7c8-4e4a-8fb9-a517b09449f3",
+      "migrations_dir": "../../packages/data-ops/src/drizzle-out"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "foundry-media"
+    }
+  ],
+  "vectorize": [
+    {
+      "binding": "EMBEDDINGS",
+      "index_name": "foundry-embeddings"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
   },
   "env": {
     "stage": {
@@ -41,6 +64,23 @@
       "vars": {
         "STRIPE_PRODUCT_BASIC": "price_1Sb2JRJM6cAn49gquuNTPlU0",
         "STRIPE_PRODUCT_PREMIUM": "price_1Sb2NDJM6cAn49gqJezNsHZG",
+        "GITHUB_CLIENT_ID": "",
+        "GITHUB_CLIENT_SECRET": ""
+      },
+      "r2_buckets": [
+        {
+          "binding": "MEDIA",
+          "bucket_name": "foundry-media"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "EMBEDDINGS",
+          "index_name": "foundry-embeddings"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
       },
       "routes": [
         {
@@ -90,7 +130,9 @@
       "vars": {
         "STRIPE_PRODUCT_BASIC": "price_1Sb2JRJM6cAn49gquuNTPlU0",
         "STRIPE_PRODUCT_PREMIUM": "price_1Sb2NDJM6cAn49gqJezNsHZG",
-        "BETTER_AUTH_URL": "https://hero.williamjshaw.ca"
+        "BETTER_AUTH_URL": "https://hero.williamjshaw.ca",
+        "GITHUB_CLIENT_ID": "",
+        "GITHUB_CLIENT_SECRET": ""
       },
       "routes": [
         {
@@ -101,9 +143,24 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750",
-        },
+          "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750"
+        }
       ],
+      "r2_buckets": [
+        {
+          "binding": "MEDIA",
+          "bucket_name": "foundry-media"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "EMBEDDINGS",
+          "index_name": "foundry-embeddings"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      },
       "assets": {
         "directory": "./dist/client",
         "binding": "ASSETS",

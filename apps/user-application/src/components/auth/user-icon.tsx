@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Settings } from "lucide-react"; // Import Settings icon
 import { useState } from "react";
 import { authClient } from "./client";
 
@@ -18,6 +18,7 @@ type UserProfilePopupProps = {
 
 function UserProfilePopup({ data, children }: UserProfilePopupProps) {
   const [loading, setLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false); // New state to toggle settings view
 
   const handleLogout = async () => {
     setLoading(true);
@@ -32,7 +33,7 @@ function UserProfilePopup({ data, children }: UserProfilePopupProps) {
   };
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={(open) => !open && setShowSettings(false)}> {/* Reset showSettings on dialog close */}
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="text-center space-y-4">
@@ -54,9 +55,9 @@ function UserProfilePopup({ data, children }: UserProfilePopupProps) {
             </Avatar>
             <div>
               <DialogTitle className="text-xl font-semibold">
-                {data?.user.name || "User"}
+                {showSettings ? "User Settings" : (data?.user.name || "User")} {/* Dynamic title */}
               </DialogTitle>
-              {data?.user.email && (
+              {!showSettings && data?.user.email && (
                 <p className="text-sm text-muted-foreground">
                   {data.user.email}
                 </p>
@@ -65,25 +66,51 @@ function UserProfilePopup({ data, children }: UserProfilePopupProps) {
           </div>
         </DialogHeader>
 
-        <div className="mt-6">
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="w-full h-12 text-base font-medium hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 transition-colors"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 mr-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                Signing out...
-              </>
-            ) : (
-              <>
-                <LogOut className="w-4 h-4 mr-3" />
-                Sign out
-              </>
-            )}
-          </Button>
+        <div className="mt-6 flex flex-col gap-2"> {/* Use flex-col and gap for spacing */}
+          {!showSettings ? ( // Conditional rendering for profile vs settings
+            <>
+              <Button
+                onClick={() => setShowSettings(true)} // Show settings on click
+                variant="outline"
+                className="w-full h-12 text-base font-medium"
+              >
+                <Settings className="w-4 h-4 mr-3" />
+                Settings
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="w-full h-12 text-base font-medium hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 transition-colors"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 mr-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Signing out...
+                  </>
+                ) : (
+                  <>
+                    <LogOut className="w-4 h-4 mr-3" />
+                    Sign out
+                  </>
+                )}
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="p-4 border rounded-md bg-muted/20 text-muted-foreground">
+                <p>This is a placeholder for user settings.</p>
+                <p>More settings options will be implemented here.</p>
+              </div>
+              <Button
+                onClick={() => setShowSettings(false)} // Go back to profile view
+                variant="outline"
+                className="w-full h-12 text-base font-medium"
+              >
+                Back to Profile
+              </Button>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

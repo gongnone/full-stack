@@ -1,0 +1,108 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "foundry-engine",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+
+  // Durable Objects - Per-client isolation with SQLite
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CLIENT_AGENT",
+        "class_name": "ClientAgent"
+      }
+    ]
+  },
+
+  // Cloudflare Workflows
+  "workflows": [
+    {
+      "name": "hub-ingestion-workflow",
+      "binding": "HUB_INGESTION",
+      "class_name": "HubIngestionWorkflow"
+    },
+    {
+      "name": "spoke-generation-workflow",
+      "binding": "SPOKE_GENERATION",
+      "class_name": "SpokeGenerationWorkflow"
+    },
+    {
+      "name": "calibration-workflow",
+      "binding": "CALIBRATION",
+      "class_name": "CalibrationWorkflow"
+    }
+  ],
+
+  // AI for LLM operations
+  "ai": {
+    "binding": "AI"
+  },
+
+  // Vectorize for semantic search
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "foundry-embeddings"
+    }
+  ],
+
+  // R2 for media storage
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "foundry-media"
+    }
+  ],
+
+  // D1 for global metadata
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "foundry-global",
+      "database_id": "bd287f3f-8147-49b5-9cae-466c60a975c6"
+    }
+  ],
+
+  // Queues for async processing
+  "queues": {
+    "producers": [
+      {
+        "queue": "spoke-generation-queue",
+        "binding": "SPOKE_QUEUE"
+      },
+      {
+        "queue": "quality-gate-queue",
+        "binding": "QUALITY_QUEUE"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "spoke-generation-queue",
+        "max_batch_size": 10,
+        "max_batch_timeout": 30
+      },
+      {
+        "queue": "quality-gate-queue",
+        "max_batch_size": 5,
+        "max_batch_timeout": 10
+      }
+    ]
+  },
+
+  // Environment variables
+  "vars": {
+    "ENVIRONMENT": "development"
+  },
+
+  // Migrations for Durable Object SQLite
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["ClientAgent"]
+    }
+  ]
+}

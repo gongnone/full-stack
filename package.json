@@ -10,7 +10,14 @@
     "production:deploy-frontend": "pnpm i && pnpm run build-package && pnpm --filter user-application run production:deploy",
     "stage:deploy-data-service": "pnpm i && pnpm run build-package && pnpm --filter data-service run stage:deploy",
     "production:deploy-data-service": "pnpm i && pnpm run build-package && pnpm --filter data-service run production:deploy",
-    "ingest": "npx tsx scripts/ingest-knowledge.ts"
+    "ingest": "npx tsx scripts/ingest-knowledge.ts",
+    "foundry:dev-dashboard": "pnpm --filter foundry-dashboard run dev",
+    "foundry:dev-engine": "pnpm --filter foundry-engine run dev",
+    "foundry:dev": "pnpm run foundry:dev-dashboard & pnpm run foundry:dev-engine",
+    "foundry:deploy-dashboard": "pnpm i && pnpm --filter foundry-dashboard run deploy",
+    "foundry:deploy-engine": "pnpm i && pnpm --filter foundry-engine run deploy",
+    "foundry:deploy": "pnpm run foundry:deploy-dashboard && pnpm run foundry:deploy-engine",
+    "foundry:typecheck": "pnpm --filter foundry-dashboard --filter foundry-engine --filter @repo/foundry-core --filter @repo/agent-system run typecheck"
   },
   "keywords": [],
   "author": "",

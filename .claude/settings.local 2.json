@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__agentvibes__text_to_speech",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(git -C /Users/williamshaw/Library/Mobile Documents/com~apple~CloudDocs/full-stack log --oneline)",
+      "Bash(mkdir:*)",
+      "Skill(bmad:bmm:agents:ux-designer)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\ndocs: add comprehensive system documentation for brownfield onboarding\n\nAdd 6 documentation files covering the full architecture:\n- ARCHITECTURE.md: System overview, tech stack, request flows\n- DATA-MODEL.md: Database schema, relationships, query patterns\n- API-REFERENCE.md: tRPC routers and procedures\n- WORKFLOWS.md: 6-phase AI agent orchestration system\n- FRONTEND.md: React components, routing, state management\n- DEVELOPER-GUIDE.md: Setup instructions and common tasks\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push origin stage)",
+      "Bash(.claude/hooks/play-tts.sh:*)",
+      "Bash(find:*)",
+      "Bash(pnpm install)"
+    ]
+  }
+}

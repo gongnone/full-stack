@@ -1,7 +1,9 @@
 import { createFileRoute, Outlet, Navigate } from '@tanstack/react-router';
 import { useSession } from '@/lib/auth-client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Sidebar, CommandPalette } from '@/components/layout';
+import { Sidebar, CommandPalette, ClientSelector } from '@/components/layout';
+import { trpc } from '@/lib/trpc-client';
+import { useClientId } from '@/lib/use-client-id';
 
 // NFR-P5: Performance budget - page must load in < 3 seconds
 const PERFORMANCE_BUDGET_MS = 3000;
@@ -12,7 +14,12 @@ export const Route = createFileRoute('/app')({
 
 function AppLayout() {
   const { data: session, isPending } = useSession();
+  const activeClientId = useClientId();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  
+  const clientsQuery = trpc.clients.list.useQuery(undefined, { enabled: !!session });
+  const activeClient = clientsQuery.data?.items?.find(c => c.id === activeClientId);
+
   const loadStartTime = useRef(performance.now());
   const hasLoggedPerformance = useRef(false);
 
@@ -90,9 +97,14 @@ function AppLayout() {
       <div className="pl-64">
         {/* Top header */}
         <header
-          className="sticky top-0 z-40 h-16 border-b flex items-center px-6"
-          style={{ backgroundColor: 'var(--bg-base)', borderColor: 'var(--border-subtle)' }}
+          className="sticky top-0 z-40 h-16 border-b flex items-center px-6 gap-4 transition-colors duration-500"
+          style={{ 
+            backgroundColor: 'var(--bg-base)', 
+            borderBottomColor: activeClient?.brandColor ? `${activeClient.brandColor}40` : 'var(--border-subtle)',
+            borderBottomWidth: activeClient?.brandColor ? '2px' : '1px'
+          }}
         >
+          <ClientSelector />
           <div className="flex-1" />
 
           {/* Command palette trigger */}

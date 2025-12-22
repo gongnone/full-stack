@@ -9,23 +9,41 @@ export const Route = createFileRoute('/app/')({
 
 function DashboardPage() {
   const { data: session } = useSession();
+  const clientId = useClientId();
 
-  // Example tRPC query - fetch clients list
-  const clientsQuery = trpc.clients.list.useQuery(
-    {},
-    {
-      enabled: !!session,
-      retry: false,
-    }
+  // Real tRPC queries
+  const clientsQuery = trpc.clients.list.useQuery({}, { enabled: !!session });
+  
+  const highConfidenceQuery = trpc.review.getQueue.useQuery(
+    { clientId: clientId!, filter: 'top10', limit: 100 },
+    { enabled: !!clientId }
+  );
+  
+  const needsReviewQuery = trpc.review.getQueue.useQuery(
+    { clientId: clientId!, filter: 'all', limit: 100 },
+    { enabled: !!clientId }
+  );
+  
+  const conflictsQuery = trpc.review.getQueue.useQuery(
+    { clientId: clientId!, filter: 'flagged', limit: 100 },
+    { enabled: !!clientId }
   );
 
-  // Mock counts for demonstration (Story 1.1 - 1.5 foundation)
-  // In a real scenario, these would come from a tRPC query
+  const volumeQuery = trpc.analytics.getVolumeMetrics.useQuery(
+    { clientId: clientId!, periodDays: 30 },
+    { enabled: !!clientId }
+  );
+
+  const zeroEditQuery = trpc.analytics.getZeroEditRate.useQuery(
+    { clientId: clientId!, periodDays: 30 },
+    { enabled: !!clientId }
+  );
+
   const bucketCounts = {
-    highConfidence: 12,
-    needsReview: 8,
-    creativeConflicts: 3,
-    justGenerated: 25
+    highConfidence: highConfidenceQuery.data?.totalCount || 0,
+    needsReview: needsReviewQuery.data?.totalCount || 0,
+    creativeConflicts: conflictsQuery.data?.totalCount || 0,
+    justGenerated: volumeQuery.data?.spokesGenerated || 0
   };
 
   return (
@@ -45,26 +63,26 @@ function DashboardPage() {
         <StatCard
           title="Active Clients"
           value={clientsQuery.isLoading ? '...' : String(clientsQuery.data?.items?.length || 0)}
-          change="+2 this week"
-          changeType="positive"
+          change={clientsQuery.data?.items?.length === 1 ? "1 client" : `${clientsQuery.data?.items?.length || 0} clients`}
+          changeType="neutral"
         />
         <StatCard
           title="Content Hubs"
-          value="4"
+          value={volumeQuery.isLoading ? '...' : String(volumeQuery.data?.hubsCreated || 0)}
           change="+1 today"
           changeType="positive"
         />
         <StatCard
           title="Pending Review"
           value={String(bucketCounts.highConfidence + bucketCounts.needsReview)}
-          change="82% complete"
+          change={`${bucketCounts.highConfidence} high conf`}
           changeType="positive"
         />
         <StatCard
           title="Zero-Edit Rate"
-          value="64%"
-          change="+5% trend"
-          changeType="positive"
+          value={zeroEditQuery.isLoading ? '...' : `${zeroEditQuery.data?.rate || 0}%`}
+          change={`${zeroEditQuery.data?.trend === 'up' ? '+' : ''} trend`}
+          changeType={zeroEditQuery.data?.trend === 'up' ? 'positive' : zeroEditQuery.data?.trend === 'down' ? 'negative' : 'neutral'}
         />
       </div>
 

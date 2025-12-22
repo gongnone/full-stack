@@ -8,6 +8,8 @@
         "./rag": "./src/rag.ts",
         "./prompts": "./src/prompts.ts",
         "./prompts/halo-investigator": "./src/prompts/halo-investigator.ts",
+        "./prompts/spoke-prompts": "./src/prompts/spoke-prompts.ts",
+        "./platform-configs": "./src/platform-configs.ts",
         "./tools": "./src/tools.ts",
         "./agents": "./src/agents/index.ts"
     },

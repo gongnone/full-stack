@@ -89,7 +89,7 @@ export const marketResearchRouter = t.router({
         .input(z.object({ sourceId: z.string(), isExcluded: z.boolean() }))
         .mutation(async ({ ctx, input }) => {
             await ctx.db.update(researchSources)
-                .set({ isExcluded: input.isExcluded })
+                .set({ isExcluded: input.isExcluded as any })
                 .where(eq(researchSources.id, input.sourceId));
             return { success: true };
         }),

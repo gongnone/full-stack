@@ -24,10 +24,11 @@ export async function scrapePageContent(
 
         // Extract content
         const content = await page.evaluate(() => {
+            const doc = (globalThis as any).document;
             // Remove scripts, styles, and ads to clean up text
-            const scripts = document.querySelectorAll('script, style, noscript, iframe, .ad, .advertisement');
-            scripts.forEach(s => s.remove());
-            return document.body.innerText;
+            const scripts = doc.querySelectorAll('script, style, noscript, iframe, .ad, .advertisement');
+            scripts.forEach((s: any) => s.remove());
+            return doc.body.innerText;
         });
 
         const title = await page.title();
@@ -52,11 +53,13 @@ export async function scrapePageContent(
 async function autoScroll(page: any) {
     await page.evaluate(async () => {
         await new Promise<void>((resolve) => {
+            const doc = (globalThis as any).document;
+            const win = (globalThis as any).window;
             let totalHeight = 0;
             const distance = 300;
             const timer = setInterval(() => {
-                const scrollHeight = document.body.scrollHeight;
-                window.scrollBy(0, distance);
+                const scrollHeight = doc.body.scrollHeight;
+                win.scrollBy(0, distance);
                 totalHeight += distance;
 
                 if (totalHeight >= scrollHeight || totalHeight > 15000) { // Limit scroll depth

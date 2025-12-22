@@ -114,7 +114,7 @@ const authMiddleware = createMiddleware(async (c, next) => {
           vectorizeNamespace: `client-${newClientId}`,
           r2PathPrefix: `r2-${newClientId}`,
           createdAt: new Date().toISOString(),
-        }).returning()).[0];
+        }).returning())[0];
       }
       clientId = defaultClient.id;
     }
@@ -135,7 +135,7 @@ const authMiddleware = createMiddleware(async (c, next) => {
         vectorizeNamespace: `client-${newClientId}`,
         r2PathPrefix: `r2-${newClientId}`,
         createdAt: new Date().toISOString(),
-      }).returning()).[0];
+      }).returning())[0];
     }
     clientId = defaultClient.id;
   }

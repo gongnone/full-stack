@@ -24,7 +24,7 @@ export async function getClientForAccount(db: FoundryDrizzleDb, accountId: strin
       vectorizeNamespace: `client-${newClientId}`, // Placeholder
       r2PathPrefix: `r2-${newClientId}`, // Placeholder
       createdAt: new Date().toISOString(),
-    }).returning()).[0]; // .returning() is for getting the inserted row, and then taking the first element
+    }).returning())[0]; // .returning() is for getting the inserted row, and then taking the first element
   }
 
   return client;

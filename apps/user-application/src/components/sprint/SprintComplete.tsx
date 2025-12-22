@@ -14,32 +14,24 @@ interface SprintCompleteProps {
 }
 
 export function SprintComplete({
-
   stats,
-
   onExit,
-
 }: SprintCompleteProps) {
-
   const navigate = useNavigate();
-
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-
-  const clientId = 'temp-client-id'; // TODO: Get from auth context (Rule 1: Isolation)
-
   
+  // Get clientId from localStorage or context (Rule 1: Isolation)
+  const clientId = localStorage.getItem('selectedClientId') || 'default-client';
 
-  // AC3: Zero-Edit Rate (ZED) - Percentage of approved that required NO edits
+  // AC3: Zero-Edit Rate (ZED) - Fetch from backend for long-term monitoring
+  const { data: zedData } = trpc.analytics.getZeroEditRate.useQuery({
+    clientId,
+    periodDays: 30
+  });
 
-  // For MVP, we'll assume stats.approved items are "clean" unless stats.edited > 0
-
-  const zeroEditRate = stats.approved > 0
-
+  const zeroEditRate = zedData?.rate ?? (stats.approved > 0
     ? Math.round(((stats.approved - stats.edited) / stats.approved) * 100)
-
-    : 0;
-
-
+    : 0);
 
   // AC1: Hero stats (Items * 6 mins saved per piece)
 

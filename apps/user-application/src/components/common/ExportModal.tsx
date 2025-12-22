@@ -66,41 +66,41 @@ export function ExportModal({
 
     setIsHubExporting(true);
     try {
-      let data = await (trpc as any).generations.getApprovedSpokesForExport.query({
+      // 1. Trigger export generation on backend
+      const { exportId, status } = await trpc.exports.create.mutate({
         clientId,
-        platforms: selectedPlatforms,
-        includeAssets: includeMedia,
-      }) as ExportSpoke[];
+        platforms: selectedPlatforms as any,
+        format,
+        includeVisuals: includeMedia,
+      });
 
-      if (!data || data.length === 0) {
-        toast.error('No approved content found', {
-          description: 'Try approving some content in the Production Queue first.'
-        });
-        setIsHubExporting(false);
-        return;
+      if (status === 'failed') {
+        throw new Error('Export generation failed on backend');
       }
 
-      if (includeScheduling) {
-        data = applySchedulingMetadata(data);
+      // 2. Get download URL
+      const { url } = await trpc.exports.getDownloadUrl.query({
+        clientId,
+        exportId,
+      });
+
+      if (!url) {
+        throw new Error('Failed to get download URL');
       }
 
-      if (organizeByPlatform || includeMedia) {
-        const zipBlob = await generatePlatformZIP(data, format, includeScheduling, includeMedia);
-        const filename = `foundry-export-${new Date().toISOString().split('T')[0]}.zip`;
-        downloadFile(zipBlob, filename, 'application/zip');
-      } else {
-        const filename = `foundry-export-${new Date().toISOString().split('T')[0]}.${format}`;
-        if (format === 'csv') {
-          const csvContent = convertToCSV(data, includeScheduling);
-          downloadFile(csvContent, filename, 'text/csv');
-        } else {
-          const jsonContent = convertToJSON(data, includeScheduling);
-          downloadFile(jsonContent, filename, 'application/json');
-        }
-      }
+      // 3. Trigger download
+      const filename = `foundry-export-${new Date().toISOString().split('T')[0]}.${format}`;
+      
+      // We can use a simple anchor tag for the URL
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
       toast.success('Export successful', {
-        description: `Exported ${data.length} spokes ${organizeByPlatform || includeMedia ? 'as ZIP' : `to ${format.toUpperCase()}`}`
+        description: `Your ${format.toUpperCase()} export is downloading.`
       });
       onOpenChange(false);
     } catch (error: any) {

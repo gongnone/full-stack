@@ -15,19 +15,19 @@ export function HelpOverlay({ isOpen, onClose }: HelpOverlayProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md p-6"
           onClick={onClose}
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden"
+            className="w-full max-w-lg bg-card border border-border rounded-2xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-slate-100">Sprint Keyboard Shortcuts</h2>
-              <button onClick={onClose} className="text-slate-500 hover:text-slate-300">
+            <div className="p-6 border-b border-border flex justify-between items-center bg-secondary/30">
+              <h2 className="text-xl font-bold text-foreground tracking-tight">Sprint Keyboard Shortcuts</h2>
+              <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -36,12 +36,12 @@ export function HelpOverlay({ isOpen, onClose }: HelpOverlayProps) {
               <div className="grid grid-cols-1 gap-4">
                 {KEYBOARD_HINTS.map((hint) => (
                   <div key={hint.action} className="flex items-center justify-between group">
-                    <span className="text-slate-400 group-hover:text-slate-200 transition-colors">
+                    <span className="text-muted-foreground group-hover:text-foreground transition-colors">
                       {hint.action}
                     </span>
                     <div className="flex gap-2">
                       {hint.keys.map((key) => (
-                        <kbd key={key} className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs font-mono text-slate-300 min-w-[32px] text-center shadow-inner">
+                        <kbd key={key} className="px-2.5 py-1 bg-background border border-border rounded text-[10px] font-mono text-foreground min-w-[36px] text-center shadow-sm uppercase font-bold">
                           {key}
                         </kbd>
                       ))}
@@ -50,9 +50,9 @@ export function HelpOverlay({ isOpen, onClose }: HelpOverlayProps) {
                 ))}
               </div>
 
-              <div className="pt-6 border-t border-slate-800">
-                <p className="text-xs text-slate-500 italic text-center">
-                  Target decision time: &lt; 6 seconds per content piece.
+              <div className="pt-6 border-t border-border">
+                <p className="text-xs text-muted-foreground italic text-center leading-relaxed">
+                  Enter "flow state." Target decision time: &lt; 6 seconds per content piece.
                 </p>
               </div>
             </div>

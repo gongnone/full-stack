@@ -37,29 +37,26 @@ interface SprintViewProps {
 export function SprintView({ projectId, bucket: propBucket }: SprintViewProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const search: any = useSearch({ from: '/app/_authed/projects/$projectId/sprint' });
+  const search: any = useSearch({ from: '/app/_authed/sprint' });
   const currentBucket = propBucket || search.bucket || 'high_confidence';
-  const clientId = 'unknown'; // TODO: Get from auth
+  const clientId = 'temp-client-id'; // TODO: Get from auth context
 
   const [killModalOpen, setKillModalOpen] = useState(false);
   const [isHubKilling, setIsHubKilling] = useState(false);
 
   const { data: sprintItems, isLoading } = useQuery({
-    queryKey: ['sprint-items', projectId, currentBucket],
-    queryFn: () => (trpc as any).generations.getSprintItems.query({ clientId, bucket: currentBucket }),
+    ...trpc.generations.getSprintItems.queryOptions({ clientId, bucket: currentBucket }),
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: (vars: { spokeId: string, status: string }) => 
-      (trpc as any).generations.updateSpokeStatus.mutate(vars),
+    ...trpc.generations.updateSpokeStatus.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['review-buckets'] });
     }
   });
 
   const killHubMutation = useMutation({
-    mutationFn: (vars: { hubId: string, clientId: string }) => 
-      (trpc as any).generations.killHub.mutate(vars),
+    ...trpc.generations.killHub.mutationOptions(),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['review-buckets'] });
       toast.error('Hub killed', {
@@ -75,8 +72,7 @@ export function SprintView({ projectId, bucket: propBucket }: SprintViewProps) {
   });
 
   const undoKillHubMutation = useMutation({
-    mutationFn: (vars: { hubId: string, clientId: string }) => 
-      (trpc as any).generations.undoKillHub.mutate(vars),
+    ...trpc.generations.undoKillHub.mutationOptions(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['review-buckets'] });
       toast.success('Hub restored successfully');
@@ -87,8 +83,8 @@ export function SprintView({ projectId, bucket: propBucket }: SprintViewProps) {
 
   // Exit handler
   const handleExit = useCallback(() => {
-    navigate({ to: `/app/projects/${projectId}` });
-  }, [navigate, projectId]);
+    navigate({ to: '/app/review' });
+  }, [navigate]);
 
   // Action handlers
   const handleApprove = useCallback(() => {
@@ -145,7 +141,7 @@ export function SprintView({ projectId, bucket: propBucket }: SprintViewProps) {
   const confirmHubKill = useCallback(() => {
     if (!queue.currentItem) return;
     const hubId = queue.currentItem.hubId;
-    const hubTitle = queue.currentItem.breadcrumb.hub;
+    const hubTitle = queue.currentItem.breadcrumb?.hub || 'Current Hub';
     
     setKillModalOpen(false);
     setIsHubKilling(true);
@@ -207,7 +203,7 @@ export function SprintView({ projectId, bucket: propBucket }: SprintViewProps) {
   // Complete state
   if (queue.isComplete) {
     return (
-      <div className="fixed inset-0 bg-[#0F1419]">
+      <div className="fixed inset-0 bg-background text-foreground">
         <SprintComplete
           stats={queue.stats}
           onExit={handleExit}
@@ -219,17 +215,17 @@ export function SprintView({ projectId, bucket: propBucket }: SprintViewProps) {
   // No items
   if (!queue.currentItem) {
     return (
-      <div className="fixed inset-0 bg-[#0F1419] flex items-center justify-center">
+      <div className="fixed inset-0 bg-background flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-[#E7E9EA] mb-2">
+          <h2 className="text-2xl font-bold text-foreground mb-4">
             No content to review
           </h2>
-          <p className="text-[#8B98A5] mb-4">
-            The sprint queue is empty.
+          <p className="text-muted-foreground mb-8 text-lg">
+            The sprint queue is empty for this bucket.
           </p>
           <button
             onClick={handleExit}
-            className="text-[#1D9BF0] hover:underline"
+            className="text-primary hover:text-primary/80 font-bold transition-colors"
           >
             Return to dashboard
           </button>
@@ -239,10 +235,10 @@ export function SprintView({ projectId, bucket: propBucket }: SprintViewProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-[#0F1419] flex flex-col">
+    <div className="fixed inset-0 bg-background flex flex-col overflow-hidden select-none">
       {/* Header */}
       <SprintHeader
-        title="High Confidence Sprint"
+        title={`${currentBucket.replace('_', ' ')} Sprint`}
         currentIndex={queue.state.currentIndex}
         totalCount={queue.state.items.length}
         onExit={handleExit}
@@ -304,7 +300,7 @@ export function SprintView({ projectId, bucket: propBucket }: SprintViewProps) {
         isOpen={killModalOpen}
         onOpenChange={setKillModalOpen}
         onConfirm={confirmHubKill}
-        hubTitle={queue.currentItem.breadcrumb.hub}
+        hubTitle={queue.currentItem.breadcrumb?.hub || 'Current Hub'}
         spokeCount={queue.state.items.filter(i => i.hubId === queue.currentItem?.hubId).length}
       />
     </div>

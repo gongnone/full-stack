@@ -7,7 +7,7 @@ story_location: _bmad-output/implementation-artifacts
 development_status:
   # Epic 1: Foundation & Identity (The Access Layer)
   epic-1: Todo
-  1-1-project-foundation-for-user-access: Todo
+  1-1-project-foundation-for-user-access: In Progress
   1-2-better-auth-integration-with-oauth: Todo
   1-3-dashboard-shell-with-routing: Todo
   1-4-midnight-command-theme-system: Todo
@@ -40,7 +40,7 @@ development_status:
   # Epic 5: Executive Producer Dashboard (The Output Layer)
   epic-5: In Progress
   5-1-production-queue-dashboard: Done
-  5-2-sprint-view-with-signal-header: Todo
+  5-2-sprint-view-with-signal-header: Done
   5-3-keyboard-first-approval-flow: Todo
   5-4-kill-chain-cascade: Todo
   5-5-clone-best-and-variations: Todo

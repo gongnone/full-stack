@@ -20,7 +20,7 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
+			"database_id": "e35604ee-6e84-476f-a6ec-e6df6e12d81c",
 			"preview_database_id": "DB"
 		}
 	],
@@ -40,7 +40,7 @@
 			"d1_databases": [
 				{
 					"binding": "DB",
-					"database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
+					"database_id": "e35604ee-6e84-476f-a6ec-e6df6e12d81c",
 					"remote": true
 				}
 			],

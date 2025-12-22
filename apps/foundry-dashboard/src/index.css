@@ -1,0 +1,99 @@
+@import 'tailwindcss';
+
+/* Midnight Command Theme */
+:root {
+  /* Base colors - Midnight Command (locked visual identity) */
+  --bg-base: #0F1419;
+  --bg-elevated: #1A1F26;
+  --bg-surface: #1A1F26;
+  --bg-hover: #242A33;
+  --text-primary: #E7E9EA;
+  --text-secondary: #8B98A5;
+  --text-muted: #6E767D;
+
+  /* Action colors */
+  --approve: #00D26A;
+  --approve-glow: rgba(0, 210, 106, 0.15);
+  --kill: #F4212E;
+  --kill-glow: rgba(244, 33, 46, 0.15);
+  --edit: #1D9BF0;
+  --edit-glow: rgba(29, 155, 240, 0.15);
+  --warning: #FFAD1F;
+
+  /* Border colors */
+  --border-subtle: #2A3038;
+  --border-focus: #1D9BF0;
+
+  /* shadcn/ui CSS variables mapped to Midnight Command */
+  --background: 214 24% 8%;
+  --foreground: 200 12% 91%;
+  --card: 214 18% 13%;
+  --card-foreground: 200 12% 91%;
+  --popover: 214 18% 13%;
+  --popover-foreground: 200 12% 91%;
+  --primary: 205 86% 53%;
+  --primary-foreground: 214 24% 8%;
+  --secondary: 214 14% 16%;
+  --secondary-foreground: 200 12% 91%;
+  --muted: 214 14% 16%;
+  --muted-foreground: 200 7% 55%;
+  --accent: 214 14% 16%;
+  --accent-foreground: 200 12% 91%;
+  --destructive: 356 90% 54%;
+  --destructive-foreground: 200 12% 91%;
+  --border: 200 8% 20%;
+  --input: 200 8% 20%;
+  --ring: 205 86% 53%;
+  --radius: 0.5rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Focus indicators for accessibility (NFR-A4) */
+*:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* Approve button glow effect */
+.btn-approve:hover {
+  box-shadow: 0 0 20px var(--approve-glow);
+}
+
+/* Kill button glow effect */
+.btn-kill:hover {
+  box-shadow: 0 0 20px var(--kill-glow);
+}
+
+/* Edit button glow effect */
+.btn-edit:hover {
+  box-shadow: 0 0 20px var(--edit-glow);
+}
+
+/* Sidebar transitions */
+.sidebar-link {
+  transition: all 150ms ease;
+}
+
+.sidebar-link:hover {
+  background-color: var(--bg-hover);
+}
+
+.sidebar-link.active {
+  background-color: var(--bg-surface);
+  border-left: 2px solid var(--edit);
+}
+
+/* Command palette overlay */
+.command-palette-overlay {
+  backdrop-filter: blur(4px);
+  background-color: rgba(15, 20, 25, 0.8);
+}

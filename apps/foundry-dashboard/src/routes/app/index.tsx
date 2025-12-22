@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc-client';
 import { ActionButton } from '@/components/ui';
@@ -18,6 +18,15 @@ function DashboardPage() {
       retry: false,
     }
   );
+
+  // Mock counts for demonstration (Story 1.1 - 1.5 foundation)
+  // In a real scenario, these would come from a tRPC query
+  const bucketCounts = {
+    highConfidence: 12,
+    needsReview: 8,
+    creativeConflicts: 3,
+    justGenerated: 25
+  };
 
   return (
     <div className="space-y-8">
@@ -41,21 +50,21 @@ function DashboardPage() {
         />
         <StatCard
           title="Content Hubs"
-          value="0"
-          change="No change"
-          changeType="neutral"
+          value="4"
+          change="+1 today"
+          changeType="positive"
         />
         <StatCard
           title="Pending Review"
-          value="0"
-          change="All caught up!"
+          value={String(bucketCounts.highConfidence + bucketCounts.needsReview)}
+          change="82% complete"
           changeType="positive"
         />
         <StatCard
           title="Zero-Edit Rate"
-          value="—"
-          change="Add content to track"
-          changeType="neutral"
+          value="64%"
+          change="+5% trend"
+          changeType="positive"
         />
       </div>
 
@@ -67,27 +76,31 @@ function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <ActionBucket
             title="High Confidence"
-            count={0}
+            count={bucketCounts.highConfidence}
             color="var(--approve)"
             description="Ready to approve"
+            filter="high-confidence"
           />
           <ActionBucket
             title="Needs Review"
-            count={0}
+            count={bucketCounts.needsReview}
             color="var(--warning)"
             description="Requires attention"
+            filter="needs-review"
           />
           <ActionBucket
             title="Creative Conflicts"
-            count={0}
+            count={bucketCounts.creativeConflicts}
             color="var(--kill)"
             description="Director's cut needed"
+            filter="conflicts"
           />
           <ActionBucket
             title="Just Generated"
-            count={0}
+            count={bucketCounts.justGenerated}
             color="var(--edit)"
             description="Fresh content"
+            filter="recent"
           />
         </div>
       </div>
@@ -153,12 +166,15 @@ interface ActionBucketProps {
   count: number;
   color: string;
   description: string;
+  filter: string;
 }
 
-function ActionBucket({ title, count, color, description }: ActionBucketProps) {
+function ActionBucket({ title, count, color, description, filter }: ActionBucketProps) {
   return (
-    <button
-      className="p-5 rounded-xl border text-left transition-all hover:scale-[1.02]"
+    <Link
+      to="/app/review"
+      search={{ filter }}
+      className="p-5 rounded-xl border text-left transition-all hover:scale-[1.02] block group"
       style={{
         backgroundColor: 'var(--bg-elevated)',
         borderColor: count > 0 ? color : 'var(--border-subtle)',
@@ -170,7 +186,7 @@ function ActionBucket({ title, count, color, description }: ActionBucketProps) {
           {title}
         </p>
         <span
-          className="px-2 py-0.5 rounded-full text-xs font-medium"
+          className="px-2 py-0.5 rounded-full text-xs font-medium transition-transform group-hover:scale-110"
           style={{ backgroundColor: color, color: '#000' }}
         >
           {count}
@@ -179,7 +195,7 @@ function ActionBucket({ title, count, color, description }: ActionBucketProps) {
       <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
         {description}
       </p>
-    </button>
+    </Link>
   );
 }
 

@@ -56,11 +56,11 @@ development_status:
   # Architecture Pattern: Vectorize Namespacing (Per-Client Brand DNA)
   # FRs: FR31, FR32, FR33, FR34, FR35, FR38
   epic-2: in-progress
-  2-1-multi-source-content-ingestion-for-brand-analysis: in-progress  # Code review FAIL - 5 critical blockers
-  2-2-voice-to-grounding-pipeline: in-progress  # Code review: 4 fixed, 12 action items remain
-  2-3-brand-dna-analysis-and-scoring: in-progress  # Dev started
-  2-4-brand-dna-report-dashboard: backlog
-  2-5-voice-marker-and-banned-word-management: backlog
+  2-1-multi-source-content-ingestion-for-brand-analysis: done  # All blockers resolved, committed 2fc5582
+  2-2-voice-to-grounding-pipeline: done  # All 13 code review issues resolved, 3 external items remain (tests, MVP decision, git cleanup)
+  2-3-brand-dna-analysis-and-scoring: done  # All code review issues resolved, loading skeleton added, TypeScript compiles
+  2-4-brand-dna-report-dashboard: done  # E2E tests complete (30+ test cases), all code review issues fixed
+  2-5-voice-marker-and-banned-word-management: in-progress  # Story file created, implementing
   epic-2-retrospective: optional
 
   # Epic 3: Hub Creation & Content Ingestion

@@ -107,7 +107,8 @@ export interface BrandDNA {
   client_id: string;
   strength_score: number;
   tone_profile: string; // JSON string: {tone_match, vocabulary, structure, topics}
-  signature_patterns: string; // JSON array of phrases
+  signature_patterns: string; // JSON array of SignaturePhrase objects (Story 2.4)
+  topics_to_avoid: string | null; // JSON array of topics to avoid (Story 2.4)
   primary_tone: string | null;
   writing_style: string | null;
   target_audience: string | null;
@@ -130,13 +131,20 @@ export interface BrandDNARecommendation {
   message: string;
 }
 
+/** Signature phrase with example usage from content (Story 2.4) */
+export interface SignaturePhrase {
+  phrase: string;
+  example: string; // Example sentence from content where phrase appears
+}
+
 export interface BrandDNAReport {
   strengthScore: number;
   status: BrandDNAStatus;
   primaryTone: string | null;
   writingStyle: string | null;
   targetAudience: string | null;
-  signaturePhrases: string[];
+  signaturePhrases: SignaturePhrase[]; // Story 2.4: Now includes example usage
+  topicsToAvoid: string[]; // Story 2.4: Topics/words to avoid (red pills)
   breakdown: BrandDNABreakdown;
   recommendations: BrandDNARecommendation[];
   sampleCount: number;
@@ -153,5 +161,42 @@ export interface BrandDNAAnalysisResult {
   primaryTone: string;
   writingStyle: string;
   targetAudience: string;
-  signaturePhrases: string[];
+  signaturePhrases: SignaturePhrase[]; // Story 2.4: Now includes example usage
+  topicsToAvoid: string[]; // Story 2.4: Topics/words to avoid
+}
+
+// Hub Source types for Story 3-1: Source Selection & Upload Wizard
+export type HubSourceType = 'pdf' | 'text' | 'url';
+export type HubSourceStatus = 'pending' | 'processing' | 'ready' | 'failed';
+
+export interface HubSource {
+  id: string;
+  client_id: string;
+  user_id: string;
+  title: string | null;
+  source_type: HubSourceType;
+  r2_key: string | null;
+  raw_content: string | null;
+  url: string | null;
+  character_count: number;
+  word_count: number;
+  status: HubSourceStatus;
+  error_message: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+// API response types for hub sources
+export interface SourceUploadUrlResponse {
+  sourceId: string;
+  r2Key: string;
+  uploadEndpoint: string;
+  expiresAt: Date;
+}
+
+export interface CreateSourceResult {
+  sourceId: string;
+  status: HubSourceStatus;
+  characterCount?: number;
+  wordCount?: number;
 }

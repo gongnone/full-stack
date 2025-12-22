@@ -8,6 +8,7 @@ import type {
   BrandDNABreakdown,
   BrandDNAReport,
   BrandDNAAnalysisResult,
+  SignaturePhrase,
 } from '../../types';
 
 const t = initTRPC.context<Context>().create();
@@ -32,12 +33,13 @@ function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-// Story 2.3: Calculate Brand DNA strength score from analysis results
+// Story 2.3 & 2.4: Calculate Brand DNA strength score from analysis results
 interface AnalysisData {
   primary_tone: string | null;
   writing_style: string | null;
   target_audience: string | null;
-  signature_phrases: string[];
+  signature_phrases: SignaturePhrase[]; // Story 2.4: Now includes example usage
+  topics_to_avoid: string[]; // Story 2.4: Words/topics to avoid (red pills)
 }
 
 function calculateStrengthScore(
@@ -379,12 +381,39 @@ export const calibrationRouter = t.router({
         });
       }
 
+      // Rate limiting: Check last voice recording timestamp (max 1 per minute)
+      const rateLimitCheck = await ctx.db
+        .prepare('SELECT last_voice_recording_at FROM brand_dna WHERE client_id = ?')
+        .bind(input.clientId)
+        .first<{ last_voice_recording_at: number }>();
+
+      const now = Math.floor(Date.now() / 1000);
+      const minInterval = 60; // 60 seconds between recordings
+      if (rateLimitCheck?.last_voice_recording_at &&
+          (now - rateLimitCheck.last_voice_recording_at) < minInterval) {
+        throw new TRPCError({
+          code: 'TOO_MANY_REQUESTS',
+          message: `Please wait ${minInterval - (now - rateLimitCheck.last_voice_recording_at)} seconds before recording again`,
+        });
+      }
+
       // Verify the audio file exists in R2
       const audioObject = await ctx.env.MEDIA.get(input.audioR2Key);
       if (!audioObject) {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Voice recording not found in storage',
+        });
+      }
+
+      // Backend audio duration validation: Max 60 seconds (~10MB for WebM at 128kbps)
+      const maxFileSize = 10 * 1024 * 1024; // 10MB
+      if (audioObject.size > maxFileSize) {
+        // Clean up oversized file
+        await ctx.env.MEDIA.delete(input.audioR2Key);
+        throw new TRPCError({
+          code: 'PAYLOAD_TOO_LARGE',
+          message: 'Audio file too large. Maximum recording is 60 seconds.',
         });
       }
 
@@ -419,22 +448,29 @@ export const calibrationRouter = t.router({
 
       if (transcript.length > 10) {
         try {
-          // Entity extraction prompt
-          const extractionPrompt = `You are a brand voice analyst. Analyze this voice note and extract the speaker's brand preferences.
+          // Improved entity extraction prompt with structured output
+          const extractionPrompt = `You are an expert brand voice analyst. Analyze this voice note transcript and extract the speaker's brand preferences.
 
-Voice note transcript: "${transcript}"
+TRANSCRIPT:
+"${transcript}"
 
-EXTRACT:
-1. Banned Words: Words or phrases the speaker explicitly wants to avoid (e.g., "stop using 'synergy'")
-2. Voice Markers: Unique phrases, expressions, or verbal patterns the speaker uses or wants to use
-3. Stances: Positions or opinions the speaker expresses on topics
+EXTRACTION RULES:
+1. bannedWords: Extract ONLY words the speaker EXPLICITLY says to avoid/stop using/never use
+   - Look for phrases like "stop using", "don't say", "hate the word", "never use"
+   - Example: "I hate corporate jargon like synergy" → ["synergy", "corporate jargon"]
 
-Return ONLY valid JSON (no markdown):
-{
-  "bannedWords": ["word1", "word2"],
-  "voiceMarkers": ["phrase1", "phrase2"],
-  "stances": [{"topic": "topic1", "position": "their position"}]
-}`;
+2. voiceMarkers: Extract unique phrases, expressions, or verbal patterns the speaker:
+   - Regularly uses or wants to use
+   - Considers part of their signature style
+   - Example: "I always say 'let's dive in'" → ["let's dive in"]
+
+3. stances: Extract clear opinions/positions on topics
+   - Must have both a topic AND a clear position
+   - Example: "I believe in radical transparency" → {"topic": "transparency", "position": "radical transparency is essential"}
+
+IMPORTANT: Only extract what is EXPLICITLY stated. Do not infer or assume.
+Return ONLY valid JSON with no markdown formatting:
+{"bannedWords":[],"voiceMarkers":[],"stances":[]}`;
 
           const llmResult = await ctx.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
             prompt: extractionPrompt,
@@ -458,38 +494,116 @@ Return ONLY valid JSON (no markdown):
           console.error('Entity extraction error:', error);
         }
 
-        // Calculate DNA scores (simple heuristic based on entity counts)
-        dnaScoreBefore = 0; // Would fetch from DO in full implementation
+        // Get existing DNA score before update
+        const existingDNA = await ctx.db
+          .prepare('SELECT strength_score, voice_entities FROM brand_dna WHERE client_id = ?')
+          .bind(input.clientId)
+          .first<{ strength_score: number; voice_entities: string }>();
+
+        dnaScoreBefore = existingDNA?.strength_score ?? 0;
+
+        // Merge new entities with existing ones
+        let existingEntities = { bannedWords: [] as string[], voiceMarkers: [] as string[], stances: [] as Array<{ topic: string; position: string }> };
+        if (existingDNA?.voice_entities) {
+          try {
+            existingEntities = JSON.parse(existingDNA.voice_entities);
+          } catch { /* ignore parse errors */ }
+        }
+
+        // Deduplicate and merge entities
+        const mergedEntities = {
+          bannedWords: [...new Set([...existingEntities.bannedWords, ...entitiesExtracted.bannedWords])],
+          voiceMarkers: [...new Set([...existingEntities.voiceMarkers, ...entitiesExtracted.voiceMarkers])],
+          stances: [...existingEntities.stances, ...entitiesExtracted.stances].filter(
+            (stance, i, arr) => arr.findIndex(s => s.topic === stance.topic) === i
+          ),
+        };
+
+        // Calculate DNA score based on merged entity counts
         dnaScoreAfter = Math.min(100,
-          (entitiesExtracted.voiceMarkers.length * 15) +
-          (entitiesExtracted.bannedWords.length * 10) +
-          (entitiesExtracted.stances.length * 20)
+          (mergedEntities.voiceMarkers.length * 15) +
+          (mergedEntities.bannedWords.length * 10) +
+          (mergedEntities.stances.length * 20)
         );
+
+        // Persist entities to brand_dna table (upsert)
+        await ctx.db
+          .prepare(`
+            INSERT INTO brand_dna (id, client_id, strength_score, voice_entities, last_voice_recording_at, calibration_source, updated_at)
+            VALUES (?, ?, ?, ?, ?, 'voice_note', ?)
+            ON CONFLICT(client_id) DO UPDATE SET
+              strength_score = MAX(brand_dna.strength_score, excluded.strength_score),
+              voice_entities = excluded.voice_entities,
+              last_voice_recording_at = excluded.last_voice_recording_at,
+              calibration_source = excluded.calibration_source,
+              updated_at = excluded.updated_at
+          `)
+          .bind(
+            `dna_${input.clientId}`,
+            input.clientId,
+            dnaScoreAfter,
+            JSON.stringify(mergedEntities),
+            now,
+            now
+          )
+          .run();
+
+        // Store voice transcript in Vectorize for semantic search (FR33)
+        try {
+          const embeddingResult = await ctx.env.AI.run('@cf/baai/bge-base-en-v1.5', {
+            text: transcript,
+          });
+
+          const vectors = (embeddingResult as { data?: number[][] })?.data;
+          if (vectors && vectors[0]) {
+            await ctx.env.EMBEDDINGS.upsert([
+              {
+                id: `voice_transcript_${calibrationId}`,
+                values: vectors[0],
+                metadata: {
+                  type: 'voice_transcript',
+                  clientId: input.clientId,
+                  calibrationId,
+                  timestamp: now,
+                },
+              },
+            ]);
+          }
+        } catch (error) {
+          // Log but don't fail if embedding storage fails
+          console.error('Voice Vectorize embedding error:', error);
+        }
       }
 
       // Store the voice recording metadata for later reference
       const recordingId = crypto.randomUUID();
-      await ctx.db
-        .prepare(`
-          INSERT INTO training_samples (
-            id, client_id, user_id, title, source_type, r2_key,
-            extracted_text, status, word_count, character_count
-          ) VALUES (?, ?, ?, ?, 'voice', ?, ?, 'analyzed', ?, ?)
-        `)
-        .bind(
-          recordingId,
-          input.clientId,
-          ctx.userId,
-          `Voice Note ${new Date().toLocaleDateString()}`,
-          input.audioR2Key,
-          transcript,
-          transcript.split(/\s+/).filter(Boolean).length,
-          transcript.length
-        )
-        .run();
-
-      // Clean up: delete audio from R2 after processing (optional, keep for debugging)
-      // await ctx.env.MEDIA.delete(input.audioR2Key);
+      try {
+        await ctx.db
+          .prepare(`
+            INSERT INTO training_samples (
+              id, client_id, user_id, title, source_type, r2_key,
+              extracted_text, status, word_count, character_count
+            ) VALUES (?, ?, ?, ?, 'voice', ?, ?, 'analyzed', ?, ?)
+          `)
+          .bind(
+            recordingId,
+            input.clientId,
+            ctx.userId,
+            `Voice Note ${new Date().toLocaleDateString()}`,
+            input.audioR2Key,
+            transcript,
+            transcript.split(/\s+/).filter(Boolean).length,
+            transcript.length
+          )
+          .run();
+      } catch (error) {
+        // Clean up R2 on database failure
+        await ctx.env.MEDIA.delete(input.audioR2Key);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to save voice recording metadata',
+        });
+      }
 
       return {
         calibrationId,
@@ -501,31 +615,206 @@ Return ONLY valid JSON (no markdown):
       };
     }),
 
-  // Manually add a banned word
+  // ===== STORY 2.5: VOICE MARKER AND BANNED WORD MANAGEMENT =====
+
+  // Get current voice entities for editing (FR35)
+  getVoiceEntities: procedure
+    .input(z.object({
+      clientId: z.string().uuid(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Rule 1: Isolation Above All - always filter by clientId
+      const result = await ctx.db
+        .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
+        .bind(input.clientId)
+        .first<{ voice_entities: string | null }>();
+
+      if (!result || !result.voice_entities) {
+        return {
+          bannedWords: [] as string[],
+          voiceMarkers: [] as string[],
+          stances: [] as Array<{ topic: string; position: string }>,
+        };
+      }
+
+      try {
+        const entities = JSON.parse(result.voice_entities);
+        return {
+          bannedWords: entities.bannedWords || [],
+          voiceMarkers: entities.voiceMarkers || [],
+          stances: entities.stances || [],
+        };
+      } catch {
+        return {
+          bannedWords: [] as string[],
+          voiceMarkers: [] as string[],
+          stances: [] as Array<{ topic: string; position: string }>,
+        };
+      }
+    }),
+
+  // Add a banned word (FR35)
   addBannedWord: procedure
     .input(z.object({
       clientId: z.string().uuid(),
-      word: z.string().min(1),
-      reason: z.string().optional(),
-      severity: z.enum(['hard', 'soft']).default('soft'),
+      word: z.string().min(1).max(100),
     }))
     .mutation(async ({ ctx, input }) => {
-      // TODO: Add to Durable Object SQLite
+      // Get current voice entities
+      const result = await ctx.db
+        .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
+        .bind(input.clientId)
+        .first<{ voice_entities: string | null }>();
 
-      return { success: true };
+      let entities = {
+        bannedWords: [] as string[],
+        voiceMarkers: [] as string[],
+        stances: [] as Array<{ topic: string; position: string }>,
+      };
+
+      if (result?.voice_entities) {
+        try {
+          entities = JSON.parse(result.voice_entities);
+        } catch {
+          // Keep defaults
+        }
+      }
+
+      // Normalize and check for duplicates (case-insensitive)
+      const normalizedWord = input.word.toLowerCase().trim();
+      if (entities.bannedWords.map(w => w.toLowerCase()).includes(normalizedWord)) {
+        return { success: true, bannedWords: entities.bannedWords };
+      }
+
+      // Add the new word
+      entities.bannedWords.push(input.word.trim());
+
+      // Update the database
+      await ctx.db
+        .prepare(`
+          UPDATE brand_dna
+          SET voice_entities = ?, updated_at = unixepoch(), calibration_source = 'manual'
+          WHERE client_id = ?
+        `)
+        .bind(JSON.stringify(entities), input.clientId)
+        .run();
+
+      return { success: true, bannedWords: entities.bannedWords };
     }),
 
-  // Manually add a required phrase
+  // Remove a banned word (FR35)
+  removeBannedWord: procedure
+    .input(z.object({
+      clientId: z.string().uuid(),
+      word: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const result = await ctx.db
+        .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
+        .bind(input.clientId)
+        .first<{ voice_entities: string | null }>();
+
+      if (!result?.voice_entities) {
+        return { success: true, bannedWords: [] };
+      }
+
+      let entities = JSON.parse(result.voice_entities);
+      const normalizedWord = input.word.toLowerCase().trim();
+      entities.bannedWords = (entities.bannedWords || []).filter(
+        (w: string) => w.toLowerCase().trim() !== normalizedWord
+      );
+
+      await ctx.db
+        .prepare(`
+          UPDATE brand_dna
+          SET voice_entities = ?, updated_at = unixepoch(), calibration_source = 'manual'
+          WHERE client_id = ?
+        `)
+        .bind(JSON.stringify(entities), input.clientId)
+        .run();
+
+      return { success: true, bannedWords: entities.bannedWords };
+    }),
+
+  // Add a voice marker phrase (FR35)
   addVoiceMarker: procedure
     .input(z.object({
       clientId: z.string().uuid(),
-      phrase: z.string().min(1),
-      category: z.enum(['signature', 'tone', 'structure']).optional(),
+      phrase: z.string().min(1).max(200),
     }))
     .mutation(async ({ ctx, input }) => {
-      // TODO: Add to Durable Object SQLite
+      const result = await ctx.db
+        .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
+        .bind(input.clientId)
+        .first<{ voice_entities: string | null }>();
 
-      return { success: true };
+      let entities = {
+        bannedWords: [] as string[],
+        voiceMarkers: [] as string[],
+        stances: [] as Array<{ topic: string; position: string }>,
+      };
+
+      if (result?.voice_entities) {
+        try {
+          entities = JSON.parse(result.voice_entities);
+        } catch {
+          // Keep defaults
+        }
+      }
+
+      // Check for duplicates (case-insensitive)
+      const normalizedPhrase = input.phrase.toLowerCase().trim();
+      if (entities.voiceMarkers.map(p => p.toLowerCase()).includes(normalizedPhrase)) {
+        return { success: true, voiceMarkers: entities.voiceMarkers };
+      }
+
+      // Add the new phrase
+      entities.voiceMarkers.push(input.phrase.trim());
+
+      await ctx.db
+        .prepare(`
+          UPDATE brand_dna
+          SET voice_entities = ?, updated_at = unixepoch(), calibration_source = 'manual'
+          WHERE client_id = ?
+        `)
+        .bind(JSON.stringify(entities), input.clientId)
+        .run();
+
+      return { success: true, voiceMarkers: entities.voiceMarkers };
+    }),
+
+  // Remove a voice marker phrase (FR35)
+  removeVoiceMarker: procedure
+    .input(z.object({
+      clientId: z.string().uuid(),
+      phrase: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const result = await ctx.db
+        .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
+        .bind(input.clientId)
+        .first<{ voice_entities: string | null }>();
+
+      if (!result?.voice_entities) {
+        return { success: true, voiceMarkers: [] };
+      }
+
+      let entities = JSON.parse(result.voice_entities);
+      const normalizedPhrase = input.phrase.toLowerCase().trim();
+      entities.voiceMarkers = (entities.voiceMarkers || []).filter(
+        (p: string) => p.toLowerCase().trim() !== normalizedPhrase
+      );
+
+      await ctx.db
+        .prepare(`
+          UPDATE brand_dna
+          SET voice_entities = ?, updated_at = unixepoch(), calibration_source = 'manual'
+          WHERE client_id = ?
+        `)
+        .bind(JSON.stringify(entities), input.clientId)
+        .run();
+
+      return { success: true, voiceMarkers: entities.voiceMarkers };
     }),
 
   // Get current drift status and calibration recommendation
@@ -651,23 +940,26 @@ Return ONLY valid JSON (no markdown):
         .join('\n\n---\n\n');
 
       // Task 3: Workers AI analysis pipeline using 70B model for quality
+      // Story 2.4: Enhanced prompt to extract phrase examples and topics to avoid
       const analysisPrompt = `You are a brand voice analyst. Analyze the following content samples and extract the brand voice profile.
 
 CONTENT TO ANALYZE:
-${aggregatedContent.slice(0, 15000)}
+${aggregatedContent.slice(0, 12000)}
 
 EXTRACT THE FOLLOWING (be specific and concise):
 1. primary_tone: The dominant emotional tone (e.g., "Candid & Direct", "Warm & Approachable", "Professional & Authoritative")
 2. writing_style: How they write (e.g., "Conversational", "Technical", "Story-driven", "Data-focused")
 3. target_audience: Who they're speaking to (e.g., "B2B SaaS founders", "Creative professionals", "Marketing teams")
-4. signature_phrases: Array of 5-10 recurring phrases, expressions, or verbal patterns unique to this voice
+4. signature_phrases: Array of 5-10 objects with the recurring phrase AND an example sentence from the content showing how it's used
+5. topics_to_avoid: Array of words, phrases, or topics that should be AVOIDED based on the brand voice (e.g., corporate jargon, clichés, or terms that don't fit the tone)
 
 Return ONLY valid JSON (no markdown, no explanation):
 {
   "primary_tone": "string",
   "writing_style": "string",
   "target_audience": "string",
-  "signature_phrases": ["phrase1", "phrase2", ...]
+  "signature_phrases": [{"phrase": "phrase1", "example": "Full sentence from content using this phrase"}, ...],
+  "topics_to_avoid": ["word1", "phrase2", ...]
 }`;
 
       let analysisData: AnalysisData = {
@@ -675,13 +967,14 @@ Return ONLY valid JSON (no markdown, no explanation):
         writing_style: null,
         target_audience: null,
         signature_phrases: [],
+        topics_to_avoid: [],
       };
 
       try {
         // Note: Using 8B model for faster inference. For production, consider upgrading to 70B
         const llmResult = await ctx.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
           prompt: analysisPrompt,
-          max_tokens: 1024,
+          max_tokens: 2048, // Increased for richer responses with examples
         });
 
         const responseText = (llmResult as { response?: string })?.response;
@@ -690,13 +983,40 @@ Return ONLY valid JSON (no markdown, no explanation):
           const jsonMatch = responseText.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             const parsed = JSON.parse(jsonMatch[0]);
+
+            // Story 2.4: Parse signature phrases with examples
+            let signaturePhrases: SignaturePhrase[] = [];
+            if (Array.isArray(parsed.signature_phrases)) {
+              signaturePhrases = parsed.signature_phrases
+                .slice(0, 10)
+                .map((item: unknown) => {
+                  // Handle both old format (string) and new format ({phrase, example})
+                  if (typeof item === 'string') {
+                    return { phrase: item, example: '' };
+                  }
+                  if (typeof item === 'object' && item !== null) {
+                    const obj = item as { phrase?: string; example?: string };
+                    return {
+                      phrase: obj.phrase || '',
+                      example: obj.example || '',
+                    };
+                  }
+                  return null;
+                })
+                .filter((p: SignaturePhrase | null): p is SignaturePhrase => p !== null && p.phrase.length > 0);
+            }
+
+            // Story 2.4: Parse topics to avoid
+            const topicsToAvoid: string[] = Array.isArray(parsed.topics_to_avoid)
+              ? parsed.topics_to_avoid.filter((t: unknown): t is string => typeof t === 'string').slice(0, 20)
+              : [];
+
             analysisData = {
               primary_tone: parsed.primary_tone || null,
               writing_style: parsed.writing_style || null,
               target_audience: parsed.target_audience || null,
-              signature_phrases: Array.isArray(parsed.signature_phrases)
-                ? parsed.signature_phrases.slice(0, 10)
-                : [],
+              signature_phrases: signaturePhrases,
+              topics_to_avoid: topicsToAvoid,
             };
           }
         }
@@ -717,7 +1037,8 @@ Return ONLY valid JSON (no markdown, no explanation):
           analysisData.primary_tone,
           analysisData.writing_style,
           analysisData.target_audience,
-          ...(analysisData.signature_phrases || []),
+          // Story 2.4: Extract just the phrase strings for embedding
+          ...(analysisData.signature_phrases || []).map((p) => p.phrase),
         ]
           .filter(Boolean)
           .join(' ');
@@ -750,19 +1071,21 @@ Return ONLY valid JSON (no markdown, no explanation):
       }
 
       // Store results in brand_dna table (upsert - singleton per client)
+      // Story 2.4: Added topics_to_avoid column
       const now = Math.floor(Date.now() / 1000);
       await ctx.db
         .prepare(
           `
           INSERT INTO brand_dna (
-            id, client_id, strength_score, tone_profile, signature_patterns,
+            id, client_id, strength_score, tone_profile, signature_patterns, topics_to_avoid,
             primary_tone, writing_style, target_audience,
             last_calibration_at, calibration_source, sample_count, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'content_upload', ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'content_upload', ?, ?)
           ON CONFLICT(client_id) DO UPDATE SET
             strength_score = excluded.strength_score,
             tone_profile = excluded.tone_profile,
             signature_patterns = excluded.signature_patterns,
+            topics_to_avoid = excluded.topics_to_avoid,
             primary_tone = excluded.primary_tone,
             writing_style = excluded.writing_style,
             target_audience = excluded.target_audience,
@@ -778,6 +1101,7 @@ Return ONLY valid JSON (no markdown, no explanation):
           strengthResult.total,
           JSON.stringify(strengthResult.breakdown),
           JSON.stringify(analysisData.signature_phrases),
+          JSON.stringify(analysisData.topics_to_avoid), // Story 2.4
           analysisData.primary_tone,
           analysisData.writing_style,
           analysisData.target_audience,
@@ -794,7 +1118,9 @@ Return ONLY valid JSON (no markdown, no explanation):
         primaryTone: analysisData.primary_tone || '',
         writingStyle: analysisData.writing_style || '',
         targetAudience: analysisData.target_audience || '',
-        signaturePhrases: analysisData.signature_phrases,
+        // Story 2.4: Now includes example usage from content
+        signaturePhrases: analysisData.signature_phrases || [],
+        topicsToAvoid: analysisData.topics_to_avoid || [],
       };
     }),
 
@@ -818,7 +1144,26 @@ Return ONLY valid JSON (no markdown, no explanation):
 
       // Parse JSON fields
       const toneProfile: BrandDNABreakdown = JSON.parse(dna.tone_profile || '{}');
-      const signaturePatterns: string[] = JSON.parse(dna.signature_patterns || '[]');
+
+      // Story 2.4: Parse signature patterns as SignaturePhrase[]
+      // Handle both old format (string[]) and new format (SignaturePhrase[])
+      const rawPatterns: unknown = JSON.parse(dna.signature_patterns || '[]');
+      let signaturePhrases: SignaturePhrase[] = [];
+      if (Array.isArray(rawPatterns)) {
+        signaturePhrases = rawPatterns.map((item: unknown) => {
+          if (typeof item === 'string') {
+            return { phrase: item, example: '' };
+          }
+          if (typeof item === 'object' && item !== null) {
+            const obj = item as { phrase?: string; example?: string };
+            return { phrase: obj.phrase || '', example: obj.example || '' };
+          }
+          return { phrase: '', example: '' };
+        }).filter((p) => p.phrase.length > 0);
+      }
+
+      // Story 2.4: Parse topics to avoid
+      const topicsToAvoid: string[] = JSON.parse(dna.topics_to_avoid || '[]');
 
       // AC4: Determine status badge based on strength score
       const status =
@@ -853,7 +1198,8 @@ Return ONLY valid JSON (no markdown, no explanation):
         primaryTone: dna.primary_tone,
         writingStyle: dna.writing_style,
         targetAudience: dna.target_audience,
-        signaturePhrases: signaturePatterns,
+        signaturePhrases, // Story 2.4: Now includes example usage
+        topicsToAvoid, // Story 2.4: Words/topics to avoid (red pills)
         breakdown: {
           tone_match: toneProfile.tone_match ?? 0,
           vocabulary: toneProfile.vocabulary ?? 0,

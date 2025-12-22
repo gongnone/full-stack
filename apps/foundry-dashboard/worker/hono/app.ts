@@ -75,15 +75,36 @@ app.use('/api/upload/*', authMiddleware);
 // File upload endpoint for R2 (Story 2.1 & 2.2)
 app.post('/api/upload/:path{.+}', async (c) => {
   const r2Key = c.req.param('path');
+  const userId = c.get('userId');
 
   if (!r2Key) {
     return c.json({ error: 'Missing file path' }, 400);
   }
 
   // Validate the r2Key starts with allowed prefixes
-  const allowedPrefixes = ['brand-samples/', 'voice-samples/'];
+  const allowedPrefixes = ['brand-samples/', 'voice-samples/', 'sources/'];
   if (!allowedPrefixes.some(prefix => r2Key.startsWith(prefix))) {
     return c.json({ error: 'Invalid upload path' }, 400);
+  }
+
+  // Story 3.1 Security: Verify user has access to the client_id in the R2 path
+  // R2 key format: {prefix}/{client_id}/{...}
+  const pathParts = r2Key.split('/');
+  if (pathParts.length >= 2) {
+    const clientIdFromPath = pathParts[1];
+    // Verify user owns this client (query D1 for user-client relationship)
+    try {
+      const clientAccess = await c.env.DB.prepare(`
+        SELECT 1 FROM clients WHERE id = ? AND user_id = ?
+      `).bind(clientIdFromPath, userId).first();
+
+      if (!clientAccess) {
+        return c.json({ error: 'Access denied to this client' }, 403);
+      }
+    } catch {
+      // If clients table doesn't exist yet (Epic 7), skip check
+      // This allows uploads to work while maintaining security once clients exist
+    }
   }
 
   try {

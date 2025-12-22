@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { useToast } from '@/lib/toast';
 import {
   FileDropZone,
   TrainingSamplesList,
@@ -9,12 +10,15 @@ import {
   SampleStats,
   VoiceRecorder,
   TranscriptionReview,
+  BrandDNACard,
+  VoiceEntitiesEditor,
 } from '@/components/brand-dna';
 
 /**
  * Brand DNA page for training sample management
  * Story 2.1: Multi-Source Content Ingestion for Brand Analysis
  * Story 2.2: Voice-to-Grounding Pipeline
+ * Story 2.3: Brand DNA Analysis & Scoring
  *
  * AC1: Drag and drop PDF file, uploads to R2 with progress indicator
  * AC2: File appears in "Training Samples" list
@@ -26,6 +30,12 @@ import {
  * AC2: Audio stored in R2, Whisper transcribes, display for review
  * AC3: Entity extraction: voice markers, banned words, brand stances
  * AC4: Example: "Stop using corporate jargon like synergy" → synergy banned
+ *
+ * Story 2.3 ACs:
+ * AC1: Analysis runs when 3+ samples, detects tone/style/audience/phrases
+ * AC2: Individual scores with progress bar visualization
+ * AC3: Recommendations for scores <70%
+ * AC4: Strong status badge for scores >=80%
  */
 export const Route = createFileRoute('/app/brand-dna')({
   component: BrandDNAPage,
@@ -54,8 +64,17 @@ function BrandDNAPage() {
   const [isProcessingVoice, setIsProcessingVoice] = useState(false);
   const [voiceResult, setVoiceResult] = useState<VoiceResult | null>(null);
 
+  // Story 2.3: Analysis state
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  // Story 2.5: Voice entities editor state
+  const [isEditingVoiceProfile, setIsEditingVoiceProfile] = useState(false);
+  const uploadSectionRef = useRef<HTMLDivElement>(null);
+  const voiceSectionRef = useRef<HTMLDivElement>(null);
+
   // Get client ID from authenticated session (Rule 1: Isolation Above All)
   const clientId = useClientId();
+  const { addToast } = useToast();
 
   // tRPC queries - only run when clientId is available
   const samplesQuery = trpc.calibration.listSamples.useQuery({
@@ -77,6 +96,13 @@ function BrandDNAPage() {
     enabled: !!clientId,
   });
 
+  // Story 2.3: Get full Brand DNA report
+  const brandDNAReportQuery = trpc.calibration.getBrandDNAReport.useQuery({
+    clientId: clientId || '',
+  }, {
+    enabled: !!clientId,
+  });
+
   // tRPC mutations
   const getUploadUrl = trpc.calibration.getUploadUrl.useMutation();
   const registerFileSample = trpc.calibration.registerFileSample.useMutation();
@@ -87,7 +113,41 @@ function BrandDNAPage() {
   const getVoiceUploadUrl = trpc.calibration.getVoiceUploadUrl.useMutation();
   const recordVoice = trpc.calibration.recordVoice.useMutation();
 
+  // Story 2.3: Analyze DNA mutation
+  const analyzeDNA = trpc.calibration.analyzeDNA.useMutation();
+
   const utils = trpc.useUtils();
+
+  // Story 2.3: Handle DNA analysis
+  const handleAnalyzeDNA = useCallback(async () => {
+    if (!clientId) return;
+    setIsAnalyzing(true);
+    try {
+      await analyzeDNA.mutateAsync({ clientId });
+      // Invalidate queries to refresh with new data
+      await Promise.all([
+        utils.calibration.getBrandDNA.invalidate(),
+        utils.calibration.getBrandDNAReport.invalidate(),
+      ]);
+      addToast('Brand DNA analysis complete!', 'success');
+    } catch (error) {
+      console.error('Analysis error:', error);
+      const message = error instanceof Error ? error.message : 'Failed to analyze Brand DNA. Please try again.';
+      addToast(message, 'error');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [clientId, analyzeDNA, utils, addToast]);
+
+  // Scroll to add samples section
+  const scrollToUpload = useCallback(() => {
+    uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  // Scroll to voice recording section
+  const scrollToVoice = useCallback(() => {
+    voiceSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   // Handle file upload
   const handleFileSelect = useCallback(async (file: File) => {
@@ -293,6 +353,142 @@ function BrandDNAPage() {
         )}
       </div>
 
+      {/* Story 2.3: Brand DNA Report Section */}
+      {brandDNAReportQuery.isLoading ? (
+        <section>
+          <h2 className="text-sm font-medium mb-4" style={{ color: 'var(--text-secondary)' }}>
+            Brand DNA Analysis
+          </h2>
+          {/* Loading skeleton */}
+          <div className="space-y-6 animate-pulse">
+            <div className="rounded-xl p-6" style={{ backgroundColor: 'var(--bg-elevated)' }}>
+              <div className="text-center mb-6">
+                <div className="w-24 h-12 rounded mx-auto" style={{ backgroundColor: 'var(--bg-surface)' }} />
+                <div className="w-20 h-6 rounded-full mx-auto mt-2" style={{ backgroundColor: 'var(--bg-surface)' }} />
+                <div className="w-32 h-4 rounded mx-auto mt-2" style={{ backgroundColor: 'var(--bg-surface)' }} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="rounded-lg p-4" style={{ backgroundColor: 'var(--bg-surface)' }}>
+                    <div className="w-16 h-3 rounded mb-2" style={{ backgroundColor: 'var(--bg-elevated)' }} />
+                    <div className="w-24 h-5 rounded" style={{ backgroundColor: 'var(--bg-elevated)' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl p-6" style={{ backgroundColor: 'var(--bg-elevated)' }}>
+              <div className="w-32 h-4 rounded mb-3" style={{ backgroundColor: 'var(--bg-surface)' }} />
+              <div className="flex flex-wrap gap-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="w-24 h-8 rounded-full" style={{ backgroundColor: 'var(--bg-surface)' }} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : brandDNAReportQuery.data ? (
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+              Brand DNA Analysis
+            </h2>
+            <button
+              onClick={handleAnalyzeDNA}
+              disabled={isAnalyzing || (statsQuery.data?.totalSamples ?? 0) < 3}
+              className="px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: 'var(--edit)',
+                color: 'white',
+              }}
+              data-testid="analyze-dna-btn"
+            >
+              {isAnalyzing ? 'Analyzing...' : 'Re-analyze DNA'}
+            </button>
+          </div>
+          {/* Story 2.5: Show editor or card based on edit mode */}
+          {isEditingVoiceProfile && clientId ? (
+            <VoiceEntitiesEditor
+              clientId={clientId}
+              onClose={() => setIsEditingVoiceProfile(false)}
+            />
+          ) : (
+            <BrandDNACard
+              report={brandDNAReportQuery.data}
+              onAddSamples={scrollToUpload}
+              onRecordVoice={scrollToVoice}
+              onEditVoiceProfile={() => setIsEditingVoiceProfile(true)}
+            />
+          )}
+        </section>
+      ) : (
+        <section>
+          <h2 className="text-sm font-medium mb-4" style={{ color: 'var(--text-secondary)' }}>
+            Brand DNA Analysis
+          </h2>
+          <div
+            className="rounded-xl p-6 text-center"
+            style={{ backgroundColor: 'var(--bg-elevated)' }}
+          >
+            {(statsQuery.data?.totalSamples ?? 0) >= 3 ? (
+              <>
+                <p className="mb-4" style={{ color: 'var(--text-primary)' }}>
+                  You have {statsQuery.data?.totalSamples} samples ready for analysis.
+                </p>
+                <button
+                  onClick={handleAnalyzeDNA}
+                  disabled={isAnalyzing}
+                  className="px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+                  style={{
+                    backgroundColor: 'var(--approve)',
+                    color: 'white',
+                  }}
+                  data-testid="analyze-dna-btn"
+                >
+                  {isAnalyzing ? (
+                    <span className="flex items-center gap-2">
+                      <svg
+                        className="animate-spin h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      Analyzing Brand DNA...
+                    </span>
+                  ) : (
+                    'Analyze Brand DNA'
+                  )}
+                </button>
+                <p className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+                  Analysis may take up to 2 minutes
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="mb-2" style={{ color: 'var(--text-primary)' }}>
+                  Add at least 3 training samples to analyze your Brand DNA
+                </p>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                  {statsQuery.data?.totalSamples ?? 0}/3 samples added
+                </p>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Stats Section */}
       <section>
         <h2 className="text-sm font-medium mb-4" style={{ color: 'var(--text-secondary)' }}>
@@ -312,7 +508,7 @@ function BrandDNAPage() {
       </section>
 
       {/* Story 2.2: Voice Recording Section */}
-      <section>
+      <section ref={voiceSectionRef}>
         <h2 className="text-sm font-medium mb-4" style={{ color: 'var(--text-secondary)' }}>
           Voice-to-Grounding Pipeline
         </h2>
@@ -369,7 +565,7 @@ function BrandDNAPage() {
       </section>
 
       {/* Upload Section */}
-      <section>
+      <section ref={uploadSectionRef}>
         <h2 className="text-sm font-medium mb-4" style={{ color: 'var(--text-secondary)' }}>
           Add Training Content
         </h2>

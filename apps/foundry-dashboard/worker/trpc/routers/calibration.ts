@@ -177,6 +177,21 @@ export const calibrationRouter = t.router({
         )
         .run();
 
+      // Trigger calibration workflow via CONTENT_ENGINE
+      try {
+        await ctx.env.CONTENT_ENGINE.fetch('http://engine/api/calibration/start', {
+          method: 'POST',
+          body: JSON.stringify({
+            clientId: input.clientId,
+            contentType: 'transcripts',
+            content: [input.content],
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to trigger calibration workflow:', error);
+        // We don't fail the request as the record is already saved
+      }
+
       return {
         id,
         title: input.title,
@@ -246,8 +261,19 @@ export const calibrationRouter = t.router({
         )
         .run();
 
-      // TODO: Trigger content extraction workflow via CONTENT_ENGINE
-      // This would parse PDF, count words, extract text, etc.
+      // Trigger content extraction workflow via CONTENT_ENGINE
+      try {
+        await ctx.env.CONTENT_ENGINE.fetch('http://engine/api/calibration/start', {
+          method: 'POST',
+          body: JSON.stringify({
+            clientId: input.clientId,
+            contentType: input.sourceType,
+            r2Key: input.r2Key,
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to trigger calibration workflow:', error);
+      }
 
       return {
         id,
@@ -680,23 +706,32 @@ Return ONLY valid JSON with no markdown formatting:
         }
       }
 
-      // Normalize and check for duplicates (case-insensitive)
+      // Normalize and check for duplicates (case-insensitive, store lowercase)
       const normalizedWord = input.word.toLowerCase().trim();
-      if (entities.bannedWords.map(w => w.toLowerCase()).includes(normalizedWord)) {
+      if (entities.bannedWords.includes(normalizedWord)) {
         return { success: true, bannedWords: entities.bannedWords };
       }
 
-      // Add the new word
-      entities.bannedWords.push(input.word.trim());
+      // Add the new word (normalized to lowercase for consistency)
+      entities.bannedWords.push(normalizedWord);
 
-      // Update the database
+      // Update the database (upsert to handle missing brand_dna row)
+      const now = Math.floor(Date.now() / 1000);
       await ctx.db
         .prepare(`
-          UPDATE brand_dna
-          SET voice_entities = ?, updated_at = unixepoch(), calibration_source = 'manual'
-          WHERE client_id = ?
+          INSERT INTO brand_dna (id, client_id, voice_entities, updated_at, calibration_source)
+          VALUES (?, ?, ?, ?, 'manual')
+          ON CONFLICT(client_id) DO UPDATE SET
+            voice_entities = excluded.voice_entities,
+            updated_at = excluded.updated_at,
+            calibration_source = excluded.calibration_source
         `)
-        .bind(JSON.stringify(entities), input.clientId)
+        .bind(
+          `dna_${input.clientId}`,
+          input.clientId,
+          JSON.stringify(entities),
+          now
+        )
         .run();
 
       return { success: true, bannedWords: entities.bannedWords };
@@ -718,7 +753,13 @@ Return ONLY valid JSON with no markdown formatting:
         return { success: true, bannedWords: [] };
       }
 
-      let entities = JSON.parse(result.voice_entities);
+      let entities;
+      try {
+        entities = JSON.parse(result.voice_entities);
+      } catch {
+        return { success: true, bannedWords: [] };
+      }
+
       const normalizedWord = input.word.toLowerCase().trim();
       entities.bannedWords = (entities.bannedWords || []).filter(
         (w: string) => w.toLowerCase().trim() !== normalizedWord
@@ -762,22 +803,32 @@ Return ONLY valid JSON with no markdown formatting:
         }
       }
 
-      // Check for duplicates (case-insensitive)
+      // Check for duplicates (case-insensitive, store lowercase)
       const normalizedPhrase = input.phrase.toLowerCase().trim();
-      if (entities.voiceMarkers.map(p => p.toLowerCase()).includes(normalizedPhrase)) {
+      if (entities.voiceMarkers.includes(normalizedPhrase)) {
         return { success: true, voiceMarkers: entities.voiceMarkers };
       }
 
-      // Add the new phrase
-      entities.voiceMarkers.push(input.phrase.trim());
+      // Add the new phrase (normalized to lowercase for consistency)
+      entities.voiceMarkers.push(normalizedPhrase);
 
+      // Update the database (upsert to handle missing brand_dna row)
+      const now = Math.floor(Date.now() / 1000);
       await ctx.db
         .prepare(`
-          UPDATE brand_dna
-          SET voice_entities = ?, updated_at = unixepoch(), calibration_source = 'manual'
-          WHERE client_id = ?
+          INSERT INTO brand_dna (id, client_id, voice_entities, updated_at, calibration_source)
+          VALUES (?, ?, ?, ?, 'manual')
+          ON CONFLICT(client_id) DO UPDATE SET
+            voice_entities = excluded.voice_entities,
+            updated_at = excluded.updated_at,
+            calibration_source = excluded.calibration_source
         `)
-        .bind(JSON.stringify(entities), input.clientId)
+        .bind(
+          `dna_${input.clientId}`,
+          input.clientId,
+          JSON.stringify(entities),
+          now
+        )
         .run();
 
       return { success: true, voiceMarkers: entities.voiceMarkers };
@@ -799,7 +850,13 @@ Return ONLY valid JSON with no markdown formatting:
         return { success: true, voiceMarkers: [] };
       }
 
-      let entities = JSON.parse(result.voice_entities);
+      let entities;
+      try {
+        entities = JSON.parse(result.voice_entities);
+      } catch {
+        return { success: true, voiceMarkers: [] };
+      }
+
       const normalizedPhrase = input.phrase.toLowerCase().trim();
       entities.voiceMarkers = (entities.voiceMarkers || []).filter(
         (p: string) => p.toLowerCase().trim() !== normalizedPhrase

@@ -24,20 +24,32 @@ export function VoiceRecorder({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Check for microphone permission on mount
+  // Check for microphone permission on mount (with Safari fallback)
   useEffect(() => {
     checkMicrophonePermission();
   }, []);
 
   const checkMicrophonePermission = async () => {
+    // Safari doesn't fully support navigator.permissions.query for microphone
+    // Check if we're on Safari and skip the permissions check
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+    if (isSafari) {
+      // On Safari, we can't pre-check permissions - will request on first use
+      // Set to null to show neutral state (not denied, not granted)
+      setHasPermission(null);
+      return;
+    }
+
     try {
+      // Chrome, Firefox, Edge support this
       const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
       setHasPermission(result.state === 'granted');
       result.onchange = () => {
         setHasPermission(result.state === 'granted');
       };
     } catch {
-      // Permissions API not supported, will request on first use
+      // Permissions API not supported or blocked, will request on first use
       setHasPermission(null);
     }
   };

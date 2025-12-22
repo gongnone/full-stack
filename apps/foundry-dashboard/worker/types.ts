@@ -200,3 +200,179 @@ export interface CreateSourceResult {
   characterCount?: number;
   wordCount?: number;
 }
+
+// Story 3.2: Thematic Extraction Engine types
+export type PsychologicalAngle = 'Contrarian' | 'Authority' | 'Urgency' | 'Aspiration' | 'Fear' | 'Curiosity' | 'Transformation' | 'Rebellion';
+export type ExtractionStage = 'parsing' | 'themes' | 'claims' | 'pillars';
+export type ExtractionStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
+export interface Pillar {
+  id: string;
+  title: string;
+  coreClaim: string;
+  psychologicalAngle: PsychologicalAngle;
+  estimatedSpokeCount: number;
+  supportingPoints: string[];
+  hubId?: string; // Set when pillar is finalized into a Hub (AC2: immutability after Hub creation)
+}
+
+export interface ExtractionProgress {
+  sourceId: string;
+  status: ExtractionStatus;
+  currentStage: ExtractionStage;
+  progress: number; // 0-100
+  stageMessage: string;
+  error?: string;
+}
+
+export interface ExtractionResult {
+  sourceId: string;
+  pillars: Pillar[];
+  extractionDuration: number; // milliseconds
+  success: boolean;
+  error?: string;
+}
+
+export interface StartExtractionInput {
+  sourceId: string;
+  clientId: string;
+}
+
+export interface GetExtractionProgressInput {
+  sourceId: string;
+  clientId: string;
+}
+
+// Story 3.4: Hub Metadata & State Management types
+export type HubStatus = 'processing' | 'ready' | 'archived';
+
+export interface Hub {
+  id: string;
+  client_id: string;
+  user_id: string;
+  source_id: string;
+  title: string;
+  source_type: HubSourceType;
+  pillar_count: number;
+  spoke_count: number;
+  status: HubStatus;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface HubWithPillars extends Hub {
+  pillars: Pillar[];
+}
+
+export interface HubListItem {
+  id: string;
+  title: string;
+  sourceType: HubSourceType;
+  pillarCount: number;
+  spokeCount: number;
+  status: HubStatus;
+  createdAt: number;
+}
+
+export interface FinalizeHubInput {
+  sourceId: string;
+  clientId: string;
+  title?: string; // Optional override for Hub title
+}
+
+export interface FinalizeHubResult {
+  hubId: string;
+  title: string;
+  pillarCount: number;
+  redirectTo: string; // URL path to redirect after creation
+}
+
+// Story 4.1: Deterministic Spoke Fracturing types
+export type SpokePlatform = 'twitter' | 'linkedin' | 'tiktok' | 'instagram' | 'newsletter' | 'thread' | 'carousel';
+export type SpokeStatus = 'pending' | 'generating' | 'ready' | 'approved' | 'rejected' | 'killed' | 'failed';
+export type SpokeGenerationStatus = 'pending' | 'generating' | 'completed' | 'failed';
+
+export interface Spoke {
+  id: string;
+  hub_id: string;
+  pillar_id: string;
+  client_id: string;
+  platform: SpokePlatform;
+  content: string;
+  psychological_angle: PsychologicalAngle;
+  status: SpokeStatus;
+  generation_attempt: number;
+  g2_score: number | null; // Hook strength 0-100 (Story 4.2)
+  g4_status: string | null; // Voice alignment (Story 4.2)
+  g5_status: string | null; // Platform compliance (Story 4.2)
+  is_mutated: number; // 0 = no, 1 = user-edited (survives Kill Chain)
+  created_at: number;
+  updated_at: number;
+}
+
+export interface SpokeGenerationProgress {
+  hub_id: string;
+  client_id: string;
+  status: SpokeGenerationStatus;
+  total_pillars: number;
+  completed_pillars: number;
+  total_spokes: number;
+  completed_spokes: number;
+  current_pillar_id: string | null;
+  current_pillar_name: string | null;
+  error_message: string | null;
+  started_at: number | null;
+  completed_at: number | null;
+  updated_at: number;
+}
+
+// Platform configuration for content generation
+export interface PlatformConfig {
+  maxChars?: number;
+  maxWords?: number;
+  maxDuration?: number;
+  minPosts?: number;
+  maxPosts?: number;
+  minSlides?: number;
+  maxSlides?: number;
+  format: string;
+  tone: string;
+}
+
+export const PLATFORM_CONFIGS: Record<SpokePlatform, PlatformConfig> = {
+  twitter: { maxChars: 280, format: 'single-post', tone: 'punchy' },
+  linkedin: { maxChars: 3000, format: 'professional', tone: 'authoritative' },
+  tiktok: { maxDuration: 60, format: 'script', tone: 'conversational' },
+  instagram: { maxChars: 2200, format: 'caption', tone: 'visual' },
+  newsletter: { maxWords: 500, format: 'long-form', tone: 'value-dense' },
+  thread: { minPosts: 5, maxPosts: 7, format: 'sequential', tone: 'storytelling' },
+  carousel: { minSlides: 5, maxSlides: 8, format: 'visual-slides', tone: 'educational' },
+} as const;
+
+// API types for spoke generation
+export interface GenerateSpokesInput {
+  hubId: string;
+  clientId: string;
+}
+
+export interface GenerateSpokesResult {
+  hubId: string;
+  status: SpokeGenerationStatus;
+  totalPillars: number;
+  totalSpokes: number;
+  message: string;
+}
+
+export interface SpokeWithPillar extends Spoke {
+  pillar_title: string;
+}
+
+export interface SpokeTreeNode {
+  id: string;
+  type: 'hub' | 'pillar' | 'spoke';
+  title: string;
+  count?: number;
+  platform?: SpokePlatform;
+  status?: SpokeStatus;
+  children?: SpokeTreeNode[];
+}

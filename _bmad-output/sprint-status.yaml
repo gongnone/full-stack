@@ -38,8 +38,8 @@ development_status:
   4-5-multimodal-visual-concept-engine: Todo
 
   # Epic 5: Executive Producer Dashboard (The Output Layer)
-  epic-5: Todo
-  5-1-production-queue-dashboard: Todo
+  epic-5: In Progress
+  5-1-production-queue-dashboard: Done
   5-2-sprint-view-with-signal-header: Todo
   5-3-keyboard-first-approval-flow: Todo
   5-4-kill-chain-cascade: Todo

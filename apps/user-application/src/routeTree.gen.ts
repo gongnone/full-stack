@@ -16,6 +16,7 @@ import { Route as AppAuthedRouteImport } from './routes/app/_authed'
 import { Route as AppAuthedIndexRouteImport } from './routes/app/_authed/index'
 import { Route as AppAuthedUpgradeRouteImport } from './routes/app/_authed/upgrade'
 import { Route as AppAuthedSprintRouteImport } from './routes/app/_authed/sprint'
+import { Route as AppAuthedSettingsRouteImport } from './routes/app/_authed/settings'
 import { Route as AppAuthedReviewRouteImport } from './routes/app/_authed/review'
 import { Route as AppAuthedCreativeConflictsRouteImport } from './routes/app/_authed/creative-conflicts'
 import { Route as AppAuthedAgentRouteImport } from './routes/app/_authed/agent'
@@ -57,6 +58,11 @@ const AppAuthedUpgradeRoute = AppAuthedUpgradeRouteImport.update({
 const AppAuthedSprintRoute = AppAuthedSprintRouteImport.update({
   id: '/sprint',
   path: '/sprint',
+  getParentRoute: () => AppAuthedRoute,
+} as any)
+const AppAuthedSettingsRoute = AppAuthedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AppAuthedRoute,
 } as any)
 const AppAuthedReviewRoute = AppAuthedReviewRouteImport.update({
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/app/agent': typeof AppAuthedAgentRoute
   '/app/creative-conflicts': typeof AppAuthedCreativeConflictsRoute
   '/app/review': typeof AppAuthedReviewRoute
+  '/app/settings': typeof AppAuthedSettingsRoute
   '/app/sprint': typeof AppAuthedSprintRoute
   '/app/upgrade': typeof AppAuthedUpgradeRoute
   '/app/': typeof AppAuthedIndexRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/app/agent': typeof AppAuthedAgentRoute
   '/app/creative-conflicts': typeof AppAuthedCreativeConflictsRoute
   '/app/review': typeof AppAuthedReviewRoute
+  '/app/settings': typeof AppAuthedSettingsRoute
   '/app/sprint': typeof AppAuthedSprintRoute
   '/app/upgrade': typeof AppAuthedUpgradeRoute
   '/app/hubs/$hubId': typeof AppAuthedHubsHubIdRoute
@@ -164,6 +172,7 @@ export interface FileRoutesById {
   '/app/_authed/agent': typeof AppAuthedAgentRoute
   '/app/_authed/creative-conflicts': typeof AppAuthedCreativeConflictsRoute
   '/app/_authed/review': typeof AppAuthedReviewRoute
+  '/app/_authed/settings': typeof AppAuthedSettingsRoute
   '/app/_authed/sprint': typeof AppAuthedSprintRoute
   '/app/_authed/upgrade': typeof AppAuthedUpgradeRoute
   '/app/_authed/': typeof AppAuthedIndexRoute
@@ -184,6 +193,7 @@ export interface FileRouteTypes {
     | '/app/agent'
     | '/app/creative-conflicts'
     | '/app/review'
+    | '/app/settings'
     | '/app/sprint'
     | '/app/upgrade'
     | '/app/'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/app/agent'
     | '/app/creative-conflicts'
     | '/app/review'
+    | '/app/settings'
     | '/app/sprint'
     | '/app/upgrade'
     | '/app/hubs/$hubId'
@@ -220,6 +231,7 @@ export interface FileRouteTypes {
     | '/app/_authed/agent'
     | '/app/_authed/creative-conflicts'
     | '/app/_authed/review'
+    | '/app/_authed/settings'
     | '/app/_authed/sprint'
     | '/app/_authed/upgrade'
     | '/app/_authed/'
@@ -280,6 +292,13 @@ declare module '@tanstack/react-router' {
       path: '/sprint'
       fullPath: '/app/sprint'
       preLoaderRoute: typeof AppAuthedSprintRouteImport
+      parentRoute: typeof AppAuthedRoute
+    }
+    '/app/_authed/settings': {
+      id: '/app/_authed/settings'
+      path: '/settings'
+      fullPath: '/app/settings'
+      preLoaderRoute: typeof AppAuthedSettingsRouteImport
       parentRoute: typeof AppAuthedRoute
     }
     '/app/_authed/review': {
@@ -389,6 +408,7 @@ interface AppAuthedRouteChildren {
   AppAuthedAgentRoute: typeof AppAuthedAgentRoute
   AppAuthedCreativeConflictsRoute: typeof AppAuthedCreativeConflictsRoute
   AppAuthedReviewRoute: typeof AppAuthedReviewRoute
+  AppAuthedSettingsRoute: typeof AppAuthedSettingsRoute
   AppAuthedSprintRoute: typeof AppAuthedSprintRoute
   AppAuthedUpgradeRoute: typeof AppAuthedUpgradeRoute
   AppAuthedIndexRoute: typeof AppAuthedIndexRoute
@@ -402,6 +422,7 @@ const AppAuthedRouteChildren: AppAuthedRouteChildren = {
   AppAuthedAgentRoute: AppAuthedAgentRoute,
   AppAuthedCreativeConflictsRoute: AppAuthedCreativeConflictsRoute,
   AppAuthedReviewRoute: AppAuthedReviewRoute,
+  AppAuthedSettingsRoute: AppAuthedSettingsRoute,
   AppAuthedSprintRoute: AppAuthedSprintRoute,
   AppAuthedUpgradeRoute: AppAuthedUpgradeRoute,
   AppAuthedIndexRoute: AppAuthedIndexRoute,

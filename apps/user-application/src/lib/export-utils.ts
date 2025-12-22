@@ -39,4 +39,34 @@ export function convertToCSV(data: ExportSpoke[]): string {
       spoke.pillarTitle,
       spoke.platform,
       // Escape quotes and wrap in quotes to handle newlines and commas
-      `"${spoke.content.replace(/
+      `"${spoke.content.replace(/"/g, '""')}"`,
+      spoke.hookScore ?? "",
+      spoke.predictionScore ?? "",
+      spoke.createdAt ? new Date(spoke.createdAt * 1000).toISOString() : "",
+    ].join(",");
+  });
+
+  return [headers.join(","), ...rows].join("\n");
+}
+
+/**
+ * Converts an array of spokes to a JSON string.
+ */
+export function convertToJSON(data: ExportSpoke[]): string {
+  return JSON.stringify(data, null, 2);
+}
+
+/**
+ * Downloads a file with the given content and filename.
+ */
+export function downloadFile(content: string, filename: string, mimeType: string): void {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

@@ -171,15 +171,6 @@ export const exportJobs = sqliteTable('export_jobs', {
 // RELATIONS
 // ==========================================
 
-export const accountsRelations = relations(accounts, ({ many }) => ({
-  users: many(users),
-  clients: many(clients),
-  hubs: many(hubs), // Add hubs relation
-  metrics: many(globalMetrics),
-  workflows: many(workflowInstances),
-  exports: many(exportJobs),
-}));
-
 export const usersRelations = relations(users, ({ one, many }) => ({
   account: one(accounts, {
     fields: [users.accountId],
@@ -193,17 +184,6 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
     fields: [sessions.userId],
     references: [users.id],
   }),
-}));
-
-export const clientsRelations = relations(clients, ({ one, many }) => ({
-  account: one(accounts, {
-    fields: [clients.accountId],
-    references: [accounts.id],
-  }),
-  hubs: many(hubs), // Add hubs relation
-  metrics: many(globalMetrics),
-  workflows: many(workflowInstances),
-  exports: many(exportJobs),
 }));
 
 // Define hubs relations

@@ -4,8 +4,8 @@ import { appRouter } from "@/worker/trpc/router";
 import { createContext } from "@/worker/trpc/context";
 import { getAuth } from "@repo/data-ops/auth"
 import { createMiddleware } from "hono/factory";
-import { getDb } from "@repo/data-ops/db/database"; // For Better Auth's Drizzle DB
-import { user as authUserSchema } from "@repo/data-ops/drizzle-out/auth-schema"; // Better Auth user schema
+import { getDb } from "@repo/data-ops/database"; // For Better Auth's Drizzle DB
+import { user as authUserSchema } from "@repo/data-ops/auth-schema"; // Better Auth user schema
 import { accounts as foundryAccountsSchema, clients as foundryClientsSchema } from "@repo/foundry-core/schema"; // Foundry Core schemas
 import { nanoid } from "nanoid"; // For generating unique IDs
 import { DrizzleD1Database, drizzle } from "drizzle-orm/d1"; // For D1 Drizzle client

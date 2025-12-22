@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc-client';
+import { ActionButton } from '@/components/ui';
 
 export const Route = createFileRoute('/app/')({
   component: DashboardPage,
@@ -91,16 +92,24 @@ function DashboardPage() {
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions - Story 1.4: Demonstrating ActionButton component */}
       <div>
         <h2 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
           Quick Actions
         </h2>
         <div className="flex flex-wrap gap-3">
-          <QuickActionButton icon="plus" label="New Hub" />
-          <QuickActionButton icon="play" label="Start Sprint" />
-          <QuickActionButton icon="users" label="Add Client" />
-          <QuickActionButton icon="chart" label="View Analytics" />
+          <ActionButton variant="approve" size="md">
+            New Hub
+          </ActionButton>
+          <ActionButton variant="edit" size="md">
+            Start Sprint
+          </ActionButton>
+          <ActionButton variant="ghost" size="md">
+            Add Client
+          </ActionButton>
+          <ActionButton variant="outline" size="md">
+            View Analytics
+          </ActionButton>
         </div>
       </div>
     </div>
@@ -174,47 +183,3 @@ function ActionBucket({ title, count, color, description }: ActionBucketProps) {
   );
 }
 
-interface QuickActionButtonProps {
-  icon: 'plus' | 'play' | 'users' | 'chart';
-  label: string;
-}
-
-function QuickActionButton({ icon, label }: QuickActionButtonProps) {
-  const icons = {
-    plus: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-      </svg>
-    ),
-    play: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    ),
-    users: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-      </svg>
-    ),
-    chart: (
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-  };
-
-  return (
-    <button
-      className="flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-colors"
-      style={{
-        backgroundColor: 'var(--bg-elevated)',
-        borderColor: 'var(--border-subtle)',
-        color: 'var(--text-primary)',
-      }}
-    >
-      <span style={{ color: 'var(--edit)' }}>{icons[icon]}</span>
-      {label}
-    </button>
-  );
-}

@@ -27,31 +27,37 @@ export function KillConfirmationModal({
 }: KillConfirmationModalProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="bg-slate-900 border-slate-800 border-t-4 border-t-red-500">
+      <AlertDialogContent className="bg-popover border-border border-t-4 border-t-destructive shadow-2xl rounded-2xl max-w-md">
         <AlertDialogHeader>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-red-500/10 rounded-full">
-              <AlertCircle className="h-6 w-6 text-red-500" />
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-destructive/10 rounded-full shadow-inner">
+              <AlertCircle className="h-6 w-6 text-destructive" />
             </div>
-            <AlertDialogTitle className="text-xl font-bold text-slate-100">
+            <AlertDialogTitle className="text-2xl font-bold text-foreground tracking-tight">
               Kill Hub: {hubTitle}
             </AlertDialogTitle>
           </div>
-          <AlertDialogDescription className="text-slate-400 text-base">
-            This will discard <span className="text-red-400 font-bold">{spokeCount} spokes</span> associated with this hub. 
+          <AlertDialogDescription className="text-muted-foreground text-base leading-relaxed">
+            This will discard <span className="text-destructive font-bold underline decoration-destructive/30 underline-offset-4">{spokeCount} spokes</span> associated with this hub. 
             <br /><br />
-            <span className="font-semibold text-slate-200">Mutation Rule:</span> Any spokes you have already manually edited will SURVIVE the kill.
-            <br /><br />
-            <span className="text-xs italic">You can undo this action within 30 seconds.</span>
+            <div className="bg-background/50 p-4 rounded-xl border border-border/50">
+              <span className="font-bold text-foreground uppercase text-xs tracking-widest block mb-1">Mutation Rule</span>
+              <p className="text-sm">Any spokes you have already manually edited will <span className="text-success font-bold">SURVIVE</span> the kill.</p>
+            </div>
+            <br />
+            <span className="text-xs italic font-mono opacity-70 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+              Can be undone within 30 seconds.
+            </span>
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className="mt-6">
-          <AlertDialogCancel className="bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700 hover:text-white">
+        <AlertDialogFooter className="mt-8 gap-3">
+          <AlertDialogCancel className="bg-secondary border-border text-muted-foreground hover:bg-secondary/80 hover:text-foreground rounded-xl px-6 py-2 transition-all duration-200">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction 
             onClick={onConfirm}
-            className="bg-red-600 hover:bg-red-500 text-white font-bold gap-2"
+            className="bg-destructive hover:bg-destructive/90 text-white font-bold gap-2 rounded-xl px-6 py-2 shadow-lg shadow-destructive/20 transition-all duration-200"
           >
             <Trash2 className="h-4 w-4" />
             Confirm Hub Kill

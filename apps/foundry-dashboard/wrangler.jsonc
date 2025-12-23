@@ -50,13 +50,13 @@
       "name": "foundry-dashboard-stage",
       "routes": [
         {
-          "pattern": "foundry-stage.williamjshaw.ca",
+          "pattern": "stage.williamjshaw.ca",
           "custom_domain": true
         }
       ],
       "vars": {
         "ENVIRONMENT": "stage",
-        "BETTER_AUTH_URL": "https://foundry-stage.williamjshaw.ca"
+        "BETTER_AUTH_URL": "https://stage.williamjshaw.ca"
       },
       "d1_databases": [
         {

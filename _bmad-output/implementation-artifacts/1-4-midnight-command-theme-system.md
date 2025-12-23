@@ -59,23 +59,30 @@ So that **the interface feels premium and reduces eye strain during long session
 ### Review Follow-ups (Post Code Review)
 
 **Testing & Quality Assurance:**
-- [ ] [AI-Review][MEDIUM] Set up Vitest testing infrastructure
-  - Install vitest, @testing-library/react, @testing-library/jest-dom
-  - Configure vitest.config.ts
-  - Add test scripts to package.json
-- [ ] [AI-Review][MEDIUM] Add unit tests for ActionButton component
-  - Test approve/kill/edit/warning variants
-  - Test glow effect classes
-  - Test loading state
+- [x] [AI-Review][MEDIUM] Set up Vitest testing infrastructure
+  - Installed vitest, @testing-library/react, @testing-library/jest-dom, jsdom
+  - Created vitest.config.ts with jsdom environment and @/ alias
+  - Added test scripts to package.json (test, test:watch, test:coverage)
+  - Created src/test/setup.ts with jest-dom matchers
+- [x] [AI-Review][MEDIUM] Add unit tests for ActionButton component (24 tests)
+  - Test approve/kill/edit/warning/ghost/outline variants
+  - Test glow effect classes on hover
+  - Test loading state with spinner
   - Test disabled state
-- [ ] [AI-Review][MEDIUM] Add unit tests for ScoreBadge component
+  - Test size variants (sm/md/lg/icon)
+  - Test click handlers and interactions
+- [x] [AI-Review][MEDIUM] Add unit tests for ScoreBadge component (25 tests)
   - Test quality scoring (>= 8.0 = high, >= 5.0 = mid, < 5.0 = low)
-  - Test gate label display
-  - Test size variants
-- [ ] [AI-Review][MEDIUM] Add unit tests for KeyboardHint component
+  - Test gate label display with showGate prop
+  - Test size variants (sm/md/lg)
+  - Test accessibility (role, aria-label)
+  - Test boundary conditions
+- [x] [AI-Review][MEDIUM] Add unit tests for KeyboardHint component (23 tests)
   - Test single and multiple keys
   - Test action description
-  - Test size variants
+  - Test size variants (sm/md)
+  - Test plus separator between keys
+  - Test common keyboard shortcuts
 - [ ] [AI-Review][MEDIUM] Add E2E tests for Story 1.4 acceptance criteria
   - Test theme colors applied
   - Test approve button glow on hover
@@ -115,6 +122,11 @@ Story 1.4 implemented the Midnight Command theme system with three custom UI com
 - `apps/foundry-dashboard/src/components/ui/index.ts` - Component exports
 - `apps/foundry-dashboard/src/routes/app/index.tsx` - Dashboard integration (Quick Actions)
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` - Updated story status
+- `apps/foundry-dashboard/vitest.config.ts` - Vitest configuration
+- `apps/foundry-dashboard/src/test/setup.ts` - Test setup with jest-dom matchers
+- `apps/foundry-dashboard/src/components/ui/action-button.test.tsx` - ActionButton unit tests (24)
+- `apps/foundry-dashboard/src/components/ui/score-badge.test.tsx` - ScoreBadge unit tests (25)
+- `apps/foundry-dashboard/src/components/ui/keyboard-hint.test.tsx` - KeyboardHint unit tests (23)
 
 ### Code Review Fixes Applied (2025-12-21)
 **Fixed Issues:**
@@ -139,6 +151,15 @@ Story 1.4 implemented the Midnight Command theme system with three custom UI com
 - Removed dead code: theme.ts, QuickActionButton component
 - Created story file with 11 follow-up action items
 - Status changed from 'done' to 'in-progress' (pending test coverage and full integration)
+
+**2025-12-22 23:57** - Testing infrastructure and unit tests
+- Set up Vitest testing infrastructure with jsdom environment
+- Added 72 unit tests across 3 components:
+  - ActionButton: 24 tests (variants, glow effects, loading state, sizes)
+  - ScoreBadge: 25 tests (quality scoring, gate labels, accessibility)
+  - KeyboardHint: 23 tests (single/multiple keys, actions, sizes)
+- All tests passing
+- 4 MEDIUM priority action items completed
 
 ## Notes
 

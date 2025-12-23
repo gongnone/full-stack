@@ -47,7 +47,7 @@
   // Stage environment
   "env": {
     "stage": {
-      "name": "foundry-dashboard-stage",
+      "name": "user-application-stage",
       "routes": [
         {
           "pattern": "stage.williamjshaw.ca",

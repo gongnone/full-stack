@@ -31,7 +31,7 @@ export function createAuth(env: Env) {
       },
     },
 
-    // Session configuration
+    // Session configuration - map to snake_case DB columns
     session: {
       expiresIn: 60 * 60 * 24 * 7, // 7 days
       updateAge: 60 * 60 * 24, // Update session every 24 hours
@@ -39,22 +39,57 @@ export function createAuth(env: Env) {
         enabled: true,
         maxAge: 60 * 5, // 5 minutes
       },
+      fields: {
+        expiresAt: 'expires_at',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+        ipAddress: 'ip_address',
+        userAgent: 'user_agent',
+        userId: 'user_id',
+      },
     },
 
-    // Account configuration
+    // Account configuration - map to snake_case DB columns
     account: {
       accountLinking: {
         enabled: true,
         trustedProviders: ['google', 'github'],
       },
+      fields: {
+        accountId: 'account_id',
+        providerId: 'provider_id',
+        userId: 'user_id',
+        accessToken: 'access_token',
+        refreshToken: 'refresh_token',
+        idToken: 'id_token',
+        accessTokenExpiresAt: 'access_token_expires_at',
+        refreshTokenExpiresAt: 'refresh_token_expires_at',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+      },
     },
 
-    // User configuration with custom fields
+    // Verification configuration - map to snake_case DB columns
+    verification: {
+      fields: {
+        expiresAt: 'expires_at',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+      },
+    },
+
+    // User configuration with custom fields - map to snake_case DB columns
     user: {
+      fields: {
+        emailVerified: 'email_verified',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+      },
       additionalFields: {
         accountId: {
           type: 'string',
           required: false,
+          fieldName: 'account_id',
         },
         role: {
           type: 'string',
@@ -86,13 +121,15 @@ export function createAuth(env: Env) {
     trustedOrigins: [
       'http://localhost:5173',
       'http://localhost:8787',
+      'https://stage.williamjshaw.ca',
       'https://foundry.williamjshaw.ca',
-      'https://foundry-stage.williamjshaw.ca',
     ],
 
     // Advanced security configuration
     advanced: {
-      generateId: () => crypto.randomUUID(),
+      database: {
+        generateId: () => crypto.randomUUID(),
+      },
       cookiePrefix: 'foundry',
       useSecureCookies: env.ENVIRONMENT === 'production',
       crossSubDomainCookies: {

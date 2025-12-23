@@ -157,7 +157,7 @@ export function createAuth(env: Env) {
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL || 'http://localhost:8787',
 
-    // Trust the host header in production
+    // Trust the host header in production (must match CORS origins)
     trustedOrigins: [
       'http://localhost:5173',
       'http://localhost:8787',
@@ -183,17 +183,22 @@ export function createAuth(env: Env) {
     },
 
     // Database hooks to convert Date objects to Unix timestamps for D1/SQLite
+    // Using 'as any' to satisfy TypeScript while returning numeric timestamps for SQLite
     databaseHooks: {
       user: {
         create: {
           before: async (user) => {
+            // emailVerified can be boolean or Date depending on Better Auth version
+            const emailVerifiedValue = (user.emailVerified as unknown) instanceof Date
+              ? Math.floor((user.emailVerified as unknown as Date).getTime() / 1000)
+              : (user.emailVerified ? 1 : 0);
             return {
               data: {
                 ...user,
                 createdAt: user.createdAt instanceof Date ? Math.floor(user.createdAt.getTime() / 1000) : user.createdAt,
                 updatedAt: user.updatedAt instanceof Date ? Math.floor(user.updatedAt.getTime() / 1000) : user.updatedAt,
-                emailVerified: user.emailVerified instanceof Date ? Math.floor(user.emailVerified.getTime() / 1000) : (user.emailVerified ? 1 : 0),
-              },
+                emailVerified: emailVerifiedValue,
+              } as any,
             };
           },
         },
@@ -217,7 +222,7 @@ export function createAuth(env: Env) {
                 expiresAt: session.expiresAt instanceof Date ? Math.floor(session.expiresAt.getTime() / 1000) : session.expiresAt,
                 createdAt: session.createdAt instanceof Date ? Math.floor(session.createdAt.getTime() / 1000) : session.createdAt,
                 updatedAt: session.updatedAt instanceof Date ? Math.floor(session.updatedAt.getTime() / 1000) : session.updatedAt,
-              },
+              } as any,
             };
           },
         },
@@ -241,7 +246,7 @@ export function createAuth(env: Env) {
                 updatedAt: account.updatedAt instanceof Date ? Math.floor(account.updatedAt.getTime() / 1000) : account.updatedAt,
                 accessTokenExpiresAt: account.accessTokenExpiresAt instanceof Date ? Math.floor(account.accessTokenExpiresAt.getTime() / 1000) : account.accessTokenExpiresAt,
                 refreshTokenExpiresAt: account.refreshTokenExpiresAt instanceof Date ? Math.floor(account.refreshTokenExpiresAt.getTime() / 1000) : account.refreshTokenExpiresAt,
-              },
+              } as any,
             };
           },
         },
@@ -265,7 +270,7 @@ export function createAuth(env: Env) {
                 expiresAt: verification.expiresAt instanceof Date ? Math.floor(verification.expiresAt.getTime() / 1000) : verification.expiresAt,
                 createdAt: verification.createdAt instanceof Date ? Math.floor(verification.createdAt.getTime() / 1000) : verification.createdAt,
                 updatedAt: verification.updatedAt instanceof Date ? Math.floor(verification.updatedAt.getTime() / 1000) : verification.updatedAt,
-              },
+              } as any,
             };
           },
         },

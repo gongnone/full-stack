@@ -22,8 +22,8 @@ app.use('*', cors({
     const allowedOrigins = [
       'http://localhost:5173',
       'http://localhost:8787',
+      'https://stage.williamjshaw.ca',
       'https://foundry.williamjshaw.ca',
-      'https://foundry-stage.williamjshaw.ca',
     ];
     return allowedOrigins.includes(origin || '') ? origin : allowedOrigins[0];
   },

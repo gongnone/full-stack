@@ -6,6 +6,17 @@ import type { User, UserProfile, UserWithProfile } from '../../types';
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
 
+/**
+ * Helper to get the first available client ID for a user
+ */
+async function getFirstClientId(ctx: Context): Promise<string | null> {
+  const membership = await ctx.db
+    .prepare('SELECT client_id FROM client_members WHERE user_id = ? LIMIT 1')
+    .bind(ctx.userId)
+    .first<{ client_id: string }>();
+  return membership?.client_id || null;
+}
+
 // Input validation schemas
 // displayName is required for AC2 (update display name)
 // Other fields are optional for future profile expansion
@@ -73,29 +84,21 @@ export const authRouter = t.router({
         timezone: 'UTC',
         email_notifications: 1,
         preferences_json: null,
+        active_client_id: null,
         created_at: now,
         updated_at: now,
       };
     }
 
+    // Priority: profile.active_client_id > first client in client_members > accountId
+    const clientId = profile?.active_client_id || await getFirstClientId(ctx) || ctx.accountId || ctx.userId;
+
     return {
       user: userResult,
       profile: profile || null,
-      // Priority: profile.active_client_id > first client in client_members > accountId
-      clientId: profile?.active_client_id || await this.getFirstClientId(ctx) || ctx.accountId || ctx.userId,
+      clientId,
     };
   }),
-
-  /**
-   * Helper to get the first available client ID for a user
-   */
-  async getFirstClientId(ctx: Context): Promise<string | null> {
-    const membership = await ctx.db
-      .prepare('SELECT client_id FROM client_members WHERE user_id = ? LIMIT 1')
-      .bind(ctx.userId)
-      .first<{ client_id: string }>();
-    return membership?.client_id || null;
-  },
 
   /**
    * Update user profile

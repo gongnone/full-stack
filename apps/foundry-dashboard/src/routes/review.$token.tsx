@@ -76,6 +76,11 @@ function ShareableReviewPage() {
     );
   }
 
+  // Guard against undefined data
+  if (!validateQuery.data) {
+    return null;
+  }
+
   const { client, spokes } = validateQuery.data;
 
   return (

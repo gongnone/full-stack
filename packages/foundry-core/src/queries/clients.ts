@@ -1,14 +1,14 @@
 import { DrizzleD1Database } from "drizzle-orm/d1";
 import { nanoid } from "nanoid";
-import { clients, accounts } from "../schema";
+import * as schema from "../schema";
 import { eq } from "drizzle-orm";
 
-type FoundryDrizzleDb = DrizzleD1Database<typeof clients | typeof accounts>;
+type FoundryDrizzleDb = DrizzleD1Database<typeof schema>;
 
-export async function getClientForAccount(db: FoundryDrizzleDb, accountId: string): Promise<typeof clients.$inferSelect> {
+export async function getClientForAccount(db: FoundryDrizzleDb, accountId: string): Promise<typeof schema.clients.$inferSelect> {
   // Try to find an existing client for the account
   let client = await db.query.clients.findFirst({
-    where: eq(clients.accountId, accountId),
+    where: eq(schema.clients.accountId, accountId),
   });
 
   if (!client) {
@@ -16,7 +16,7 @@ export async function getClientForAccount(db: FoundryDrizzleDb, accountId: strin
     const newClientId = nanoid();
     // Placeholder values for durableObjectId, vectorizeNamespace, r2PathPrefix
     // These will need to be properly generated/managed in later stories
-    client = (await db.insert(clients).values({
+    client = (await db.insert(schema.clients).values({
       id: newClientId,
       accountId: accountId,
       name: "Default Client",

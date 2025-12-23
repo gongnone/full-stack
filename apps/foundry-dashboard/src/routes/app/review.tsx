@@ -157,8 +157,8 @@ function ReviewPage() {
             </div>
             
             <div className="flex gap-2">
-              <ScoreBadge score={currentSpoke.qualityScores?.g7_engagement || 0} label="G7" size="sm" />
-              <ScoreBadge score={(currentSpoke.qualityScores?.g2_hook || 0) / 10} label="G2" size="sm" />
+              <ScoreBadge score={currentSpoke.qualityScores?.g7_engagement || 0} gate="G7" showGate size="sm" />
+              <ScoreBadge score={(currentSpoke.qualityScores?.g2_hook || 0) / 10} gate="G2" showGate size="sm" />
             </div>
           </div>
 

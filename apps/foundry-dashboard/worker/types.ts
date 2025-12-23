@@ -35,6 +35,7 @@ export interface UserProfile {
   timezone: string;
   email_notifications: number; // SQLite uses 0/1 for boolean
   preferences_json: string | null;
+  active_client_id: string | null; // Currently selected client for multi-tenant UI
   created_at: number;
   updated_at: number;
 }

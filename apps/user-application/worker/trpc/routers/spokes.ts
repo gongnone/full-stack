@@ -2,7 +2,8 @@ import { t } from "@/worker/trpc/trpc-instance";
 import { generateSpokesInputSchema, evaluateSpokeInputSchema } from "@repo/foundry-core/zod/spokes"; // Import evaluateSpokeInputSchema
 import { hubs as hubsSchema, spokes as spokesSchema, spokeEvaluations as spokeEvaluationsSchema } from "@repo/foundry-core/schema"; // Import spokeEvaluationsSchema
 import { nanoid } from "nanoid";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
+import { z } from "zod";
 
 // Placeholder for spoke generation logic
 async function fractureHubIntoSpokes(hub: any, platforms: string[]): Promise<any[]> {

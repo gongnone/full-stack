@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { getClientForAccount } from "@repo/foundry-core/queries/clients";
 import { DrizzleD1Database, drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm"; // Import eq for queries
+import { z } from "zod";
 
 // Placeholder for theme extraction logic
 async function extractThemes(sourceType: string, sourceContent: string): Promise<any> {

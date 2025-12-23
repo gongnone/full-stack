@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
+import { Route as ReviewTokenRouteImport } from './routes/review.$token'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppReviewRouteImport } from './routes/app/review'
 import { Route as AppHubsRouteImport } from './routes/app/hubs'
@@ -22,6 +23,7 @@ import { Route as AppBrandDnaRouteImport } from './routes/app/brand-dna'
 import { Route as AppAnalyticsRouteImport } from './routes/app/analytics'
 import { Route as AppHubsNewRouteImport } from './routes/app/hubs.new'
 import { Route as AppHubsHubIdRouteImport } from './routes/app/hubs.$hubId'
+import { Route as AppClientsClientIdSettingsRouteImport } from './routes/app/clients.$clientId.settings'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -47,6 +49,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const ReviewTokenRoute = ReviewTokenRouteImport.update({
+  id: '/review/$token',
+  path: '/review/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
@@ -88,6 +95,12 @@ const AppHubsHubIdRoute = AppHubsHubIdRouteImport.update({
   path: '/$hubId',
   getParentRoute: () => AppHubsRoute,
 } as any)
+const AppClientsClientIdSettingsRoute =
+  AppClientsClientIdSettingsRouteImport.update({
+    id: '/$clientId/settings',
+    path: '/$clientId/settings',
+    getParentRoute: () => AppClientsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -96,13 +109,15 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
-  '/app/clients': typeof AppClientsRoute
+  '/app/clients': typeof AppClientsRouteWithChildren
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
+  '/review/$token': typeof ReviewTokenRoute
   '/app/': typeof AppIndexRoute
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
+  '/app/clients/$clientId/settings': typeof AppClientsClientIdSettingsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,13 +125,15 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
-  '/app/clients': typeof AppClientsRoute
+  '/app/clients': typeof AppClientsRouteWithChildren
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
+  '/review/$token': typeof ReviewTokenRoute
   '/app': typeof AppIndexRoute
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
+  '/app/clients/$clientId/settings': typeof AppClientsClientIdSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -126,13 +143,15 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
-  '/app/clients': typeof AppClientsRoute
+  '/app/clients': typeof AppClientsRouteWithChildren
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
+  '/review/$token': typeof ReviewTokenRoute
   '/app/': typeof AppIndexRoute
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
+  '/app/clients/$clientId/settings': typeof AppClientsClientIdSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,9 +166,11 @@ export interface FileRouteTypes {
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
+    | '/review/$token'
     | '/app/'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
+    | '/app/clients/$clientId/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -161,9 +182,11 @@ export interface FileRouteTypes {
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
+    | '/review/$token'
     | '/app'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
+    | '/app/clients/$clientId/settings'
   id:
     | '__root__'
     | '/'
@@ -176,9 +199,11 @@ export interface FileRouteTypes {
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
+    | '/review/$token'
     | '/app/'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
+    | '/app/clients/$clientId/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -186,6 +211,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  ReviewTokenRoute: typeof ReviewTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -224,6 +250,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/review/$token': {
+      id: '/review/$token'
+      path: '/review/$token'
+      fullPath: '/review/$token'
+      preLoaderRoute: typeof ReviewTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/settings': {
       id: '/app/settings'
@@ -281,8 +314,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHubsHubIdRouteImport
       parentRoute: typeof AppHubsRoute
     }
+    '/app/clients/$clientId/settings': {
+      id: '/app/clients/$clientId/settings'
+      path: '/$clientId/settings'
+      fullPath: '/app/clients/$clientId/settings'
+      preLoaderRoute: typeof AppClientsClientIdSettingsRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
   }
 }
+
+interface AppClientsRouteChildren {
+  AppClientsClientIdSettingsRoute: typeof AppClientsClientIdSettingsRoute
+}
+
+const AppClientsRouteChildren: AppClientsRouteChildren = {
+  AppClientsClientIdSettingsRoute: AppClientsClientIdSettingsRoute,
+}
+
+const AppClientsRouteWithChildren = AppClientsRoute._addFileChildren(
+  AppClientsRouteChildren,
+)
 
 interface AppHubsRouteChildren {
   AppHubsHubIdRoute: typeof AppHubsHubIdRoute
@@ -300,7 +352,7 @@ const AppHubsRouteWithChildren =
 interface AppRouteChildren {
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppBrandDnaRoute: typeof AppBrandDnaRoute
-  AppClientsRoute: typeof AppClientsRoute
+  AppClientsRoute: typeof AppClientsRouteWithChildren
   AppHubsRoute: typeof AppHubsRouteWithChildren
   AppReviewRoute: typeof AppReviewRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -310,7 +362,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAnalyticsRoute: AppAnalyticsRoute,
   AppBrandDnaRoute: AppBrandDnaRoute,
-  AppClientsRoute: AppClientsRoute,
+  AppClientsRoute: AppClientsRouteWithChildren,
   AppHubsRoute: AppHubsRouteWithChildren,
   AppReviewRoute: AppReviewRoute,
   AppSettingsRoute: AppSettingsRoute,
@@ -324,6 +376,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  ReviewTokenRoute: ReviewTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

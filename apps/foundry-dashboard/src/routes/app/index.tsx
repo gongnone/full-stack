@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc-client';
+import { useClientId } from '@/lib/use-client-id';
 import { ActionButton } from '@/components/ui';
 
 export const Route = createFileRoute('/app/')({

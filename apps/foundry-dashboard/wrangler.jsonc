@@ -65,12 +65,13 @@
           "database_id": "e35604ee-6e84-476f-a6ec-e6df6e12d81c"
         }
       ],
-      "services": [
-        {
-          "binding": "CONTENT_ENGINE",
-          "service": "foundry-engine-stage"
-        }
-      ],
+      // TODO: Re-enable when foundry-engine-stage is deployed
+      // "services": [
+      //   {
+      //     "binding": "CONTENT_ENGINE",
+      //     "service": "foundry-engine-stage"
+      //   }
+      // ],
       "r2_buckets": [
         {
           "binding": "MEDIA",
@@ -82,7 +83,10 @@
           "binding": "EMBEDDINGS",
           "index_name": "foundry-embeddings"
         }
-      ]
+      ],
+      "ai": {
+        "binding": "AI"
+      }
     },
     "production": {
       "name": "foundry-dashboard-production",

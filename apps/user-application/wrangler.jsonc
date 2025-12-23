@@ -64,6 +64,7 @@
       "vars": {
         "STRIPE_PRODUCT_BASIC": "price_1Sb2JRJM6cAn49gquuNTPlU0",
         "STRIPE_PRODUCT_PREMIUM": "price_1Sb2NDJM6cAn49gqJezNsHZG",
+        "BETTER_AUTH_URL": "https://stage.williamjshaw.ca",
         "GITHUB_CLIENT_ID": "",
         "GITHUB_CLIENT_SECRET": ""
       },

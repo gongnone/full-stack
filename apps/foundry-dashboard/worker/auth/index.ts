@@ -171,13 +171,15 @@ export function createAuth(env: Env) {
         generateId: () => crypto.randomUUID(),
       },
       cookiePrefix: 'foundry',
-      useSecureCookies: env.ENVIRONMENT === 'production',
+      // Always use secure cookies - required for cross-site OAuth flows on custom domains
+      useSecureCookies: true,
       crossSubDomainCookies: {
         enabled: false,
       },
+      // sameSite: 'none' + secure: true required for OAuth redirect flows
       defaultCookieAttributes: {
-        sameSite: 'lax',
-        secure: env.ENVIRONMENT === 'production',
+        sameSite: 'none',
+        secure: true,
         httpOnly: true,
       },
     },

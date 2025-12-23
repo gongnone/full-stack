@@ -320,6 +320,9 @@ importers:
       '@repo/data-ops':
         specifier: workspace:^
         version: link:../../packages/data-ops
+      '@repo/foundry-core':
+        specifier: workspace:^
+        version: link:../../packages/foundry-core
       '@tabler/icons-react':
         specifier: ^3.34.0
         version: 3.34.0(react@19.1.0)

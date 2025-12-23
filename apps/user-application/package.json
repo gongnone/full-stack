@@ -37,6 +37,7 @@
     "@radix-ui/react-toggle-group": "^1.1.10",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@repo/data-ops": "workspace:^",
+    "@repo/foundry-core": "workspace:^",
     "@tabler/icons-react": "^3.34.0",
     "@tailwindcss/vite": "^4.1.11",
     "@tanstack/react-query": "^5.81.2",

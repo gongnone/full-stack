@@ -271,8 +271,8 @@ function BrandDNAPage() {
         filename: `voice-note-${Date.now()}.webm`,
       });
 
-      // Step 2: Upload audio to R2
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8787';
+      // Step 2: Upload audio to R2 (same-origin, use relative URL)
+      const apiUrl = import.meta.env.VITE_API_URL || '';
       const uploadResponse = await fetch(`${apiUrl}${uploadEndpoint}`, {
         method: 'POST',
         body: audioBlob,

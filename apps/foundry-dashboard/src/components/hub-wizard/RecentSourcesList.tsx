@@ -7,6 +7,16 @@ import { trpc } from '@/lib/trpc-client';
 
 type SourceType = 'pdf' | 'text' | 'url';
 
+interface RecentSource {
+  id: string;
+  title: string;
+  sourceType: SourceType;
+  status: string;
+  wordCount: number;
+  characterCount: number;
+  createdAt: number;
+}
+
 interface RecentSourcesListProps {
   clientId: string;
   onSourceSelected: (sourceId: string, sourceType: SourceType) => void;
@@ -107,14 +117,14 @@ export function RecentSourcesList({ clientId, onSourceSelected, disabled }: Rece
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
         Recent Sources
       </p>
-      {recentSources.map((source) => {
-        const Icon = getSourceIcon(source.source_type);
+      {recentSources.map((source: RecentSource) => {
+        const Icon = getSourceIcon(source.sourceType);
         const isPending = source.status === 'pending';
 
         return (
           <button
             key={source.id}
-            onClick={() => onSourceSelected(source.id, source.source_type as SourceType)}
+            onClick={() => onSourceSelected(source.id, source.sourceType)}
             disabled={disabled || isPending}
             className="w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.01]"
             style={{
@@ -143,9 +153,9 @@ export function RecentSourcesList({ clientId, onSourceSelected, disabled }: Rece
                   <span style={{ color: 'var(--warning)' }}>Processing...</span>
                 ) : (
                   <>
-                    <span>{formatWordCount(source.word_count)}</span>
+                    <span>{formatWordCount(source.wordCount)}</span>
                     <span>•</span>
-                    <span>{formatTimeAgo(source.created_at)}</span>
+                    <span>{formatTimeAgo(source.createdAt)}</span>
                   </>
                 )}
               </div>

@@ -40,7 +40,7 @@ export function TextPasteTab({ clientId, onSourceCreated, disabled }: TextPasteT
       const result = await createTextSource.mutateAsync({
         clientId,
         content,
-        title: title.trim() || undefined,
+        title: title.trim() || 'Untitled',
       });
 
       onSourceCreated(result.sourceId);

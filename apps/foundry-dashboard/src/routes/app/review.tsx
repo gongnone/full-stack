@@ -15,7 +15,8 @@ export const Route = createFileRoute('/app/review')({
 });
 
 function ReviewPage() {
-  const { filter } = Route.useSearch();
+  const { filter: rawFilter } = Route.useSearch();
+  const filter = rawFilter ?? 'needs-review';
   const clientId = useClientId();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);

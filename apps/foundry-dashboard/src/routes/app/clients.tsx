@@ -139,11 +139,11 @@ function ClientsPage() {
                   </Dialog.Close>
                   <button
                     type="submit"
-                    disabled={createClientMutation.isLoading || !newClientName.trim()}
+                    disabled={createClientMutation.isPending || !newClientName.trim()}
                     className="px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
                     style={{ backgroundColor: 'var(--edit)', color: '#fff' }}
                   >
-                    {createClientMutation.isLoading ? 'Creating...' : 'Create Client'}
+                    {createClientMutation.isPending ? 'Creating...' : 'Create Client'}
                   </button>
                 </div>
               </form>

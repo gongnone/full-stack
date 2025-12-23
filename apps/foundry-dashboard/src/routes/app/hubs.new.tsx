@@ -23,6 +23,13 @@ import {
 import type { Step, Pillar, PsychologicalAngle } from '@/components/hub-wizard';
 import { trpc } from '@/lib/trpc-client';
 
+// Types for tRPC mutation results
+interface RetryExtractionResult {
+  success: boolean;
+  pillars?: Pillar[];
+  error?: string;
+}
+
 export const Route = createFileRoute('/app/hubs/new')({
   component: NewHubWizard,
 });
@@ -139,9 +146,9 @@ function NewHubWizard() {
     retryMutation.mutate(
       { sourceId: selectedSourceId, clientId: selectedClientId },
       {
-        onSuccess: (result) => {
+        onSuccess: (result: RetryExtractionResult) => {
           setIsRetrying(false);
-          if (result.success) {
+          if (result.success && result.pillars) {
             setExtractedPillars(result.pillars);
             setIsExtracting(false);
           } else {
@@ -457,17 +464,21 @@ function NewHubWizard() {
                   </div>
                 )}
 
-                {/* Pillar grid */}
+                {/* Pillar grid with stagger animation */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {extractedPillars.map((pillar) => (
-                    <EditablePillarCard
+                  {extractedPillars.map((pillar, index) => (
+                    <div
                       key={pillar.id}
-                      pillar={pillar}
-                      isDeleting={deletingPillarId === pillar.id}
-                      canDelete={extractedPillars.length > 3}
-                      onUpdate={(updates) => handlePillarUpdate(pillar.id, updates)}
-                      onDelete={() => handlePillarDelete(pillar.id)}
-                    />
+                      className={`animate-pillar-stagger-in pillar-stagger-${Math.min(index, 7)}`}
+                    >
+                      <EditablePillarCard
+                        pillar={pillar}
+                        isDeleting={deletingPillarId === pillar.id}
+                        canDelete={extractedPillars.length > 3}
+                        onUpdate={(updates) => handlePillarUpdate(pillar.id, updates)}
+                        onDelete={() => handlePillarDelete(pillar.id)}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>

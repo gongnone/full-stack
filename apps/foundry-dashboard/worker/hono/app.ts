@@ -35,10 +35,132 @@ app.use('*', cors({
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', service: 'foundry-dashboard' }));
 
+// Test cookie setting
+app.get('/api/debug/set-cookie', (c) => {
+  const testValue = `test-${Date.now()}`;
+  c.header('Set-Cookie', `__Secure-test.session=${testValue}; Path=/; Secure; HttpOnly; SameSite=None`);
+  return c.json({ message: 'Cookie set', value: testValue });
+});
+
+// Test session creation directly
+app.get('/api/debug/test-session', async (c) => {
+  const auth = createAuth(c.env);
+
+  try {
+    // Get the existing user
+    const user = await c.env.DB.prepare('SELECT * FROM user LIMIT 1').first();
+    if (!user) {
+      return c.json({ error: 'No user found' });
+    }
+
+    // Try to create a session via the sign-in endpoint
+    const signInResponse = await auth.api.signInEmail({
+      body: {
+        email: user.email as string,
+        password: 'test-password-will-fail',
+      },
+    });
+
+    return c.json({
+      message: 'Sign-in attempt result',
+      response: signInResponse,
+    });
+  } catch (error: any) {
+    return c.json({
+      error: error.message,
+      stack: error.stack,
+    });
+  }
+});
+
+// Debug endpoint to check cookies and session
+app.get('/api/debug/session', async (c) => {
+  const auth = createAuth(c.env);
+  const cookies = c.req.header('cookie');
+
+  // Parse the session token from cookies (handles __Secure- prefix)
+  const sessionTokenMatch = cookies?.match(/__Secure-better-auth\.session_token=([^;]+)/);
+  const sessionToken = sessionTokenMatch?.[1] ? decodeURIComponent(sessionTokenMatch[1]) : null;
+
+  // Try to get session using the handler (same as /api/auth/get-session)
+  const sessionResponse = await auth.handler(
+    new Request(new URL('/api/auth/get-session', c.req.url), {
+      method: 'GET',
+      headers: c.req.raw.headers,
+    })
+  );
+
+  const sessionData = await sessionResponse.json();
+
+  // Also check DB directly
+  let dbSession = null;
+  let dbError = null;
+  if (sessionToken) {
+    try {
+      dbSession = await c.env.DB.prepare('SELECT id, token, user_id, expires_at FROM session WHERE token = ? LIMIT 1')
+        .bind(sessionToken)
+        .first();
+    } catch (e: any) {
+      dbError = e.message;
+    }
+  }
+
+  return c.json({
+    hasCookies: !!cookies,
+    cookieNames: cookies ? cookies.split(';').map(c => c.trim().split('=')[0]) : [],
+    sessionTokenFromCookie: sessionToken ? `${sessionToken.substring(0, 8)}...` : null,
+    sessionResponseStatus: sessionResponse.status,
+    sessionData,
+    dbSession: dbSession ? { id: dbSession.id, hasToken: !!dbSession.token, userId: dbSession.user_id } : null,
+    dbError,
+  });
+});
+
 // Better Auth routes - handles all /api/auth/* endpoints
 app.on(['GET', 'POST'], '/api/auth/**', async (c) => {
   const auth = createAuth(c.env);
-  return auth.handler(c.req.raw);
+
+  try {
+    const response = await auth.handler(c.req.raw);
+
+    // Fix: Better Auth 1.4+ forces SameSite=None which Chrome blocks
+    // Rewrite cookies to use SameSite=Lax for same-origin deployment
+    const setCookies = response.headers.getSetCookie();
+    if (setCookies.length > 0) {
+      const newHeaders = new Headers(response.headers);
+      newHeaders.delete('Set-Cookie');
+
+      for (const cookie of setCookies) {
+        // Replace SameSite=None with SameSite=Lax
+        const fixedCookie = cookie.replace(/SameSite=None/gi, 'SameSite=Lax');
+        newHeaders.append('Set-Cookie', fixedCookie);
+      }
+
+      // Debug: Log callback details
+      if (c.req.path.includes('/callback/')) {
+        console.log('OAuth callback response:', {
+          status: response.status,
+          location: response.headers.get('location'),
+          cookies: newHeaders.getSetCookie().map(c => c.substring(0, 80) + '...'),
+        });
+      }
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: newHeaders,
+      });
+    }
+
+    return response;
+  } catch (error: any) {
+    console.error('Auth handler error:', error.message, error.stack);
+    // For callbacks, redirect with error instead of returning JSON
+    if (c.req.path.includes('/callback/')) {
+      return c.redirect(`/login?error=${encodeURIComponent(error.message)}`);
+    }
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 // Auth middleware for protected routes
@@ -46,22 +168,35 @@ const authMiddleware = async (c: any, next: any) => {
   const auth = createAuth(c.env);
 
   try {
-    const session = await auth.api.getSession({
-      headers: c.req.raw.headers,
-    });
+    // Use the getSession endpoint internally by making a synthetic request
+    // This ensures consistent behavior with /api/auth/get-session
+    const sessionResponse = await auth.handler(
+      new Request(new URL('/api/auth/get-session', c.req.url), {
+        method: 'GET',
+        headers: c.req.raw.headers,
+      })
+    );
 
-    if (!session?.user) {
+    if (!sessionResponse.ok) {
+      const cookies = c.req.header('cookie');
+      console.log('Auth middleware: Session check failed. Status:', sessionResponse.status, 'Cookies:', !!cookies);
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const sessionData = await sessionResponse.json() as { user?: { id: string; accountId?: string; role?: string } };
+
+    if (!sessionData?.user) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
     // Set user context for tRPC procedures
-    c.set('userId', session.user.id);
-    c.set('accountId', (session.user as any).accountId || '');
-    c.set('userRole', (session.user as any).role || 'editor');
+    c.set('userId', sessionData.user.id);
+    c.set('accountId', sessionData.user.accountId || '');
+    c.set('userRole', sessionData.user.role || 'editor');
 
     return next();
   } catch (error) {
-    console.error('Auth error:', error);
+    console.error('Auth middleware error:', error);
     return c.json({ error: 'Authentication failed' }, 401);
   }
 };

@@ -6,6 +6,8 @@ export { SourceDropZone } from './SourceDropZone';
 export { TextPasteTab } from './TextPasteTab';
 export { UrlInputTab } from './UrlInputTab';
 export { RecentSourcesList } from './RecentSourcesList';
+export { SourceSelection } from './SourceSelection';
+export type { SourceType } from './SourceSelection';
 
 // Story 3-2: Thematic Extraction Engine Components
 export { ExtractionProgress } from './ExtractionProgress';
@@ -14,6 +16,7 @@ export { PillarResults } from './PillarResults';
 
 // Story 3-3: Interactive Pillar Configuration Components
 export { EditablePillarCard } from './EditablePillarCard';
+export { PillarCard } from './PillarCard';
 export { UndoToast } from './UndoToast';
 
 // Story 3-5: Real-Time Ingestion Progress Components

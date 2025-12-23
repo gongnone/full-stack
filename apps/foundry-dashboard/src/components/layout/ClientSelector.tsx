@@ -57,7 +57,7 @@ export function ClientSelector() {
           {clientsQuery.data?.items?.map((client: any) => (
             <DropdownMenu.Item
               key={client.id}
-              disabled={client.id === activeClientId || switchMutation.isLoading}
+              disabled={client.id === activeClientId || switchMutation.isPending}
               onClick={() => switchMutation.mutate({ clientId: client.id })}
               className="flex items-center justify-between px-2 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 focus:bg-white/5 transition-colors disabled:cursor-default"
             >

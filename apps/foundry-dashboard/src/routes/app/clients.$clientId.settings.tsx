@@ -123,11 +123,11 @@ function ClientSettingsPage() {
                     </Dialog.Close>
                     <button
                       type="submit"
-                      disabled={addMemberMutation.isLoading}
+                      disabled={addMemberMutation.isPending}
                       className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                       style={{ backgroundColor: 'var(--edit)', color: '#fff' }}
                     >
-                      {addMemberMutation.isLoading ? 'Adding...' : 'Add Member'}
+                      {addMemberMutation.isPending ? 'Adding...' : 'Add Member'}
                     </button>
                   </div>
                 </form>
@@ -150,7 +150,7 @@ function ClientSettingsPage() {
                   <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-right" style={{ color: 'var(--text-muted)' }}>Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y" style={{ divideColor: 'var(--border-subtle)' }}>
+              <tbody className="divide-y divide-[var(--border-subtle)]">
                 {membersQuery.data?.map((member: any) => (
                   <tr key={member.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="px-4 py-4">

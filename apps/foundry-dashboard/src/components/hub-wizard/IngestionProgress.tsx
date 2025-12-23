@@ -37,7 +37,7 @@ export function IngestionProgress({ sourceId, clientId, onComplete, onError }: I
   const { data: progress, isLoading } = trpc.hubs.getExtractionProgress.useQuery(
     { sourceId, clientId },
     {
-      refetchInterval: (query) => {
+      refetchInterval: (query: { state: { data?: { status?: string } } }) => {
         const data = query.state.data;
         if (data?.status === 'completed' || data?.status === 'failed') {
           return false;

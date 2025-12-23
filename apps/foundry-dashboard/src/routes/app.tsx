@@ -17,7 +17,7 @@ function AppLayout() {
   const activeClientId = useClientId();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   
-  const clientsQuery = trpc.clients.list.useQuery(undefined, { enabled: !!session });
+  const clientsQuery = trpc.clients.list.useQuery({}, { enabled: !!session });
   const activeClient = clientsQuery.data?.items?.find(c => c.id === activeClientId);
 
   const loadStartTime = useRef(performance.now());

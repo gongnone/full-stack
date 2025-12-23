@@ -75,9 +75,9 @@ export function createAuth(env: Env) {
     session: {
       expiresIn: 60 * 60 * 24 * 7, // 7 days
       updateAge: 60 * 60 * 24, // Update session every 24 hours
+      // Disable cookie cache - Better Auth 1.4+ uses JWE by default which may cause issues
       cookieCache: {
-        enabled: true,
-        maxAge: 60 * 5, // 5 minutes
+        enabled: false,
       },
       fields: {
         expiresAt: 'expires_at',
@@ -170,15 +170,16 @@ export function createAuth(env: Env) {
       database: {
         generateId: () => crypto.randomUUID(),
       },
-      cookiePrefix: 'foundry',
+      // Use default 'better-auth' prefix to match existing session cookies
       // Always use secure cookies - required for cross-site OAuth flows on custom domains
       useSecureCookies: true,
       crossSubDomainCookies: {
         enabled: false,
       },
-      // sameSite: 'none' + secure: true required for OAuth redirect flows
+      // sameSite: 'lax' is correct for same-origin (frontend + API on same domain)
+      // 'none' was causing issues - it's for cross-origin only
       defaultCookieAttributes: {
-        sameSite: 'none',
+        sameSite: 'lax',
         secure: true,
         httpOnly: true,
       },
@@ -215,29 +216,8 @@ export function createAuth(env: Env) {
           },
         },
       },
-      session: {
-        create: {
-          before: async (session) => {
-            return {
-              data: {
-                ...session,
-                expiresAt: session.expiresAt instanceof Date ? Math.floor(session.expiresAt.getTime() / 1000) : session.expiresAt,
-                createdAt: session.createdAt instanceof Date ? Math.floor(session.createdAt.getTime() / 1000) : session.createdAt,
-                updatedAt: session.updatedAt instanceof Date ? Math.floor(session.updatedAt.getTime() / 1000) : session.updatedAt,
-              } as any,
-            };
-          },
-        },
-        update: {
-          before: async (session) => {
-            const data: any = { ...session };
-            if (data.expiresAt instanceof Date) data.expiresAt = Math.floor(data.expiresAt.getTime() / 1000);
-            if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
-            if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
-            return { data };
-          },
-        },
-      },
+      // Session hooks disabled - Kysely DateToTimestampPlugin handles date conversion
+      // session: { ... },
       account: {
         create: {
           before: async (account) => {

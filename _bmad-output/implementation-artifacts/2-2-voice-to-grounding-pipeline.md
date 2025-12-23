@@ -143,3 +143,49 @@ Enable users to record voice notes describing their brand personality, which the
 - Build the Brand DNA profile editor for manual entity management
 - Add calibration drift detection
 - Implement calibration recommendations based on content changes
+
+---
+
+## Durable Object Enhancement (2025-12-22)
+
+### Schema Normalization
+The Durable Object `ClientAgent` now uses normalized tables per architecture spec:
+
+| Table | Columns | Purpose |
+|-------|---------|---------|
+| `voice_markers` | id, phrase, source, confidence, created_at | Unique speaking patterns |
+| `banned_words` | id, word, severity, reason, source, created_at | Words to avoid |
+| `brand_stances` | id, topic, position, source, created_at | Brand positions on topics |
+| `brand_dna` | signature_patterns, tone_profile, voice_baseline, time_to_dna, last_calibration | Metadata only |
+
+### New Durable Object Methods
+
+**Voice Markers CRUD:**
+- `listVoiceMarkers()` - List all voice markers
+- `addVoiceMarker({ phrase, source?, confidence? })` - Add new marker (dedupes)
+- `removeVoiceMarker(markerId)` - Remove by ID
+- `updateVoiceMarker({ markerId, phrase?, confidence? })` - Update existing
+
+**Banned Words CRUD:**
+- `listBannedWords()` - List all banned words
+- `addBannedWord({ word, severity?, reason?, source? })` - Add new (dedupes)
+- `removeBannedWord(wordId)` - Remove by ID
+- `updateBannedWord({ wordId, word?, severity?, reason? })` - Update existing
+
+**Brand Stances CRUD:**
+- `listBrandStances()` - List all stances
+- `addBrandStance({ topic, position, source? })` - Add new stance
+- `removeBrandStance(stanceId)` - Remove by ID
+
+**G4 Voice Alignment Gate:**
+- `checkBannedWords(content)` - Check content for banned words, returns violations
+- `checkVoiceMarkers(content)` - Check content for voice marker matches, returns similarity score
+
+### Enhanced processVoiceNote
+The `processVoiceNote` method now:
+1. Uses Workers AI Llama 3.1 8B for entity extraction
+2. Parses JSON with fallback for non-JSON LLM responses
+3. Inserts entities into normalized tables via CRUD methods
+4. Tracks source as 'voice' with 0.85 confidence for LLM extractions
+5. Stores embeddings in Vectorize with client isolation metadata
+6. Returns strongly-typed VoiceMarker[], BannedWord[], BrandStance[] objects

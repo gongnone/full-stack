@@ -265,3 +265,13 @@ All acceptance criteria implemented successfully. Backend mutations use upsert p
   - Normalized case storage (lowercase for consistency)
   - Updated toast messages to "Brand DNA updated" per AC5
   - Added optimistic UI updates with rollback on error
+- **2025-12-22:** Durable Object schema normalized per architecture spec
+  - Created dedicated `voice_markers` table (id, phrase, source, confidence, created_at)
+  - Created dedicated `banned_words` table (id, word, severity, reason, source, created_at)
+  - Created dedicated `brand_stances` table (id, topic, position, source, created_at)
+  - Added full CRUD methods: listVoiceMarkers, addVoiceMarker, removeVoiceMarker, updateVoiceMarker
+  - Added full CRUD methods: listBannedWords, addBannedWord, removeBannedWord, updateBannedWord
+  - Added full CRUD methods: listBrandStances, addBrandStance, removeBrandStance
+  - Updated processVoiceNote to use new CRUD methods instead of JSON arrays
+  - Added G4 Voice Alignment gate methods: checkBannedWords, checkVoiceMarkers
+  - All entities include source tracking (voice/manual/analysis) for audit trail

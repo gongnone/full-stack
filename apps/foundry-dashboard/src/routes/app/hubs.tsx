@@ -6,6 +6,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { HubCard } from '@/components/hubs';
+import type { HubListItem } from '../../../worker/types';
 
 export const Route = createFileRoute('/app/hubs')({
   component: HubsPage,
@@ -83,19 +84,13 @@ function HubsPage() {
     data: hubsData,
     isLoading,
     error,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = trpc.hubs.list.useInfiniteQuery(
-    { clientId, limit: 20 },
-    {
-      enabled: !!clientId,
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-    }
+  } = trpc.hubs.list.useQuery(
+    { clientId, limit: 50 },
+    { enabled: !!clientId }
   );
 
-  // Flatten pages into single array
-  const hubs = hubsData?.pages.flatMap((page) => page.items) || [];
+  // Get hubs from data
+  const hubs = hubsData?.items || [];
 
   return (
     <div className="space-y-6">
@@ -147,27 +142,11 @@ function HubsPage() {
 
       {/* Hub grid */}
       {!isLoading && hubs.length > 0 && (
-        <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {hubs.map((hub) => (
-              <HubCard key={hub.id} hub={hub} />
-            ))}
-          </div>
-
-          {/* Load more button */}
-          {hasNextPage && (
-            <div className="flex justify-center pt-4">
-              <button
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
-                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
-              >
-                {isFetchingNextPage ? 'Loading...' : 'Load More'}
-              </button>
-            </div>
-          )}
-        </>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {hubs.map((hub: HubListItem) => (
+            <HubCard key={hub.id} hub={hub} />
+          ))}
+        </div>
       )}
     </div>
   );

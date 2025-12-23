@@ -1,9 +1,34 @@
 import { DurableObject } from 'cloudflare:workers'
 
+interface VoiceMarker {
+  id: string
+  phrase: string
+  source: 'voice' | 'manual' | 'analysis'
+  confidence: number
+  createdAt: string
+}
+
+interface BannedWord {
+  id: string
+  word: string
+  severity: 'hard' | 'soft'
+  reason?: string
+  source: 'voice' | 'manual' | 'analysis'
+  createdAt: string
+}
+
+interface BrandStance {
+  id: string
+  topic: string
+  position: string
+  source: 'voice' | 'manual' | 'analysis'
+  createdAt: string
+}
+
 interface BrandDNA {
-  voiceMarkers: string[]
-  bannedWords: Array<{ word: string, severity: 'hard' | 'soft', reason?: string }>
-  stances: Array<{ topic: string, position: string }>
+  voiceMarkers: VoiceMarker[]
+  bannedWords: BannedWord[]
+  stances: BrandStance[]
   signaturePatterns: string[]
   toneProfile: Record<string, number>
   voiceBaseline: number | null
@@ -49,6 +74,7 @@ interface Env {
   VECTORIZE: VectorizeIndex
   SPOKE_QUEUE: Queue
   QUALITY_QUEUE: Queue
+  MEDIA_BUCKET: R2Bucket
 }
 
 export class ClientAgent extends DurableObject<Env> {
@@ -58,19 +84,51 @@ export class ClientAgent extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
     this.sql = ctx.storage.sql
-    // Extract clientId from the name used to create the DO
-    this.clientId = ctx.id.getName() || 'default'
+    // Extract clientId from the DO id string
+    this.clientId = ctx.id.toString()
     this.initializeSchema()
   }
 
   private initializeSchema(): void {
-    // Brand DNA table
+    // Voice Markers table (normalized - per architecture spec)
+    this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS voice_markers (
+        id TEXT PRIMARY KEY,
+        phrase TEXT NOT NULL UNIQUE,
+        source TEXT NOT NULL DEFAULT 'manual',
+        confidence REAL DEFAULT 1.0,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    // Banned Words table (normalized - per architecture spec)
+    this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS banned_words (
+        id TEXT PRIMARY KEY,
+        word TEXT NOT NULL UNIQUE,
+        severity TEXT NOT NULL DEFAULT 'hard',
+        reason TEXT,
+        source TEXT NOT NULL DEFAULT 'manual',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    // Brand Stances table (normalized - per architecture spec)
+    this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS brand_stances (
+        id TEXT PRIMARY KEY,
+        topic TEXT NOT NULL,
+        position TEXT NOT NULL,
+        source TEXT NOT NULL DEFAULT 'manual',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(topic, position)
+      )
+    `)
+
+    // Brand DNA metadata table (for baseline scores and calibration state)
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS brand_dna (
         id INTEGER PRIMARY KEY,
-        voice_markers TEXT DEFAULT '[]',
-        banned_words TEXT DEFAULT '[]',
-        stances TEXT DEFAULT '[]',
         signature_patterns TEXT DEFAULT '[]',
         tone_profile TEXT DEFAULT '{}',
         voice_baseline REAL,
@@ -79,10 +137,15 @@ export class ClientAgent extends DurableObject<Env> {
       )
     `)
 
-    // Ensure single row exists
+    // Ensure single row exists for metadata
     this.sql.exec(`
       INSERT OR IGNORE INTO brand_dna (id) VALUES (1)
     `)
+
+    // Create indexes for voice tables
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_voice_markers_phrase ON voice_markers(phrase)`)
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_banned_words_word ON banned_words(word)`)
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_brand_stances_topic ON brand_stances(topic)`)
 
     // Hubs table
     this.sql.exec(`
@@ -166,7 +229,7 @@ export class ClientAgent extends DurableObject<Env> {
   }
 
   async fetch(request: Request): Promise<Response> {
-    const { method, params } = await request.json() as { method: string params: any }
+    const { method, params } = await request.json() as { method: string; params: any }
 
     switch (method) {
       case 'getBrandDNA':
@@ -256,6 +319,49 @@ export class ClientAgent extends DurableObject<Env> {
       case 'transcribeAudio':
         return Response.json(await this.transcribeAudio(params))
 
+      // Voice Markers CRUD (Story 2.5)
+      case 'listVoiceMarkers':
+        return Response.json(await this.listVoiceMarkers())
+
+      case 'addVoiceMarker':
+        return Response.json(await this.addVoiceMarker(params))
+
+      case 'removeVoiceMarker':
+        return Response.json(await this.removeVoiceMarker(params.markerId))
+
+      case 'updateVoiceMarker':
+        return Response.json(await this.updateVoiceMarker(params))
+
+      // Banned Words CRUD (Story 2.5)
+      case 'listBannedWords':
+        return Response.json(await this.listBannedWords())
+
+      case 'addBannedWord':
+        return Response.json(await this.addBannedWord(params))
+
+      case 'removeBannedWord':
+        return Response.json(await this.removeBannedWord(params.wordId))
+
+      case 'updateBannedWord':
+        return Response.json(await this.updateBannedWord(params))
+
+      // Brand Stances CRUD
+      case 'listBrandStances':
+        return Response.json(await this.listBrandStances())
+
+      case 'addBrandStance':
+        return Response.json(await this.addBrandStance(params))
+
+      case 'removeBrandStance':
+        return Response.json(await this.removeBrandStance(params.stanceId))
+
+      // G4 Voice Alignment Gate methods
+      case 'checkBannedWords':
+        return Response.json(await this.checkBannedWords(params.content))
+
+      case 'checkVoiceMarkers':
+        return Response.json(await this.checkVoiceMarkers(params.content))
+
       default:
         return Response.json({ error: `Unknown method: ${method}` }, { status: 400 })
     }
@@ -264,12 +370,39 @@ export class ClientAgent extends DurableObject<Env> {
   // Brand DNA Methods
   private async getBrandDNA(): Promise<BrandDNA> {
     const row = this.sql.exec(`SELECT * FROM brand_dna WHERE id = 1`).one()
+
+    // Read from normalized tables
+    const voiceMarkers = this.sql.exec(`SELECT * FROM voice_markers ORDER BY created_at DESC`).toArray().map(r => ({
+      id: r.id as string,
+      phrase: r.phrase as string,
+      source: r.source as 'voice' | 'manual' | 'analysis',
+      confidence: r.confidence as number,
+      createdAt: r.created_at as string,
+    }))
+
+    const bannedWords = this.sql.exec(`SELECT * FROM banned_words ORDER BY created_at DESC`).toArray().map(r => ({
+      id: r.id as string,
+      word: r.word as string,
+      severity: r.severity as 'hard' | 'soft',
+      reason: r.reason as string | undefined,
+      source: r.source as 'voice' | 'manual' | 'analysis',
+      createdAt: r.created_at as string,
+    }))
+
+    const stances = this.sql.exec(`SELECT * FROM brand_stances ORDER BY created_at DESC`).toArray().map(r => ({
+      id: r.id as string,
+      topic: r.topic as string,
+      position: r.position as string,
+      source: r.source as 'voice' | 'manual' | 'analysis',
+      createdAt: r.created_at as string,
+    }))
+
     return {
-      voiceMarkers: JSON.parse(row.voice_markers as string),
-      bannedWords: JSON.parse(row.banned_words as string),
-      stances: JSON.parse(row.stances as string),
-      signaturePatterns: JSON.parse(row.signature_patterns as string),
-      toneProfile: JSON.parse(row.tone_profile as string),
+      voiceMarkers,
+      bannedWords,
+      stances,
+      signaturePatterns: JSON.parse(row.signature_patterns as string || '[]'),
+      toneProfile: JSON.parse(row.tone_profile as string || '{}'),
       voiceBaseline: row.voice_baseline as number | null,
       timeToDNA: row.time_to_dna as number | null,
       lastCalibration: row.last_calibration as string | null,
@@ -375,11 +508,10 @@ export class ClientAgent extends DurableObject<Env> {
     return { timeToDNA: null }
   }
 
-  private async updateBrandDNA(updates: Partial<BrandDNA>): Promise<{ success: boolean }> {
+  private async updateBrandDNA(updates: Partial<BrandDNA & { voiceBaseline?: number, timeToDNA?: number, lastCalibration?: string }>): Promise<{ success: boolean }> {
     const sets: string[] = []
-    if (updates.voiceMarkers) sets.push(`voice_markers = '${JSON.stringify(updates.voiceMarkers)}'`)
-    if (updates.bannedWords) sets.push(`banned_words = '${JSON.stringify(updates.bannedWords)}'`)
-    if (updates.stances) sets.push(`stances = '${JSON.stringify(updates.stances)}'`)
+
+    // Metadata fields stored in brand_dna table
     if (updates.signaturePatterns) sets.push(`signature_patterns = '${JSON.stringify(updates.signaturePatterns)}'`)
     if (updates.toneProfile) sets.push(`tone_profile = '${JSON.stringify(updates.toneProfile)}'`)
     if (updates.voiceBaseline !== undefined) sets.push(`voice_baseline = ${updates.voiceBaseline}`)
@@ -390,6 +522,240 @@ export class ClientAgent extends DurableObject<Env> {
       this.sql.exec(`UPDATE brand_dna SET ${sets.join(', ')} WHERE id = 1`)
     }
 
+    return { success: true }
+  }
+
+  // Voice Markers CRUD Methods (Story 2.5)
+  private async listVoiceMarkers(): Promise<VoiceMarker[]> {
+    return this.sql.exec(`SELECT * FROM voice_markers ORDER BY created_at DESC`).toArray().map(r => ({
+      id: r.id as string,
+      phrase: r.phrase as string,
+      source: r.source as 'voice' | 'manual' | 'analysis',
+      confidence: r.confidence as number,
+      createdAt: r.created_at as string,
+    }))
+  }
+
+  private async addVoiceMarker(params: {
+    phrase: string
+    source?: 'voice' | 'manual' | 'analysis'
+    confidence?: number
+  }): Promise<VoiceMarker> {
+    const id = crypto.randomUUID()
+    const normalizedPhrase = params.phrase.toLowerCase().trim()
+    const source = params.source || 'manual'
+    const confidence = params.confidence ?? 1.0
+
+    try {
+      this.sql.exec(`
+        INSERT INTO voice_markers (id, phrase, source, confidence)
+        VALUES ('${id}', '${normalizedPhrase.replace(/'/g, "''")}', '${source}', ${confidence})
+      `)
+
+      // Update last calibration
+      this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
+
+      return {
+        id,
+        phrase: normalizedPhrase,
+        source,
+        confidence,
+        createdAt: new Date().toISOString(),
+      }
+    } catch (error) {
+      // Handle unique constraint violation (phrase already exists)
+      if (String(error).includes('UNIQUE constraint')) {
+        const existing = this.sql.exec(`SELECT * FROM voice_markers WHERE phrase = '${normalizedPhrase.replace(/'/g, "''")}'`).one()
+        return {
+          id: existing.id as string,
+          phrase: existing.phrase as string,
+          source: existing.source as 'voice' | 'manual' | 'analysis',
+          confidence: existing.confidence as number,
+          createdAt: existing.created_at as string,
+        }
+      }
+      throw error
+    }
+  }
+
+  private async removeVoiceMarker(markerId: string): Promise<{ success: boolean }> {
+    this.sql.exec(`DELETE FROM voice_markers WHERE id = '${markerId}'`)
+    this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
+    return { success: true }
+  }
+
+  private async updateVoiceMarker(params: {
+    markerId: string
+    phrase?: string
+    confidence?: number
+  }): Promise<VoiceMarker> {
+    const sets: string[] = []
+    if (params.phrase) sets.push(`phrase = '${params.phrase.toLowerCase().trim().replace(/'/g, "''")}'`)
+    if (params.confidence !== undefined) sets.push(`confidence = ${params.confidence}`)
+
+    if (sets.length > 0) {
+      this.sql.exec(`UPDATE voice_markers SET ${sets.join(', ')} WHERE id = '${params.markerId}'`)
+      this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
+    }
+
+    const row = this.sql.exec(`SELECT * FROM voice_markers WHERE id = '${params.markerId}'`).one()
+    return {
+      id: row.id as string,
+      phrase: row.phrase as string,
+      source: row.source as 'voice' | 'manual' | 'analysis',
+      confidence: row.confidence as number,
+      createdAt: row.created_at as string,
+    }
+  }
+
+  // Banned Words CRUD Methods (Story 2.5)
+  private async listBannedWords(): Promise<BannedWord[]> {
+    return this.sql.exec(`SELECT * FROM banned_words ORDER BY created_at DESC`).toArray().map(r => ({
+      id: r.id as string,
+      word: r.word as string,
+      severity: r.severity as 'hard' | 'soft',
+      reason: r.reason as string | undefined,
+      source: r.source as 'voice' | 'manual' | 'analysis',
+      createdAt: r.created_at as string,
+    }))
+  }
+
+  private async addBannedWord(params: {
+    word: string
+    severity?: 'hard' | 'soft'
+    reason?: string
+    source?: 'voice' | 'manual' | 'analysis'
+  }): Promise<BannedWord> {
+    const id = crypto.randomUUID()
+    const normalizedWord = params.word.toLowerCase().trim()
+    const severity = params.severity || 'hard'
+    const source = params.source || 'manual'
+    const reasonSql = params.reason ? `'${params.reason.replace(/'/g, "''")}'` : 'NULL'
+
+    try {
+      this.sql.exec(`
+        INSERT INTO banned_words (id, word, severity, reason, source)
+        VALUES ('${id}', '${normalizedWord.replace(/'/g, "''")}', '${severity}', ${reasonSql}, '${source}')
+      `)
+
+      // Update last calibration
+      this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
+
+      return {
+        id,
+        word: normalizedWord,
+        severity,
+        reason: params.reason,
+        source,
+        createdAt: new Date().toISOString(),
+      }
+    } catch (error) {
+      // Handle unique constraint violation (word already exists)
+      if (String(error).includes('UNIQUE constraint')) {
+        const existing = this.sql.exec(`SELECT * FROM banned_words WHERE word = '${normalizedWord.replace(/'/g, "''")}'`).one()
+        return {
+          id: existing.id as string,
+          word: existing.word as string,
+          severity: existing.severity as 'hard' | 'soft',
+          reason: existing.reason as string | undefined,
+          source: existing.source as 'voice' | 'manual' | 'analysis',
+          createdAt: existing.created_at as string,
+        }
+      }
+      throw error
+    }
+  }
+
+  private async removeBannedWord(wordId: string): Promise<{ success: boolean }> {
+    this.sql.exec(`DELETE FROM banned_words WHERE id = '${wordId}'`)
+    this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
+    return { success: true }
+  }
+
+  private async updateBannedWord(params: {
+    wordId: string
+    word?: string
+    severity?: 'hard' | 'soft'
+    reason?: string
+  }): Promise<BannedWord> {
+    const sets: string[] = []
+    if (params.word) sets.push(`word = '${params.word.toLowerCase().trim().replace(/'/g, "''")}'`)
+    if (params.severity) sets.push(`severity = '${params.severity}'`)
+    if (params.reason !== undefined) sets.push(`reason = '${params.reason.replace(/'/g, "''")}'`)
+
+    if (sets.length > 0) {
+      this.sql.exec(`UPDATE banned_words SET ${sets.join(', ')} WHERE id = '${params.wordId}'`)
+      this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
+    }
+
+    const row = this.sql.exec(`SELECT * FROM banned_words WHERE id = '${params.wordId}'`).one()
+    return {
+      id: row.id as string,
+      word: row.word as string,
+      severity: row.severity as 'hard' | 'soft',
+      reason: row.reason as string | undefined,
+      source: row.source as 'voice' | 'manual' | 'analysis',
+      createdAt: row.created_at as string,
+    }
+  }
+
+  // Brand Stances CRUD Methods
+  private async listBrandStances(): Promise<BrandStance[]> {
+    return this.sql.exec(`SELECT * FROM brand_stances ORDER BY created_at DESC`).toArray().map(r => ({
+      id: r.id as string,
+      topic: r.topic as string,
+      position: r.position as string,
+      source: r.source as 'voice' | 'manual' | 'analysis',
+      createdAt: r.created_at as string,
+    }))
+  }
+
+  private async addBrandStance(params: {
+    topic: string
+    position: string
+    source?: 'voice' | 'manual' | 'analysis'
+  }): Promise<BrandStance> {
+    const id = crypto.randomUUID()
+    const source = params.source || 'manual'
+
+    try {
+      this.sql.exec(`
+        INSERT INTO brand_stances (id, topic, position, source)
+        VALUES ('${id}', '${params.topic.replace(/'/g, "''")}', '${params.position.replace(/'/g, "''")}', '${source}')
+      `)
+
+      // Update last calibration
+      this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
+
+      return {
+        id,
+        topic: params.topic,
+        position: params.position,
+        source,
+        createdAt: new Date().toISOString(),
+      }
+    } catch (error) {
+      // Handle unique constraint violation
+      if (String(error).includes('UNIQUE constraint')) {
+        const existing = this.sql.exec(`
+          SELECT * FROM brand_stances
+          WHERE topic = '${params.topic.replace(/'/g, "''")}' AND position = '${params.position.replace(/'/g, "''")}'
+        `).one()
+        return {
+          id: existing.id as string,
+          topic: existing.topic as string,
+          position: existing.position as string,
+          source: existing.source as 'voice' | 'manual' | 'analysis',
+          createdAt: existing.created_at as string,
+        }
+      }
+      throw error
+    }
+  }
+
+  private async removeBrandStance(stanceId: string): Promise<{ success: boolean }> {
+    this.sql.exec(`DELETE FROM brand_stances WHERE id = '${stanceId}'`)
+    this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
     return { success: true }
   }
 
@@ -418,7 +784,7 @@ export class ClientAgent extends DurableObject<Env> {
     }
   }
 
-  private async listHubs(params: { status?: string limit?: number offset?: number }): Promise<Hub[]> {
+  private async listHubs(params: { status?: string; limit?: number; offset?: number }): Promise<Hub[]> {
     let query = `SELECT * FROM hubs`
     if (params.status) query += ` WHERE status = '${params.status}'`
     query += ` ORDER BY created_at DESC`
@@ -436,7 +802,7 @@ export class ClientAgent extends DurableObject<Env> {
     }))
   }
 
-  private async killHub(hubId: string, reason?: string): Promise<{ killed: number survived: number }> {
+  private async killHub(hubId: string, reason?: string): Promise<{ killed: number; survived: number }> {
     // Kill the hub
     this.sql.exec(`UPDATE hubs SET status = 'killed' WHERE id = '${hubId}'`)
 
@@ -501,7 +867,7 @@ export class ClientAgent extends DurableObject<Env> {
     }
   }
 
-  private async updateSpoke(params: { spokeId: string updates: Partial<Spoke> }): Promise<Spoke> {
+  private async updateSpoke(params: { spokeId: string; updates: Partial<Spoke> }): Promise<Spoke> {
     const { spokeId, updates } = params
     const sets: string[] = []
 
@@ -530,7 +896,7 @@ export class ClientAgent extends DurableObject<Env> {
     return this.getSpoke(spokeId) as Promise<Spoke>
   }
 
-  private async listSpokes(params: { hubId?: string status?: string limit?: number }): Promise<Spoke[]> {
+  private async listSpokes(params: { hubId?: string; status?: string; limit?: number }): Promise<Spoke[]> {
     let query = `SELECT * FROM spokes WHERE 1=1`
     if (params.hubId) query += ` AND hub_id = '${params.hubId}'`
     if (params.status) query += ` AND status = '${params.status}'`
@@ -613,7 +979,7 @@ export class ClientAgent extends DurableObject<Env> {
     return { rejected: spokeIds.length }
   }
 
-  private async getReviewQueue(params: { filter?: string limit?: number }): Promise<Spoke[]> {
+  private async getReviewQueue(params: { filter?: string; limit?: number }): Promise<Spoke[]> {
     let query = `SELECT * FROM spokes WHERE status = 'reviewing'`
 
     if (params.filter === 'top10') {
@@ -807,7 +1173,7 @@ export class ClientAgent extends DurableObject<Env> {
       query += ` AND s.hub_id IN (${params.hubIds.map(id => `'${id}'`).join(',')})`
     }
     if (params.platforms && params.platforms.length > 0) {
-      query += ` AND s.platform IN (${params.platforms.map(p => `'${id}'`).join(',')})`
+      query += ` AND s.platform IN (${params.platforms.map(p => `'${p}'`).join(',')})`
     }
 
     const spokes = this.sql.exec(query).toArray()
@@ -916,18 +1282,20 @@ export class ClientAgent extends DurableObject<Env> {
   private async processVoiceNote(params: {
     transcription: string
   }): Promise<{
-    voiceMarkers: string[]
-    bannedWords: Array<{ word: string, reason: string }>
-    stances: Array<{ topic: string, position: string }>
+    voiceMarkers: VoiceMarker[]
+    bannedWords: BannedWord[]
+    stances: BrandStance[]
   }> {
     try {
       // Use Workers AI for entity extraction
       const prompt = `Analyze this brand voice note and extract:
-1. Voice markers (unique phrases, speaking patterns)
-2. Banned words (words explicitly mentioned to avoid)
-3. Brand stances (positions on topics)
+1. Voice markers (unique phrases, speaking patterns, signature expressions)
+2. Banned words (words explicitly mentioned to avoid, with the reason why)
+3. Brand stances (positions on topics mentioned)
 
 Voice note: "${params.transcription}"
+
+IMPORTANT: Return ONLY valid JSON, no other text. Extract ALL relevant entities from the voice note.
 
 Return JSON format:
 {
@@ -941,23 +1309,63 @@ Return JSON format:
         max_tokens: 1024,
       }) as { response: string }
 
-      const extracted = JSON.parse(response.response)
+      // Parse the LLM response - handle potential parsing errors
+      let extracted: {
+        voiceMarkers: string[]
+        bannedWords: Array<{ word: string, reason: string }>
+        stances: Array<{ topic: string, position: string }>
+      }
 
-      // Update brand DNA with extracted entities
-      const currentDNA = await this.getBrandDNA()
+      try {
+        // Try to extract JSON from the response (LLM may include other text)
+        const jsonMatch = response.response.match(/\{[\s\S]*\}/)
+        if (!jsonMatch) {
+          throw new Error('No JSON found in response')
+        }
+        extracted = JSON.parse(jsonMatch[0])
+      } catch (parseError) {
+        console.error('Failed to parse LLM response:', response.response)
+        // Return empty entities if parsing fails
+        extracted = { voiceMarkers: [], bannedWords: [], stances: [] }
+      }
 
-      const updatedVoiceMarkers = [...new Set([...currentDNA.voiceMarkers, ...extracted.voiceMarkers])]
-      const updatedBannedWords = [
-        ...currentDNA.bannedWords,
-        ...extracted.bannedWords.map((bw: any) => ({ ...bw, severity: 'hard' as const })),
-      ]
-      const updatedStances = [...currentDNA.stances, ...extracted.stances]
+      // Insert extracted entities into normalized tables using CRUD methods
+      const addedVoiceMarkers: VoiceMarker[] = []
+      for (const phrase of extracted.voiceMarkers || []) {
+        if (phrase && phrase.trim()) {
+          const marker = await this.addVoiceMarker({
+            phrase: phrase.trim(),
+            source: 'voice',
+            confidence: 0.85, // LLM extraction confidence
+          })
+          addedVoiceMarkers.push(marker)
+        }
+      }
 
-      await this.updateBrandDNA({
-        voiceMarkers: updatedVoiceMarkers,
-        bannedWords: updatedBannedWords,
-        stances: updatedStances,
-      })
+      const addedBannedWords: BannedWord[] = []
+      for (const bw of extracted.bannedWords || []) {
+        if (bw.word && bw.word.trim()) {
+          const word = await this.addBannedWord({
+            word: bw.word.trim(),
+            severity: 'hard',
+            reason: bw.reason,
+            source: 'voice',
+          })
+          addedBannedWords.push(word)
+        }
+      }
+
+      const addedStances: BrandStance[] = []
+      for (const stance of extracted.stances || []) {
+        if (stance.topic && stance.position) {
+          const addedStance = await this.addBrandStance({
+            topic: stance.topic.trim(),
+            position: stance.position.trim(),
+            source: 'voice',
+          })
+          addedStances.push(addedStance)
+        }
+      }
 
       // Generate embeddings for transcription
       const embeddingsResponse = await this.env.AI.run('@cf/baai/bge-base-en-v1.5', {
@@ -979,13 +1387,64 @@ Return JSON format:
       }
 
       return {
-        voiceMarkers: extracted.voiceMarkers,
-        bannedWords: extracted.bannedWords,
-        stances: extracted.stances,
+        voiceMarkers: addedVoiceMarkers,
+        bannedWords: addedBannedWords,
+        stances: addedStances,
       }
     } catch (error) {
       console.error('Voice note processing error:', error)
       throw new Error(`Processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
+  }
+
+  // Voice G4 Gate: Check content against banned words (for Quality Gate evaluation)
+  async checkBannedWords(content: string): Promise<{
+    violations: Array<{ word: string, severity: 'hard' | 'soft', reason?: string }>
+    passed: boolean
+  }> {
+    const bannedWords = await this.listBannedWords()
+    const contentLower = content.toLowerCase()
+    const violations: Array<{ word: string, severity: 'hard' | 'soft', reason?: string }> = []
+
+    for (const bw of bannedWords) {
+      if (contentLower.includes(bw.word.toLowerCase())) {
+        violations.push({
+          word: bw.word,
+          severity: bw.severity,
+          reason: bw.reason,
+        })
+      }
+    }
+
+    // Hard failures = any hard severity violation
+    const passed = !violations.some(v => v.severity === 'hard')
+
+    return { violations, passed }
+  }
+
+  // Voice G4 Gate: Check content against voice markers (for similarity scoring)
+  async checkVoiceMarkers(content: string): Promise<{
+    matches: Array<{ phrase: string, confidence: number }>
+    similarity: number
+  }> {
+    const voiceMarkers = await this.listVoiceMarkers()
+    const contentLower = content.toLowerCase()
+    const matches: Array<{ phrase: string, confidence: number }> = []
+
+    for (const marker of voiceMarkers) {
+      if (contentLower.includes(marker.phrase.toLowerCase())) {
+        matches.push({
+          phrase: marker.phrase,
+          confidence: marker.confidence,
+        })
+      }
+    }
+
+    // Similarity score: ratio of matched markers to total markers
+    const similarity = voiceMarkers.length > 0
+      ? (matches.length / voiceMarkers.length) * 100
+      : 0
+
+    return { matches, similarity }
   }
 }

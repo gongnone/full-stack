@@ -177,7 +177,7 @@ function HubDetailPage() {
   }
 
   const statusConfig = STATUS_CONFIG[hub.status as keyof typeof STATUS_CONFIG] ?? DEFAULT_STATUS_CONFIG;
-  const totalEstimatedSpokes = hub.pillars.reduce((sum, p) => sum + p.estimatedSpokeCount, 0);
+  const totalEstimatedSpokes = hub.pillars.reduce((sum: number, p: Pillar) => sum + p.estimatedSpokeCount, 0);
 
   return (
     <div className="space-y-6">
@@ -267,7 +267,7 @@ function HubDetailPage() {
           Content Pillars
         </h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {hub.pillars.map((pillar) => (
+          {hub.pillars.map((pillar: Pillar) => (
             <PillarCard key={pillar.id} pillar={pillar} />
           ))}
         </div>

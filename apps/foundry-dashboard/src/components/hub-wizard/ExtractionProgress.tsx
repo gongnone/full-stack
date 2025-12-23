@@ -38,7 +38,7 @@ export function ExtractionProgress({ sourceId, clientId, onComplete, onRetry }: 
   const { data: progress, isLoading } = trpc.hubs.getExtractionProgress.useQuery(
     { sourceId, clientId },
     {
-      refetchInterval: (query) => {
+      refetchInterval: (query: { state: { data?: { status?: string } } }) => {
         const data = query.state.data;
         // Stop polling when completed or failed
         if (data?.status === 'completed' || data?.status === 'failed') {

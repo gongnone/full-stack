@@ -109,7 +109,7 @@ export function EditablePillarCard({
   return (
     <div
       className={`p-5 rounded-lg border transition-all duration-300 ${
-        isDeleting ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+        isDeleting ? 'animate-pillar-prune' : ''
       }`}
       style={{
         backgroundColor: 'var(--bg-elevated)',

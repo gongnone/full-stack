@@ -53,6 +53,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241127.0",
     "@playwright/test": "^1.57.0",
+    "@tailwindcss/vite": "^4.1.11",
     "@tanstack/router-plugin": "^1.82.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",

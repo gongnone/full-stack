@@ -110,7 +110,7 @@ export function SourceDropZone({ clientId, onSourceCreated, disabled }: SourceDr
         clientId,
         sourceId,
         r2Key,
-        title: file.name.replace(/\.pdf$/i, ''),
+        filename: file.name.replace(/\.pdf$/i, ''),
       });
 
       setUploadProgress(100);

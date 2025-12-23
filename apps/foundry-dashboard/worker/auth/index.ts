@@ -141,6 +141,96 @@ export function createAuth(env: Env) {
         httpOnly: true,
       },
     },
+
+    // Database hooks to convert Date objects to Unix timestamps for D1/SQLite
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            return {
+              data: {
+                ...user,
+                createdAt: user.createdAt instanceof Date ? Math.floor(user.createdAt.getTime() / 1000) : user.createdAt,
+                updatedAt: user.updatedAt instanceof Date ? Math.floor(user.updatedAt.getTime() / 1000) : user.updatedAt,
+                emailVerified: user.emailVerified instanceof Date ? Math.floor(user.emailVerified.getTime() / 1000) : (user.emailVerified ? 1 : 0),
+              },
+            };
+          },
+        },
+        update: {
+          before: async (user) => {
+            const data: any = { ...user };
+            if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
+            if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
+            if (data.emailVerified instanceof Date) data.emailVerified = Math.floor(data.emailVerified.getTime() / 1000);
+            else if (typeof data.emailVerified === 'boolean') data.emailVerified = data.emailVerified ? 1 : 0;
+            return { data };
+          },
+        },
+      },
+      session: {
+        create: {
+          before: async (session) => {
+            return {
+              data: {
+                ...session,
+                expiresAt: session.expiresAt instanceof Date ? Math.floor(session.expiresAt.getTime() / 1000) : session.expiresAt,
+                createdAt: session.createdAt instanceof Date ? Math.floor(session.createdAt.getTime() / 1000) : session.createdAt,
+                updatedAt: session.updatedAt instanceof Date ? Math.floor(session.updatedAt.getTime() / 1000) : session.updatedAt,
+              },
+            };
+          },
+        },
+        update: {
+          before: async (session) => {
+            const data: any = { ...session };
+            if (data.expiresAt instanceof Date) data.expiresAt = Math.floor(data.expiresAt.getTime() / 1000);
+            if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
+            if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
+            return { data };
+          },
+        },
+      },
+      account: {
+        create: {
+          before: async (account) => {
+            return {
+              data: {
+                ...account,
+                createdAt: account.createdAt instanceof Date ? Math.floor(account.createdAt.getTime() / 1000) : account.createdAt,
+                updatedAt: account.updatedAt instanceof Date ? Math.floor(account.updatedAt.getTime() / 1000) : account.updatedAt,
+                accessTokenExpiresAt: account.accessTokenExpiresAt instanceof Date ? Math.floor(account.accessTokenExpiresAt.getTime() / 1000) : account.accessTokenExpiresAt,
+                refreshTokenExpiresAt: account.refreshTokenExpiresAt instanceof Date ? Math.floor(account.refreshTokenExpiresAt.getTime() / 1000) : account.refreshTokenExpiresAt,
+              },
+            };
+          },
+        },
+        update: {
+          before: async (account) => {
+            const data: any = { ...account };
+            if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
+            if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
+            if (data.accessTokenExpiresAt instanceof Date) data.accessTokenExpiresAt = Math.floor(data.accessTokenExpiresAt.getTime() / 1000);
+            if (data.refreshTokenExpiresAt instanceof Date) data.refreshTokenExpiresAt = Math.floor(data.refreshTokenExpiresAt.getTime() / 1000);
+            return { data };
+          },
+        },
+      },
+      verification: {
+        create: {
+          before: async (verification) => {
+            return {
+              data: {
+                ...verification,
+                expiresAt: verification.expiresAt instanceof Date ? Math.floor(verification.expiresAt.getTime() / 1000) : verification.expiresAt,
+                createdAt: verification.createdAt instanceof Date ? Math.floor(verification.createdAt.getTime() / 1000) : verification.createdAt,
+                updatedAt: verification.updatedAt instanceof Date ? Math.floor(verification.updatedAt.getTime() / 1000) : verification.updatedAt,
+              },
+            };
+          },
+        },
+      },
+    },
   });
 }
 

@@ -39,6 +39,9 @@ const getAuthInstance = (env: Env) => {
       clientId: env.GITHUB_CLIENT_ID,
       clientSecret: env.GITHUB_CLIENT_SECRET
     },
+    {
+      baseURL: env.BETTER_AUTH_URL,
+    },
   )
 }
 

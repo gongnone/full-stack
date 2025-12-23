@@ -20,12 +20,18 @@ type StripeConfig = {
   stripeApiKey?: string;
 };
 
+type AuthConfig = {
+  baseURL?: string;
+  trustedOrigins?: string[];
+};
+
 export function createBetterAuth(
   database: NonNullable<Parameters<typeof betterAuth>[0]>["database"],
   secret: string,
   stripeConfig?: StripeConfig,
   google?: { clientId: string; clientSecret: string },
   github?: { clientId: string; clientSecret: string },
+  authConfig?: AuthConfig,
 ): ReturnType<typeof betterAuth> {
   const stripeKey = stripeConfig?.stripeApiKey || process.env.STRIPE_KEY;
   const stripeWebhookSecret = stripeConfig?.stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET;
@@ -37,9 +43,16 @@ export function createBetterAuth(
   return betterAuth({
     database,
     secret: secret,
-        emailAndPassword: {
-            enabled: true,
-        },
+    baseURL: authConfig?.baseURL,
+    trustedOrigins: authConfig?.trustedOrigins ?? [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "https://stage.williamjshaw.ca",
+      "https://hero.williamjshaw.ca",
+    ],
+    emailAndPassword: {
+      enabled: true,
+    },
     socialProviders: {
       google: {
         clientId: google?.clientId ?? "",
@@ -69,6 +82,7 @@ export function getAuth(
   stripe: StripeConfig,
   secret: string,
   github?: { clientId: string; clientSecret: string },
+  authConfig?: AuthConfig,
 ): ReturnType<typeof betterAuth> {
   if (auth) return auth;
 
@@ -87,6 +101,7 @@ export function getAuth(
     stripe,
     google,
     github,
+    authConfig,
   );
   return auth;
 }

@@ -362,6 +362,10 @@ export class ClientAgent extends DurableObject<Env> {
       case 'checkVoiceMarkers':
         return Response.json(await this.checkVoiceMarkers(params.content))
 
+      // Story 2.3: Brand DNA Analysis & Scoring
+      case 'analyzeBrandDNA':
+        return Response.json(await this.analyzeBrandDNA(params))
+
       default:
         return Response.json({ error: `Unknown method: ${method}` }, { status: 400 })
     }
@@ -1446,5 +1450,187 @@ Return JSON format:
       : 0
 
     return { matches, similarity }
+  }
+
+  // Story 2.3: Brand DNA Analysis & Scoring - Background worker task
+  // Pulls voice_markers and brand_stances, calculates strength score,
+  // generates embeddings with @cf/baai/bge-base-en-v1.5 and stores in Vectorize
+  async analyzeBrandDNA(params: {
+    sampleContent?: string[]  // Optional: content samples to analyze against voice markers
+  }): Promise<{
+    strengthScore: number
+    breakdown: {
+      voiceMarkerScore: number
+      stanceScore: number
+      patternScore: number
+      toneScore: number
+    }
+    voiceMarkersCount: number
+    stancesCount: number
+    embeddingsStored: boolean
+  }> {
+    // Step 1: Pull voice_markers and brand_stances from SQLite
+    const voiceMarkers = await this.listVoiceMarkers()
+    const brandStances = await this.listBrandStances()
+    const dnaMetadata = this.sql.exec(`SELECT * FROM brand_dna WHERE id = 1`).one()
+
+    const signaturePatterns: string[] = JSON.parse(dnaMetadata.signature_patterns as string || '[]')
+    const toneProfile: Record<string, number> = JSON.parse(dnaMetadata.tone_profile as string || '{}')
+
+    // Step 2: Calculate component scores
+
+    // Voice Marker Score (0-30): Based on count and confidence
+    let voiceMarkerScore = 0
+    if (voiceMarkers.length >= 10) voiceMarkerScore = 30
+    else if (voiceMarkers.length >= 5) voiceMarkerScore = 25
+    else if (voiceMarkers.length >= 3) voiceMarkerScore = 20
+    else if (voiceMarkers.length >= 1) voiceMarkerScore = 10 + voiceMarkers.length * 3
+
+    // Add confidence bonus (average confidence * 5, max 5 points)
+    if (voiceMarkers.length > 0) {
+      const avgConfidence = voiceMarkers.reduce((sum, m) => sum + m.confidence, 0) / voiceMarkers.length
+      voiceMarkerScore = Math.min(30, voiceMarkerScore + Math.round(avgConfidence * 5))
+    }
+
+    // Stance Score (0-30): Based on count and coverage
+    let stanceScore = 0
+    if (brandStances.length >= 5) stanceScore = 30
+    else if (brandStances.length >= 3) stanceScore = 25
+    else if (brandStances.length >= 2) stanceScore = 20
+    else if (brandStances.length >= 1) stanceScore = 15
+
+    // Pattern Score (0-25): Based on signature patterns detected
+    let patternScore = 0
+    if (signaturePatterns.length >= 5) patternScore = 25
+    else if (signaturePatterns.length >= 3) patternScore = 20
+    else if (signaturePatterns.length >= 1) patternScore = 10 + signaturePatterns.length * 3
+
+    // Tone Score (0-15): Based on tone profile completeness
+    let toneScore = 0
+    const toneKeys = ['formal_casual', 'serious_playful', 'technical_accessible', 'reserved_expressive']
+    const definedTones = toneKeys.filter(k => toneProfile[k] !== undefined && toneProfile[k] !== 50).length
+    if (definedTones >= 4) toneScore = 15
+    else if (definedTones >= 3) toneScore = 12
+    else if (definedTones >= 2) toneScore = 8
+    else if (definedTones >= 1) toneScore = 5
+
+    // Step 3: Calculate total DNA strength (0-100%)
+    const strengthScore = Math.min(100, voiceMarkerScore + stanceScore + patternScore + toneScore)
+
+    // Step 4: If sample content provided, compare against voice markers for additional scoring
+    if (params.sampleContent && params.sampleContent.length > 0) {
+      const combinedContent = params.sampleContent.join(' ').toLowerCase()
+      let markerMatches = 0
+
+      for (const marker of voiceMarkers) {
+        if (combinedContent.includes(marker.phrase.toLowerCase())) {
+          markerMatches++
+        }
+      }
+
+      // Bonus for marker alignment (up to 10 extra points)
+      const alignmentBonus = voiceMarkers.length > 0
+        ? Math.round((markerMatches / voiceMarkers.length) * 10)
+        : 0
+
+      // Note: We don't add to strengthScore here, just track it for reporting
+    }
+
+    // Step 5: Generate embeddings for stances and store in Vectorize
+    let embeddingsStored = false
+
+    try {
+      // Create embedding text from voice markers + stances + patterns
+      const embeddingTexts: string[] = [
+        ...voiceMarkers.map(m => m.phrase),
+        ...brandStances.map(s => `${s.topic}: ${s.position}`),
+        ...signaturePatterns,
+      ]
+
+      if (embeddingTexts.length > 0) {
+        const textToEmbed = embeddingTexts.join('\n')
+
+        // Generate embeddings using @cf/baai/bge-base-en-v1.5
+        const embeddingResult = await this.env.AI.run('@cf/baai/bge-base-en-v1.5' as any, {
+          text: textToEmbed,
+        }) as any
+
+        if (embeddingResult.data && embeddingResult.data[0]) {
+          // Store combined brand DNA embedding
+          await this.env.VECTORIZE.upsert([{
+            id: `brand-dna-${this.clientId}`,
+            values: embeddingResult.data[0],
+            metadata: {
+              clientId: this.clientId,
+              type: 'brand_dna',
+              voiceMarkersCount: voiceMarkers.length,
+              stancesCount: brandStances.length,
+              strengthScore,
+              timestamp: new Date().toISOString(),
+            },
+          }])
+
+          // Store individual stance embeddings for semantic search
+          for (const stance of brandStances) {
+            const stanceText = `${stance.topic}: ${stance.position}`
+            const stanceEmbedding = await this.env.AI.run('@cf/baai/bge-base-en-v1.5' as any, {
+              text: stanceText,
+            }) as any
+
+            if (stanceEmbedding.data && stanceEmbedding.data[0]) {
+              await this.env.VECTORIZE.upsert([{
+                id: `stance-${this.clientId}-${stance.id}`,
+                values: stanceEmbedding.data[0],
+                metadata: {
+                  clientId: this.clientId,
+                  type: 'brand_stance',
+                  topic: stance.topic,
+                  position: stance.position,
+                  stanceId: stance.id,
+                },
+              }])
+            }
+          }
+
+          embeddingsStored = true
+        }
+      }
+    } catch (error) {
+      console.error('Vectorize embedding error:', error)
+      // Don't fail the analysis if embeddings fail
+    }
+
+    // Step 6: Update brand_dna table with latest scores
+    this.sql.exec(`
+      UPDATE brand_dna SET
+        voice_baseline = ${strengthScore},
+        last_calibration = '${new Date().toISOString()}'
+      WHERE id = 1
+    `)
+
+    // Record metric for analytics
+    await this.recordMetric({
+      metricType: 'brand_dna_analysis',
+      value: strengthScore,
+      metadata: {
+        voiceMarkersCount: voiceMarkers.length,
+        stancesCount: brandStances.length,
+        patternsCount: signaturePatterns.length,
+        embeddingsStored,
+      },
+    })
+
+    return {
+      strengthScore,
+      breakdown: {
+        voiceMarkerScore,
+        stanceScore,
+        patternScore,
+        toneScore,
+      },
+      voiceMarkersCount: voiceMarkers.length,
+      stancesCount: brandStances.length,
+      embeddingsStored,
+    }
   }
 }

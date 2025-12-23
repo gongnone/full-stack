@@ -86,6 +86,38 @@ app.post('/api/calibration/start', async (c) => {
   });
 });
 
+// Story 2.3: Trigger Brand DNA Analysis background task
+// Pulls voice_markers and brand_stances from DO, calculates strength score,
+// generates embeddings with @cf/baai/bge-base-en-v1.5 and stores in Vectorize
+app.post('/api/brand-dna/analyze', async (c) => {
+  const { clientId, sampleContent } = await c.req.json();
+
+  if (!clientId) {
+    return c.json({ error: 'clientId is required' }, 400);
+  }
+
+  // Get the client's Durable Object
+  const id = c.env.CLIENT_AGENT.idFromName(clientId);
+  const agent = c.env.CLIENT_AGENT.get(id);
+
+  // Trigger the background analysis
+  const response = await agent.fetch(new Request('http://internal/rpc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      method: 'analyzeBrandDNA',
+      params: { sampleContent },
+    }),
+  }));
+
+  const result = await response.json() as Record<string, unknown>;
+
+  return c.json({
+    status: 'completed',
+    ...result,
+  });
+});
+
 // Get workflow status
 app.get('/api/workflows/:instanceId', async (c) => {
   const instanceId = c.req.param('instanceId');
@@ -136,7 +168,7 @@ app.get('/api/media/*', async (c) => {
   });
 });
 
-// Queue consumer for spoke generation
+// Queue consumer for spoke generation and brand DNA analysis
 export default {
   fetch: app.fetch,
 
@@ -164,6 +196,24 @@ export default {
             body: JSON.stringify({
               method: 'runQualityGate',
               params: { spokeId, gate }
+            }),
+          }));
+          break;
+        }
+
+        // Story 2.3: Brand DNA Analysis background task
+        // Pulls voice_markers and brand_stances from DO, calculates strength,
+        // generates embeddings with @cf/baai/bge-base-en-v1.5 and stores in Vectorize
+        case 'analyze-brand-dna': {
+          const { clientId, sampleContent } = payload;
+          const id = env.CLIENT_AGENT.idFromName(clientId);
+          const agent = env.CLIENT_AGENT.get(id);
+          await agent.fetch(new Request('http://internal/rpc', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              method: 'analyzeBrandDNA',
+              params: { sampleContent },
             }),
           }));
           break;

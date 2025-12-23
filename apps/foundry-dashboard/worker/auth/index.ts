@@ -1,7 +1,46 @@
 import { betterAuth } from 'better-auth';
-import { Kysely } from 'kysely';
+import { Kysely, KyselyPlugin, PluginTransformQueryArgs, PluginTransformResultArgs, QueryResult, RootOperationNode, UnknownRow } from 'kysely';
 import { D1Dialect } from 'kysely-d1';
 import type { Env } from '../index';
+
+/**
+ * Kysely plugin to convert Date objects to Unix timestamps for D1/SQLite
+ * This intercepts ALL queries and transforms Date values before execution
+ */
+class DateToTimestampPlugin implements KyselyPlugin {
+  transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+    return this.transformNode(args.node) as RootOperationNode;
+  }
+
+  private transformNode(node: any): any {
+    if (node === null || node === undefined) return node;
+
+    // Handle Date objects - convert to Unix timestamp
+    if (node instanceof Date) {
+      return Math.floor(node.getTime() / 1000);
+    }
+
+    // Handle arrays
+    if (Array.isArray(node)) {
+      return node.map(item => this.transformNode(item));
+    }
+
+    // Handle objects (including Kysely nodes)
+    if (typeof node === 'object') {
+      const result: any = {};
+      for (const key of Object.keys(node)) {
+        result[key] = this.transformNode(node[key]);
+      }
+      return result;
+    }
+
+    return node;
+  }
+
+  async transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+    return args.result;
+  }
+}
 
 /**
  * Create Better Auth instance for Cloudflare Workers
@@ -10,6 +49,7 @@ import type { Env } from '../index';
 export function createAuth(env: Env) {
   const db = new Kysely<any>({
     dialect: new D1Dialect({ database: env.DB }),
+    plugins: [new DateToTimestampPlugin()],
   });
 
   return betterAuth({

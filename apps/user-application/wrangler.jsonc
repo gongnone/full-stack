@@ -1,5 +1,5 @@
-/** 
-  Stage "database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003"
+/**
+  Stage "database_id": "e35604ee-6e84-476f-a6ec-e6df6e12d81c" (foundry-global-stage)
   Production "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750",
   "service": "data-service-stage",
  * For more details on how to configure Wrangler, refer to:
@@ -91,7 +91,7 @@
       "d1_databases": [
         {
           "binding": "DB",
-          "database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
+          "database_id": "e35604ee-6e84-476f-a6ec-e6df6e12d81c",
           "migrations_dir": "../../packages/data-ops/src/drizzle-out"
         },
       ],

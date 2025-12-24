@@ -16,8 +16,8 @@ import { test, expect } from '@playwright/test';
 
 // Test configuration from environment (with safe defaults for local dev)
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const TEST_EMAIL = process.env.TEST_EMAIL || 'test@foundry.local';
-const TEST_PASSWORD = process.env.TEST_PASSWORD || 'TestPassword123@';
+const TEST_EMAIL = process.env.TEST_EMAIL || 'e2e-test@foundry.local';
+const TEST_PASSWORD = process.env.TEST_PASSWORD || 'TestPassword123!';
 
 // Validate test credentials are provided
 test.beforeAll(async () => {

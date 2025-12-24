@@ -13,7 +13,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const TEST_EMAIL = process.env.TEST_EMAIL || 'test@foundry.local';
+const TEST_EMAIL = process.env.TEST_EMAIL || 'e2e-test@foundry.local';
 const TEST_PASSWORD = process.env.TEST_PASSWORD || 'TestPassword123!';
 
 async function login(page: import('@playwright/test').Page) {

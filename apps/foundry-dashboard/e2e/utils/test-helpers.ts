@@ -8,7 +8,7 @@ import { Page, expect } from '@playwright/test';
 // Environment configuration
 export const config = {
   baseUrl: process.env.BASE_URL || 'http://localhost:5173',
-  email: process.env.TEST_EMAIL || 'test@foundry.local',
+  email: process.env.TEST_EMAIL || 'e2e-test@foundry.local',
   password: process.env.TEST_PASSWORD || 'TestPassword123!',
 };
 
@@ -27,7 +27,7 @@ export async function login(page: Page): Promise<boolean> {
   await page.goto('/login');
 
   // Wait for login form or redirect to app
-  const loginForm = page.locator('input[type="email"]');
+  const loginForm = page.locator('#email');
   const isLoginPage = await loginForm.isVisible({ timeout: 5000 }).catch(() => false);
 
   if (!isLoginPage) {
@@ -38,9 +38,9 @@ export async function login(page: Page): Promise<boolean> {
     return false;
   }
 
-  // Fill login form
-  await page.fill('input[type="email"]', config.email);
-  await page.fill('input[type="password"]', config.password);
+  // Fill login form using ID selectors (shadcn Input components)
+  await page.fill('#email', config.email);
+  await page.fill('#password', config.password);
   await page.click('button[type="submit"]');
 
   // Wait for navigation to app or error

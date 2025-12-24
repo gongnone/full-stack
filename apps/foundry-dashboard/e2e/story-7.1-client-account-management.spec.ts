@@ -10,7 +10,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const TEST_EMAIL = process.env.TEST_EMAIL || 'test@foundry.local';
+const TEST_EMAIL = process.env.TEST_EMAIL || 'e2e-test@foundry.local';
 const TEST_PASSWORD = process.env.TEST_PASSWORD || 'TestPassword123!';
 
 async function login(page: import('@playwright/test').Page) {
@@ -64,7 +64,7 @@ test.describe('Story 7.1: Client Account Management', () => {
       await page.waitForTimeout(1000);
 
       // If clients exist, they should show name and industry info
-      const clientCards = page.locator('[class*="rounded-xl"]').filter({ has: page.locator('p:has-text(/No industry/)') });
+      const clientCards = page.locator('[class*="rounded-xl"]').filter({ has: page.locator('p:has-text("No industry")') });
       const cardCount = await clientCards.count();
 
       if (cardCount > 0) {

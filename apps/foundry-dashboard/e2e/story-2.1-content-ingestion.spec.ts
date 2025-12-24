@@ -21,7 +21,7 @@ import * as fs from 'fs';
 
 // Test configuration from environment
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const TEST_EMAIL = process.env.TEST_EMAIL || 'test@foundry.local';
+const TEST_EMAIL = process.env.TEST_EMAIL || 'e2e-test@foundry.local';
 const TEST_PASSWORD = process.env.TEST_PASSWORD || 'TestPassword123!';
 
 // Helper to login

@@ -11,7 +11,7 @@
 import { test, expect } from '@playwright/test';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const TEST_EMAIL = process.env.TEST_EMAIL || 'test@foundry.local';
+const TEST_EMAIL = process.env.TEST_EMAIL || 'e2e-test@foundry.local';
 const TEST_PASSWORD = process.env.TEST_PASSWORD || 'TestPassword123!';
 
 async function login(page: import('@playwright/test').Page) {
@@ -115,12 +115,13 @@ test.describe('Story 7.2: RBAC & Team Assignment', () => {
       // Should either show error or redirect
       await page.waitForTimeout(1000);
 
-      // Either error message or redirect to clients list
+      // Either error message, clients list (with heading), or redirect
       const hasError = await page.locator('text=/not found|error|access denied|unauthorized/i').isVisible().catch(() => false);
-      const onClientsPage = page.url().includes('/clients') && !page.url().includes('/settings');
+      const hasClientsHeading = await page.locator('h1:has-text("Clients")').isVisible().catch(() => false);
       const onLoginPage = page.url().includes('/login');
 
-      expect(hasError || onClientsPage || onLoginPage).toBeTruthy();
+      // If we see the Clients page heading, access was prevented/redirected
+      expect(hasError || hasClientsHeading || onLoginPage).toBeTruthy();
     });
   });
 

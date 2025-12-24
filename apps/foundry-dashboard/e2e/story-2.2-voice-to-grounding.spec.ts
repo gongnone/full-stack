@@ -19,8 +19,18 @@ import { test, expect } from '@playwright/test';
 
 // Test configuration from environment
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const TEST_EMAIL = process.env.TEST_EMAIL || 'test@foundry.local';
+const TEST_EMAIL = process.env.TEST_EMAIL || 'e2e-test@foundry.local';
 const TEST_PASSWORD = process.env.TEST_PASSWORD || 'TestPassword123!';
+
+// Use fake media devices for testing (must be at top level)
+test.use({
+  launchOptions: {
+    args: [
+      '--use-fake-device-for-media-stream',
+      '--use-fake-ui-for-media-stream',
+    ],
+  },
+});
 
 // Helper to login
 async function login(page: import('@playwright/test').Page) {
@@ -32,16 +42,6 @@ async function login(page: import('@playwright/test').Page) {
 }
 
 test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
-  // Use fake media devices for testing
-  test.use({
-    launchOptions: {
-      args: [
-        '--use-fake-device-for-media-stream',
-        '--use-fake-ui-for-media-stream',
-      ],
-    },
-  });
-
   test.describe('Page Navigation', () => {
     test('navigates to Brand DNA page with voice section', async ({ page }) => {
       await login(page);

@@ -12,7 +12,7 @@ import { test, expect } from '@playwright/test';
 
 // Test configuration
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const TEST_EMAIL = 'test@foundry.local';
+const TEST_EMAIL = 'e2e-test@foundry.local';
 const TEST_PASSWORD = 'TestPassword123!';
 
 test.describe('Story 1.3: Dashboard Shell with Routing', () => {

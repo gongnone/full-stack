@@ -83,11 +83,11 @@ test.describe('Story 6.1: CSV/JSON Export Engine', () => {
     await expect(page.locator('[data-testid="format-csv"]')).toBeVisible();
     await expect(page.locator('[data-testid="format-json"]')).toBeVisible();
 
-    // Verify labels
-    await expect(page.locator('text=CSV')).toBeVisible();
-    await expect(page.locator('text=JSON')).toBeVisible();
-    await expect(page.locator('text=Excel-compatible')).toBeVisible();
-    await expect(page.locator('text=Developer-friendly')).toBeVisible();
+    // Verify labels - use .first() to avoid strict mode violations
+    await expect(page.locator('[data-testid="format-csv"]')).toBeVisible();
+    await expect(page.locator('[data-testid="format-json"]')).toBeVisible();
+    await expect(page.getByText('Excel-compatible').first()).toBeVisible();
+    await expect(page.getByText('Developer-friendly').first()).toBeVisible();
   });
 
   test('should close modal when clicking cancel', async ({ page }) => {

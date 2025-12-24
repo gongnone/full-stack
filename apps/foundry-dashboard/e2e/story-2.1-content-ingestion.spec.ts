@@ -177,13 +177,14 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       // Wait for upload and processing
       await page.waitForTimeout(3000);
 
-      // Check that Training Samples list contains the file
-      const samplesList = page.locator('h2:has-text("Training Samples")').locator('..');
-      await expect(samplesList).toBeVisible();
+      // Check that Training Samples section contains the file
+      // The samples are in a sibling container of the header, so look for the text on the page
+      await expect(page.locator('h2:has-text("Training Samples")')).toBeVisible();
 
       // The sample should appear with the filename (without extension)
+      // Look for the sample title in the main content area (use .first() as there may be multiple from previous runs)
       await expect(
-        samplesList.locator('text=test-sample')
+        page.locator('[data-testid="sample-title"]:has-text("test-sample")').first()
       ).toBeVisible({ timeout: 5000 });
 
       fs.unlinkSync(testPDF);
@@ -203,9 +204,9 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       const count = await sampleItems.count();
 
       if (count > 0) {
-        // Check first sample has an icon
+        // Check first sample has an icon (use .first() as there are 2 SVGs - source icon and expand arrow)
         const firstSample = sampleItems.first();
-        await expect(firstSample.locator('svg')).toBeVisible();
+        await expect(firstSample.locator('svg').first()).toBeVisible();
       }
     });
 
@@ -231,7 +232,7 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       }
     });
 
-    test('displays sample with quality badge', async ({ page }) => {
+    test('displays sample with quality or status badge', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
@@ -243,10 +244,16 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       if (count > 0) {
         const firstSample = sampleItems.first();
 
-        // Should have a quality badge (Excellent, Good, Fair, Pending, etc.)
-        await expect(
-          firstSample.locator('[data-testid="quality-badge"]')
-        ).toBeVisible();
+        // Should have either a quality badge (for analyzed samples) or status badge (Pending, Processing)
+        // Quality badge only appears for analyzed samples, status badge for others
+        const qualityBadge = firstSample.locator('[data-testid="quality-badge"]');
+        const statusBadge = firstSample.locator('text=/Pending|Processing|Failed/');
+
+        // At least one badge type should be visible
+        const hasQuality = await qualityBadge.isVisible().catch(() => false);
+        const hasStatus = await statusBadge.first().isVisible().catch(() => false);
+
+        expect(hasQuality || hasStatus).toBe(true);
       }
     });
   });
@@ -278,18 +285,30 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       const testTitle = `Test Sample ${Date.now()}`;
       const testContent = 'This is a test brand voice sample. We are professional yet approachable. We avoid jargon and speak directly to our customers.';
 
-      await page.fill('input[placeholder*="title" i]', testTitle);
+      await page.fill('#sample-title', testTitle);
       await page.fill('textarea', testContent);
 
-      // Submit the form
-      await page.click('button:has-text("Add Sample")');
+      // Submit the form and wait for API response
+      const responsePromise = page.waitForResponse(
+        resp => resp.url().includes('trpc') && resp.url().includes('createTextSample'),
+        { timeout: 15000 }
+      );
 
-      // Modal should close
-      await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 5000 });
+      // Click the submit button using more specific locator
+      const submitButton = page.locator('button[type="submit"]:has-text("Add Sample")');
+      await expect(submitButton).toBeEnabled();
+      await submitButton.click();
 
-      // Sample should appear in the list
+      // Wait for API to complete
+      const response = await responsePromise;
+      expect(response.ok()).toBe(true);
+
+      // Modal should close after successful API call
+      await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 10000 });
+
+      // Sample should appear in the list (use first() in case of duplicates from parallel runs)
       await expect(
-        page.locator(`text=${testTitle}`)
+        page.locator(`text=${testTitle}`).first()
       ).toBeVisible({ timeout: 5000 });
     });
 
@@ -301,10 +320,11 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       await page.click('button:has-text("Paste Text")');
       await page.waitForSelector('[role="dialog"]');
 
-      // Try to submit without filling fields
-      await page.click('button:has-text("Add Sample")');
+      // Button should be disabled without filling fields
+      const submitBtn = page.locator('button:has-text("Add Sample")');
+      await expect(submitBtn).toBeDisabled();
 
-      // Modal should stay open (validation failed)
+      // Modal should stay open (validation prevents submission)
       await expect(page.locator('[role="dialog"]')).toBeVisible();
     });
 
@@ -336,12 +356,16 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       const initialCount = await sampleItems.count();
 
       if (initialCount > 0) {
-        // Get the first sample's title for verification
+        // Get the first sample and click to expand it (delete button is in expanded view)
         const firstSample = sampleItems.first();
-        const sampleTitle = await firstSample.locator('[data-testid="sample-title"]').textContent();
+        await firstSample.click();
+
+        // Wait for expansion animation
+        await page.waitForTimeout(300);
 
         // Click delete button
         const deleteButton = firstSample.locator('[data-testid="delete-sample-btn"]');
+        await expect(deleteButton).toBeVisible();
         await deleteButton.click();
 
         // Wait for deletion to complete
@@ -364,9 +388,9 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
         page.locator('h2:has-text("Voice Profile Status")')
       ).toBeVisible();
 
-      // Should display total samples count
+      // Should display total samples count (use .first() as multiple elements match)
       await expect(
-        page.locator('text=/\\d+ samples?/')
+        page.locator('text=/\\d+ samples?/').first()
       ).toBeVisible();
     });
 

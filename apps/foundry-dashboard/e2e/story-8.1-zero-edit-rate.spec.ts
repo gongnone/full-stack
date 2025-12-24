@@ -60,7 +60,8 @@ test.describe('Story 8-1: Zero-Edit Rate Dashboard', () => {
       await page.waitForTimeout(1500);
 
       // Zero-Edit Rate metric card should always show (even with 0%)
-      const metricLabel = page.locator('text="Zero-Edit Rate"');
+      // Use .first() to avoid strict mode when multiple elements match
+      const metricLabel = page.getByText('Zero-Edit Rate').first();
       await expect(metricLabel).toBeVisible();
 
       // Should show percentage value

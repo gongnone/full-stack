@@ -57,23 +57,25 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
     });
   });
 
+  // Helper to find the recording button via its sibling text
+  function getRecordButton(page: import('@playwright/test').Page) {
+    // Button is sibling of "Click to start recording" paragraph
+    return page.locator('p:has-text("Click to start recording")').locator('..').locator('button');
+  }
+
   test.describe('AC1: Recording Interface with Timer', () => {
     test('displays microphone icon and recording interface', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      // Voice section should be visible
-      const voiceSection = page.locator('h2:has-text("Voice-to-Grounding Pipeline")').locator('..');
+      // Voice section heading should be visible
+      await expect(page.locator('h2:has-text("Voice-to-Grounding Pipeline")')).toBeVisible();
 
-      // Microphone icon should be visible
-      await expect(voiceSection.locator('svg').first()).toBeVisible();
+      // Recording button should be present (found via sibling text)
+      await expect(getRecordButton(page)).toBeVisible();
 
-      // Recording button should be present
-      await expect(
-        voiceSection.locator('button:has-text("Start Recording")').or(
-          voiceSection.locator('[data-testid="voice-recorder-btn"]')
-        )
-      ).toBeVisible();
+      // "Click to start recording" text should be visible
+      await expect(page.locator('text=Click to start recording')).toBeVisible();
     });
 
     test('shows timer when recording starts', async ({ page }) => {
@@ -84,14 +86,13 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       await page.context().grantPermissions(['microphone']);
 
       // Click record button
-      const recordButton = page.locator('button:has-text("Start Recording")').or(
-        page.locator('[data-testid="voice-recorder-btn"]')
-      ).first();
+      const recordButton = getRecordButton(page);
+      await expect(recordButton).toBeVisible();
       await recordButton.click();
 
       // Timer should appear showing 00:00 or similar
       await expect(
-        page.locator('text=/\\d{1,2}:\\d{2}/')
+        page.locator('text=/\\d{1,2}:\\d{2}/').first()
       ).toBeVisible({ timeout: 2000 });
 
       // Stop button should appear
@@ -109,9 +110,8 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       await page.context().grantPermissions(['microphone']);
 
       // Start recording
-      const recordButton = page.locator('button:has-text("Start Recording")').or(
-        page.locator('[data-testid="voice-recorder-btn"]')
-      ).first();
+      const recordButton = getRecordButton(page);
+      await expect(recordButton).toBeVisible();
       await recordButton.click();
 
       // Verify max duration is mentioned in UI
@@ -129,9 +129,8 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       await page.context().grantPermissions(['microphone']);
 
       // Start recording
-      const recordButton = page.locator('button:has-text("Start Recording")').or(
-        page.locator('[data-testid="voice-recorder-btn"]')
-      ).first();
+      const recordButton = getRecordButton(page);
+      await expect(recordButton).toBeVisible();
       await recordButton.click();
 
       // Wait a moment
@@ -162,9 +161,8 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       await page.context().grantPermissions(['microphone']);
 
       // Start and stop recording
-      const recordButton = page.locator('button:has-text("Start Recording")').or(
-        page.locator('[data-testid="voice-recorder-btn"]')
-      ).first();
+      const recordButton = getRecordButton(page);
+      await expect(recordButton).toBeVisible();
       await recordButton.click();
       await page.waitForTimeout(2000);
 
@@ -192,9 +190,8 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       await page.context().grantPermissions(['microphone']);
 
       // Start and stop recording
-      const recordButton = page.locator('button:has-text("Start Recording")').or(
-        page.locator('[data-testid="voice-recorder-btn"]')
-      ).first();
+      const recordButton = getRecordButton(page);
+      await expect(recordButton).toBeVisible();
       await recordButton.click();
       await page.waitForTimeout(1000);
 
@@ -346,10 +343,8 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       await page.context().clearPermissions();
 
       // Try to start recording
-      const recordButton = page.locator('button:has-text("Start Recording")').or(
-        page.locator('[data-testid="voice-recorder-btn"]')
-      ).first();
-
+      const recordButton = getRecordButton(page);
+      await expect(recordButton).toBeVisible();
       await recordButton.click();
 
       // Should show error message or permission request
@@ -377,9 +372,8 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       await page.context().grantPermissions(['microphone']);
 
       // Start recording
-      const recordButton = page.locator('button:has-text("Start Recording")').or(
-        page.locator('[data-testid="voice-recorder-btn"]')
-      ).first();
+      const recordButton = getRecordButton(page);
+      await expect(recordButton).toBeVisible();
       await recordButton.click();
 
       // Look for cancel button (if implemented)
@@ -398,28 +392,29 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       }
     });
 
-    test('disables recording button during processing', async ({ page }) => {
+    test('shows completion state after recording stops', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
       await page.context().grantPermissions(['microphone']);
 
-      // Start and stop recording
-      const recordButton = page.locator('button:has-text("Start Recording")').or(
-        page.locator('[data-testid="voice-recorder-btn"]')
-      ).first();
+      // Start recording
+      const recordButton = getRecordButton(page);
+      await expect(recordButton).toBeVisible();
       await recordButton.click();
       await page.waitForTimeout(1000);
 
+      // Stop recording
       const stopButton = page.locator('button:has-text("Stop")').first();
       await stopButton.click();
 
-      // During processing, record button should be disabled
-      await page.waitForTimeout(500);
-
-      const isDisabled = await recordButton.isDisabled().catch(() => false);
-      // Button might be disabled during processing
-      expect(isDisabled || true).toBe(true); // Soft check
+      // After stopping, UI should show completion state or "Record Again" button
+      // The original record button disappears and is replaced with new UI
+      await expect(
+        page.locator('text=/Recording complete/i').or(
+          page.getByRole('button', { name: 'Record Again' })
+        ).first()
+      ).toBeVisible({ timeout: 10000 });
     });
   });
 

@@ -24,7 +24,7 @@ function CheckIcon({ className }: { className?: string }) {
 
 export function WizardStepper({ currentStep, steps, onStepClick }: WizardStepperProps) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between" data-testid="wizard-stepper">
       {steps.map((step, index) => {
         const isCompleted = step.number < currentStep;
         const isCurrent = step.number === currentStep;
@@ -36,6 +36,8 @@ export function WizardStepper({ currentStep, steps, onStepClick }: WizardStepper
             <button
               onClick={() => isClickable && onStepClick(step.number)}
               disabled={!isClickable}
+              data-testid={`wizard-step-${step.number}`}
+              data-active={isCurrent ? 'true' : 'false'}
               className={`
                 w-10 h-10 rounded-full flex items-center justify-center font-medium
                 transition-all duration-200

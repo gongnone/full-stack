@@ -63,6 +63,7 @@ export function TextPasteTab({ clientId, onSourceCreated, disabled }: TextPasteT
         </label>
         <input
           id="source-title"
+          data-testid="text-title"
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -88,6 +89,7 @@ export function TextPasteTab({ clientId, onSourceCreated, disabled }: TextPasteT
         </label>
         <textarea
           id="source-content"
+          data-testid="text-paste-textarea"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder={`Paste your content here... (minimum ${formatNumber(MIN_CHARS)} characters)`}
@@ -104,7 +106,7 @@ export function TextPasteTab({ clientId, onSourceCreated, disabled }: TextPasteT
 
       {/* Character/word count */}
       <div className="flex items-center justify-between text-sm">
-        <div style={{ color: charCount > 0 && charCount < MIN_CHARS ? 'var(--kill)' : 'var(--text-muted)' }}>
+        <div data-testid="char-count" style={{ color: charCount > 0 && charCount < MIN_CHARS ? 'var(--kill)' : 'var(--text-muted)' }}>
           {formatNumber(charCount)} / {formatNumber(MIN_CHARS)} min characters
         </div>
         <div style={{ color: 'var(--text-muted)' }}>

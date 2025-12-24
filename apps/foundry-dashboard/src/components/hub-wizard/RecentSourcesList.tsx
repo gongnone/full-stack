@@ -113,7 +113,7 @@ export function RecentSourcesList({ clientId, onSourceSelected, disabled }: Rece
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-testid="recent-sources">
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
         Recent Sources
       </p>

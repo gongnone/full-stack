@@ -105,6 +105,7 @@ export function UrlInputTab({ clientId, onSourceCreated, disabled }: UrlInputTab
         </label>
         <input
           id="source-url"
+          data-testid="source-url"
           type="url"
           value={url}
           onChange={(e) => {

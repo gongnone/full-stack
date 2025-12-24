@@ -165,6 +165,7 @@ export function SourceDropZone({ clientId, onSourceCreated, disabled }: SourceDr
       <div
         role="button"
         tabIndex={disabled ? -1 : 0}
+        data-testid="source-dropzone"
         onClick={!disabled && !isUploading ? handleClick : undefined}
         onKeyDown={(e) => e.key === 'Enter' && !disabled && !isUploading && handleClick()}
         onDrop={!disabled && !isUploading ? handleDrop : undefined}
@@ -190,7 +191,7 @@ export function SourceDropZone({ clientId, onSourceCreated, disabled }: SourceDr
         />
 
         {isComplete ? (
-          <div className="space-y-2">
+          <div className="space-y-2" data-testid="upload-success">
             <div
               className="w-12 h-12 mx-auto rounded-full flex items-center justify-center"
               style={{ backgroundColor: 'var(--approve)' }}
@@ -207,7 +208,7 @@ export function SourceDropZone({ clientId, onSourceCreated, disabled }: SourceDr
             </p>
           </div>
         ) : isUploading ? (
-          <div className="space-y-4">
+          <div className="space-y-4" data-testid="upload-progress">
             <DocumentIcon className="w-12 h-12 mx-auto" style={{ color: 'var(--text-muted)' }} />
             <p style={{ color: 'var(--text-primary)' }} className="font-medium">
               Uploading...
@@ -216,7 +217,7 @@ export function SourceDropZone({ clientId, onSourceCreated, disabled }: SourceDr
               {selectedFile?.name}
             </p>
             {/* Progress bar */}
-            <div className="w-full max-w-xs mx-auto h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-surface)' }}>
+            <div className="w-full max-w-xs mx-auto h-2 rounded-full overflow-hidden" role="progressbar" style={{ backgroundColor: 'var(--bg-surface)' }}>
               <div
                 className="h-full transition-all duration-300 rounded-full"
                 style={{

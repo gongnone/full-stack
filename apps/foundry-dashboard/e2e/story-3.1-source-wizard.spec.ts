@@ -57,11 +57,8 @@ test.describe('Story 3.1: Source Selection & Upload Wizard', () => {
       // Step 1 should be active initially
       await expect(page.locator('[data-testid="wizard-step-1"]')).toHaveAttribute('data-active', 'true');
 
-      // Click Next to go to Step 2
-      await page.click('button:has-text("Next")');
-
-      // Step 2 should now be active
-      await expect(page.locator('[data-testid="wizard-step-2"]')).toHaveAttribute('data-active', 'true');
+      // Wait for auto-advance to Step 2 (MVP auto-selects client after 500ms)
+      await expect(page.locator('[data-testid="wizard-step-2"]')).toHaveAttribute('data-active', 'true', { timeout: 5000 });
     });
   });
 
@@ -73,8 +70,8 @@ test.describe('Story 3.1: Source Selection & Upload Wizard', () => {
       await page.click('button[type="submit"]');
       await page.waitForURL(/\/app/);
       await page.goto(`${BASE_URL}/app/hubs/new`);
-      // Navigate to step 2 (Upload Source)
-      await page.click('button:has-text("Next")');
+      // Wait for auto-advance to step 2 (MVP auto-selects client after 500ms)
+      await expect(page.locator('[data-testid="wizard-step-2"]')).toHaveAttribute('data-active', 'true', { timeout: 5000 });
     });
 
     test('drop zone is visible on step 2', async ({ page }) => {
@@ -114,7 +111,8 @@ test.describe('Story 3.1: Source Selection & Upload Wizard', () => {
       await page.click('button[type="submit"]');
       await page.waitForURL(/\/app/);
       await page.goto(`${BASE_URL}/app/hubs/new`);
-      await page.click('button:has-text("Next")');
+      // Wait for auto-advance to step 2 (MVP auto-selects client after 500ms)
+      await expect(page.locator('[data-testid="wizard-step-2"]')).toHaveAttribute('data-active', 'true', { timeout: 5000 });
     });
 
     test('progress bar appears during file upload', async ({ page }) => {
@@ -148,7 +146,8 @@ test.describe('Story 3.1: Source Selection & Upload Wizard', () => {
       await page.click('button[type="submit"]');
       await page.waitForURL(/\/app/);
       await page.goto(`${BASE_URL}/app/hubs/new`);
-      await page.click('button:has-text("Next")');
+      // Wait for auto-advance to step 2 (MVP auto-selects client after 500ms)
+      await expect(page.locator('[data-testid="wizard-step-2"]')).toHaveAttribute('data-active', 'true', { timeout: 5000 });
     });
 
     test('Paste Text tab shows textarea', async ({ page }) => {
@@ -170,15 +169,15 @@ test.describe('Story 3.1: Source Selection & Upload Wizard', () => {
       await expect(charCount).toContainText('51');
     });
 
-    test('title input is required for text paste', async ({ page }) => {
+    test('submit button is disabled for insufficient content', async ({ page }) => {
       await page.click('button:has-text("Paste Text")');
 
-      // Fill textarea but not title
+      // Fill textarea with too little content (minimum is 500 chars)
       const textarea = page.locator('textarea[data-testid="text-paste-textarea"]');
       await textarea.fill('Some content here');
 
-      // Submit button should be disabled or show validation error
-      const submitBtn = page.locator('button:has-text("Create Source")');
+      // Submit button should be disabled until minimum character count is met
+      const submitBtn = page.locator('button:has-text("Use This Content")');
       await expect(submitBtn).toBeDisabled();
     });
   });
@@ -191,7 +190,8 @@ test.describe('Story 3.1: Source Selection & Upload Wizard', () => {
       await page.click('button[type="submit"]');
       await page.waitForURL(/\/app/);
       await page.goto(`${BASE_URL}/app/hubs/new`);
-      await page.click('button:has-text("Next")');
+      // Wait for auto-advance to step 2 (MVP auto-selects client after 500ms)
+      await expect(page.locator('[data-testid="wizard-step-2"]')).toHaveAttribute('data-active', 'true', { timeout: 5000 });
     });
 
     test('URL tab shows input field', async ({ page }) => {
@@ -252,7 +252,8 @@ test.describe('Story 3.1: Source Selection & Upload Wizard', () => {
       await page.click('button[type="submit"]');
       await page.waitForURL(/\/app/);
       await page.goto(`${BASE_URL}/app/hubs/new`);
-      await page.click('button:has-text("Next")');
+      // Wait for auto-advance to step 2 (MVP auto-selects client after 500ms)
+      await expect(page.locator('[data-testid="wizard-step-2"]')).toHaveAttribute('data-active', 'true', { timeout: 5000 });
     });
 
     test('recent sources section is visible', async ({ page }) => {
@@ -281,20 +282,23 @@ test.describe('Story 3.1: Source Selection & Upload Wizard', () => {
       // Start wizard
       await page.goto(`${BASE_URL}/app/hubs/new`);
 
-      // Step 1: Select Client (auto-selected in MVP)
+      // Step 1: Select Client (auto-selected in MVP after 500ms)
       await expect(page.locator('[data-testid="wizard-step-1"]')).toHaveAttribute('data-active', 'true');
-      await page.click('button:has-text("Next")');
+      // Wait for auto-advance to Step 2
+      await expect(page.locator('[data-testid="wizard-step-2"]')).toHaveAttribute('data-active', 'true', { timeout: 5000 });
 
       // Step 2: Upload Source - use text paste
       await page.click('button:has-text("Paste Text")');
       await page.fill('input[data-testid="text-title"]', 'Test Source Document');
-      await page.fill('textarea[data-testid="text-paste-textarea"]', 'This is the content of my test source document. It contains valuable information for the hub.');
+      // Fill with enough content to meet minimum character requirement (500 chars)
+      const longContent = 'This is the content of my test source document. It contains valuable information for the hub. '.repeat(10);
+      await page.fill('textarea[data-testid="text-paste-textarea"]', longContent);
 
-      // Create source
-      await page.click('button:has-text("Create Source")');
+      // Create source (button text is "Use This Content")
+      await page.click('button:has-text("Use This Content")');
 
-      // Should see success or move to next step
-      await expect(page.locator('[data-testid="source-created"]').or(page.locator('[data-testid="wizard-step-3"]'))).toBeVisible({ timeout: 10000 });
+      // Should move to step 3 (Configure Pillars) after source is created
+      await expect(page.locator('[data-testid="wizard-step-3"]')).toHaveAttribute('data-active', 'true', { timeout: 15000 });
     });
   });
 });

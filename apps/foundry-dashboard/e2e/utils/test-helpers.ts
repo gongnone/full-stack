@@ -123,11 +123,18 @@ export async function hasSpokes(page: Page): Promise<boolean> {
 export async function navigateToReview(page: Page): Promise<boolean> {
   await page.goto('/app/review');
 
-  // Wait for review page content
-  const reviewTitle = page.locator('text=Sprint Review, text=Review');
-  const loaded = await reviewTitle.isVisible({ timeout: 5000 }).catch(() => false);
+  // Wait for loading to complete
+  const loading = page.locator('text=Loading...');
+  await loading.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
 
-  return loaded;
+  // Wait for review page content - look for h1 with Sprint Review or bucket cards
+  const reviewTitle = page.locator('h1:has-text("Sprint Review")');
+  const bucketCards = page.locator('text=High Confidence');
+
+  const hasTitle = await reviewTitle.isVisible({ timeout: 5000 }).catch(() => false);
+  const hasBuckets = await bucketCards.isVisible({ timeout: 2000 }).catch(() => false);
+
+  return hasTitle || hasBuckets;
 }
 
 /**
@@ -136,11 +143,18 @@ export async function navigateToReview(page: Page): Promise<boolean> {
 export async function navigateToCreativeConflicts(page: Page): Promise<boolean> {
   await page.goto('/app/creative-conflicts');
 
-  // Wait for page content
-  const title = page.locator('text=Creative Conflicts');
-  const loaded = await title.isVisible({ timeout: 5000 }).catch(() => false);
+  // Wait for loading to complete
+  const loading = page.locator('text=Loading...');
+  await loading.waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
 
-  return loaded;
+  // Wait for page content - h1 with Creative Conflicts or empty state
+  const title = page.locator('h1:has-text("Creative Conflicts")');
+  const emptyState = page.locator('h2:has-text("No Creative Conflicts")');
+
+  const hasTitle = await title.isVisible({ timeout: 5000 }).catch(() => false);
+  const hasEmpty = await emptyState.isVisible({ timeout: 2000 }).catch(() => false);
+
+  return hasTitle || hasEmpty;
 }
 
 /**

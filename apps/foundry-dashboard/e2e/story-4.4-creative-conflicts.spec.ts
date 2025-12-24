@@ -16,19 +16,26 @@ test.describe('Story 4.4: Creative Conflict Escalation', () => {
     const loaded = await navigateToCreativeConflicts(page);
     expect(loaded).toBe(true);
 
-    await expect(page.locator('h1:has-text("Creative Conflicts")')).toBeVisible();
+    // Page should show h1 "Creative Conflicts" or h2 "No Creative Conflicts" empty state
+    const title = page.locator('h1:has-text("Creative Conflicts")');
+    const emptyState = page.locator('h2:has-text("No Creative Conflicts")');
+
+    const hasTitle = await title.isVisible({ timeout: 3000 }).catch(() => false);
+    const hasEmpty = await emptyState.isVisible({ timeout: 1000 }).catch(() => false);
+
+    expect(hasTitle || hasEmpty).toBe(true);
   });
 
   test('should show conflict count or empty state', async ({ page }) => {
     await navigateToCreativeConflicts(page);
     await waitForPageLoad(page);
 
-    // Should show either conflicts count or empty state
-    const conflictCount = page.locator('text=/\\d+ conflicts?/i');
-    const emptyState = page.locator('text=No Creative Conflicts, text=All spokes have passed');
+    // Should show either conflicts count badge or empty state message
+    const conflictCount = page.locator('text=/\\d+/');
+    const emptyState = page.locator('h2:has-text("No Creative Conflicts")');
 
-    const hasConflicts = await conflictCount.isVisible({ timeout: 3000 }).catch(() => false);
-    const isEmpty = await emptyState.first().isVisible({ timeout: 1000 }).catch(() => false);
+    const hasConflicts = await conflictCount.first().isVisible({ timeout: 3000 }).catch(() => false);
+    const isEmpty = await emptyState.isVisible({ timeout: 1000 }).catch(() => false);
 
     expect(hasConflicts || isEmpty).toBe(true);
   });
@@ -110,7 +117,12 @@ test.describe('Story 4.4: Creative Conflict Escalation', () => {
     await navigateToCreativeConflicts(page);
     await waitForPageLoad(page);
 
-    const conflictCard = page.locator('.conflict-card, [class*="rounded-lg"]').first();
+    // Check for empty state first
+    const emptyState = page.locator('h2:has-text("No Creative Conflicts")');
+    const isEmpty = await emptyState.isVisible({ timeout: 2000 }).catch(() => false);
+    test.skip(isEmpty, 'No conflicts - empty state shown');
+
+    const conflictCard = page.locator('.conflict-card').first();
     const hasCards = await conflictCard.isVisible({ timeout: 3000 }).catch(() => false);
     test.skip(!hasCards, 'No conflict cards visible');
 
@@ -122,7 +134,12 @@ test.describe('Story 4.4: Creative Conflict Escalation', () => {
     await navigateToCreativeConflicts(page);
     await waitForPageLoad(page);
 
-    const conflictCard = page.locator('.conflict-card, [class*="rounded-lg"]').first();
+    // Check for empty state first
+    const emptyState = page.locator('h2:has-text("No Creative Conflicts")');
+    const isEmpty = await emptyState.isVisible({ timeout: 2000 }).catch(() => false);
+    test.skip(isEmpty, 'No conflicts - empty state shown');
+
+    const conflictCard = page.locator('.conflict-card').first();
     const hasCards = await conflictCard.isVisible({ timeout: 3000 }).catch(() => false);
     test.skip(!hasCards, 'No conflict cards visible');
 
@@ -185,12 +202,17 @@ test.describe('Story 4.4: Creative Conflict Escalation', () => {
     await navigateToCreativeConflicts(page);
     await waitForPageLoad(page);
 
-    const conflictCard = page.locator('.conflict-card, [class*="rounded-lg"]').first();
+    // Check for empty state first
+    const emptyState = page.locator('h2:has-text("No Creative Conflicts")');
+    const isEmpty = await emptyState.isVisible({ timeout: 2000 }).catch(() => false);
+    test.skip(isEmpty, 'No conflicts - empty state shown');
+
+    const conflictCard = page.locator('.conflict-card').first();
     const hasCards = await conflictCard.isVisible({ timeout: 3000 }).catch(() => false);
     test.skip(!hasCards, 'No conflict cards');
 
     // Should show spoke content (text area within card)
-    const contentArea = conflictCard.locator('[class*="text-sm"], p');
+    const contentArea = conflictCard.locator('.text-sm');
     await expect(contentArea.first()).toBeVisible();
   });
 

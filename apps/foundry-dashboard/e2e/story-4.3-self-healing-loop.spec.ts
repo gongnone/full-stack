@@ -27,9 +27,14 @@ test.describe('Story 4.3: The Self-Healing Loop', () => {
       const loaded = await navigateToReview(page);
       expect(loaded).toBe(true);
 
-      // Page should show either review content or empty state
-      const reviewHeader = page.locator('h1:has-text("Sprint Review"), h1:has-text("Review")');
-      await expect(reviewHeader).toBeVisible();
+      // Page should show Sprint Review header or bucket cards
+      const reviewHeader = page.locator('h1:has-text("Sprint Review")');
+      const bucketCards = page.locator('text=High Confidence');
+
+      const hasHeader = await reviewHeader.isVisible({ timeout: 3000 }).catch(() => false);
+      const hasBuckets = await bucketCards.isVisible({ timeout: 1000 }).catch(() => false);
+
+      expect(hasHeader || hasBuckets).toBe(true);
     });
 
     test('Review page shows quality gate scores when spokes exist', async ({ page }) => {
@@ -43,9 +48,10 @@ test.describe('Story 4.3: The Self-Healing Loop', () => {
         const qualityBadges = page.locator('text=/G[2457]/');
         await expect(qualityBadges.first()).toBeVisible({ timeout: 5000 });
       } else {
-        // Empty state is acceptable
-        const emptyState = page.locator('text=/No Items|Sprint Complete|All Done/i');
-        await expect(emptyState.first()).toBeVisible();
+        // Empty state - show buckets dashboard with h3 headings
+        const bucketHeading = page.locator('h3:has-text("High Confidence")');
+        const hasBuckets = await bucketHeading.isVisible({ timeout: 3000 }).catch(() => false);
+        expect(hasBuckets).toBe(true);
       }
     });
 

@@ -3,14 +3,29 @@
  * Hubs Index Route - List all Hubs with filtering
  */
 
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, Outlet, useMatch } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { HubCard } from '@/components/hubs';
 import type { HubListItem } from '../../../worker/types';
 
 export const Route = createFileRoute('/app/hubs')({
-  component: HubsPage,
+  component: HubsLayout,
 });
+
+// Layout component that renders child routes OR the hubs list
+function HubsLayout() {
+  // Check if we're on a child route (like /app/hubs/new)
+  const childMatch = useMatch({ from: '/app/hubs/new', shouldThrow: false });
+  const hubDetailMatch = useMatch({ from: '/app/hubs/$hubId', shouldThrow: false });
+
+  // If on a child route, render the Outlet (child content)
+  if (childMatch || hubDetailMatch) {
+    return <Outlet />;
+  }
+
+  // Otherwise render the hubs list
+  return <HubsPage />;
+}
 
 // Loading skeleton for Hub cards
 function HubCardSkeleton() {

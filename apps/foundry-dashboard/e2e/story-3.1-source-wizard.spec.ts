@@ -131,10 +131,11 @@ test.describe('Story 3.1: Source Selection & Upload Wizard', () => {
 
       // Progress bar should appear during upload
       // Note: May be too fast to catch in test, but structure should exist
-      const progressBar = page.locator('[data-testid="upload-progress"], [role="progressbar"]');
+      // Use .first() to avoid strict mode violation when both elements exist
+      const progressOrSuccess = page.locator('[data-testid="upload-progress"]').or(page.locator('[data-testid="upload-success"]')).first();
 
       // Either progress or completion should be visible
-      await expect(progressBar.or(page.locator('[data-testid="upload-success"]'))).toBeVisible({ timeout: 10000 });
+      await expect(progressOrSuccess).toBeVisible({ timeout: 10000 });
     });
   });
 

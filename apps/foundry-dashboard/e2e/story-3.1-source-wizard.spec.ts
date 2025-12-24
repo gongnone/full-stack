@@ -259,7 +259,8 @@ test.describe('Story 3.1: Source Selection & Upload Wizard', () => {
 
     test('recent sources section is visible', async ({ page }) => {
       // Recent sources section should be visible (may show empty state)
-      const recentSection = page.locator('[data-testid="recent-sources"]').or(page.getByText(/recent sources/i));
+      // Use data-testid first, fallback to text (but use .first() to avoid strict mode)
+      const recentSection = page.locator('[data-testid="recent-sources"]').or(page.getByText(/recent sources/i)).first();
       await expect(recentSection).toBeVisible();
     });
 

@@ -147,14 +147,25 @@ test.describe('Story 6.1: CSV/JSON Export Engine', () => {
     // Verify export history heading
     await expect(page.locator('h2:has-text("Export History")')).toBeVisible();
 
-    // Should show either empty state or export items
-    const emptyState = page.locator('text=No Exports Yet');
+    // Wait for loading to complete and content to appear
+    // Use data-testid selectors for reliability
+    const emptyState = page.locator('[data-testid="exports-empty-state"]');
     const exportItems = page.locator('[data-testid^="export-"]');
+    const loadingState = page.locator('[data-testid="exports-loading"]');
 
+    // Wait for either loading, empty state, or items to appear (longer timeout for tRPC query)
+    await expect(emptyState.or(exportItems.first()).or(loadingState)).toBeVisible({ timeout: 5000 });
+
+    // If loading, wait for it to finish
+    if (await loadingState.isVisible().catch(() => false)) {
+      await expect(loadingState).not.toBeVisible({ timeout: 10000 });
+    }
+
+    // Now check that either empty state or items are visible
     const hasEmpty = await emptyState.isVisible({ timeout: 2000 }).catch(() => false);
     const hasItems = await exportItems.first().isVisible({ timeout: 2000 }).catch(() => false);
 
-    // At least one should be visible
+    // At least one should be visible after loading completes
     expect(hasEmpty || hasItems).toBe(true);
   });
 

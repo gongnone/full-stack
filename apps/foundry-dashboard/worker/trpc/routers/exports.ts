@@ -16,7 +16,7 @@ const platformEnum = z.enum([
 ]);
 
 export const exportsRouter = t.router({
-  // Create a content export
+  // Create a content export (Story 6.1, 6.2, 6.3, 6.4)
   create: procedure
     .input(z.object({
       clientId: z.string().uuid(),
@@ -24,12 +24,17 @@ export const exportsRouter = t.router({
       platforms: z.array(platformEnum).optional(),
       format: z.enum(['csv', 'json']),
       includeVisuals: z.boolean().default(false),
+      includeScheduling: z.boolean().default(true), // Story 6.3
+      groupByPlatform: z.boolean().default(false), // Story 6.2
     }))
     .mutation(async ({ ctx, input }) => {
       const result = await ctx.callAgent(input.clientId, 'createExport', {
         format: input.format,
         hubIds: input.hubIds,
         platforms: input.platforms,
+        includeVisuals: input.includeVisuals,
+        includeScheduling: input.includeScheduling,
+        groupByPlatform: input.groupByPlatform,
       });
 
       return {
@@ -74,6 +79,58 @@ export const exportsRouter = t.router({
 
       return {
         items,
+      };
+    }),
+
+  // Copy spoke content to clipboard (Story 6.5)
+  copyToClipboard: procedure
+    .input(z.object({
+      clientId: z.string().uuid(),
+      spokeIds: z.array(z.string().uuid()),
+      format: z.enum(['plain', 'markdown', 'json']).default('plain'),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const spokes = await ctx.callAgent(input.clientId, 'getSpokes', {
+        spokeIds: input.spokeIds,
+      });
+
+      let content = '';
+      if (input.format === 'json') {
+        content = JSON.stringify(spokes, null, 2);
+      } else if (input.format === 'markdown') {
+        content = spokes.map((s: any) =>
+          `## ${s.platform.toUpperCase()} - ${s.pillarId || 'General'}\n\n${s.content}\n\n---\n`
+        ).join('\n');
+      } else {
+        content = spokes.map((s: any) => s.content).join('\n\n---\n\n');
+      }
+
+      return {
+        content,
+        count: spokes.length,
+      };
+    }),
+
+  // Get export metadata (Story 6.3 - scheduling info)
+  getExportMetadata: procedure
+    .input(z.object({
+      clientId: z.string().uuid(),
+      exportId: z.string().uuid(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const result = await ctx.callAgent(input.clientId, 'getExport', {
+        exportId: input.exportId,
+      });
+
+      return {
+        exportId: input.exportId,
+        createdAt: result.createdAt,
+        status: result.status,
+        format: result.format,
+        spokeCount: result.spokeCount,
+        platforms: result.platforms || [],
+        includesScheduling: result.includesScheduling || false,
+        includesMedia: result.includesMedia || false,
       };
     }),
 });

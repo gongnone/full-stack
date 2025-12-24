@@ -1,11 +1,13 @@
 /**
- * Story 3.4: Hub Metadata & State Management
- * Hub Detail Route - Display Hub with pillars
+ * Story 3.4 + 4.1: Hub Detail with Spoke Generation
+ * Hub Detail Route - Display Hub with pillars and spoke tree view
  */
 
+import { useState, useMemo } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
-import type { Pillar } from '../../../worker/types';
+import { SpokeTreeView, GenerationProgress, PlatformFilter } from '@/components/spokes';
+import type { Pillar, Spoke, SpokePlatform, SpokeGenerationProgress } from '../../../worker/types';
 
 export const Route = createFileRoute('/app/hubs/$hubId')({
   component: HubDetailPage,
@@ -29,14 +31,14 @@ const DEFAULT_STATUS_CONFIG = STATUS_CONFIG.ready;
 
 // Psychological angle badge colors
 const ANGLE_COLORS: Record<string, string> = {
-  Contrarian: '#E11D48',    // Rose
-  Authority: '#2563EB',     // Blue
-  Urgency: '#EA580C',       // Orange
-  Aspiration: '#7C3AED',    // Violet
-  Fear: '#DC2626',          // Red
-  Curiosity: '#0891B2',     // Cyan
-  Transformation: '#059669', // Emerald
-  Rebellion: '#BE185D',     // Pink
+  Contrarian: '#E11D48',
+  Authority: '#2563EB',
+  Urgency: '#EA580C',
+  Aspiration: '#7C3AED',
+  Fear: '#DC2626',
+  Curiosity: '#0891B2',
+  Transformation: '#059669',
+  Rebellion: '#BE185D',
 };
 
 function formatDate(timestamp: number): string {
@@ -132,16 +134,127 @@ function LoadingSkeleton() {
 
 function HubDetailPage() {
   const { hubId } = Route.useParams();
+  const [platformFilter, setPlatformFilter] = useState<SpokePlatform | 'all'>('all');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState<SpokeGenerationProgress | null>(null);
+  const [activeTab, setActiveTab] = useState<'pillars' | 'spokes'>('pillars');
 
   // Get client ID
   const { data: userData } = trpc.auth.me.useQuery();
   const clientId = userData?.user?.id || '';
 
   // Fetch Hub data
-  const { data: hub, isLoading, error } = trpc.hubs.get.useQuery(
+  const { data: hub, isLoading, error, refetch: refetchHub } = trpc.hubs.get.useQuery(
     { hubId, clientId },
     { enabled: !!clientId && !!hubId }
   );
+
+  // Fetch spokes for this hub
+  const { data: spokesData, refetch: refetchSpokes } = trpc.spokes.list.useQuery(
+    { clientId, hubId },
+    { enabled: !!clientId && !!hubId && activeTab === 'spokes' }
+  );
+
+  // Generate spokes mutation
+  const generateMutation = trpc.spokes.generate.useMutation({
+    onSuccess: () => {
+      // Start polling for progress (mock for now)
+      setIsGenerating(true);
+      simulateGeneration();
+    },
+    onError: (error) => {
+      alert(`Generation failed: ${error.message}`);
+      setIsGenerating(false);
+    },
+  });
+
+  // Simulate generation progress (until we have real polling)
+  const simulateGeneration = () => {
+    const pillars = hub?.pillars || [];
+    let currentPillar = 0;
+    let totalSpokes = 0;
+
+    const interval = setInterval(() => {
+      if (currentPillar >= pillars.length) {
+        setGenerationProgress({
+          hub_id: hubId,
+          client_id: clientId,
+          status: 'completed',
+          total_pillars: pillars.length,
+          completed_pillars: pillars.length,
+          total_spokes: totalSpokes,
+          completed_spokes: totalSpokes,
+          current_pillar_id: null,
+          current_pillar_name: null,
+          error_message: null,
+          started_at: Date.now() / 1000 - 30,
+          completed_at: Date.now() / 1000,
+          updated_at: Date.now() / 1000,
+        });
+        setIsGenerating(false);
+        clearInterval(interval);
+        // Refresh data
+        refetchHub();
+        refetchSpokes();
+        setActiveTab('spokes');
+        return;
+      }
+
+      const pillar = pillars[currentPillar];
+      const newSpokes = 7; // 7 platforms per pillar
+      totalSpokes += newSpokes;
+
+      setGenerationProgress({
+        hub_id: hubId,
+        client_id: clientId,
+        status: 'generating',
+        total_pillars: pillars.length,
+        completed_pillars: currentPillar,
+        total_spokes: pillars.length * 7,
+        completed_spokes: totalSpokes,
+        current_pillar_id: pillar.id,
+        current_pillar_name: pillar.title,
+        error_message: null,
+        started_at: Date.now() / 1000 - currentPillar * 5,
+        completed_at: null,
+        updated_at: Date.now() / 1000,
+      });
+
+      currentPillar++;
+    }, 2000);
+  };
+
+  const handleGenerateSpokes = () => {
+    if (!clientId || !hubId) return;
+
+    generateMutation.mutate({
+      clientId,
+      hubId,
+      platforms: ['twitter', 'linkedin', 'tiktok', 'instagram', 'thread', 'carousel'],
+    });
+  };
+
+  // Calculate spoke counts by platform
+  const spokeCounts = useMemo(() => {
+    const counts: Record<SpokePlatform | 'all', number> = {
+      all: 0,
+      twitter: 0,
+      linkedin: 0,
+      tiktok: 0,
+      instagram: 0,
+      newsletter: 0,
+      thread: 0,
+      carousel: 0,
+    };
+
+    const spokes = (spokesData?.items || []) as Spoke[];
+    spokes.forEach((s) => {
+      counts.all++;
+      counts[s.platform]++;
+    });
+
+    return counts;
+  }, [spokesData]);
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -178,6 +291,8 @@ function HubDetailPage() {
 
   const statusConfig = STATUS_CONFIG[hub.status as keyof typeof STATUS_CONFIG] ?? DEFAULT_STATUS_CONFIG;
   const totalEstimatedSpokes = hub.pillars.reduce((sum: number, p: Pillar) => sum + p.estimatedSpokeCount, 0);
+  const spokes = (spokesData?.items || []) as Spoke[];
+  const hasSpokes = hub.spoke_count > 0 || spokes.length > 0;
 
   return (
     <div className="space-y-6">
@@ -215,20 +330,40 @@ function HubDetailPage() {
 
         {/* Actions */}
         <div className="flex items-center gap-2">
-          {hub.status === 'ready' && (
+          {hub.status === 'ready' && !isGenerating && (
             <button
-              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               style={{ backgroundColor: 'var(--approve)', color: '#fff' }}
-              onClick={() => {
-                // TODO: Navigate to Spoke generation (Epic 4)
-                alert('Spoke generation coming in Epic 4');
-              }}
+              onClick={handleGenerateSpokes}
+              disabled={generateMutation.isPending}
             >
-              Generate Spokes
+              {generateMutation.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Starting...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Generate Spokes
+                </>
+              )}
             </button>
           )}
         </div>
       </div>
+
+      {/* Generation Progress */}
+      {(isGenerating || generationProgress?.status === 'completed') && (
+        <GenerationProgress
+          progress={generationProgress}
+          onComplete={() => {
+            setTimeout(() => setGenerationProgress(null), 5000);
+          }}
+        />
+      )}
 
       {/* Stats */}
       <div className="flex items-center gap-6">
@@ -246,7 +381,7 @@ function HubDetailPage() {
           style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}
         >
           <p className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {hub.spoke_count}
+            {hub.spoke_count || spokeCounts.all}
           </p>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Spokes</p>
         </div>
@@ -261,17 +396,77 @@ function HubDetailPage() {
         </div>
       </div>
 
-      {/* Pillars Grid */}
-      <div>
-        <h2 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-1 p-1 rounded-lg" style={{ backgroundColor: 'var(--bg-surface)' }}>
+        <button
+          onClick={() => setActiveTab('pillars')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'pillars' ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+          }`}
+        >
           Content Pillars
-        </h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {hub.pillars.map((pillar: Pillar) => (
-            <PillarCard key={pillar.id} pillar={pillar} />
-          ))}
-        </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('spokes')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'spokes' ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          Generated Spokes
+          {hasSpokes && (
+            <span className="px-1.5 py-0.5 rounded text-xs" style={{ backgroundColor: 'var(--edit)', color: '#fff' }}>
+              {hub.spoke_count || spokeCounts.all}
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* Pillars Tab */}
+      {activeTab === 'pillars' && (
+        <div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {hub.pillars.map((pillar: Pillar) => (
+              <PillarCard key={pillar.id} pillar={pillar} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Spokes Tab */}
+      {activeTab === 'spokes' && (
+        <div className="space-y-4">
+          {/* Filter */}
+          <div className="flex items-center justify-between">
+            <PlatformFilter
+              value={platformFilter}
+              onChange={setPlatformFilter}
+              spokeCounts={spokeCounts}
+            />
+            <Link
+              to="/app/review"
+              className="text-sm flex items-center gap-1 hover:underline"
+              style={{ color: 'var(--edit)' }}
+            >
+              Open Review Queue
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+
+          {/* Tree View */}
+          <SpokeTreeView
+            hubTitle={hub.title}
+            pillars={hub.pillars}
+            spokes={spokes}
+            platformFilter={platformFilter}
+            onSpokeClick={(spoke) => {
+              // Could open a modal or navigate to spoke detail
+              console.log('Clicked spoke:', spoke.id);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

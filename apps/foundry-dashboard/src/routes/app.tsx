@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, Navigate } from '@tanstack/react-router';
 import { useSession } from '@/lib/auth-client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar, CommandPalette, ClientSelector } from '@/components/layout';
+import { ActiveContextIndicator } from '@/components/layout/ActiveContextIndicator';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 
@@ -98,13 +99,14 @@ function AppLayout() {
         {/* Top header */}
         <header
           className="sticky top-0 z-40 h-16 border-b flex items-center px-6 gap-4 transition-colors duration-500"
-          style={{ 
-            backgroundColor: 'var(--bg-base)', 
+          style={{
+            backgroundColor: 'var(--bg-base)',
             borderBottomColor: activeClient?.brandColor ? `${activeClient.brandColor}40` : 'var(--border-subtle)',
             borderBottomWidth: activeClient?.brandColor ? '2px' : '1px'
           }}
         >
           <ClientSelector />
+          <ActiveContextIndicator />
           <div className="flex-1" />
 
           {/* Command palette trigger */}

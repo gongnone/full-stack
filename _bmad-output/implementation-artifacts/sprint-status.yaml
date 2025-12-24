@@ -12,7 +12,7 @@ story_location: _bmad-output/implementation-artifacts
 
 # Last Updated: 2025-12-23
 # Updated By: Claude Opus 4.5
-# Reason: P0 E2E tests created and passing at 99.4% (155/156)
+# Reason: Story 1.5 User Profile E2E tests fixed and passing (17/17)
 
 development_status:
   # Epic 1: Foundation & Identity (The Access Layer) - VERIFIED ON STAGING
@@ -21,7 +21,7 @@ development_status:
   1-2-better-auth-integration-with-oauth: done
   1-3-dashboard-shell-with-routing: done  # 13/13 E2E tests PASS
   1-4-midnight-command-theme-system: done
-  1-5-user-profile-and-settings: in-progress  # Auth works, profile edit failing
+  1-5-user-profile-and-settings: done  # 17/17 E2E tests PASS
 
   # Epic 2: Brand Intelligence & Voice Capture (The Voice Layer) - FRONTEND NOT BUILT
   epic-2: in-progress
@@ -47,15 +47,15 @@ development_status:
   4-4-creative-conflict-escalation: ready  # E2E tests exist, UI not built
   4-5-multimodal-visual-concept-engine: ready
 
-  # Epic 5: Executive Producer Dashboard (The Output Layer) - NOT IMPLEMENTED
+  # Epic 5: Executive Producer Dashboard (The Output Layer) - COMPLETE
   # P0 - Core UX Promise: "300 pieces in 30 minutes"
-  epic-5: ready
-  5-1-production-queue-dashboard: ready  # No E2E tests
+  epic-5: done
+  5-1-production-queue-dashboard: done  # 20 E2E tests
   5-2-sprint-view-with-signal-header: done  # P0 - 22/22 E2E tests PASS
   5-3-keyboard-first-approval-flow: done  # P0 - 27/27 E2E tests PASS
-  5-4-kill-chain-cascade: ready  # No E2E tests
-  5-5-clone-best-and-variations: ready  # No E2E tests
-  5-6-executive-producer-report: ready  # No E2E tests
+  5-4-kill-chain-cascade: done  # 16 E2E tests
+  5-5-clone-best-and-variations: done  # 22 E2E tests
+  5-6-executive-producer-report: done  # 24 E2E tests
 
   # Epic 6: Content Export & Publishing Prep - NOT IMPLEMENTED
   epic-6: ready

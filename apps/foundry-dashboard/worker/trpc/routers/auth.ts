@@ -42,8 +42,10 @@ export const authRouter = t.router({
     }
 
     // Get user from Better Auth user table
+    // Note: DB columns are snake_case, must alias to camelCase for User type
     const userResult = await ctx.db
-      .prepare('SELECT id, email, name, emailVerified, image, createdAt, updatedAt FROM user WHERE id = ?')
+      .prepare(`SELECT id, email, name, email_verified as emailVerified, image,
+                created_at as createdAt, updated_at as updatedAt FROM user WHERE id = ?`)
       .bind(ctx.userId)
       .first<User>();
 

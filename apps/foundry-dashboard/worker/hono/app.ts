@@ -121,7 +121,19 @@ app.on(['GET', 'POST'], '/api/auth/**', async (c) => {
   const auth = createAuth(c.env);
 
   try {
+    // Debug: Log sign-in attempts
+    if (c.req.path.includes('/sign-in/')) {
+      console.log('Sign-in attempt:', { path: c.req.path, method: c.req.method });
+    }
+
     const response = await auth.handler(c.req.raw);
+
+    // Debug: Log non-OK responses from auth handler
+    if (!response.ok && c.req.path.includes('/sign-in/')) {
+      const clonedResponse = response.clone();
+      const body = await clonedResponse.text();
+      console.log('Sign-in response:', { status: response.status, body: body.substring(0, 500) });
+    }
 
     // Fix: Better Auth 1.4+ forces SameSite=None which Chrome blocks
     // Rewrite cookies to use SameSite=Lax for same-origin deployment

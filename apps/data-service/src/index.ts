@@ -1,6 +1,6 @@
 import { WorkerEntrypoint } from 'cloudflare:workers';
 import { App } from './hono/app';
-import { initDatabase } from '@repo/data-ops/database';
+import { initDatabase, getDb } from '@repo/data-ops/database';
 import { CriticAgent } from '@repo/agent-system';
 import { spokes, spoke_evaluations } from '@repo/data-ops/schema';
 import { eq } from 'drizzle-orm';
@@ -17,46 +17,115 @@ export { CloneSpokeWorkflow } from '@/workflows/clone-spoke-workflow';
 export { ChatSession } from "./do/ChatSession";
 export { IngestionTracker } from "./do/IngestionTracker"; // Export IngestionTracker
 
+/**
+ * Validate session token from Better Auth cookie
+ * Returns user info if valid, null otherwise
+ */
+async function validateSession(db: D1Database, cookieHeader: string | null): Promise<{ userId: string; accountId: string } | null> {
+	if (!cookieHeader) return null;
+
+	// Extract session token from cookie
+	const secureMatch = cookieHeader.match(/__Secure-better-auth\.session_token=([^;]+)/);
+	const plainMatch = cookieHeader.match(/better-auth\.session_token=([^;]+)/);
+	const token = secureMatch?.[1] || plainMatch?.[1];
+
+	if (!token) return null;
+
+	try {
+		const session = await db.prepare(`
+			SELECT s.user_id, u.account_id
+			FROM session s
+			JOIN user u ON s.user_id = u.id
+			WHERE s.token = ?
+			AND s.expires_at > ?
+			LIMIT 1
+		`).bind(decodeURIComponent(token), Math.floor(Date.now() / 1000)).first<{
+			user_id: string;
+			account_id: string | null;
+		}>();
+
+		if (!session) return null;
+
+		return {
+			userId: session.user_id,
+			accountId: session.account_id || session.user_id,
+		};
+	} catch (error) {
+		console.error('Session validation error:', error);
+		return null;
+	}
+}
 
 export default class DataService extends WorkerEntrypoint<Env> {
 	constructor(ctx: ExecutionContext, env: Env) {
 		super(ctx, env)
 		initDatabase(env.DB)
 	}
+
 	async fetch(request: Request) {
 		const url = new URL(request.url);
+
+		// Internal ingest endpoint (service-to-service, no auth required)
 		if (request.method === "POST" && url.pathname === "/api/internal/ingest") {
-			const { upsertKnowledge } = await import("@repo/agent-logic/rag");
-			const body = await request.json() as { items: any[] };
-			if (!body.items || !Array.isArray(body.items)) {
-				return new Response("Invalid body: 'items' array required", { status: 400 });
+			try {
+				const { upsertKnowledge } = await import("@repo/agent-logic/rag");
+				const body = await request.json() as { items: any[] };
+				if (!body.items || !Array.isArray(body.items)) {
+					return new Response("Invalid body: 'items' array required", { status: 400 });
+				}
+				const count = await upsertKnowledge(this.env, body.items);
+				return new Response(JSON.stringify({ success: true, count }), { headers: { "Content-Type": "application/json" } });
+			} catch (error) {
+				console.error('Ingest error:', error);
+				return new Response(JSON.stringify({ error: 'Ingest failed' }), { status: 500, headers: { "Content-Type": "application/json" } });
 			}
-			const count = await upsertKnowledge(this.env, body.items);
-			return new Response(JSON.stringify({ success: true, count }), { headers: { "Content-Type": "application/json" } });
 		}
 
-		// New WebSocket endpoint for IngestionTracker DO
+		// WebSocket endpoint for IngestionTracker DO - REQUIRES AUTH + TENANT VALIDATION
 		if (url.pathname.startsWith("/ws/ingestion/")) {
-			const accountId = url.pathname.split("/")[3]; // Extract accountId from /ws/ingestion/<accountId>
-			if (!accountId) {
-				return new Response("Missing accountId", { status: 400 });
+			try {
+				// Extract accountId from URL path
+				const pathAccountId = url.pathname.split("/")[3];
+				if (!pathAccountId) {
+					return new Response(JSON.stringify({ error: "Missing accountId" }), { status: 400, headers: { "Content-Type": "application/json" } });
+				}
+
+				// Validate session and get user's accountId
+				const cookieHeader = request.headers.get('cookie');
+				const session = await validateSession(this.env.DB, cookieHeader);
+
+				if (!session) {
+					return new Response(JSON.stringify({ error: "Unauthorized: Invalid or missing session" }), { status: 401, headers: { "Content-Type": "application/json" } });
+				}
+
+				// CRITICAL: Validate tenant access - user can only access their own ingestion tracker
+				if (pathAccountId !== session.accountId && pathAccountId !== session.userId) {
+					console.warn(`Cross-tenant ingestion access blocked: user ${session.userId} (account ${session.accountId}) tried to access account ${pathAccountId}`);
+					return new Response(JSON.stringify({ error: "Forbidden: Access denied to this account's ingestion tracker" }), { status: 403, headers: { "Content-Type": "application/json" } });
+				}
+
+				// Check if INGESTION_TRACKER binding exists
+				if (!this.env.INGESTION_TRACKER) {
+					console.error('INGESTION_TRACKER binding is missing');
+					return new Response(JSON.stringify({ error: "Service unavailable" }), { status: 503, headers: { "Content-Type": "application/json" } });
+				}
+
+				// Get Durable Object and forward request
+				const id = this.env.INGESTION_TRACKER.idFromName(pathAccountId);
+				const stub = this.env.INGESTION_TRACKER.get(id);
+				return stub.fetch(request);
+			} catch (error) {
+				console.error('Ingestion WebSocket error:', error);
+				return new Response(JSON.stringify({ error: "Service error" }), { status: 500, headers: { "Content-Type": "application/json" } });
 			}
-
-			// Get a Durable Object ID for the IngestionTracker based on accountId
-			const id = this.env.INGESTION_TRACKER.idFromName(accountId);
-			const stub = this.env.INGESTION_TRACKER.get(id);
-
-			// Forward the WebSocket request to the IngestionTracker DO
-			return stub.fetch(request);
 		}
 
-
+		// All other routes handled by Hono app (which has its own auth middleware)
 		return App.fetch(request, this.env, this.ctx)
 	}
 
 	async queue(batch: MessageBatch<unknown>) {
-		// New Queues (if any) can be handled here.
-		// Legacy queues (social-media-generation, link-clicks) are removed.
+		// Queue handler for smart-data-queue
 		console.log('Processed queue batch', batch.queue);
 	}
 

@@ -356,4 +356,186 @@ export const clientsRouter = t.router({
         spokes,
       };
     }),
+
+  // Update a client's details
+  update: procedure
+    .input(z.object({
+      clientId: z.string().uuid(),
+      name: z.string().min(1).max(100).optional(),
+      industry: z.string().optional(),
+      contactEmail: z.string().email().optional(),
+      brandColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+      status: z.enum(['active', 'paused', 'archived']).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Security: Only agency_owner or account_manager can update
+      const membership = await ctx.db
+        .prepare('SELECT role FROM client_members WHERE client_id = ? AND user_id = ?')
+        .bind(input.clientId, ctx.userId)
+        .first<{ role: string }>();
+
+      if (!membership || !['agency_owner', 'account_manager'].includes(membership.role)) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied.',
+        });
+      }
+
+      const updates: string[] = [];
+      const params: any[] = [];
+
+      if (input.name !== undefined) {
+        updates.push('name = ?');
+        params.push(input.name);
+      }
+      if (input.industry !== undefined) {
+        updates.push('industry = ?');
+        params.push(input.industry);
+      }
+      if (input.contactEmail !== undefined) {
+        updates.push('contact_email = ?');
+        params.push(input.contactEmail);
+      }
+      if (input.brandColor !== undefined) {
+        updates.push('brand_color = ?');
+        params.push(input.brandColor);
+      }
+      if (input.status !== undefined) {
+        updates.push('status = ?');
+        params.push(input.status);
+      }
+
+      if (updates.length === 0) {
+        return { success: true };
+      }
+
+      params.push(input.clientId);
+
+      await ctx.db
+        .prepare(`UPDATE clients SET ${updates.join(', ')} WHERE id = ?`)
+        .bind(...params)
+        .run();
+
+      return { success: true };
+    }),
+
+  // Update a member's role (RBAC)
+  updateMember: procedure
+    .input(z.object({
+      clientId: z.string().uuid(),
+      memberId: z.string().uuid(),
+      role: z.enum(['agency_owner', 'account_manager', 'creator', 'client_admin', 'client_reviewer']),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Security: Only agency_owner can update roles
+      const membership = await ctx.db
+        .prepare('SELECT role FROM client_members WHERE client_id = ? AND user_id = ?')
+        .bind(input.clientId, ctx.userId)
+        .first<{ role: string }>();
+
+      if (!membership || membership.role !== 'agency_owner') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied. Only agency owners can update roles.',
+        });
+      }
+
+      await ctx.db
+        .prepare('UPDATE client_members SET role = ? WHERE id = ? AND client_id = ?')
+        .bind(input.role, input.memberId, input.clientId)
+        .run();
+
+      return { success: true };
+    }),
+
+  // Remove a team member
+  removeMember: procedure
+    .input(z.object({
+      clientId: z.string().uuid(),
+      memberId: z.string().uuid(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Security: Only agency_owner or account_manager can remove members
+      const membership = await ctx.db
+        .prepare('SELECT role FROM client_members WHERE client_id = ? AND user_id = ?')
+        .bind(input.clientId, ctx.userId)
+        .first<{ role: string }>();
+
+      if (!membership || !['agency_owner', 'account_manager'].includes(membership.role)) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied.',
+        });
+      }
+
+      // Prevent removing the last agency_owner
+      const targetMember = await ctx.db
+        .prepare('SELECT role FROM client_members WHERE id = ? AND client_id = ?')
+        .bind(input.memberId, input.clientId)
+        .first<{ role: string }>();
+
+      if (targetMember?.role === 'agency_owner') {
+        const ownerCount = await ctx.db
+          .prepare('SELECT COUNT(*) as count FROM client_members WHERE client_id = ? AND role = ?')
+          .bind(input.clientId, 'agency_owner')
+          .first<{ count: number }>();
+
+        if (ownerCount && ownerCount.count <= 1) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Cannot remove the last agency owner.',
+          });
+        }
+      }
+
+      await ctx.db
+        .prepare('DELETE FROM client_members WHERE id = ? AND client_id = ?')
+        .bind(input.memberId, input.clientId)
+        .run();
+
+      return { success: true };
+    }),
+
+  // Get details for a specific client
+  getById: procedure
+    .input(z.object({
+      clientId: z.string().uuid(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Check if user is member
+      const membership = await ctx.db
+        .prepare('SELECT role FROM client_members WHERE client_id = ? AND user_id = ?')
+        .bind(input.clientId, ctx.userId)
+        .first();
+
+      if (!membership) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied.',
+        });
+      }
+
+      const client = await ctx.db
+        .prepare('SELECT id, name, status, industry, contact_email, logo_url, brand_color, created_at FROM clients WHERE id = ?')
+        .bind(input.clientId)
+        .first<any>();
+
+      if (!client) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Client not found.',
+        });
+      }
+
+      return {
+        id: client.id,
+        name: client.name,
+        status: client.status,
+        industry: client.industry,
+        contactEmail: client.contact_email,
+        logoUrl: client.logo_url,
+        brandColor: client.brand_color,
+        createdAt: client.created_at,
+      };
+    }),
 });

@@ -18,6 +18,8 @@ import { Route as ReviewTokenRouteImport } from './routes/review.$token'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppReviewRouteImport } from './routes/app/review'
 import { Route as AppHubsRouteImport } from './routes/app/hubs'
+import { Route as AppExportsRouteImport } from './routes/app/exports'
+import { Route as AppCreativeConflictsRouteImport } from './routes/app/creative-conflicts'
 import { Route as AppClientsRouteImport } from './routes/app/clients'
 import { Route as AppBrandDnaRouteImport } from './routes/app/brand-dna'
 import { Route as AppAnalyticsRouteImport } from './routes/app/analytics'
@@ -70,6 +72,16 @@ const AppHubsRoute = AppHubsRouteImport.update({
   path: '/hubs',
   getParentRoute: () => AppRoute,
 } as any)
+const AppExportsRoute = AppExportsRouteImport.update({
+  id: '/exports',
+  path: '/exports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCreativeConflictsRoute = AppCreativeConflictsRouteImport.update({
+  id: '/creative-conflicts',
+  path: '/creative-conflicts',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppClientsRoute = AppClientsRouteImport.update({
   id: '/clients',
   path: '/clients',
@@ -110,6 +122,8 @@ export interface FileRoutesByFullPath {
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
   '/app/clients': typeof AppClientsRouteWithChildren
+  '/app/creative-conflicts': typeof AppCreativeConflictsRoute
+  '/app/exports': typeof AppExportsRoute
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
@@ -126,6 +140,8 @@ export interface FileRoutesByTo {
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
   '/app/clients': typeof AppClientsRouteWithChildren
+  '/app/creative-conflicts': typeof AppCreativeConflictsRoute
+  '/app/exports': typeof AppExportsRoute
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
@@ -144,6 +160,8 @@ export interface FileRoutesById {
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
   '/app/clients': typeof AppClientsRouteWithChildren
+  '/app/creative-conflicts': typeof AppCreativeConflictsRoute
+  '/app/exports': typeof AppExportsRoute
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
@@ -163,6 +181,8 @@ export interface FileRouteTypes {
     | '/app/analytics'
     | '/app/brand-dna'
     | '/app/clients'
+    | '/app/creative-conflicts'
+    | '/app/exports'
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
@@ -179,6 +199,8 @@ export interface FileRouteTypes {
     | '/app/analytics'
     | '/app/brand-dna'
     | '/app/clients'
+    | '/app/creative-conflicts'
+    | '/app/exports'
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
@@ -196,6 +218,8 @@ export interface FileRouteTypes {
     | '/app/analytics'
     | '/app/brand-dna'
     | '/app/clients'
+    | '/app/creative-conflicts'
+    | '/app/exports'
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
@@ -279,6 +303,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHubsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/exports': {
+      id: '/app/exports'
+      path: '/exports'
+      fullPath: '/app/exports'
+      preLoaderRoute: typeof AppExportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/creative-conflicts': {
+      id: '/app/creative-conflicts'
+      path: '/creative-conflicts'
+      fullPath: '/app/creative-conflicts'
+      preLoaderRoute: typeof AppCreativeConflictsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/clients': {
       id: '/app/clients'
       path: '/clients'
@@ -353,6 +391,8 @@ interface AppRouteChildren {
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppBrandDnaRoute: typeof AppBrandDnaRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
+  AppCreativeConflictsRoute: typeof AppCreativeConflictsRoute
+  AppExportsRoute: typeof AppExportsRoute
   AppHubsRoute: typeof AppHubsRouteWithChildren
   AppReviewRoute: typeof AppReviewRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -363,6 +403,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppAnalyticsRoute: AppAnalyticsRoute,
   AppBrandDnaRoute: AppBrandDnaRoute,
   AppClientsRoute: AppClientsRouteWithChildren,
+  AppCreativeConflictsRoute: AppCreativeConflictsRoute,
+  AppExportsRoute: AppExportsRoute,
   AppHubsRoute: AppHubsRouteWithChildren,
   AppReviewRoute: AppReviewRoute,
   AppSettingsRoute: AppSettingsRoute,

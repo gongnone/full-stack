@@ -9,14 +9,6 @@
 	"observability": {
 		"enabled": true
 	},
-	"queues": {
-		"consumers": [
-			{
-				"queue": "social-media-generation-queue",
-				"max_batch_size": 5
-			}
-		]
-	},
 	"d1_databases": [
 		{
 			"binding": "DB",
@@ -58,10 +50,6 @@
 				"consumers": [
 					{
 						"queue": "smart-data-queue-stage"
-					},
-					{
-						"queue": "social-media-generation-queue",
-						"max_batch_size": 5
 					}
 				],
 				"producers": [

@@ -1,6 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { useState } from 'react';
+import { ZeroEditChart } from '@/components/analytics/ZeroEditChart';
+import { CriticTrends } from '@/components/analytics/CriticTrends';
+import { HealingMetrics } from '@/components/analytics/HealingMetrics';
+import { VelocityDashboard } from '@/components/analytics/VelocityDashboard';
+import { KillAnalytics } from '@/components/analytics/KillAnalytics';
+import { DriftDetector } from '@/components/analytics/DriftDetector';
 
 export const Route = createFileRoute('/app/analytics')({
   component: AnalyticsPage,
@@ -8,17 +15,18 @@ export const Route = createFileRoute('/app/analytics')({
 
 function AnalyticsPage() {
   const clientId = useClientId();
-  
+  const [periodDays, setPeriodDays] = useState(30);
+
   const zeroEditQuery = trpc.analytics.getZeroEditRate.useQuery(
     { clientId: clientId!, periodDays: 30 },
     { enabled: !!clientId }
   );
-  
+
   const passRateQuery = trpc.analytics.getCriticPassRate.useQuery(
     { clientId: clientId!, periodDays: 30 },
     { enabled: !!clientId }
   );
-  
+
   const healingQuery = trpc.analytics.getSelfHealingEfficiency.useQuery(
     { clientId: clientId!, periodDays: 30 },
     { enabled: !!clientId }
@@ -27,17 +35,40 @@ function AnalyticsPage() {
   const isLoading = zeroEditQuery.isLoading || passRateQuery.isLoading || healingQuery.isLoading;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Analytics
-        </h1>
-        <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
-          Track performance and system learning metrics
-        </p>
+    <div className="space-y-6 pb-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Analytics Dashboard
+          </h1>
+          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
+            Performance metrics and learning loop analytics
+          </p>
+        </div>
+
+        {/* Period Selector */}
+        <div className="flex items-center gap-2">
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Period:</span>
+          <select
+            value={periodDays}
+            onChange={(e) => setPeriodDays(Number(e.target.value))}
+            className="px-3 py-1.5 rounded-lg border text-sm"
+            style={{
+              backgroundColor: 'var(--bg-elevated)',
+              borderColor: 'var(--border-subtle)',
+              color: 'var(--text-primary)',
+            }}
+          >
+            <option value={7}>Last 7 days</option>
+            <option value={14}>Last 14 days</option>
+            <option value={30}>Last 30 days</option>
+            <option value={60}>Last 60 days</option>
+            <option value={90}>Last 90 days</option>
+          </select>
+        </div>
       </div>
 
-      {/* Metrics Grid */}
+      {/* Summary Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <MetricCard
           title="Zero-Edit Rate"
@@ -69,26 +100,23 @@ function AnalyticsPage() {
         </div>
       )}
 
-      {/* Empty chart area */}
-      <div
-        className="p-8 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
-      >
-        <h2 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
-          Performance Over Time
-        </h2>
-        <div
-          className="flex flex-col items-center justify-center py-12 rounded-lg"
-          style={{ backgroundColor: 'var(--bg-surface)' }}
-        >
-          <svg className="w-12 h-12 mb-4" style={{ color: 'var(--text-muted)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Historical trend charts are being prepared
-          </p>
-        </div>
-      </div>
+      {/* Story 8-1: Zero-Edit Rate Trend */}
+      <ZeroEditChart periodDays={periodDays} />
+
+      {/* Story 8-2: Critic Pass Rate Trends */}
+      <CriticTrends periodDays={periodDays} />
+
+      {/* Story 8-3: Self-Healing Efficiency */}
+      <HealingMetrics periodDays={periodDays} />
+
+      {/* Story 8-4: Content Volume & Review Velocity */}
+      <VelocityDashboard periodDays={periodDays} />
+
+      {/* Story 8-5: Kill Chain Analytics */}
+      <KillAnalytics periodDays={periodDays} />
+
+      {/* Story 8-6: DNA Strength & Drift Detection */}
+      <DriftDetector periodDays={periodDays} />
     </div>
   );
 }

@@ -14,12 +14,17 @@ export function ProfileCard() {
   const [isEditing, setIsEditing] = React.useState(false);
   const [charCount, setCharCount] = React.useState(0);
 
+  // Get tRPC utils for query invalidation
+  const utils = trpc.useUtils();
+
   // Fetch user profile data
   const { data, isLoading, error } = trpc.auth.me.useQuery();
 
   // Update profile mutation
   const updateProfile = trpc.auth.updateProfile.useMutation({
     onSuccess: () => {
+      // Invalidate the auth.me query to refetch updated profile data
+      utils.auth.me.invalidate();
       addToast('Profile updated', 'success', 2000);
       setIsEditing(false);
     },

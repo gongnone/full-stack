@@ -1,12 +1,13 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { z } from 'zod';
 import { ActionButton, ScoreBadge, KeyboardHint } from '@/components/ui';
+import { BucketCard, SprintComplete, KillConfirmationModal, CloneSpokeModal } from '@/components/review';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 
 const reviewSearchSchema = z.object({
-  filter: z.string().optional().catch('needs-review'),
+  filter: z.string().optional().catch(undefined),
 });
 
 export const Route = createFileRoute('/app/review')({
@@ -16,60 +17,215 @@ export const Route = createFileRoute('/app/review')({
 
 function ReviewPage() {
   const { filter: rawFilter } = Route.useSearch();
-  const filter = rawFilter ?? 'needs-review';
+  const navigate = useNavigate();
   const clientId = useClientId();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [showKillModal, setShowKillModal] = useState(false);
+  const [showCloneModal, setShowCloneModal] = useState(false);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sprint stats tracking
+  const [stats, setStats] = useState({
+    total: 0,
+    approved: 0,
+    killed: 0,
+    edited: 0,
+    avgDecisionMs: 150,
+  });
+  const decisionStartRef = useRef<number>(Date.now());
 
   // tRPC Queries
   const queueQuery = trpc.review.getQueue.useQuery(
-    { 
-      clientId: clientId!, 
-      filter: filter === 'high-confidence' ? 'top10' : filter === 'conflicts' ? 'flagged' : 'all' 
+    {
+      clientId: clientId!,
+      filter: rawFilter === 'high-confidence' ? 'top10' : rawFilter === 'conflicts' ? 'flagged' : 'all'
     },
-    { enabled: !!clientId }
+    { enabled: !!clientId && !!rawFilter }
   );
 
   const swipeMutation = trpc.review.swipeAction.useMutation();
+  const bulkApproveMutation = trpc.review.bulkApprove.useMutation();
+  const killHubMutation = trpc.review.killHub.useMutation();
 
   const spokes = useMemo(() => queueQuery.data?.items || [], [queueQuery.data]);
   const currentSpoke = spokes[currentIndex];
 
+  // Update stats when spokes load
+  useEffect(() => {
+    if (spokes.length > 0 && stats.total === 0) {
+      setStats(prev => ({ ...prev, total: spokes.length }));
+    }
+  }, [spokes.length, stats.total]);
+
   const handleAction = useCallback((action: 'approve' | 'kill') => {
     if (!currentSpoke || !clientId) return;
 
+    // Track decision time
+    const decisionTime = Date.now() - decisionStartRef.current;
+    setStats(prev => ({
+      ...prev,
+      [action === 'approve' ? 'approved' : 'killed']: prev[action === 'approve' ? 'approved' : 'killed'] + 1,
+      avgDecisionMs: Math.round((prev.avgDecisionMs * (prev.approved + prev.killed) + decisionTime) / (prev.approved + prev.killed + 1)),
+    }));
+
     setDirection(action === 'approve' ? 'right' : 'left');
-    
-    // Call mutation
+
     swipeMutation.mutate({
       clientId,
       spokeId: currentSpoke.id,
       action: action === 'approve' ? 'approve' : 'reject'
     });
 
-    // Fast transition for high-velocity feel (< 200ms)
     setTimeout(() => {
       if (currentIndex < spokes.length - 1) {
         setCurrentIndex((prev) => prev + 1);
         setDirection(null);
+        decisionStartRef.current = Date.now();
       } else {
         setIsComplete(true);
       }
     }, 150);
   }, [currentIndex, spokes, clientId, currentSpoke, swipeMutation]);
 
+  // Nuclear approve (Cmd+A)
+  const handleNuclearApprove = useCallback(() => {
+    if (!clientId) return;
+    const highConfidenceSpokes = spokes.filter((s: typeof spokes[number]) => (s.qualityScores?.g7_engagement || 0) >= 9.5);
+    if (highConfidenceSpokes.length === 0) return;
+
+    bulkApproveMutation.mutate({
+      clientId,
+      spokeIds: highConfidenceSpokes.map((s: typeof spokes[number]) => s.id),
+    });
+
+    setStats(prev => ({ ...prev, approved: prev.approved + highConfidenceSpokes.length }));
+    alert(`${highConfidenceSpokes.length} spokes approved (G7 >= 9.5)`);
+  }, [clientId, spokes, bulkApproveMutation]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (isComplete || !currentSpoke) return;
-      if (e.key === 'ArrowRight' || e.key === 'Enter') handleAction('approve');
-      if (e.key === 'ArrowLeft' || e.key === 'Backspace') handleAction('kill');
+      // Sprint mode shortcuts
+      if (rawFilter && !isComplete && currentSpoke) {
+        if (e.key === 'ArrowRight' || e.key === 'Enter') handleAction('approve');
+        if (e.key === 'ArrowLeft' || e.key === 'Backspace') handleAction('kill');
+
+        // Hold H for kill hub
+        if (e.key === 'h' || e.key === 'H') {
+          holdTimerRef.current = setTimeout(() => {
+            setShowKillModal(true);
+          }, 500);
+        }
+
+        // C for clone (high confidence only)
+        if ((e.key === 'c' || e.key === 'C') && (currentSpoke.qualityScores?.g7_engagement || 0) >= 9.0) {
+          setShowCloneModal(true);
+        }
+      }
+
+      // Global shortcuts
+      if (e.metaKey || e.ctrlKey) {
+        if (e.key === 'h' || e.key === 'H') {
+          e.preventDefault();
+          navigate({ to: '/app/review', search: { filter: 'high-confidence' } });
+        }
+        if (e.key === 'a' && !e.shiftKey) {
+          e.preventDefault();
+          handleNuclearApprove();
+        }
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'h' || e.key === 'H') {
+        if (holdTimerRef.current) {
+          clearTimeout(holdTimerRef.current);
+          holdTimerRef.current = null;
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleAction, isComplete, currentSpoke]);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+    };
+  }, [handleAction, isComplete, currentSpoke, rawFilter, navigate, handleNuclearApprove]);
+
+  // Dashboard view (no filter selected)
+  if (!rawFilter) {
+    return (
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
+            Sprint Review
+          </h1>
+          <p className="text-[var(--text-secondary)] mt-1">
+            Select a bucket to start reviewing content
+          </p>
+        </div>
+
+        {/* Bucket Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <BucketCard
+            title="High Confidence"
+            count={0}
+            description="G7 > 9.0 - Ready for auto-approval"
+            filter="high-confidence"
+            variant="green"
+          />
+          <BucketCard
+            title="Needs Review"
+            count={0}
+            description="G7 5.0-9.0 - Human judgment needed"
+            filter="needs-review"
+            variant="yellow"
+          />
+          <BucketCard
+            title="Creative Conflicts"
+            count={0}
+            description="Failed 3x healing - Requires intervention"
+            filter="conflicts"
+            variant="red"
+          />
+          <BucketCard
+            title="Just Generated"
+            count={0}
+            description="Real-time feed of new content"
+            filter="just-generated"
+            variant="blue"
+          />
+        </div>
+
+        {/* Keyboard Shortcuts Guide */}
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Keyboard Shortcuts</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="flex items-center gap-3">
+              <KeyboardHint keys={['Cmd', 'H']} size="sm" />
+              <span className="text-sm text-[var(--text-secondary)]">High Confidence Sprint</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <KeyboardHint keys={['Cmd', 'A']} size="sm" />
+              <span className="text-sm text-[var(--text-secondary)]">Nuclear Approve (G7 9.5+)</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <KeyboardHint keys={['Hold', 'H']} size="sm" />
+              <span className="text-sm text-[var(--text-secondary)]">Kill Hub</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <KeyboardHint keys={['C']} size="sm" />
+              <span className="text-sm text-[var(--text-secondary)]">Clone Best</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (queueQuery.isLoading) {
     return (
@@ -79,50 +235,53 @@ function ReviewPage() {
     );
   }
 
+  // Sprint Complete view
   if (isComplete || spokes.length === 0) {
-    return (
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
-              Sprint Review
-            </h1>
-            <p className="text-[var(--text-secondary)] mt-1">
-              Mode: <span className="capitalize text-[var(--edit)]">{filter.replace('-', ' ')}</span>
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-sm font-medium text-[var(--text-muted)]">
-              Progress
+    if (spokes.length === 0) {
+      return (
+        <div className="max-w-4xl mx-auto space-y-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
+                Sprint Review
+              </h1>
+              <p className="text-[var(--text-secondary)] mt-1">
+                Mode: <span className="capitalize text-[var(--edit)]">{rawFilter.replace('-', ' ')}</span>
+              </p>
             </div>
-            <div className="text-lg font-bold text-[var(--text-primary)]">
-              0 / 0
+            <div className="text-right">
+              <div className="text-sm font-medium text-[var(--text-muted)]">Progress</div>
+              <div className="text-lg font-bold text-[var(--text-primary)]">0 / 0</div>
             </div>
           </div>
-        </div>
 
-        <div className="flex flex-col items-center justify-center py-20 text-center animate-fadeIn">
-          <div className="w-20 h-20 rounded-full bg-[var(--approve-glow)] flex items-center justify-center mb-6">
-            <svg className="w-10 h-10 text-[var(--approve)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-[var(--text-primary)]">
-            {spokes.length === 0 ? 'No Items Found' : 'Sprint Complete!'}
-          </h2>
-          <p className="text-[var(--text-secondary)] mt-2 max-w-md">
-            {spokes.length === 0
-              ? `There is no content in the ${filter.replace('-', ' ')} queue.`
-              : `You've reviewed all items in the ${filter.replace('-', ' ')} queue.`
-            }
-          </p>
-          <div className="mt-8 flex gap-4">
-            <ActionButton variant="approve" onClick={() => window.location.href = '/app'}>
-              Back to Dashboard
-            </ActionButton>
+          <div className="flex flex-col items-center justify-center py-20 text-center animate-fadeIn">
+            <div className="w-20 h-20 rounded-full bg-[var(--approve-glow)] flex items-center justify-center mb-6">
+              <svg className="w-10 h-10 text-[var(--approve)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-[var(--text-primary)]">No Items Found</h2>
+            <p className="text-[var(--text-secondary)] mt-2 max-w-md">
+              There is no content in the {rawFilter.replace('-', ' ')} queue.
+            </p>
+            <div className="mt-8">
+              <ActionButton variant="approve" onClick={() => navigate({ to: '/app/review' })}>
+                Back to Dashboard
+              </ActionButton>
+            </div>
           </div>
         </div>
-      </div>
+      );
+    }
+
+    return (
+      <SprintComplete
+        stats={stats}
+        filter={rawFilter}
+        onBackToDashboard={() => navigate({ to: '/app/review' })}
+        onReviewConflicts={() => navigate({ to: '/app/review', search: { filter: 'conflicts' } })}
+      />
     );
   }
 
@@ -134,13 +293,11 @@ function ReviewPage() {
             Sprint Review
           </h1>
           <p className="text-[var(--text-secondary)] mt-1">
-            Mode: <span className="capitalize text-[var(--edit)]">{filter.replace('-', ' ')}</span>
+            Mode: <span className="capitalize text-[var(--edit)]">{rawFilter.replace('-', ' ')}</span>
           </p>
         </div>
         <div className="text-right">
-          <div className="text-sm font-medium text-[var(--text-muted)]">
-            Progress
-          </div>
+          <div className="text-sm font-medium text-[var(--text-muted)]">Progress</div>
           <div className="text-lg font-bold text-[var(--text-primary)]">
             {currentIndex + 1} / {spokes.length}
           </div>
@@ -149,7 +306,7 @@ function ReviewPage() {
 
       {/* High-Velocity Card Container */}
       <div className="relative min-h-[500px] flex items-center justify-center">
-        <div 
+        <div
           key={currentSpoke.id}
           className={`
             w-full max-w-2xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-2xl p-8 shadow-2xl transition-all duration-150 ease-out relative
@@ -169,18 +326,24 @@ function ReviewPage() {
                 )}
               </div>
               <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                  Pillar
-                </div>
+                <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">Pillar</div>
                 <div className="text-sm font-semibold text-[var(--text-primary)]">
                   {currentSpoke.pillarId || 'General'}
                 </div>
               </div>
             </div>
-            
+
             <div className="flex gap-2">
               <ScoreBadge score={currentSpoke.qualityScores?.g7_engagement || 0} gate="G7" showGate size="sm" />
               <ScoreBadge score={(currentSpoke.qualityScores?.g2_hook || 0) / 10} gate="G2" showGate size="sm" />
+              {(currentSpoke.qualityScores?.g7_engagement || 0) >= 9.0 && (
+                <button
+                  onClick={() => setShowCloneModal(true)}
+                  className="px-3 py-1 rounded-full bg-[var(--approve-glow)] text-[var(--approve)] text-xs font-bold hover:bg-[var(--approve)] hover:text-white transition-colors"
+                >
+                  Clone
+                </button>
+              )}
             </div>
           </div>
 
@@ -228,9 +391,9 @@ function ReviewPage() {
       {/* Action Bar */}
       <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[var(--bg-elevated)] border border-[var(--border-subtle)] px-6 py-4 rounded-full shadow-2xl flex items-center gap-8 z-50">
         <div className="flex flex-col items-center gap-1 group">
-          <ActionButton 
-            variant="kill" 
-            size="md" 
+          <ActionButton
+            variant="kill"
+            size="md"
             className="rounded-full w-12 h-12 p-0 flex items-center justify-center"
             onClick={() => handleAction('kill')}
           >
@@ -251,9 +414,9 @@ function ReviewPage() {
         <div className="h-10 w-[1px] bg-[var(--border-subtle)]" />
 
         <div className="flex flex-col items-center gap-1">
-          <ActionButton 
-            variant="approve" 
-            size="md" 
+          <ActionButton
+            variant="approve"
+            size="md"
             className="rounded-full w-12 h-12 p-0 flex items-center justify-center"
             onClick={() => handleAction('approve')}
           >
@@ -264,6 +427,35 @@ function ReviewPage() {
           <KeyboardHint keys={['→']} action="Approve" size="sm" />
         </div>
       </div>
+
+      {/* Kill Confirmation Modal */}
+      <KillConfirmationModal
+        isOpen={showKillModal}
+        onClose={() => setShowKillModal(false)}
+        onConfirm={() => {
+          if (currentSpoke?.hubId && clientId) {
+            killHubMutation.mutate({ clientId, hubId: currentSpoke.hubId });
+            setShowKillModal(false);
+          }
+        }}
+        type="hub"
+        title={currentSpoke?.hubId || 'Current Hub'}
+        spokeCount={spokes.length}
+        editedCount={0}
+        isLoading={killHubMutation.isPending}
+      />
+
+      {/* Clone Spoke Modal */}
+      <CloneSpokeModal
+        isOpen={showCloneModal}
+        onClose={() => setShowCloneModal(false)}
+        onConfirm={(options) => {
+          console.log('Clone options:', options);
+          setShowCloneModal(false);
+        }}
+        spokeContent={currentSpoke?.content || ''}
+        spokeScore={currentSpoke?.qualityScores?.g7_engagement || 0}
+      />
     </div>
   );
 }

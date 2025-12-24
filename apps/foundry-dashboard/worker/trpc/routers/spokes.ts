@@ -12,6 +12,7 @@ const platformEnum = z.enum([
   'instagram',
   'carousel',
   'thread',
+  'newsletter',
   'youtube_thumbnail',
 ]);
 

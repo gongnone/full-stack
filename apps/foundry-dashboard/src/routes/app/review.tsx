@@ -81,25 +81,46 @@ function ReviewPage() {
 
   if (isComplete || spokes.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center animate-fadeIn">
-        <div className="w-20 h-20 rounded-full bg-[var(--approve-glow)] flex items-center justify-center mb-6">
-          <svg className="w-10 h-10 text-[var(--approve)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
+              Sprint Review
+            </h1>
+            <p className="text-[var(--text-secondary)] mt-1">
+              Mode: <span className="capitalize text-[var(--edit)]">{filter.replace('-', ' ')}</span>
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-sm font-medium text-[var(--text-muted)]">
+              Progress
+            </div>
+            <div className="text-lg font-bold text-[var(--text-primary)]">
+              0 / 0
+            </div>
+          </div>
         </div>
-        <h2 className="text-2xl font-bold text-[var(--text-primary)]">
-          {spokes.length === 0 ? 'No Items Found' : 'Sprint Complete!'}
-        </h2>
-        <p className="text-[var(--text-secondary)] mt-2 max-w-md">
-          {spokes.length === 0 
-            ? `There is no content in the ${filter.replace('-', ' ')} queue.`
-            : `You've reviewed all items in the ${filter.replace('-', ' ')} queue.`
-          }
-        </p>
-        <div className="mt-8 flex gap-4">
-          <ActionButton variant="approve" onClick={() => window.location.href = '/app'}>
-            Back to Dashboard
-          </ActionButton>
+
+        <div className="flex flex-col items-center justify-center py-20 text-center animate-fadeIn">
+          <div className="w-20 h-20 rounded-full bg-[var(--approve-glow)] flex items-center justify-center mb-6">
+            <svg className="w-10 h-10 text-[var(--approve)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)]">
+            {spokes.length === 0 ? 'No Items Found' : 'Sprint Complete!'}
+          </h2>
+          <p className="text-[var(--text-secondary)] mt-2 max-w-md">
+            {spokes.length === 0
+              ? `There is no content in the ${filter.replace('-', ' ')} queue.`
+              : `You've reviewed all items in the ${filter.replace('-', ' ')} queue.`
+            }
+          </p>
+          <div className="mt-8 flex gap-4">
+            <ActionButton variant="approve" onClick={() => window.location.href = '/app'}>
+              Back to Dashboard
+            </ActionButton>
+          </div>
         </div>
       </div>
     );

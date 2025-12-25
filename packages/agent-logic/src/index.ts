@@ -1,4 +1,5 @@
 export * from './rag';
+export * from './config';
 
 // Multi-Phase Halo Research Agents
 export * from './agents';

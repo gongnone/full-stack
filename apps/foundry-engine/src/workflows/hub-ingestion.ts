@@ -3,7 +3,7 @@ import {
   WorkflowStep,
   WorkflowEvent,
 } from 'cloudflare:workers';
-import { AI_MODELS } from '@repo/agent-logic/config';
+import { AI_MODELS } from '@repo/agent-logic';
 
 interface Env {
   CLIENT_AGENT: DurableObjectNamespace;

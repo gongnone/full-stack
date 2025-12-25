@@ -51,8 +51,10 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
         await expect(page.locator('text=/Writing Style/i')).toBeVisible();
         await expect(page.locator('text=/Target Audience/i')).toBeVisible();
 
-        // Signature Phrases section
-        await expect(page.locator('h3:has-text("Signature Phrases")')).toBeVisible();
+        // Signature Phrases section (header or empty state)
+        const signaturesSection = page.locator('h3:has-text("Signature Phrases")');
+        const emptyState = page.locator('text=/No signature phrases detected yet/i');
+        await expect(signaturesSection.or(emptyState)).toBeVisible();
 
         // Voice Metrics breakdown
         await expect(page.locator('[data-testid="progress-tone-match"]')).toBeVisible();

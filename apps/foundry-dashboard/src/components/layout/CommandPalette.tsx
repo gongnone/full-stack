@@ -202,6 +202,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               setSelectedIndex(0);
             }}
             placeholder="Search commands..."
+            data-testid="command-palette-search"
             className="flex-1 px-3 py-4 bg-transparent outline-none text-sm"
             style={{ color: 'var(--text-primary)' }}
           />

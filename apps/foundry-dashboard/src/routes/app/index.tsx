@@ -130,18 +130,26 @@ function DashboardPage() {
           Quick Actions
         </h2>
         <div className="flex flex-wrap gap-3">
-          <ActionButton variant="approve" size="md">
-            New Hub
-          </ActionButton>
-          <ActionButton variant="edit" size="md">
-            Start Sprint
-          </ActionButton>
-          <ActionButton variant="ghost" size="md">
-            Add Client
-          </ActionButton>
-          <ActionButton variant="outline" size="md">
-            View Analytics
-          </ActionButton>
+          <Link to="/app/hubs/new">
+            <ActionButton variant="approve" size="md" data-testid="new-hub-btn">
+              New Hub
+            </ActionButton>
+          </Link>
+          <Link to="/app/review">
+            <ActionButton variant="edit" size="md">
+              Start Sprint
+            </ActionButton>
+          </Link>
+          <Link to="/app/clients">
+            <ActionButton variant="ghost" size="md">
+              Add Client
+            </ActionButton>
+          </Link>
+          <Link to="/app/analytics">
+            <ActionButton variant="outline" size="md">
+              View Analytics
+            </ActionButton>
+          </Link>
         </div>
       </div>
     </div>

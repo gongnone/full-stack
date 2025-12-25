@@ -48,7 +48,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       await page.goto(`${BASE_URL}/login`);
 
       const bgBaseVar = await page.evaluate(() => {
-        return getComputedStyle(document.documentElement).getPropertyValue('--bg-base').trim();
+        return getComputedStyle(document.documentElement).getPropertyValue('--bg-base').trim().toUpperCase();
       });
 
       expect(bgBaseVar).toBe('#0F1419');
@@ -72,7 +72,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       await page.goto(`${BASE_URL}/login`);
 
       const bgSurfaceVar = await page.evaluate(() => {
-        return getComputedStyle(document.documentElement).getPropertyValue('--bg-surface').trim();
+        return getComputedStyle(document.documentElement).getPropertyValue('--bg-surface').trim().toUpperCase();
       });
 
       expect(bgSurfaceVar).toBe('#151B22');
@@ -82,7 +82,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       await page.goto(`${BASE_URL}/login`);
 
       const bgElevatedVar = await page.evaluate(() => {
-        return getComputedStyle(document.documentElement).getPropertyValue('--bg-elevated').trim();
+        return getComputedStyle(document.documentElement).getPropertyValue('--bg-elevated').trim().toUpperCase();
       });
 
       expect(bgElevatedVar).toBe('#1A1F26');
@@ -121,7 +121,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       await page.goto(`${BASE_URL}/login`);
 
       const textPrimaryVar = await page.evaluate(() => {
-        return getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim();
+        return getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim().toUpperCase();
       });
 
       expect(textPrimaryVar).toBe('#E7E9EA');
@@ -144,7 +144,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       await page.goto(`${BASE_URL}/login`);
 
       const textSecondaryVar = await page.evaluate(() => {
-        return getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim();
+        return getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim().toUpperCase();
       });
 
       expect(textSecondaryVar).toBe('#8B98A5');
@@ -156,7 +156,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       await page.goto(`${BASE_URL}/login`);
 
       const approveVar = await page.evaluate(() => {
-        return getComputedStyle(document.documentElement).getPropertyValue('--approve').trim();
+        return getComputedStyle(document.documentElement).getPropertyValue('--approve').trim().toUpperCase();
       });
 
       expect(approveVar).toBe('#00D26A');
@@ -166,7 +166,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       await page.goto(`${BASE_URL}/login`);
 
       const killVar = await page.evaluate(() => {
-        return getComputedStyle(document.documentElement).getPropertyValue('--kill').trim();
+        return getComputedStyle(document.documentElement).getPropertyValue('--kill').trim().toUpperCase();
       });
 
       expect(killVar).toBe('#F4212E');
@@ -176,7 +176,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       await page.goto(`${BASE_URL}/login`);
 
       const editVar = await page.evaluate(() => {
-        return getComputedStyle(document.documentElement).getPropertyValue('--edit').trim();
+        return getComputedStyle(document.documentElement).getPropertyValue('--edit').trim().toUpperCase();
       });
 
       expect(editVar).toBe('#1D9BF0');
@@ -186,7 +186,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       await page.goto(`${BASE_URL}/login`);
 
       const warningVar = await page.evaluate(() => {
-        return getComputedStyle(document.documentElement).getPropertyValue('--warning').trim();
+        return getComputedStyle(document.documentElement).getPropertyValue('--warning').trim().toUpperCase();
       });
 
       expect(warningVar).toBe('#FFAD1F');
@@ -214,7 +214,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       await page.goto(`${BASE_URL}/login`);
 
       const textSecondary = await page.evaluate(() => {
-        return getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim();
+        return getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim().toUpperCase();
       });
 
       // #8B98A5 = rgb(139, 152, 165) - 5.2:1 contrast on dark bg
@@ -228,9 +228,9 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       const colors = await page.evaluate(() => {
         const style = getComputedStyle(document.documentElement);
         return {
-          approve: style.getPropertyValue('--approve').trim(),
-          kill: style.getPropertyValue('--kill').trim(),
-          edit: style.getPropertyValue('--edit').trim(),
+          approve: style.getPropertyValue('--approve').trim().toUpperCase(),
+          kill: style.getPropertyValue('--kill').trim().toUpperCase(),
+          edit: style.getPropertyValue('--edit').trim().toUpperCase(),
         };
       });
 
@@ -245,7 +245,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       await page.goto(`${BASE_URL}/login`);
 
       const borderFocusVar = await page.evaluate(() => {
-        return getComputedStyle(document.documentElement).getPropertyValue('--border-focus').trim();
+        return getComputedStyle(document.documentElement).getPropertyValue('--border-focus').trim().toUpperCase();
       });
 
       // Should be defined (typically blue or edit color) - may be empty if not set
@@ -301,15 +301,15 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       const variables = await page.evaluate(() => {
         const style = getComputedStyle(document.documentElement);
         return {
-          bgBase: style.getPropertyValue('--bg-base').trim(),
-          bgSurface: style.getPropertyValue('--bg-surface').trim(),
-          bgElevated: style.getPropertyValue('--bg-elevated').trim(),
-          textPrimary: style.getPropertyValue('--text-primary').trim(),
-          textSecondary: style.getPropertyValue('--text-secondary').trim(),
-          approve: style.getPropertyValue('--approve').trim(),
-          kill: style.getPropertyValue('--kill').trim(),
-          edit: style.getPropertyValue('--edit').trim(),
-          warning: style.getPropertyValue('--warning').trim(),
+          bgBase: style.getPropertyValue('--bg-base').trim().toUpperCase(),
+          bgSurface: style.getPropertyValue('--bg-surface').trim().toUpperCase(),
+          bgElevated: style.getPropertyValue('--bg-elevated').trim().toUpperCase(),
+          textPrimary: style.getPropertyValue('--text-primary').trim().toUpperCase(),
+          textSecondary: style.getPropertyValue('--text-secondary').trim().toUpperCase(),
+          approve: style.getPropertyValue('--approve').trim().toUpperCase(),
+          kill: style.getPropertyValue('--kill').trim().toUpperCase(),
+          edit: style.getPropertyValue('--edit').trim().toUpperCase(),
+          warning: style.getPropertyValue('--warning').trim().toUpperCase(),
         };
       });
 

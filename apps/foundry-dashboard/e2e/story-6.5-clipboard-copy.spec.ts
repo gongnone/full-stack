@@ -76,7 +76,7 @@ test.describe('Story 6.5: Clipboard Copy Quick Actions', () => {
     await waitForPageLoad(page);
 
     // Verify page loads (clipboard actions would appear on spoke cards)
-    await expect(page.locator('text=Sprint Review, text=Review')).toBeVisible();
+    await expect(page.locator('h2:has-text("Review Queue"), h1:has-text("Review")').first()).toBeVisible();
   });
 
   test('should handle multiple spoke selection for batch copy', async ({ page }) => {

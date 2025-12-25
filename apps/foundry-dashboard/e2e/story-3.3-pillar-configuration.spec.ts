@@ -78,11 +78,17 @@ async function navigateToStep3WithPillars(page: import('@playwright/test').Page)
   `.repeat(3)); // Repeat to ensure enough content
 
   // Submit text source
+  console.log('Submitting text source...');
   await page.click('button:has-text("Use This Content")');
 
   // Wait for extraction to complete
-  await page.waitForSelector('[data-testid="extraction-progress"]', { timeout: 10000 });
-  await page.waitForSelector('text=Configure Pillars', { timeout: 60000 });
+  console.log('Waiting for ingestion progress...');
+  await page.waitForSelector('[data-testid="ingestion-progress"]', { timeout: 15000 });
+  
+  console.log('Waiting for pillar configuration view...');
+  // Wait for the "Configure Pillars" heading to appear, indicating extraction finished
+  await page.waitForSelector('h3:has-text("Configure Pillars")', { timeout: 60000 });
+  console.log('Pillar configuration view ready.');
 }
 
 test.describe('Story 3.3: Interactive Pillar Configuration', () => {

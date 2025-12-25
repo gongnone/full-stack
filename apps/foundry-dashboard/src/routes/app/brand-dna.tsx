@@ -489,7 +489,11 @@ function BrandDNAPage() {
                 <p className="mb-2" style={{ color: 'var(--text-primary)' }}>
                   Add at least {BRAND_DNA_CONFIG.MIN_SAMPLES_FOR_ANALYSIS} training samples to analyze your Brand DNA
                 </p>
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                <p 
+                  className="text-sm" 
+                  style={{ color: 'var(--text-muted)' }}
+                  data-testid="sample-count"
+                >
                   {statsQuery.data?.totalSamples ?? 0}/{BRAND_DNA_CONFIG.MIN_SAMPLES_FOR_ANALYSIS} samples added
                 </p>
               </>

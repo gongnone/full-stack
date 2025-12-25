@@ -51,7 +51,7 @@ test.describe('Story 1.2: Better Auth Integration with OAuth', () => {
       await expect(page.locator('input[type="email"]')).toBeVisible();
 
       // Password field
-      await expect(page.locator('input[type="password"]')).toBeVisible();
+      await expect(page.locator('#password')).toBeVisible();
 
       // Submit button
       await expect(page.locator('button[type="submit"]')).toBeVisible();
@@ -61,7 +61,7 @@ test.describe('Story 1.2: Better Auth Integration with OAuth', () => {
       await page.goto(`${BASE_URL}/signup`);
 
       // Look for password requirement hints
-      const passwordField = page.locator('input[type="password"]');
+      const passwordField = page.locator('#password');
       await passwordField.fill('weak');
 
       // Should show password requirements or validation message

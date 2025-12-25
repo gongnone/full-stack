@@ -121,6 +121,7 @@ function HubsPage() {
         </div>
         <Link
           to="/app/hubs/new"
+          data-testid="new-hub-btn"
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors"
           style={{ backgroundColor: 'var(--edit)', color: '#fff' }}
         >

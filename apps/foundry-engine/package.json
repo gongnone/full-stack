@@ -7,21 +7,24 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:staging": "wrangler deploy --env staging",
+    "deploy:stage": "wrangler deploy --env stage",
+    "deploy:production": "wrangler deploy --env production",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@repo/foundry-core": "workspace:*",
+    "@repo/agent-logic": "workspace:*",
     "@repo/agent-system": "workspace:*",
+    "@repo/foundry-core": "workspace:*",
     "hono": "^4.6.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241127.0",
     "@cloudflare/vitest-pool-workers": "^0.5.0",
+    "@cloudflare/workers-types": "^4.20241127.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0",
-    "wrangler": "^3.95.0"
+    "wrangler": "^4.56.0"
   }
 }

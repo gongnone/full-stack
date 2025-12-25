@@ -3,6 +3,7 @@ import {
   WorkflowStep,
   WorkflowEvent,
 } from 'cloudflare:workers';
+import { AI_MODELS } from '@repo/agent-logic/config';
 
 interface Env {
   CLIENT_AGENT: DurableObjectNamespace;
@@ -69,7 +70,7 @@ export class HubIngestionWorkflow extends WorkflowEntrypoint<Env, HubIngestionPa
 
     // Step 3: Generate embeddings for source content
     const embeddings = await step.do('generate-embeddings', async () => {
-      const result = await this.env.AI.run('@cf/baai/bge-base-en-v1.5' as any, {
+      const result = await this.env.AI.run(AI_MODELS.EMBEDDING as any, {
         text: sourceContent,
       }) as any;
 
@@ -96,7 +97,7 @@ Brand Voice Context:
 
 Output format: JSON array of objects with 'pillarId', 'title', 'angle', 'hooks' (array of 3 hook ideas)`;
 
-      const result = await this.env.AI.run('@cf/meta/llama-3.1-70b-instruct' as any, {
+      const result = await this.env.AI.run(AI_MODELS.REASONING as any, {
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Source Content:\n${sourceContent}\n\nTarget Platform: ${platform}\nContent Angle: ${angle}` },

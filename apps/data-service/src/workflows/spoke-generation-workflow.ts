@@ -4,14 +4,13 @@ import { extracted_pillars, spokes, spoke_evaluations, feedback_log, workflowRun
 import { eq } from 'drizzle-orm';
 import { SPOKE_GENERATION_PROMPTS } from '@repo/agent-logic/prompts/spoke-prompts';
 import { PLATFORM_CONFIGS } from '@repo/agent-logic/platform-configs';
+import { AI_MODELS, GENERATION_CONFIG } from '@repo/agent-logic/config';
 import { CriticAgent } from '@repo/agent-system';
 
 interface SpokeGenerationParams {
     hubId: string;
     runId?: string;
 }
-
-const PSYCHOLOGICAL_ANGLES = ['contrarian', 'how-to', 'story-based'];
 
 export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenerationParams> {
     async run(event: WorkflowEvent<SpokeGenerationParams>, step: WorkflowStep) {
@@ -34,12 +33,12 @@ export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenera
             return { error: 'Missing Pillar Data' };
         }
 
-        const totalTasks = pillars.length * PSYCHOLOGICAL_ANGLES.length;
+        const totalTasks = pillars.length * GENERATION_CONFIG.PSYCHOLOGICAL_ANGLES.length;
         let completedTasks = 0;
 
         // 2. Generate Spokes for each Pillar
         for (const pillar of pillars) {
-            for (const angle of PSYCHOLOGICAL_ANGLES) {
+            for (const angle of GENERATION_CONFIG.PSYCHOLOGICAL_ANGLES) {
                 await step.do(`generate-spokes-pillar-${pillar.id}-angle-${angle}`, async () => {
                     const platforms = Object.keys(PLATFORM_CONFIGS) as (keyof typeof PLATFORM_CONFIGS)[];
                     const critic = new CriticAgent(this.env.AI as any, this.env.VECTORIZE as any, this.env.DB as any);
@@ -52,7 +51,7 @@ export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenera
                         let finalSpoke: any = null;
                         const evaluationsHistory: any[] = [];
 
-                        while (attempt <= 3) {
+                        while (attempt <= GENERATION_CONFIG.MAX_ATTEMPTS) {
                             const platformConfig = PLATFORM_CONFIGS[platform];
                             let prompt = `${SPOKE_GENERATION_PROMPTS.common}\n${SPOKE_GENERATION_PROMPTS[platform]}`
                                 .replace('{pillar_name}', pillar.name)
@@ -74,7 +73,7 @@ export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenera
                                 prompt += `\n${healingPrompt}`;
                             }
 
-                            const response = await this.env.AI.run('@cf/meta/llama-3-8b-instruct', {
+                            const response = await this.env.AI.run(AI_MODELS.GENERATION as any, {
                                 messages: [
                                     { role: 'system', content: 'You are a JSON-only API. return valid JSON.' },
                                     { role: 'user', content: prompt }
@@ -115,7 +114,7 @@ export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenera
                             attempt++;
                         }
 
-                        if (finalSpoke && !lastEvaluation?.overallPass && attempt > 3) {
+                        if (finalSpoke && !lastEvaluation?.overallPass && attempt > GENERATION_CONFIG.MAX_ATTEMPTS) {
                             finalSpoke.status = 'failed_qa';
                         }
 

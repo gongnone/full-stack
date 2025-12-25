@@ -14,7 +14,14 @@ A full-stack content generation platform built on Cloudflare Workers, featuring 
 
 ## Environments
 
+### Legacy System
 | Environment | URL |
 |-------------|-----|
 | Stage | https://stage.williamjshaw.ca |
 | Production | https://hero.williamjshaw.ca |
+
+### Foundry MVP
+| Environment | URL |
+|-------------|-----|
+| Stage | https://foundry-stage.williamjshaw.ca |
+| Production | https://foundry.williamjshaw.ca |

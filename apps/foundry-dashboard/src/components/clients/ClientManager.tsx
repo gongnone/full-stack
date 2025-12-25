@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
+import { useToast } from '@/lib/toast';
+import { CLIENT_CONFIG, UI_CONFIG } from '@/lib/constants';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Building2, MoreVertical, Edit, Trash2, Users, Share2 } from 'lucide-react';
@@ -17,6 +19,7 @@ interface Client {
 }
 
 export function ClientManager() {
+  const { addToast } = useToast();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -25,7 +28,7 @@ export function ClientManager() {
     name: '',
     industry: '',
     contactEmail: '',
-    brandColor: '#1D9BF0',
+    brandColor: CLIENT_CONFIG.DEFAULT_BRAND_COLOR,
     status: 'active' as const,
   });
 
@@ -37,6 +40,10 @@ export function ClientManager() {
       utils.clients.list.invalidate();
       setIsEditModalOpen(false);
       setSelectedClient(null);
+      addToast('Client updated successfully', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
+    },
+    onError: (err) => {
+      addToast(`Update failed: ${err.message}`, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
   });
 
@@ -46,7 +53,7 @@ export function ClientManager() {
       name: client.name,
       industry: client.industry || '',
       contactEmail: client.contactEmail || '',
-      brandColor: client.brandColor || '#1D9BF0',
+      brandColor: client.brandColor || CLIENT_CONFIG.DEFAULT_BRAND_COLOR,
       status: client.status,
     });
     setIsEditModalOpen(true);

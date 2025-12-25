@@ -221,8 +221,12 @@ app.use('/api/upload/*', authMiddleware);
 
 // File upload endpoint for R2 (Story 2.1 & 2.2)
 app.post('/api/upload/:path{.+}', async (c) => {
-  const r2Key = c.req.param('path');
+  // Explicitly decode the path parameter (URL may be encoded from frontend)
+  const rawPath = c.req.param('path');
+  const r2Key = rawPath ? decodeURIComponent(rawPath) : '';
   const userId = c.get('userId');
+
+  console.log('Upload request:', { rawPath, r2Key, userId });
 
   if (!r2Key) {
     return c.json({ error: 'Missing file path' }, 400);
@@ -239,17 +243,17 @@ app.post('/api/upload/:path{.+}', async (c) => {
   const pathParts = r2Key.split('/');
   if (pathParts.length >= 2) {
     const clientIdFromPath = pathParts[1];
-    // Verify user owns this client (query D1 for user-client relationship)
+    // Verify user has membership to this client (via client_members junction table)
     try {
       const clientAccess = await c.env.DB.prepare(`
-        SELECT 1 FROM clients WHERE id = ? AND user_id = ?
+        SELECT 1 FROM client_members WHERE client_id = ? AND user_id = ?
       `).bind(clientIdFromPath, userId).first();
 
       if (!clientAccess) {
         return c.json({ error: 'Access denied to this client' }, 403);
       }
     } catch {
-      // If clients table doesn't exist yet (Epic 7), skip check
+      // If client_members table doesn't exist yet (Epic 7), skip check
       // This allows uploads to work while maintaining security once clients exist
     }
   }
@@ -267,11 +271,13 @@ app.post('/api/upload/:path{.+}', async (c) => {
     }
 
     // Upload to R2
+    console.log('Uploading to R2:', { r2Key, size: body.byteLength });
     await c.env.MEDIA.put(r2Key, body, {
       httpMetadata: {
         contentType: c.req.header('Content-Type') || 'application/octet-stream',
       },
     });
+    console.log('R2 upload success:', { r2Key });
 
     return c.json({
       success: true,

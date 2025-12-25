@@ -1,90 +1,24 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
+import { useToast } from '@/lib/toast';
+import { UI_CONFIG } from '@/lib/constants';
+import { CLIENT_ROLES } from '@/lib/rbac';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Shield, Check } from 'lucide-react';
 
-interface RBACEditorProps {
-  isOpen: boolean;
-  onClose: () => void;
-  client: {
-    id: string;
-    name: string;
-  };
-  member: {
-    id: string;
-    name: string;
-    email: string;
-    role: string;
-  };
-}
-
-const ROLES = [
-  {
-    value: 'agency_owner',
-    label: 'Agency Owner',
-    description: 'Full access to all client settings and team management',
-    permissions: [
-      'Create and edit content',
-      'Approve and publish content',
-      'Manage team members',
-      'Update client settings',
-      'Generate shareable links',
-      'View analytics',
-      'Manage billing',
-    ],
-  },
-  {
-    value: 'account_manager',
-    label: 'Account Manager',
-    description: 'Manage content and team members',
-    permissions: [
-      'Create and edit content',
-      'Approve and publish content',
-      'Manage team members (except owners)',
-      'Generate shareable links',
-      'View analytics',
-    ],
-  },
-  {
-    value: 'creator',
-    label: 'Creator',
-    description: 'Create and edit content',
-    permissions: [
-      'Create and edit content',
-      'View own content',
-      'Request reviews',
-    ],
-  },
-  {
-    value: 'client_admin',
-    label: 'Client Admin',
-    description: 'Client-side administrator with review access',
-    permissions: [
-      'Review and approve content',
-      'View analytics',
-      'Export content',
-    ],
-  },
-  {
-    value: 'client_reviewer',
-    label: 'Client Reviewer',
-    description: 'Review and approve content only',
-    permissions: [
-      'Review content',
-      'Provide feedback',
-      'Approve or reject content',
-    ],
-  },
-];
-
 export function RBACEditor({ isOpen, onClose, client, member }: RBACEditorProps) {
+  const { addToast } = useToast();
   const [selectedRole, setSelectedRole] = useState(member.role);
 
   const utils = trpc.useUtils();
   const updateRoleMutation = trpc.clients.updateMember.useMutation({
     onSuccess: () => {
       utils.clients.listMembers.invalidate();
+      addToast('Team member role updated', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
       onClose();
+    },
+    onError: (err) => {
+      addToast(`Failed to update role: ${err.message}`, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
   });
 
@@ -117,7 +51,7 @@ export function RBACEditor({ isOpen, onClose, client, member }: RBACEditorProps)
           </Dialog.Description>
 
           <div className="space-y-3">
-            {ROLES.map((role) => {
+            {CLIENT_ROLES.map((role) => {
               const isSelected = selectedRole === role.value;
               const isCurrentRole = member.role === role.value;
 

@@ -5,9 +5,7 @@ import { Sidebar, CommandPalette, ClientSelector } from '@/components/layout';
 import { ActiveContextIndicator } from '@/components/layout/ActiveContextIndicator';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
-
-// NFR-P5: Performance budget - page must load in < 3 seconds
-const PERFORMANCE_BUDGET_MS = 3000;
+import { UI_CONFIG } from '@/lib/constants';
 
 export const Route = createFileRoute('/app')({
   component: AppLayout,
@@ -30,13 +28,13 @@ function AppLayout() {
       const loadTime = performance.now() - loadStartTime.current;
       hasLoggedPerformance.current = true;
 
-      if (loadTime > PERFORMANCE_BUDGET_MS) {
+      if (loadTime > UI_CONFIG.PERFORMANCE_BUDGET_MS) {
         console.warn(
-          `[NFR-P5 VIOLATION] Dashboard load time ${loadTime.toFixed(0)}ms exceeds budget of ${PERFORMANCE_BUDGET_MS}ms`
+          `[NFR-P5 VIOLATION] Dashboard load time ${loadTime.toFixed(0)}ms exceeds budget of ${UI_CONFIG.PERFORMANCE_BUDGET_MS}ms`
         );
       } else {
         console.info(
-          `[NFR-P5] Dashboard loaded in ${loadTime.toFixed(0)}ms (budget: ${PERFORMANCE_BUDGET_MS}ms)`
+          `[NFR-P5] Dashboard loaded in ${loadTime.toFixed(0)}ms (budget: ${UI_CONFIG.PERFORMANCE_BUDGET_MS}ms)`
         );
       }
 

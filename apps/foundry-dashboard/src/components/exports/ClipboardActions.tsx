@@ -2,6 +2,8 @@ import * as React from 'react';
 import { useState } from 'react';
 import { ActionButton } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { UI_CONFIG } from '@/lib/constants';
+import { useToast } from '@/lib/toast';
 
 /**
  * Story 6.5: Clipboard Copy Quick Actions
@@ -21,6 +23,7 @@ export function ClipboardActions({
   onCopy,
   className,
 }: ClipboardActionsProps) {
+  const { addToast } = useToast();
   const [copied, setCopied] = useState<'plain' | 'markdown' | 'json' | null>(null);
 
   const handleCopy = async (format: 'plain' | 'markdown' | 'json') => {
@@ -29,9 +32,10 @@ export function ClipboardActions({
       setCopied(format);
       onCopy?.(format);
 
-      setTimeout(() => setCopied(null), 2000);
+      setTimeout(() => setCopied(null), UI_CONFIG.COPIED_STATE_DURATION_MS);
     } catch (err) {
       console.error('Failed to copy:', err);
+      addToast('Failed to copy to clipboard', 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     }
   };
 

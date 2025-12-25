@@ -6,12 +6,13 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { UI_CONFIG, ANALYTICS_CONFIG } from '@/lib/constants';
 
 interface ZeroEditChartProps {
   periodDays?: number;
 }
 
-export function ZeroEditChart({ periodDays = 30 }: ZeroEditChartProps) {
+export function ZeroEditChart({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: ZeroEditChartProps) {
   const clientId = useClientId();
 
   const { data, isLoading } = trpc.analytics.getZeroEditTrend.useQuery(
@@ -56,9 +57,10 @@ export function ZeroEditChart({ periodDays = 30 }: ZeroEditChartProps) {
     date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
   }));
 
-  // Calculate trend metrics
-  const firstWeekAvg = data.data.slice(0, 7).reduce((sum, d) => sum + d.rate, 0) / 7;
-  const lastWeekAvg = data.data.slice(-7).reduce((sum, d) => sum + d.rate, 0) / 7;
+  // Calculate trend metrics using centralized window size
+  const windowSize = ANALYTICS_CONFIG.TREND_WINDOW_DAYS;
+  const firstWeekAvg = data.data.slice(0, windowSize).reduce((sum, d) => sum + d.rate, 0) / windowSize;
+  const lastWeekAvg = data.data.slice(-windowSize).reduce((sum, d) => sum + d.rate, 0) / windowSize;
   const trend = lastWeekAvg - firstWeekAvg;
   const currentRate = data.data[data.data.length - 1]?.rate ?? 0;
 
@@ -84,7 +86,7 @@ export function ZeroEditChart({ periodDays = 30 }: ZeroEditChartProps) {
             className="text-sm flex items-center gap-1 justify-end mt-1"
             style={{ color: trend >= 0 ? 'var(--approve)' : 'var(--kill)' }}
           >
-            {trend >= 0 ? '↑' : '↓'} {Math.abs(trend).toFixed(1)}% vs last week
+            {trend >= 0 ? '↑' : '↓'} {Math.abs(trend).toFixed(1)}% vs last period
           </div>
         </div>
       </div>
@@ -116,9 +118,9 @@ export function ZeroEditChart({ periodDays = 30 }: ZeroEditChartProps) {
             type="monotone"
             dataKey="rate"
             name="Zero-Edit Rate"
-            stroke="#00ff88"
+            stroke={UI_CONFIG.CHART_COLORS.PRIMARY}
             strokeWidth={2.5}
-            dot={{ fill: '#00ff88', r: 3 }}
+            dot={{ fill: UI_CONFIG.CHART_COLORS.PRIMARY, r: 3 }}
             activeDot={{ r: 5 }}
           />
         </LineChart>

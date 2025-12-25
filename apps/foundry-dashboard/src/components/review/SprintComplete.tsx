@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ActionButton } from '@/components/ui';
+import { ROI_CONFIG, QUALITY_GATE_CONFIG, UI_CONFIG } from '@/lib/constants';
+import { useToast } from '@/lib/toast';
 
 interface SprintStats {
   total: number;
@@ -40,20 +42,27 @@ function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string
 }
 
 export function SprintComplete({ stats, filter, onBackToDashboard, onReviewConflicts }: SprintCompleteProps) {
-  const hoursSaved = (stats.total * 6) / 60; // 6 minutes per item
-  const dollarValue = Math.round(hoursSaved * 200); // $200/hr
+  const { addToast } = useToast();
+  const hoursSaved = (stats.total * ROI_CONFIG.MINUTES_SAVED_PER_SPOKE) / 60;
+  const dollarValue = Math.round(hoursSaved * ROI_CONFIG.HOURLY_RATE_USD);
   const zeroEditRate = stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
   const approvalRate = stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
   const killRate = stats.total > 0 ? Math.round((stats.killed / stats.total) * 100) : 0;
 
-  const copyShareSummary = () => {
+  const copyShareSummary = async () => {
     const summary = `Sprint Complete!
 Reviewed: ${stats.total} items
 Approved: ${stats.approved} (${approvalRate}%)
 Killed: ${stats.killed} (${killRate}%)
 Time Saved: ${hoursSaved.toFixed(1)} hours ($${dollarValue})
 Zero-Edit Rate: ${zeroEditRate}%`;
-    navigator.clipboard.writeText(summary);
+    
+    try {
+      await navigator.clipboard.writeText(summary);
+      addToast('Summary copied to clipboard', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
+    } catch (err) {
+      addToast('Failed to copy summary', 'error', UI_CONFIG.TOAST_DURATION.ERROR);
+    }
   };
 
   return (
@@ -76,7 +85,7 @@ Zero-Edit Rate: ${zeroEditRate}%`;
           </div>
           <div className="text-xl text-[var(--text-secondary)]">saved</div>
           <div className="text-lg text-[var(--approve)] mt-2">
-            (${dollarValue} at $200/hr)
+            (${dollarValue} at $${ROI_CONFIG.HOURLY_RATE_USD}/hr)
           </div>
         </div>
       </div>
@@ -108,24 +117,24 @@ Zero-Edit Rate: ${zeroEditRate}%`;
       <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Zero-Edit Rate</h2>
-          <span className="text-sm text-[var(--text-secondary)]">Target: 60%</span>
+          <span className="text-sm text-[var(--text-secondary)]">Target: {QUALITY_GATE_CONFIG.TARGET_ZERO_EDIT_RATE}%</span>
         </div>
         <div className="relative h-4 bg-[var(--bg-surface)] rounded-full overflow-hidden">
           <div
             className={`absolute left-0 top-0 h-full rounded-full transition-all duration-1000 ${
-              zeroEditRate >= 60 ? 'bg-[var(--approve)]' : 'bg-[var(--warning)]'
+              zeroEditRate >= QUALITY_GATE_CONFIG.TARGET_ZERO_EDIT_RATE ? 'bg-[var(--approve)]' : 'bg-[var(--warning)]'
             }`}
             style={{ width: `${Math.min(zeroEditRate, 100)}%` }}
           />
           {/* Target marker */}
-          <div className="absolute left-[60%] top-0 h-full w-0.5 bg-[var(--text-muted)]" />
+          <div className="absolute left-[60%] top-0 h-full w-0.5 bg-[var(--text-muted)]" style={{ left: `${QUALITY_GATE_CONFIG.TARGET_ZERO_EDIT_RATE}%` }} />
         </div>
         <div className="flex justify-between mt-2 text-sm">
-          <span className={`font-bold ${zeroEditRate >= 60 ? 'text-[var(--approve)]' : 'text-[var(--warning)]'}`}>
+          <span className={`font-bold ${zeroEditRate >= QUALITY_GATE_CONFIG.TARGET_ZERO_EDIT_RATE ? 'text-[var(--approve)]' : 'text-[var(--warning)]'}`}>
             {zeroEditRate}%
           </span>
           <span className="text-[var(--text-muted)]">
-            {zeroEditRate >= 60 ? 'Above target' : 'Below target'}
+            {zeroEditRate >= QUALITY_GATE_CONFIG.TARGET_ZERO_EDIT_RATE ? 'Above target' : 'Below target'}
           </span>
         </div>
       </div>

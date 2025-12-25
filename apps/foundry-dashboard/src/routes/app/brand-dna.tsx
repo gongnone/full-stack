@@ -3,6 +3,7 @@ import { useState, useCallback, useRef } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { useToast } from '@/lib/toast';
+import { BRAND_DNA_CONFIG } from '@/lib/constants';
 import {
   FileDropZone,
   TrainingSamplesList,
@@ -79,7 +80,7 @@ function BrandDNAPage() {
   // tRPC queries - only run when clientId is available
   const samplesQuery = trpc.calibration.listSamples.useQuery({
     clientId: clientId || '',
-    limit: 50,
+    limit: BRAND_DNA_CONFIG.SAMPLES_LIST_LIMIT,
   }, {
     enabled: !!clientId,
   });
@@ -202,9 +203,11 @@ function BrandDNAPage() {
         utils.calibration.listSamples.invalidate(),
         utils.calibration.getSampleStats.invalidate(),
       ]);
+      addToast('File uploaded and registered successfully', 'success');
     } catch (error) {
       console.error('Upload error:', error);
-      // TODO: Show error toast
+      const message = error instanceof Error ? error.message : 'Failed to upload file';
+      addToast(message, 'error');
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -228,11 +231,13 @@ function BrandDNAPage() {
         utils.calibration.listSamples.invalidate(),
         utils.calibration.getSampleStats.invalidate(),
       ]);
+      addToast('Text sample added successfully', 'success');
     } catch (error) {
       console.error('Create sample error:', error);
-      // TODO: Show error toast
+      const message = error instanceof Error ? error.message : 'Failed to add text sample';
+      addToast(message, 'error');
     }
-  }, [clientId, createTextSample, utils]);
+  }, [clientId, createTextSample, utils, addToast]);
 
   // Handle sample deletion
   const handleDelete = useCallback(async (sampleId: string) => {
@@ -250,9 +255,11 @@ function BrandDNAPage() {
         utils.calibration.listSamples.invalidate(),
         utils.calibration.getSampleStats.invalidate(),
       ]);
+      addToast('Sample deleted', 'success');
     } catch (error) {
       console.error('Delete error:', error);
-      // TODO: Show error toast
+      const message = error instanceof Error ? error.message : 'Failed to delete sample';
+      addToast(message, 'error');
     } finally {
       setDeletingId(null);
     }
@@ -300,9 +307,11 @@ function BrandDNAPage() {
         utils.calibration.getSampleStats.invalidate(),
         utils.calibration.getBrandDNA.invalidate(),
       ]);
+      addToast('Voice note processed successfully', 'success');
     } catch (error) {
       console.error('Voice processing error:', error);
-      // TODO: Show error toast
+      const message = error instanceof Error ? error.message : 'Failed to process voice note';
+      addToast(message, 'error');
     } finally {
       setIsProcessingVoice(false);
     }
@@ -338,9 +347,9 @@ function BrandDNAPage() {
                 className="w-2.5 h-2.5 rounded-full"
                 style={{
                   backgroundColor:
-                    brandDNAQuery.data.dnaStrength >= 80
+                    brandDNAQuery.data.dnaStrength >= BRAND_DNA_CONFIG.STRENGTH_THRESHOLDS.STRONG
                       ? 'var(--approve)'
-                      : brandDNAQuery.data.dnaStrength >= 50
+                      : brandDNAQuery.data.dnaStrength >= BRAND_DNA_CONFIG.STRENGTH_THRESHOLDS.ADEQUATE
                       ? 'var(--warning)'
                       : 'var(--kill)',
                 }}
@@ -394,7 +403,7 @@ function BrandDNAPage() {
             </h2>
             <button
               onClick={handleAnalyzeDNA}
-              disabled={isAnalyzing || (statsQuery.data?.totalSamples ?? 0) < 3}
+              disabled={isAnalyzing || (statsQuery.data?.totalSamples ?? 0) < BRAND_DNA_CONFIG.MIN_SAMPLES_FOR_ANALYSIS}
               className="px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
                 backgroundColor: 'var(--edit)',
@@ -429,7 +438,7 @@ function BrandDNAPage() {
             className="rounded-xl p-6 text-center"
             style={{ backgroundColor: 'var(--bg-elevated)' }}
           >
-            {(statsQuery.data?.totalSamples ?? 0) >= 3 ? (
+            {(statsQuery.data?.totalSamples ?? 0) >= BRAND_DNA_CONFIG.MIN_SAMPLES_FOR_ANALYSIS ? (
               <>
                 <p className="mb-4" style={{ color: 'var(--text-primary)' }}>
                   You have {statsQuery.data?.totalSamples} samples ready for analysis.
@@ -478,10 +487,10 @@ function BrandDNAPage() {
             ) : (
               <>
                 <p className="mb-2" style={{ color: 'var(--text-primary)' }}>
-                  Add at least 3 training samples to analyze your Brand DNA
+                  Add at least {BRAND_DNA_CONFIG.MIN_SAMPLES_FOR_ANALYSIS} training samples to analyze your Brand DNA
                 </p>
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  {statsQuery.data?.totalSamples ?? 0}/3 samples added
+                  {statsQuery.data?.totalSamples ?? 0}/{BRAND_DNA_CONFIG.MIN_SAMPLES_FOR_ANALYSIS} samples added
                 </p>
               </>
             )}
@@ -547,7 +556,7 @@ function BrandDNAPage() {
 
           <VoiceRecorder
             onRecordingComplete={handleRecordingComplete}
-            maxDuration={60}
+            maxDuration={BRAND_DNA_CONFIG.MAX_VOICE_DURATION_SECONDS}
             disabled={isProcessingVoice}
           />
 
@@ -610,7 +619,7 @@ function BrandDNAPage() {
         className="text-xs py-4 border-t"
         style={{ color: 'var(--text-muted)', borderColor: 'var(--border-subtle)' }}
       >
-        <span className="font-medium">Tip:</span> Upload at least 3 samples for basic Brand DNA analysis.
+        <span className="font-medium">Tip:</span> Upload at least {BRAND_DNA_CONFIG.MIN_SAMPLES_FOR_ANALYSIS} samples for basic Brand DNA analysis.
         The more quality content you provide, the better the system learns your voice.
       </div>
     </div>

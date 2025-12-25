@@ -5,6 +5,8 @@ import { ActionButton } from '@/components/ui';
 import { ExportModal, ClipboardActions, type ExportConfig } from '@/components/exports';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { useToast } from '@/lib/toast';
+import { EXPORT_CONFIG, UI_CONFIG } from '@/lib/constants';
 
 const exportsSearchSchema = z.object({
   hubId: z.string().optional().catch(undefined),
@@ -30,12 +32,13 @@ interface ExportHistoryItem {
 function ExportsPage() {
   const { hubId } = Route.useSearch();
   const clientId = useClientId();
+  const { addToast } = useToast();
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedExportId, setSelectedExportId] = useState<string | null>(null);
 
   // tRPC Queries
   const exportsListQuery = trpc.exports.list.useQuery(
-    { clientId: clientId!, limit: 20 },
+    { clientId: clientId!, limit: EXPORT_CONFIG.HISTORY_LIMIT },
     { enabled: !!clientId }
   );
 
@@ -43,6 +46,10 @@ function ExportsPage() {
     onSuccess: () => {
       setShowExportModal(false);
       exportsListQuery.refetch();
+      addToast('Export started successfully', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
+    },
+    onError: (err) => {
+      addToast(`Export failed: ${err.message}`, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
   });
 
@@ -71,9 +78,12 @@ function ExportsPage() {
 
       if (result.data?.url) {
         window.open(result.data.url, '_blank');
+      } else {
+        throw new Error('Download URL not available');
       }
     } catch (err) {
       console.error('Download failed:', err);
+      addToast('Failed to get download link', 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     }
   };
 

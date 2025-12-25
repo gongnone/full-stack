@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/lib/toast';
+import { BRAND_DNA_CONFIG, UI_CONFIG } from '@/lib/constants';
 
 interface VoiceRecorderProps {
   onRecordingComplete: (audioBlob: Blob) => void;
@@ -11,9 +13,10 @@ type RecordingState = 'idle' | 'recording' | 'paused' | 'stopped';
 
 export function VoiceRecorder({
   onRecordingComplete,
-  maxDuration = 60,
+  maxDuration = BRAND_DNA_CONFIG.MAX_VOICE_DURATION_SECONDS,
   disabled = false,
 }: VoiceRecorderProps) {
+  const { addToast } = useToast();
   const [recordingState, setRecordingState] = useState<RecordingState>('idle');
   const [duration, setDuration] = useState(0);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -98,10 +101,12 @@ export function VoiceRecorder({
       }, 1000);
     } catch (err) {
       setHasPermission(false);
-      setError('Microphone access denied. Please enable it in your browser settings.');
+      const message = 'Microphone access denied. Please enable it in your browser settings.';
+      setError(message);
+      addToast(message, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
       console.error('Error accessing microphone:', err);
     }
-  }, [maxDuration, onRecordingComplete]);
+  }, [maxDuration, onRecordingComplete, addToast]);
 
   const stopRecording = useCallback(() => {
     if (timerRef.current) {
@@ -169,6 +174,8 @@ export function VoiceRecorder({
               <button
                 onClick={startRecording}
                 disabled={disabled}
+                data-testid="voice-recorder-btn"
+                aria-label="Start Recording"
                 className="w-16 h-16 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
                 style={{ backgroundColor: 'var(--kill)' }}
               >

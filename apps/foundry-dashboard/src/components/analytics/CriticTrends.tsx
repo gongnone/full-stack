@@ -6,12 +6,13 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { UI_CONFIG, ANALYTICS_CONFIG } from '@/lib/constants';
 
 interface CriticTrendsProps {
   periodDays?: number;
 }
 
-export function CriticTrends({ periodDays = 30 }: CriticTrendsProps) {
+export function CriticTrends({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: CriticTrendsProps) {
   const clientId = useClientId();
 
   const { data, isLoading } = trpc.analytics.getCriticPassTrend.useQuery(
@@ -100,43 +101,43 @@ export function CriticTrends({ periodDays = 30 }: CriticTrendsProps) {
             type="monotone"
             dataKey="g2"
             name="G2 Hook"
-            stroke="#ff6b6b"
+            stroke={UI_CONFIG.CHART_COLORS.G2}
             strokeWidth={2}
-            dot={{ fill: '#ff6b6b', r: 2 }}
+            dot={{ fill: UI_CONFIG.CHART_COLORS.G2, r: 2 }}
           />
           <Line
             type="monotone"
             dataKey="g4"
             name="G4 Voice"
-            stroke="#4ecdc4"
+            stroke={UI_CONFIG.CHART_COLORS.G4}
             strokeWidth={2}
-            dot={{ fill: '#4ecdc4', r: 2 }}
+            dot={{ fill: UI_CONFIG.CHART_COLORS.G4, r: 2 }}
           />
           <Line
             type="monotone"
             dataKey="g5"
             name="G5 Platform"
-            stroke="#95e1d3"
+            stroke={UI_CONFIG.CHART_COLORS.G5}
             strokeWidth={2}
-            dot={{ fill: '#95e1d3', r: 2 }}
+            dot={{ fill: UI_CONFIG.CHART_COLORS.G5, r: 2 }}
           />
           <Line
             type="monotone"
             dataKey="g7"
             name="G7 Predicted"
-            stroke="#ffd93d"
+            stroke={UI_CONFIG.CHART_COLORS.G7}
             strokeWidth={2}
-            dot={{ fill: '#ffd93d', r: 2 }}
+            dot={{ fill: UI_CONFIG.CHART_COLORS.G7, r: 2 }}
           />
         </LineChart>
       </ResponsiveContainer>
 
       <div className="mt-6 pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
         <div className="grid grid-cols-4 gap-4">
-          <GateCard label="G2 Hook" rate={latest.g2} color="#ff6b6b" />
-          <GateCard label="G4 Voice" rate={latest.g4} color="#4ecdc4" />
-          <GateCard label="G5 Platform" rate={latest.g5} color="#95e1d3" />
-          <GateCard label="G7 Predicted" rate={latest.g7} color="#ffd93d" />
+          <GateCard label="G2 Hook" rate={latest.g2} color={UI_CONFIG.CHART_COLORS.G2} />
+          <GateCard label="G4 Voice" rate={latest.g4} color={UI_CONFIG.CHART_COLORS.G4} />
+          <GateCard label="G5 Platform" rate={latest.g5} color={UI_CONFIG.CHART_COLORS.G5} />
+          <GateCard label="G7 Predicted" rate={latest.g7} color={UI_CONFIG.CHART_COLORS.G7} />
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { ActionButton } from '../ui/action-button';
 import { KeyboardHint } from '../ui/keyboard-hint';
 import { Spoke } from '@repo/foundry-core';
 import { ImageIcon, Eye, Palette, Lightbulb } from 'lucide-react';
+import { QUALITY_GATE_CONFIG } from '@/lib/constants';
 
 interface ContentCardProps {
   spoke: Spoke;
@@ -146,7 +147,7 @@ export const ContentCard: React.FC<ContentCardProps> = ({
 
 function getScoreColor(score?: number): string {
   if (!score) return 'var(--text-muted)';
-  if (score >= 80) return '#00D26A'; // Approve green
-  if (score >= 60) return '#FFD700'; // Warning gold
+  if (score >= QUALITY_GATE_CONFIG.G2.PASS) return '#00D26A'; // Approve green
+  if (score >= QUALITY_GATE_CONFIG.G2.WARNING) return '#FFD700'; // Warning gold
   return '#F4212E'; // Kill red
 }

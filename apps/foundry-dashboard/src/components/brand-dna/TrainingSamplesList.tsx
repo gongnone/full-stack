@@ -173,6 +173,7 @@ export function TrainingSamplesList({
         return (
           <div
             key={sample.id}
+            data-testid="sample-item"
             className="rounded-lg border transition-colors"
             style={{
               backgroundColor: 'var(--bg-surface)',
@@ -194,7 +195,7 @@ export function TrainingSamplesList({
 
               {/* Title and Meta */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                <p data-testid="sample-title" className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                   {sample.title}
                 </p>
                 <div className="flex items-center gap-2 mt-1">
@@ -226,6 +227,7 @@ export function TrainingSamplesList({
               {/* Quality Badge */}
               {sample.status === 'analyzed' && (
                 <span
+                  data-testid="quality-badge"
                   className="px-2 py-1 rounded text-xs font-medium shrink-0"
                   style={{ backgroundColor: qualityStyles.bg, color: qualityStyles.text }}
                 >
@@ -260,6 +262,7 @@ export function TrainingSamplesList({
                       onDelete(sample.id);
                     }}
                     disabled={isDeleting === sample.id}
+                    data-testid="delete-sample-btn"
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors hover:bg-[var(--kill)]/10"
                     style={{ color: 'var(--kill)' }}
                   >

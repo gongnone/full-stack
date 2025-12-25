@@ -68,14 +68,17 @@ export function TextPasteModal({
 
       {/* Modal */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="paste-modal-title"
         className="relative w-full max-w-2xl rounded-xl overflow-hidden shadow-2xl"
         style={{ backgroundColor: 'var(--bg-elevated)' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b"
           style={{ borderColor: 'var(--border-subtle)' }}>
-          <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
-            Paste Text Content
+          <h2 id="paste-modal-title" className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Paste Content
           </h2>
           <button
             onClick={onClose}

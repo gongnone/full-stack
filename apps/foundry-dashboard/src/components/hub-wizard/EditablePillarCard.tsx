@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Pillar, PsychologicalAngle } from './ExtractionProgress';
+import { WIZARD_CONFIG } from '@/lib/constants';
 
 // Psychological angles with their associated colors (for UI rendering)
 const PSYCHOLOGICAL_ANGLES: { value: PsychologicalAngle; color: string; bgColor: string }[] = [
@@ -60,7 +61,7 @@ export function EditablePillarCard({
     }
     debounceRef.current = setTimeout(() => {
       onUpdate(updates);
-    }, 300);
+    }, WIZARD_CONFIG.DEBOUNCE_MS);
   }, [onUpdate]);
 
   // Handle title change

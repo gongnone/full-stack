@@ -5,6 +5,7 @@
 
 import { GateBadge } from '@/components/ui';
 import type { Spoke, SpokePlatform } from '../../../worker/types';
+import { QUALITY_GATE_CONFIG } from '@/lib/constants';
 
 // Platform icons and colors
 const PLATFORM_CONFIG: Record<SpokePlatform, { label: string; color: string; icon: React.ReactNode }> = {

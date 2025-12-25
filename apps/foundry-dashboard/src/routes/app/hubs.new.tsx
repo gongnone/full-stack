@@ -22,6 +22,7 @@ import {
 } from '@/components/hub-wizard';
 import type { Step, Pillar, PsychologicalAngle } from '@/components/hub-wizard';
 import { trpc } from '@/lib/trpc-client';
+import { WIZARD_CONFIG, POLLING_CONFIG } from '@/lib/constants';
 
 // Types for tRPC mutation results
 interface RetryExtractionResult {
@@ -94,7 +95,7 @@ function NewHubWizard() {
       refetchInterval: () => {
         // Auto-stop polling when extraction completes
         if (!isExtracting) return false;
-        return 2000;
+        return POLLING_CONFIG.DEFAULT_INTERVAL_MS;
       },
     }
   );
@@ -167,7 +168,16 @@ function NewHubWizard() {
   const handleStartExtraction = useCallback(() => {
     if (!selectedSourceId || !selectedClientId) return;
     setIsExtracting(true);
-    extractMutation.mutate({ sourceId: selectedSourceId, clientId: selectedClientId });
+    setExtractionError(null); // Clear previous errors
+    extractMutation.mutate(
+      { sourceId: selectedSourceId, clientId: selectedClientId },
+      {
+        onError: (error) => {
+          setIsExtracting(false);
+          setExtractionError(error.message || 'Failed to start extraction');
+        },
+      }
+    );
   }, [selectedSourceId, selectedClientId, extractMutation]);
 
   const handleStepClick = useCallback((step: number) => {
@@ -203,8 +213,8 @@ function NewHubWizard() {
         setExtractedPillars(originalPillars);
         // Show error feedback
         setPillarUpdateError(`Failed to save changes: ${error.message}`);
-        // Auto-dismiss error after 5 seconds
-        setTimeout(() => setPillarUpdateError(null), 5000);
+        // Auto-dismiss error
+        setTimeout(() => setPillarUpdateError(null), WIZARD_CONFIG.ERROR_TOAST_DURATION_MS);
       },
     });
   }, [selectedClientId, updatePillarMutation, extractedPillars]);
@@ -236,12 +246,12 @@ function NewHubWizard() {
         clientId: selectedClientId,
       }, {
         onError: (error) => {
-          // Show error - user can use undo to restore if within 3s window
+          // Show error - user can use undo to restore if within window
           setPillarUpdateError(`Failed to delete pillar: ${error.message}`);
-          setTimeout(() => setPillarUpdateError(null), 5000);
+          setTimeout(() => setPillarUpdateError(null), WIZARD_CONFIG.ERROR_TOAST_DURATION_MS);
         },
       });
-    }, 300);
+    }, WIZARD_CONFIG.ANIMATION_DELAY_MS);
   }, [selectedClientId, selectedSourceId, extractedPillars, deletePillarMutation, deletingPillarId]);
 
   // Story 3-3: Handle undo
@@ -269,7 +279,7 @@ function NewHubWizard() {
 
   // Story 3-3: Handle continue to generate
   const handleContinueToGenerate = useCallback(() => {
-    if (extractedPillars.length >= 3) {
+    if (extractedPillars.length >= WIZARD_CONFIG.MIN_PILLARS) {
       setCurrentStep(4);
     }
   }, [extractedPillars.length]);
@@ -449,7 +459,7 @@ function NewHubWizard() {
                 </div>
 
                 {/* Minimum pillar warning */}
-                {extractedPillars.length <= 3 && (
+                {extractedPillars.length <= WIZARD_CONFIG.MIN_PILLARS && (
                   <div
                     className="p-3 rounded-lg border flex items-center gap-2"
                     style={{
@@ -459,7 +469,7 @@ function NewHubWizard() {
                   >
                     <WarningIcon className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--warning)' }} />
                     <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                      Minimum 3 pillars required for Hub creation. Deletion is disabled.
+                      Minimum {WIZARD_CONFIG.MIN_PILLARS} pillars required for Hub creation. Deletion is disabled.
                     </p>
                   </div>
                 )}
@@ -474,7 +484,7 @@ function NewHubWizard() {
                       <EditablePillarCard
                         pillar={pillar}
                         isDeleting={deletingPillarId === pillar.id}
-                        canDelete={extractedPillars.length > 3}
+                        canDelete={extractedPillars.length > WIZARD_CONFIG.MIN_PILLARS}
                         onUpdate={(updates) => handlePillarUpdate(pillar.id, updates)}
                         onDelete={() => handlePillarDelete(pillar.id)}
                       />
@@ -618,7 +628,7 @@ function NewHubWizard() {
           </button>
 
           {/* Step 3: Continue to Generate button */}
-          {currentStep === 3 && extractedPillars.length >= 3 && !isExtracting && !extractionError && (
+          {currentStep === 3 && extractedPillars.length >= WIZARD_CONFIG.MIN_PILLARS && !isExtracting && !extractionError && (
             <button
               onClick={handleContinueToGenerate}
               className="px-6 py-2 rounded-lg text-sm font-medium transition-colors"
@@ -633,7 +643,7 @@ function NewHubWizard() {
           )}
 
           {/* Step 3: Disabled button when not ready */}
-          {currentStep === 3 && (extractedPillars.length < 3 || isExtracting) && !extractionError && (
+          {currentStep === 3 && (extractedPillars.length < WIZARD_CONFIG.MIN_PILLARS || isExtracting) && !extractionError && (
             <button
               disabled
               className="px-6 py-2 rounded-lg text-sm font-medium transition-colors opacity-50 cursor-not-allowed"
@@ -642,7 +652,7 @@ function NewHubWizard() {
                 color: 'white',
               }}
             >
-              {isExtracting ? 'Extracting...' : 'Need 3+ pillars'}
+              {isExtracting ? 'Extracting...' : `Need ${WIZARD_CONFIG.MIN_PILLARS}+ pillars`}
             </button>
           )}
 

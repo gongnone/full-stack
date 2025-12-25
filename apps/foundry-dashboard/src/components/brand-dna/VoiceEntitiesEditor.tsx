@@ -11,6 +11,7 @@ import { useCallback } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { useToast } from '@/lib/toast';
 import { EditableChipList } from './EditableChipList';
+import { VALIDATION_LIMITS, UI_CONFIG } from '@/lib/constants';
 
 interface VoiceEntitiesEditorProps {
   clientId: string;
@@ -47,13 +48,13 @@ export function VoiceEntitiesEditor({ clientId, onClose }: VoiceEntitiesEditorPr
       if (context?.previousData) {
         utils.calibration.getVoiceEntities.setData({ clientId }, context.previousData);
       }
-      addToast(error.message || 'Failed to update Brand DNA', 'error');
+      addToast(error.message || 'Failed to update Brand DNA', 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
     onSettled: () => {
       utils.calibration.getVoiceEntities.invalidate({ clientId });
     },
     onSuccess: () => {
-      addToast('Brand DNA updated', 'success');
+      addToast('Brand DNA updated', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
     },
   });
 
@@ -73,13 +74,13 @@ export function VoiceEntitiesEditor({ clientId, onClose }: VoiceEntitiesEditorPr
       if (context?.previousData) {
         utils.calibration.getVoiceEntities.setData({ clientId }, context.previousData);
       }
-      addToast(error.message || 'Failed to update Brand DNA', 'error');
+      addToast(error.message || 'Failed to update Brand DNA', 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
     onSettled: () => {
       utils.calibration.getVoiceEntities.invalidate({ clientId });
     },
     onSuccess: () => {
-      addToast('Brand DNA updated', 'success');
+      addToast('Brand DNA updated', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
     },
   });
 
@@ -98,13 +99,13 @@ export function VoiceEntitiesEditor({ clientId, onClose }: VoiceEntitiesEditorPr
       if (context?.previousData) {
         utils.calibration.getVoiceEntities.setData({ clientId }, context.previousData);
       }
-      addToast(error.message || 'Failed to update Brand DNA', 'error');
+      addToast(error.message || 'Failed to update Brand DNA', 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
     onSettled: () => {
       utils.calibration.getVoiceEntities.invalidate({ clientId });
     },
     onSuccess: () => {
-      addToast('Brand DNA updated', 'success');
+      addToast('Brand DNA updated', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
     },
   });
 
@@ -124,13 +125,13 @@ export function VoiceEntitiesEditor({ clientId, onClose }: VoiceEntitiesEditorPr
       if (context?.previousData) {
         utils.calibration.getVoiceEntities.setData({ clientId }, context.previousData);
       }
-      addToast(error.message || 'Failed to update Brand DNA', 'error');
+      addToast(error.message || 'Failed to update Brand DNA', 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
     onSettled: () => {
       utils.calibration.getVoiceEntities.invalidate({ clientId });
     },
     onSuccess: () => {
-      addToast('Brand DNA updated', 'success');
+      addToast('Brand DNA updated', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
     },
   });
 
@@ -240,7 +241,7 @@ export function VoiceEntitiesEditor({ clientId, onClose }: VoiceEntitiesEditorPr
           chipColor="blue"
           isLoading={isLoading}
           disabled={isMutating}
-          maxLength={200}
+          maxLength={VALIDATION_LIMITS.MAX_VOICE_MARKER_LENGTH}
         />
       </div>
 
@@ -269,7 +270,7 @@ export function VoiceEntitiesEditor({ clientId, onClose }: VoiceEntitiesEditorPr
           chipColor="red"
           isLoading={isLoading}
           disabled={isMutating}
-          maxLength={100}
+          maxLength={VALIDATION_LIMITS.MAX_BANNED_WORD_LENGTH}
         />
       </div>
 

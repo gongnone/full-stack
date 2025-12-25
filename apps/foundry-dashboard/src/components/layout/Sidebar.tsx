@@ -1,4 +1,4 @@
-import { Link, useRouterState } from '@tanstack/react-router';
+import { Link, useRouterState, useNavigate } from '@tanstack/react-router';
 import { useSession, signOut } from '@/lib/auth-client';
 
 interface NavItem {
@@ -77,11 +77,12 @@ const navigation: NavItem[] = [
 export function Sidebar() {
   const { data: session } = useSession();
   const routerState = useRouterState();
+  const navigate = useNavigate();
   const currentPath = routerState.location.pathname;
 
   const handleSignOut = async () => {
     await signOut();
-    window.location.href = '/login';
+    navigate({ to: '/login' });
   };
 
   const isActive = (href: string) => {

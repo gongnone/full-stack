@@ -234,8 +234,12 @@ export const calibrationRouter = t.router({
       fileSize: z.number().min(0).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      console.log('registerFileSample called:', { clientId: input.clientId, r2Key: input.r2Key, title: input.title });
+
       // Verify the file exists in R2
       const object = await ctx.env.MEDIA.head(input.r2Key);
+      console.log('R2 head check result:', { r2Key: input.r2Key, found: !!object });
+
       if (!object) {
         throw new TRPCError({
           code: 'NOT_FOUND',

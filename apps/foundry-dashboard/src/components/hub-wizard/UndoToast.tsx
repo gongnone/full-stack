@@ -4,6 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { WIZARD_CONFIG } from '@/lib/constants';
 
 interface UndoToastProps {
   message: string;
@@ -14,7 +15,7 @@ interface UndoToastProps {
 
 export function UndoToast({
   message,
-  duration = 3,
+  duration = WIZARD_CONFIG.UNDO_DURATION_SECONDS,
   onUndo,
   onDismiss,
 }: UndoToastProps) {

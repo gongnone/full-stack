@@ -6,6 +6,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import type { Pillar } from './ExtractionProgress';
+import { POLLING_CONFIG } from '@/lib/constants';
 
 interface IngestionProgressProps {
   sourceId: string;
@@ -42,7 +43,7 @@ export function IngestionProgress({ sourceId, clientId, onComplete, onError }: I
         if (data?.status === 'completed' || data?.status === 'failed') {
           return false;
         }
-        return 2000;
+        return POLLING_CONFIG.DEFAULT_INTERVAL_MS;
       },
       enabled: !!sourceId,
     }

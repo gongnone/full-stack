@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { ActionButton, GateBadge } from '@/components/ui';
+import { QUALITY_GATE_CONFIG } from '@/lib/constants';
 import type {
   SpokeGenerationProgress,
   SpokePlatform,
@@ -124,12 +125,12 @@ export function SpokeGenerator({
 
   // Quality gate stats
   const gateStats = {
-    g2Pass: generatedSpokes.filter(s => (s.g2_score ?? 0) >= 80).length,
+    g2Pass: generatedSpokes.filter(s => (s.g2_score ?? 0) >= QUALITY_GATE_CONFIG.G2.PASS).length,
     g2Warning: generatedSpokes.filter(s => {
       const score = s.g2_score ?? 0;
-      return score >= 60 && score < 80;
+      return score >= QUALITY_GATE_CONFIG.G2.WARNING && score < QUALITY_GATE_CONFIG.G2.PASS;
     }).length,
-    g2Fail: generatedSpokes.filter(s => (s.g2_score ?? 0) < 60).length,
+    g2Fail: generatedSpokes.filter(s => (s.g2_score ?? 0) < QUALITY_GATE_CONFIG.G2.WARNING).length,
     g4Pass: generatedSpokes.filter(s => s.g4_status === 'pass').length,
     g4Fail: generatedSpokes.filter(s => s.g4_status !== 'pass').length,
     g5Pass: generatedSpokes.filter(s => s.g5_status === 'pass').length,
@@ -223,12 +224,12 @@ export function SpokeGenerator({
             {/* G2: Hook Strength */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <GateBadge gate="G2" score={85} size="sm" />
+                <GateBadge gate="G2" score={QUALITY_GATE_CONFIG.G2.PASS} size="sm" />
                 <span className="text-xs text-[var(--text-muted)]">Hook</span>
               </div>
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-[#00D26A]">Pass (80+)</span>
+                  <span className="text-[#00D26A]">Pass ({QUALITY_GATE_CONFIG.G2.PASS}+)</span>
                   <span className="font-medium text-[var(--text-primary)]">{gateStats.g2Pass}</span>
                 </div>
                 <div className="flex justify-between">

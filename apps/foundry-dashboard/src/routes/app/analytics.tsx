@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { useState } from 'react';
+import { ANALYTICS_CONFIG } from '@/lib/constants';
 import { ZeroEditChart } from '@/components/analytics/ZeroEditChart';
 import { CriticTrends } from '@/components/analytics/CriticTrends';
 import { HealingMetrics } from '@/components/analytics/HealingMetrics';
@@ -15,20 +16,20 @@ export const Route = createFileRoute('/app/analytics')({
 
 function AnalyticsPage() {
   const clientId = useClientId();
-  const [periodDays, setPeriodDays] = useState(30);
+  const [periodDays, setPeriodDays] = useState(ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS);
 
   const zeroEditQuery = trpc.analytics.getZeroEditRate.useQuery(
-    { clientId: clientId!, periodDays: 30 },
+    { clientId: clientId!, periodDays },
     { enabled: !!clientId }
   );
 
   const passRateQuery = trpc.analytics.getCriticPassRate.useQuery(
-    { clientId: clientId!, periodDays: 30 },
+    { clientId: clientId!, periodDays },
     { enabled: !!clientId }
   );
 
   const healingQuery = trpc.analytics.getSelfHealingEfficiency.useQuery(
-    { clientId: clientId!, periodDays: 30 },
+    { clientId: clientId!, periodDays },
     { enabled: !!clientId }
   );
 

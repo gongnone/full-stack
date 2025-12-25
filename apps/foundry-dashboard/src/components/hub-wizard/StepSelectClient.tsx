@@ -5,6 +5,7 @@
 
 import { useEffect } from 'react';
 import { useClientId } from '@/lib/use-client-id';
+import { WIZARD_CONFIG } from '@/lib/constants';
 
 interface StepSelectClientProps {
   selectedClientId: string | null;
@@ -26,7 +27,7 @@ export function StepSelectClient({ selectedClientId, onSelect }: StepSelectClien
   useEffect(() => {
     if (clientId && !selectedClientId) {
       // Small delay for UX
-      const timer = setTimeout(() => onSelect(clientId), 500);
+      const timer = setTimeout(() => onSelect(clientId), WIZARD_CONFIG.AUTO_ADVANCE_MS);
       return () => clearTimeout(timer);
     }
   }, [clientId, selectedClientId, onSelect]);

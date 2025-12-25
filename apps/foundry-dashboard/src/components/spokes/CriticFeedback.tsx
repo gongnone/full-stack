@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { GateBadge } from '@/components/ui';
 import type { G2Breakdown } from '@/components/ui/gate-badge';
+import { QUALITY_GATE_CONFIG } from '@/lib/constants';
 
 export interface CriticFeedbackProps {
   spokeId: string;
@@ -49,7 +50,11 @@ export function CriticFeedback({
 
   // Determine G2 status
   const g2Status: 'pass' | 'warning' | 'fail' =
-    g2Score >= 80 ? 'pass' : g2Score >= 60 ? 'warning' : 'fail';
+    g2Score >= QUALITY_GATE_CONFIG.G2.PASS
+      ? 'pass'
+      : g2Score >= QUALITY_GATE_CONFIG.G2.WARNING
+      ? 'warning'
+      : 'fail';
 
   // Build feedback sections
   const feedbackSections: FeedbackSection[] = [

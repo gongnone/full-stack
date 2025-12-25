@@ -2,6 +2,7 @@ import * as React from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { useToast } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
+import { UI_CONFIG } from '@/lib/constants';
 
 /**
  * ProfileCard component for displaying and editing user profile
@@ -25,11 +26,11 @@ export function ProfileCard() {
     onSuccess: () => {
       // Invalidate the auth.me query to refetch updated profile data
       utils.auth.me.invalidate();
-      addToast('Profile updated', 'success', 2000);
+      addToast('Profile updated', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
       setIsEditing(false);
     },
     onError: (err) => {
-      addToast(err.message || 'Failed to save changes', 'error', 4000);
+      addToast(err.message || 'Failed to save changes', 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
   });
 
@@ -46,15 +47,15 @@ export function ProfileCard() {
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    if (value.length <= 50) {
+    if (value.length <= UI_CONFIG.USER_PROFILE.MAX_NAME_LENGTH) {
       setDisplayName(value);
       setCharCount(value.length);
     }
   };
 
   const handleSave = () => {
-    if (displayName.length < 2 || displayName.length > 50) {
-      addToast('Name must be between 2 and 50 characters', 'error', 3000);
+    if (displayName.length < UI_CONFIG.USER_PROFILE.MIN_NAME_LENGTH || displayName.length > UI_CONFIG.USER_PROFILE.MAX_NAME_LENGTH) {
+      addToast(`Name must be between ${UI_CONFIG.USER_PROFILE.MIN_NAME_LENGTH} and ${UI_CONFIG.USER_PROFILE.MAX_NAME_LENGTH} characters`, 'error', UI_CONFIG.TOAST_DURATION.INFO);
       return;
     }
     updateProfile.mutate({ displayName });
@@ -178,21 +179,21 @@ export function ProfileCard() {
               }}
               placeholder="Your display name"
               aria-describedby="name-char-count"
-              maxLength={50}
+              maxLength={UI_CONFIG.USER_PROFILE.MAX_NAME_LENGTH}
             />
             <span
               id="name-char-count"
               className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
               style={{
-                color: charCount > 45 ? 'var(--warning)' : 'var(--text-muted)',
+                color: charCount > (UI_CONFIG.USER_PROFILE.MAX_NAME_LENGTH - 5) ? 'var(--warning)' : 'var(--text-muted)',
               }}
             >
-              {charCount}/50
+              {charCount}/{UI_CONFIG.USER_PROFILE.MAX_NAME_LENGTH}
             </span>
           </div>
-          {charCount > 0 && charCount < 2 && (
+          {charCount > 0 && charCount < UI_CONFIG.USER_PROFILE.MIN_NAME_LENGTH && (
             <p className="text-xs mt-1" style={{ color: 'var(--kill)' }} role="alert">
-              Name must be at least 2 characters
+              Name must be at least {UI_CONFIG.USER_PROFILE.MIN_NAME_LENGTH} characters
             </p>
           )}
         </div>
@@ -231,7 +232,7 @@ export function ProfileCard() {
             data-testid="save-profile-btn"
             variant="approve"
             onClick={handleSave}
-            disabled={updateProfile.isPending || displayName.length < 2 || displayName.length > 50}
+            disabled={updateProfile.isPending || displayName.length < UI_CONFIG.USER_PROFILE.MIN_NAME_LENGTH || displayName.length > UI_CONFIG.USER_PROFILE.MAX_NAME_LENGTH}
           >
             {updateProfile.isPending ? 'Saving...' : 'Save Changes'}
           </Button>

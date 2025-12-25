@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { SocialLoginButtons } from '@/components/auth';
+import { AUTH_CONFIG } from '@/lib/constants';
 
 export const Route = createFileRoute('/signup')({
   component: SignupPage,
@@ -30,8 +31,8 @@ function SignupPage() {
       return;
     }
 
-    if (password.length < 12) {
-      setError('Password must be at least 12 characters');
+    if (password.length < AUTH_CONFIG.MIN_PASSWORD_LENGTH) {
+      setError(`Password must be at least ${AUTH_CONFIG.MIN_PASSWORD_LENGTH} characters`);
       return;
     }
 
@@ -141,7 +142,7 @@ function SignupPage() {
                 autoComplete="new-password"
               />
               <p className="text-xs text-gray-500">
-                Min 12 characters with uppercase, lowercase, number, and special character
+                Min {AUTH_CONFIG.MIN_PASSWORD_LENGTH} characters with uppercase, lowercase, number, and special character
               </p>
             </div>
             <div className="space-y-2">

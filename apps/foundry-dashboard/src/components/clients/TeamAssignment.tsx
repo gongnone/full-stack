@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
+import { useToast } from '@/lib/toast';
+import { UI_CONFIG } from '@/lib/constants';
+import { ROLE_LABELS, ROLE_DESCRIPTIONS } from '@/lib/rbac';
 import * as Dialog from '@radix-ui/react-dialog';
 import { UserPlus, Shield, X } from 'lucide-react';
 import { RBACEditor } from './RBACEditor';
@@ -13,23 +16,8 @@ interface TeamAssignmentProps {
   };
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  agency_owner: 'Agency Owner',
-  account_manager: 'Account Manager',
-  creator: 'Creator',
-  client_admin: 'Client Admin',
-  client_reviewer: 'Client Reviewer',
-};
-
-const ROLE_DESCRIPTIONS: Record<string, string> = {
-  agency_owner: 'Full access to all client settings and team management',
-  account_manager: 'Manage content and team members',
-  creator: 'Create and edit content',
-  client_admin: 'Client-side administrator with review access',
-  client_reviewer: 'Review and approve content only',
-};
-
 export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps) {
+  const { addToast } = useToast();
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isRBACEditorOpen, setIsRBACEditorOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
@@ -48,12 +36,20 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
       setIsAddMemberOpen(false);
       setNewMemberEmail('');
       setNewMemberRole('creator');
+      addToast('Team member added', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
+    },
+    onError: (err) => {
+      addToast(`Failed to add member: ${err.message}`, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
   });
 
   const removeMemberMutation = trpc.clients.removeMember.useMutation({
     onSuccess: () => {
       utils.clients.listMembers.invalidate();
+      addToast('Team member removed', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
+    },
+    onError: (err) => {
+      addToast(`Failed to remove member: ${err.message}`, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
   });
 
@@ -152,7 +148,7 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
                         ))}
                       </select>
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {ROLE_DESCRIPTIONS[newMemberRole]}
+                        {ROLE_DESCRIPTIONS[newMemberRole as any]}
                       </p>
                     </div>
 
@@ -217,7 +213,7 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
                           style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
                         >
                           <Shield className="w-3 h-3" />
-                          {ROLE_LABELS[member.role] || member.role}
+                          {ROLE_LABELS[member.role as any] || member.role}
                         </button>
 
                         <button

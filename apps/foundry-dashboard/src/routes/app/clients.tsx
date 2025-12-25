@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { useSession } from '@/lib/auth-client';
+import { useToast } from '@/lib/toast';
+import { UI_CONFIG } from '@/lib/constants';
 import * as Dialog from '@radix-ui/react-dialog';
 import { ClientManager } from '@/components/clients/ClientManager';
 
@@ -11,6 +13,7 @@ export const Route = createFileRoute('/app/clients')({
 
 function ClientsPage() {
   const { data: session } = useSession();
+  const { addToast } = useToast();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientIndustry, setNewClientIndustry] = useState('');
@@ -32,6 +35,10 @@ function ClientsPage() {
       setNewClientName('');
       setNewClientIndustry('');
       setNewClientEmail('');
+      addToast('Client created successfully', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
+    },
+    onError: (err) => {
+      addToast(`Failed to create client: ${err.message}`, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
   });
 

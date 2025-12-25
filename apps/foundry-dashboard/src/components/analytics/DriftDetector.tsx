@@ -7,12 +7,13 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { AlertTriangle, TrendingUp, Target } from 'lucide-react';
+import { ANALYTICS_CONFIG, BRAND_DNA_CONFIG, UI_CONFIG } from '@/lib/constants';
 
 interface DriftDetectorProps {
   periodDays?: number;
 }
 
-export function DriftDetector({ periodDays = 30 }: DriftDetectorProps) {
+export function DriftDetector({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: DriftDetectorProps) {
   const clientId = useClientId();
 
   const { data, isLoading } = trpc.analytics.getDriftHistory.useQuery(
@@ -111,7 +112,7 @@ export function DriftDetector({ periodDays = 30 }: DriftDetectorProps) {
               DNA Strength
             </div>
           </div>
-          <div className="text-2xl font-bold" style={{ color: currentStrength >= 80 ? 'var(--approve)' : 'var(--text-primary)' }}>
+          <div className="text-2xl font-bold" style={{ color: currentStrength >= BRAND_DNA_CONFIG.STRENGTH_THRESHOLDS.STRONG ? 'var(--approve)' : 'var(--text-primary)' }}>
             {currentStrength}%
           </div>
           <div className="text-xs mt-1" style={{ color: strengthTrend >= 0 ? 'var(--approve)' : 'var(--kill)' }}>
@@ -173,8 +174,8 @@ export function DriftDetector({ periodDays = 30 }: DriftDetectorProps) {
           <AreaChart data={chartData}>
             <defs>
               <linearGradient id="dnaGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#00ff88" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#00ff88" stopOpacity={0} />
+                <stop offset="5%" stopColor={UI_CONFIG.CHART_COLORS.PRIMARY} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={UI_CONFIG.CHART_COLORS.PRIMARY} stopOpacity={0} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -199,7 +200,7 @@ export function DriftDetector({ periodDays = 30 }: DriftDetectorProps) {
             <Area
               type="monotone"
               dataKey="dnaStrength"
-              stroke="#00ff88"
+              stroke={UI_CONFIG.CHART_COLORS.PRIMARY}
               strokeWidth={2.5}
               fill="url(#dnaGradient)"
               name="DNA Strength"
@@ -238,7 +239,7 @@ export function DriftDetector({ periodDays = 30 }: DriftDetectorProps) {
             <Line
               type="monotone"
               dataKey={() => driftThreshold}
-              stroke="#ef4444"
+              stroke={UI_CONFIG.CHART_COLORS.THRESHOLD}
               strokeWidth={2}
               strokeDasharray="5 5"
               dot={false}
@@ -248,9 +249,9 @@ export function DriftDetector({ periodDays = 30 }: DriftDetectorProps) {
               type="monotone"
               dataKey="driftScore"
               name="Drift Score"
-              stroke="#fbbf24"
+              stroke={UI_CONFIG.CHART_COLORS.DRIFT}
               strokeWidth={2.5}
-              dot={{ fill: '#fbbf24', r: 3 }}
+              dot={{ fill: UI_CONFIG.CHART_COLORS.DRIFT, r: 3 }}
             />
           </LineChart>
         </ResponsiveContainer>

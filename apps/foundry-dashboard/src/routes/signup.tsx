@@ -70,7 +70,7 @@ function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+    <div className="flex min-h-screen items-center justify-center px-4" style={{ backgroundColor: 'var(--bg-base)' }}>
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
@@ -100,7 +100,7 @@ function SignupPage() {
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-white px-2 text-gray-500">Or continue with email</span>
+              <span className="px-2" style={{ backgroundColor: 'hsl(var(--card))', color: 'var(--text-muted)' }}>Or continue with email</span>
             </div>
           </div>
 
@@ -141,7 +141,7 @@ function SignupPage() {
                 required
                 autoComplete="new-password"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                 Min {AUTH_CONFIG.MIN_PASSWORD_LENGTH} characters with uppercase, lowercase, number, and special character
               </p>
             </div>
@@ -167,9 +167,9 @@ function SignupPage() {
           </form>
         </CardContent>
         <CardFooter>
-          <p className="text-sm text-center text-gray-600 w-full">
+          <p className="text-sm text-center w-full" style={{ color: 'var(--text-secondary)' }}>
             Already have an account?{' '}
-            <Link to="/login" className="text-blue-600 hover:underline">
+            <Link to="/login" className="underline" style={{ color: 'var(--edit)' }}>
               Sign in
             </Link>
           </p>

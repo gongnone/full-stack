@@ -13,7 +13,7 @@ html {
   --bg-hover: #242A33;
   --text-primary: #E7E9EA;
   --text-secondary: #8B98A5;
-  --text-muted: #6E767D;
+  --text-muted: #9CA3AF; /* WCAG AA compliant: 5.3:1 contrast on --bg-base */
 
   /* Action colors */
   --approve: #00D26A;

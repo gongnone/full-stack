@@ -19,7 +19,7 @@ importers:
         version: 5.9.2
       wrangler:
         specifier: ^4.56.0
-        version: 4.56.0
+        version: 4.56.0(@cloudflare/workers-types@4.20250628.0)
 
   apps/data-service:
     dependencies:
@@ -184,6 +184,9 @@ importers:
         specifier: ^5.0.0
         version: 5.0.6(@types/react@19.2.7)(immer@11.1.0)(react@19.1.0)(use-sync-external-store@1.5.0(react@19.1.0))
     devDependencies:
+      '@axe-core/playwright':
+        specifier: ^4.11.0
+        version: 4.11.0(playwright-core@1.57.0)
       '@cloudflare/workers-types':
         specifier: ^4.20241127.0
         version: 4.20250628.0
@@ -247,6 +250,9 @@ importers:
 
   apps/foundry-engine:
     dependencies:
+      '@repo/agent-logic':
+        specifier: workspace:*
+        version: link:../../packages/agent-logic
       '@repo/agent-system':
         specifier: workspace:*
         version: link:../../packages/agent-system
@@ -273,8 +279,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.15.33)(jsdom@26.1.0)(lightningcss@1.30.1)(terser@5.43.1)
       wrangler:
-        specifier: ^3.95.0
-        version: 3.114.16(@cloudflare/workers-types@4.20250628.0)
+        specifier: ^4.56.0
+        version: 4.56.0(@cloudflare/workers-types@4.20250628.0)
 
   apps/user-application:
     dependencies:
@@ -700,6 +706,11 @@ packages:
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
+
+  '@axe-core/playwright@4.11.0':
+    resolution: {integrity: sha512-70vBT/Ylqpm65RQz2iCG2o0JJCEG/WCNyefTr2xcOcr1CoSee60gNQYUMZZ7YukoKkFLv26I/jjlsvwwp532oQ==}
+    peerDependencies:
+      playwright-core: '>= 1.0.0'
 
   '@babel/code-frame@7.27.1':
     resolution: {integrity: sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg==}
@@ -4001,6 +4012,10 @@ packages:
     peerDependencies:
       postcss: ^8.1.0
 
+  axe-core@4.11.0:
+    resolution: {integrity: sha512-ilYanEU8vxxBexpJd8cWM4ElSQq4QctCLKih0TSfjIfCQTeyH/6zVrmIJfLPrKTKJRbiG+cfnZbQIjAlJmF1jQ==}
+    engines: {node: '>=4'}
+
   b4a@1.6.7:
     resolution: {integrity: sha512-OnAYlL5b7LEkALw87fUVafQw5rVR9RjwGd4KUwNQ6DrrNmaVaUCgLipfVlzrPQ4tWOR9P0IXGNOx50jYCCdSJg==}
 
@@ -6947,6 +6962,7 @@ packages:
   wrangler@4.56.0:
     resolution: {integrity: sha512-Nqi8duQeRbA+31QrD6QlWHW3IZVnuuRxMy7DEg46deUzywivmaRV/euBN5KKXDPtA24VyhYsK7I0tkb7P5DM2w==}
     engines: {node: '>=20.0.0'}
+    deprecated: Version 4.55.0 and 4.56.0 can incorrectly automatically delegate 'wrangler deploy' to 'opennextjs-cloudflare'. Use an older or newer version.
     hasBin: true
     peerDependencies:
       '@cloudflare/workers-types': ^4.20251217.0
@@ -7168,6 +7184,11 @@ snapshots:
       '@csstools/css-parser-algorithms': 3.0.5(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-tokenizer': 3.0.4
       lru-cache: 10.4.3
+
+  '@axe-core/playwright@4.11.0(playwright-core@1.57.0)':
+    dependencies:
+      axe-core: 4.11.0
+      playwright-core: 1.57.0
 
   '@babel/code-frame@7.27.1':
     dependencies:
@@ -9935,6 +9956,8 @@ snapshots:
       picocolors: 1.1.1
       postcss: 8.5.6
       postcss-value-parser: 4.2.0
+
+  axe-core@4.11.0: {}
 
   b4a@1.6.7: {}
 
@@ -13258,7 +13281,7 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  wrangler@4.56.0:
+  wrangler@4.56.0(@cloudflare/workers-types@4.20250628.0):
     dependencies:
       '@cloudflare/kv-asset-handler': 0.4.1
       '@cloudflare/unenv-preset': 2.7.13(unenv@2.0.0-rc.24)(workerd@1.20251217.0)
@@ -13269,6 +13292,7 @@ snapshots:
       unenv: 2.0.0-rc.24
       workerd: 1.20251217.0
     optionalDependencies:
+      '@cloudflare/workers-types': 4.20250628.0
       fsevents: 2.3.3
     transitivePeerDependencies:
       - bufferutil

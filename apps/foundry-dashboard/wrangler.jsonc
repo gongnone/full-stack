@@ -47,16 +47,16 @@
   // Stage environment
   "env": {
     "stage": {
-      "name": "user-application-stage",
+      "name": "foundry-dashboard-stage",
       "routes": [
         {
-          "pattern": "stage.williamjshaw.ca",
+          "pattern": "foundry-stage.williamjshaw.ca",
           "custom_domain": true
         }
       ],
       "vars": {
         "ENVIRONMENT": "stage",
-        "BETTER_AUTH_URL": "https://stage.williamjshaw.ca"
+        "BETTER_AUTH_URL": "https://foundry-stage.williamjshaw.ca"
       },
       "d1_databases": [
         {
@@ -65,13 +65,12 @@
           "database_id": "e35604ee-6e84-476f-a6ec-e6df6e12d81c"
         }
       ],
-      // TODO: Re-enable when foundry-engine-stage is deployed
-      // "services": [
-      //   {
-      //     "binding": "CONTENT_ENGINE",
-      //     "service": "foundry-engine-stage"
-      //   }
-      // ],
+      "services": [
+        {
+          "binding": "CONTENT_ENGINE",
+          "service": "foundry-engine-stage"
+        }
+      ],
       "r2_buckets": [
         {
           "binding": "MEDIA",

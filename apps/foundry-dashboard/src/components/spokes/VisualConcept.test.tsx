@@ -266,7 +266,8 @@ describe('VisualConcept', () => {
       const slide2Button = screen.getByRole('button', { name: /Slide 2/i });
       await user.click(slide2Button);
 
-      expect(screen.getByText(/Problem/i)).toBeInTheDocument();
+      // After clicking slide 2, the details panel should show "Slide 2: Problem"
+      expect(screen.getByRole('heading', { name: /Slide 2.*Problem/i })).toBeInTheDocument();
     });
 
     it('displays slide details for active slide', () => {

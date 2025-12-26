@@ -4,7 +4,7 @@ import { hubs as hubsSchema, clients as clientsSchema } from "@repo/foundry-core
 import { nanoid } from "nanoid";
 import { getClientForAccount } from "@repo/foundry-core/queries/clients";
 import { DrizzleD1Database, drizzle } from "drizzle-orm/d1";
-import { eq } from "drizzle-orm"; // Import eq for queries
+import { eq, desc } from "drizzle-orm"; // Import eq for queries
 import { z } from "zod";
 
 // Placeholder for theme extraction logic
@@ -20,6 +20,24 @@ async function extractThemes(sourceType: string, sourceContent: string): Promise
 }
 
 export const hubsRouter = t.router({
+  list: t.procedure
+    .input(z.object({
+      clientId: z.string().optional(),
+      limit: z.number().optional().default(50),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { db, clientId } = ctx;
+      const targetClientId = input.clientId || clientId;
+
+      const items = await db.select().from(hubsSchema)
+        .where(eq(hubsSchema.clientId, targetClientId))
+        .orderBy(desc(hubsSchema.createdAt))
+        .limit(input.limit)
+        .all();
+
+      return { items };
+    }),
+
   create: t.procedure
     .input(createHubInputSchema)
     .mutation(async ({ ctx, input }) => {

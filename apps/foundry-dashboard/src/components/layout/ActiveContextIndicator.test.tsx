@@ -2,7 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { ActiveContextIndicator } from './ActiveContextIndicator';
 
-const mockClientQuery = vi.fn();
+const { mockClientQuery } = vi.hoisted(() => ({
+  mockClientQuery: vi.fn(),
+}));
 
 vi.mock('@/lib/trpc-client', () => ({
   trpc: {

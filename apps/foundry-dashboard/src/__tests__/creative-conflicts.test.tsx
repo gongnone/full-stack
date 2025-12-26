@@ -8,10 +8,46 @@ import userEvent from '@testing-library/user-event';
 
 // Mock dependencies
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => ({
+  createFileRoute: (path: string) => (routeOptions: any) => ({
+    options: routeOptions,
     useSearch: () => ({ platform: undefined, gate: undefined }),
   }),
   useSearch: vi.fn(() => ({})),
+}));
+
+const { mockSpokesData } = vi.hoisted(() => ({
+  mockSpokesData: {
+    current: {
+      items: [
+        {
+          id: 'spoke-1',
+          hub_id: 'hub-1',
+          platform: 'twitter',
+          content: 'Test spoke content that failed quality gates',
+          psychological_angle: 'Contrarian',
+          status: 'rejected',
+          generation_attempt: 2,
+          g2_score: 55,
+          g4_status: 'fail:tone_mismatch',
+          g5_status: 'pass',
+          created_at: Date.now(),
+        },
+        {
+          id: 'spoke-2',
+          hub_id: 'hub-1',
+          platform: 'linkedin',
+          content: 'Another test spoke with quality issues',
+          psychological_angle: 'Authority',
+          status: 'rejected',
+          generation_attempt: 1,
+          g2_score: 75,
+          g4_status: 'pass',
+          g5_status: 'fail:char_limit',
+          created_at: Date.now(),
+        },
+      ],
+    },
+  },
 }));
 
 vi.mock('@/lib/trpc-client', () => ({
@@ -19,36 +55,7 @@ vi.mock('@/lib/trpc-client', () => ({
     spokes: {
       list: {
         useQuery: vi.fn(() => ({
-          data: {
-            items: [
-              {
-                id: 'spoke-1',
-                hub_id: 'hub-1',
-                platform: 'twitter',
-                content: 'Test spoke content that failed quality gates',
-                psychological_angle: 'Contrarian',
-                status: 'rejected',
-                generation_attempt: 2,
-                g2_score: 55,
-                g4_status: 'fail:tone_mismatch',
-                g5_status: 'pass',
-                created_at: Date.now(),
-              },
-              {
-                id: 'spoke-2',
-                hub_id: 'hub-1',
-                platform: 'linkedin',
-                content: 'Another test spoke with quality issues',
-                psychological_angle: 'Authority',
-                status: 'rejected',
-                generation_attempt: 1,
-                g2_score: 75,
-                g4_status: 'pass',
-                g5_status: 'fail:char_limit',
-                created_at: Date.now(),
-              },
-            ],
-          },
+          data: mockSpokesData.current,
           isLoading: false,
           refetch: vi.fn(),
         })),
@@ -74,7 +81,7 @@ vi.mock('@/lib/use-client-id', () => ({
 }));
 
 // Import after mocks
-import { Route } from './creative-conflicts';
+import { Route } from '@/routes/app/creative-conflicts';
 
 const CreativeConflictsPage = Route.options.component as React.ComponentType;
 
@@ -106,8 +113,9 @@ describe('CreativeConflictsPage', () => {
   describe('Filters', () => {
     it('renders platform filter dropdown', () => {
       render(<CreativeConflictsPage />);
-      const platformSelect = screen.getByRole('combobox', { name: '' });
-      expect(platformSelect).toBeInTheDocument();
+      const selects = screen.getAllByRole('combobox');
+      // First select is platform filter, second is gate filter
+      expect(selects[0]).toBeInTheDocument();
     });
 
     it('renders gate filter dropdown', () => {
@@ -182,18 +190,19 @@ describe('CreativeConflictsPage', () => {
   describe('Gate Details', () => {
     it('shows G2 score and status', () => {
       render(<CreativeConflictsPage />);
-      expect(screen.getByText('G2: Hook')).toBeInTheDocument();
-      expect(screen.getByText('55')).toBeInTheDocument();
+      expect(screen.getAllByText('G2: Hook').length).toBeGreaterThan(0);
+      // G2 score 55 appears in the GateBadge - use getAllByText since both spokes have G2 badges
+      expect(screen.getAllByText('55').length).toBeGreaterThan(0);
     });
 
     it('shows G4 voice status', () => {
       render(<CreativeConflictsPage />);
-      expect(screen.getByText('G4: Voice')).toBeInTheDocument();
+      expect(screen.getAllByText('G4: Voice').length).toBeGreaterThan(0);
     });
 
     it('shows G5 platform status', () => {
       render(<CreativeConflictsPage />);
-      expect(screen.getByText('G5: Platform')).toBeInTheDocument();
+      expect(screen.getAllByText('G5: Platform').length).toBeGreaterThan(0);
     });
 
     it('displays violation details for failed gates', () => {
@@ -336,13 +345,9 @@ describe('CreativeConflictsPage', () => {
 
   describe('Empty State', () => {
     it('shows empty state when no conflicts exist', () => {
-      // Override the mock for this test
-      const { trpc } = require('@/lib/trpc-client');
-      trpc.spokes.list.useQuery = vi.fn(() => ({
-        data: { items: [] },
-        isLoading: false,
-        refetch: vi.fn(),
-      }));
+      // Override the mock data for this test
+      const originalData = mockSpokesData.current;
+      mockSpokesData.current = { items: [] };
 
       render(<CreativeConflictsPage />);
 
@@ -350,20 +355,23 @@ describe('CreativeConflictsPage', () => {
       expect(
         screen.getByText(/All spokes have passed quality gates or been resolved/i)
       ).toBeInTheDocument();
+
+      // Restore
+      mockSpokesData.current = originalData;
     });
 
     it('displays success icon in empty state', () => {
-      const { trpc } = require('@/lib/trpc-client');
-      trpc.spokes.list.useQuery = vi.fn(() => ({
-        data: { items: [] },
-        isLoading: false,
-        refetch: vi.fn(),
-      }));
+      // Override the mock data for this test
+      const originalData = mockSpokesData.current;
+      mockSpokesData.current = { items: [] };
 
       render(<CreativeConflictsPage />);
 
       const svg = screen.getByText('No Creative Conflicts').parentElement?.querySelector('svg');
       expect(svg).toBeInTheDocument();
+
+      // Restore
+      mockSpokesData.current = originalData;
     });
   });
 

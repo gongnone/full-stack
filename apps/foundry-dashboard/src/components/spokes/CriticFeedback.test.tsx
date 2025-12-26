@@ -197,8 +197,10 @@ describe('CriticFeedback', () => {
       });
       await user.click(hookSection);
 
-      expect(screen.getByText(/Analysis/i)).toBeInTheDocument();
-      expect(screen.getByText(/Suggestions/i)).toBeInTheDocument();
+      // After expanding, both "Analysis" and "Suggestions" headings should appear
+      // Use role='heading' to distinguish from button text
+      expect(screen.getByRole('heading', { name: 'Analysis' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Suggestions' })).toBeInTheDocument();
     });
 
     it('collapses section when clicked again', async () => {
@@ -217,10 +219,10 @@ describe('CriticFeedback', () => {
       });
 
       await user.click(hookSection);
-      expect(screen.getByText(/Analysis/i)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Analysis' })).toBeInTheDocument();
 
       await user.click(hookSection);
-      expect(screen.queryByText(/Analysis/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Analysis' })).not.toBeInTheDocument();
     });
   });
 
@@ -509,7 +511,8 @@ describe('CriticFeedback', () => {
       expect(hookSection).toHaveFocus();
 
       await user.keyboard('{Enter}');
-      expect(screen.getByText(/Analysis/i)).toBeInTheDocument();
+      // After pressing Enter, the section should expand and show "Analysis" heading
+      expect(screen.getByRole('heading', { name: 'Analysis' })).toBeInTheDocument();
     });
   });
 });

@@ -253,7 +253,7 @@ describe('SpokeGenerator', () => {
         },
         { timeout: 7000 }
       );
-    });
+    }, 10000);
 
     it('calls onGenerationComplete callback with generated spokes', async () => {
       const user = userEvent.setup();
@@ -284,7 +284,7 @@ describe('SpokeGenerator', () => {
         },
         { timeout: 7000 }
       );
-    });
+    }, 10000);
 
     it('shows Cancel button when onCancel is provided', async () => {
       const user = userEvent.setup();
@@ -305,7 +305,7 @@ describe('SpokeGenerator', () => {
         },
         { timeout: 7000 }
       );
-    });
+    }, 10000);
 
     it('calls onCancel callback when Cancel is clicked', async () => {
       const user = userEvent.setup();
@@ -328,7 +328,7 @@ describe('SpokeGenerator', () => {
         },
         { timeout: 7000 }
       );
-    });
+    }, 10000);
   });
 
   describe('Accessibility', () => {

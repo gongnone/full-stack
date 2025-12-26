@@ -2,9 +2,7 @@ import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:work
 import { initDatabase } from '@repo/data-ops/database';
 import { extracted_pillars, spokes, spoke_evaluations, feedback_log, workflowRuns } from '@repo/data-ops/schema';
 import { eq } from 'drizzle-orm';
-import { SPOKE_GENERATION_PROMPTS } from '@repo/agent-logic/prompts/spoke-prompts';
-import { PLATFORM_CONFIGS } from '@repo/agent-logic/platform-configs';
-import { AI_MODELS, GENERATION_CONFIG } from '@repo/agent-logic/config';
+import { SPOKE_GENERATION_PROMPTS, PLATFORM_CONFIGS, AI_MODELS, GENERATION_CONFIG } from '@repo/agent-logic';
 import { CriticAgent } from '@repo/agent-system';
 
 interface SpokeGenerationParams {

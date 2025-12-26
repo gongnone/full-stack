@@ -22,7 +22,7 @@ import {
     runHVCOAgent,
     type AgentContext,
     type AgentEnv
-} from '@repo/agent-logic/agents';
+} from '@repo/agent-logic';
 import { HaloResearchSchemaV2 } from '@repo/data-ops/zod/halo-schema-v2';
 
 type Params = {

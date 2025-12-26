@@ -2,8 +2,7 @@ import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:work
 import { initDatabase } from '@repo/data-ops/database';
 import { spokes, spoke_evaluations, feedback_log, workflowRuns } from '@repo/data-ops/schema';
 import { eq } from 'drizzle-orm';
-import { SPOKE_GENERATION_PROMPTS } from '@repo/agent-logic/prompts/spoke-prompts';
-import { PLATFORM_CONFIGS } from '@repo/agent-logic/platform-configs';
+import { SPOKE_GENERATION_PROMPTS, PLATFORM_CONFIGS } from '@repo/agent-logic';
 import { CriticAgent } from '@repo/agent-system';
 
 interface CloneSpokeParams {

@@ -1,5 +1,8 @@
 export * from './rag';
 export * from './config';
+export * from './prompts';
+export * from './platform-configs';
+export { SPOKE_GENERATION_PROMPTS } from './prompts/spoke-prompts';
 
 // Multi-Phase Halo Research Agents
 export * from './agents';

@@ -355,12 +355,15 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
       // Check that buttons have transitions
       const button = page.locator('button').first();
       if (await button.count() > 0) {
-        const transition = await button.evaluate(el => {
-          return getComputedStyle(el).transition;
+        const hasTransition = await button.evaluate(el => {
+          const style = getComputedStyle(el);
+          return style.transitionProperty !== 'none' || 
+                 style.transitionDuration !== '0s' || 
+                 style.transition !== '';
         });
 
-        // Should have some transition defined (or all 0s which is valid)
-        expect(transition).toBeTruthy();
+        // Should have some transition defined
+        expect(hasTransition).toBeTruthy();
       }
     });
   });

@@ -3,16 +3,22 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClientManager } from './ClientManager';
 
-// Mock tRPC
-const mockClientsQuery = vi.fn();
-const mockUpdateMutation = vi.fn();
-const mockUtils = {
-  clients: {
-    list: {
-      invalidate: vi.fn(),
+// Mock tRPC - use vi.hoisted to avoid hoisting issues
+const { mockClientsQuery, mockUpdateMutation, mockMembersQuery, mockUtils } = vi.hoisted(() => ({
+  mockClientsQuery: vi.fn(),
+  mockUpdateMutation: vi.fn(),
+  mockMembersQuery: vi.fn(() => ({ data: [], isLoading: false })),
+  mockUtils: {
+    clients: {
+      list: {
+        invalidate: vi.fn(),
+      },
+      listMembers: {
+        invalidate: vi.fn(),
+      },
     },
   },
-};
+}));
 
 vi.mock('@/lib/trpc-client', () => ({
   trpc: {
@@ -27,8 +33,45 @@ vi.mock('@/lib/trpc-client', () => ({
           isPending: false,
         }),
       },
+      listMembers: {
+        useQuery: mockMembersQuery,
+      },
+      addMember: {
+        useMutation: () => ({
+          mutate: vi.fn(),
+          isPending: false,
+          error: null,
+        }),
+      },
+      removeMember: {
+        useMutation: () => ({
+          mutate: vi.fn(),
+          isPending: false,
+        }),
+      },
+      updateMember: {
+        useMutation: () => ({
+          mutate: vi.fn(),
+          isPending: false,
+        }),
+      },
+      generateShareableLink: {
+        useMutation: () => ({
+          mutate: vi.fn(),
+          isPending: false,
+        }),
+      },
     },
   },
+}));
+
+// Mock toast hook
+vi.mock('@/lib/toast', () => ({
+  useToast: () => ({
+    addToast: vi.fn(),
+    removeToast: vi.fn(),
+    toasts: [],
+  }),
 }));
 
 describe('ClientManager - Story 7-1: Client Account Management', () => {
@@ -64,11 +107,11 @@ describe('ClientManager - Story 7-1: Client Account Management', () => {
 
       expect(screen.getByText('Acme Corp')).toBeInTheDocument();
       expect(screen.getByText('Technology')).toBeInTheDocument();
-      expect(screen.getByText('ACTIVE')).toBeInTheDocument();
+      expect(screen.getByText('active')).toBeInTheDocument();
 
       expect(screen.getByText('Tech Startup')).toBeInTheDocument();
       expect(screen.getByText('SaaS')).toBeInTheDocument();
-      expect(screen.getByText('PAUSED')).toBeInTheDocument();
+      expect(screen.getByText('paused')).toBeInTheDocument();
     });
 
     it('shows loading state while fetching clients', () => {

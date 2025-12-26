@@ -3,16 +3,19 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ClientSelector } from '@/components/layout/ClientSelector';
 
-const mockClientsQuery = vi.fn();
-const mockSwitchMutation = vi.fn();
-const mockUtils = {
-  invalidate: vi.fn(),
-  auth: {
-    me: {
-      invalidate: vi.fn(),
+const { mockClientsQuery, mockSwitchMutation, mockUtils, capturedOnSuccess } = vi.hoisted(() => ({
+  mockClientsQuery: vi.fn(),
+  mockSwitchMutation: vi.fn(),
+  mockUtils: {
+    invalidate: vi.fn(),
+    auth: {
+      me: {
+        invalidate: vi.fn(),
+      },
     },
   },
-};
+  capturedOnSuccess: { current: null as (() => void) | null },
+}));
 
 vi.mock('@/lib/trpc-client', () => ({
   trpc: {
@@ -22,10 +25,22 @@ vi.mock('@/lib/trpc-client', () => ({
         useQuery: mockClientsQuery,
       },
       switch: {
-        useMutation: () => ({
-          mutate: mockSwitchMutation,
-          isPending: false,
-        }),
+        useMutation: (options?: { onSuccess?: () => void }) => {
+          // Capture the onSuccess callback to trigger later
+          if (options?.onSuccess) {
+            capturedOnSuccess.current = options.onSuccess;
+          }
+          return {
+            mutate: (data: any) => {
+              mockSwitchMutation(data);
+              // Immediately trigger onSuccess
+              if (capturedOnSuccess.current) {
+                capturedOnSuccess.current();
+              }
+            },
+            isPending: false,
+          };
+        },
       },
     },
   },
@@ -157,13 +172,6 @@ describe('ClientSelector - Story 7-3: Multi-Client Workspace Access', () => {
         isLoading: false,
       });
 
-      // Setup mutation to trigger onSuccess
-      const onSuccessMock = vi.fn();
-      vi.mocked(mockSwitchMutation).mockImplementation(() => {
-        onSuccessMock();
-        return Promise.resolve();
-      });
-
       render(<ClientSelector />);
 
       await user.click(screen.getByRole('button'));
@@ -173,9 +181,11 @@ describe('ClientSelector - Story 7-3: Multi-Client Workspace Access', () => {
         await user.click(techStartup);
       });
 
-      // The mutation's onSuccess should invalidate utils
-      expect(mockUtils.invalidate).toHaveBeenCalled();
-      expect(mockUtils.auth.me.invalidate).toHaveBeenCalled();
+      // The mutation's onSuccess should invalidate utils (triggered automatically by our mock)
+      await waitFor(() => {
+        expect(mockUtils.invalidate).toHaveBeenCalled();
+        expect(mockUtils.auth.me.invalidate).toHaveBeenCalled();
+      });
     });
   });
 

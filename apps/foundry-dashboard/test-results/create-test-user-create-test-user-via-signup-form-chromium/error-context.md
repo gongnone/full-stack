@@ -1,0 +1,51 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - heading "Create an account" [level=3] [ref=e6]
+      - paragraph [ref=e7]: Enter your details to get started with Foundry
+    - generic [ref=e8]:
+      - alert [ref=e9]:
+        - generic [ref=e10]: Failed to create account
+      - generic [ref=e11]:
+        - button "Continue with Google" [ref=e12]:
+          - img [ref=e13]
+          - text: Continue with Google
+        - button "Continue with GitHub" [ref=e18]:
+          - img [ref=e19]
+          - text: Continue with GitHub
+      - generic [ref=e25]: Or continue with email
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - text: Name
+          - textbox "Name" [ref=e28]:
+            - /placeholder: John Doe
+            - text: E2E Test User
+        - generic [ref=e29]:
+          - text: Email
+          - textbox "Email" [ref=e30]:
+            - /placeholder: you@example.com
+            - text: e2e-test@foundry.local
+        - generic [ref=e31]:
+          - text: Password
+          - textbox "Password" [ref=e32]:
+            - /placeholder: ••••••••
+            - text: TestPassword123!
+          - paragraph [ref=e33]: Min 12 characters with uppercase, lowercase, number, and special character
+        - generic [ref=e34]:
+          - text: Confirm Password
+          - textbox "Confirm Password" [ref=e35]:
+            - /placeholder: ••••••••
+            - text: TestPassword123!
+        - button "Create account" [ref=e36]
+    - paragraph [ref=e38]:
+      - text: Already have an account?
+      - link "Sign in" [ref=e39] [cursor=pointer]:
+        - /url: /login
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications (F8)":
+    - list
+```

@@ -3,16 +3,19 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TeamAssignment } from './TeamAssignment';
 
-const mockMembersQuery = vi.fn();
-const mockAddMemberMutation = vi.fn();
-const mockRemoveMemberMutation = vi.fn();
-const mockUtils = {
-  clients: {
-    listMembers: {
-      invalidate: vi.fn(),
+const { mockMembersQuery, mockAddMemberMutation, mockRemoveMemberMutation, mockUpdateMemberMutation, mockUtils } = vi.hoisted(() => ({
+  mockMembersQuery: vi.fn(),
+  mockAddMemberMutation: vi.fn(),
+  mockRemoveMemberMutation: vi.fn(),
+  mockUpdateMemberMutation: vi.fn(),
+  mockUtils: {
+    clients: {
+      listMembers: {
+        invalidate: vi.fn(),
+      },
     },
   },
-};
+}));
 
 vi.mock('@/lib/trpc-client', () => ({
   trpc: {
@@ -34,8 +37,23 @@ vi.mock('@/lib/trpc-client', () => ({
           isPending: false,
         }),
       },
+      updateMember: {
+        useMutation: (options?: any) => ({
+          mutate: mockUpdateMemberMutation,
+          isPending: false,
+        }),
+      },
     },
   },
+}));
+
+// Mock toast hook
+vi.mock('@/lib/toast', () => ({
+  useToast: () => ({
+    addToast: vi.fn(),
+    removeToast: vi.fn(),
+    toasts: [],
+  }),
 }));
 
 describe('TeamAssignment - Story 7-2: RBAC and Team Assignment', () => {
@@ -205,10 +223,9 @@ describe('TeamAssignment - Story 7-2: RBAC and Team Assignment', () => {
 
       render(<TeamAssignment isOpen={true} onClose={vi.fn()} client={mockClient} />);
 
-      // X button should be present
+      // X button should be present - it has red text styling
       const removeButtons = screen.getAllByRole('button').filter(btn => {
-        const svg = btn.querySelector('svg');
-        return svg && svg.getAttribute('class')?.includes('w-4 h-4');
+        return btn.classList.contains('text-red-500');
       });
 
       expect(removeButtons.length).toBeGreaterThan(0);
@@ -223,14 +240,21 @@ describe('TeamAssignment - Story 7-2: RBAC and Team Assignment', () => {
         isLoading: false,
       });
 
+      // Mock confirm on window for jsdom
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
       render(<TeamAssignment isOpen={true} onClose={vi.fn()} client={mockClient} />);
 
-      const buttons = screen.getAllByRole('button');
-      const removeButton = buttons[buttons.length - 1]; // Last button is usually the X button
+      // Find the remove button by its red text styling (not the Done button)
+      const removeButton = screen.getAllByRole('button').find(btn =>
+        btn.classList.contains('text-red-500')
+      );
+      expect(removeButton).toBeDefined();
 
-      await user.click(removeButton);
+      await user.click(removeButton!);
 
-      expect(global.confirm).toHaveBeenCalled();
+      expect(confirmSpy).toHaveBeenCalled();
+      confirmSpy.mockRestore();
     });
   });
 

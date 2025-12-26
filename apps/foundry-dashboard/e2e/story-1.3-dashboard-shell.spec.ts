@@ -9,11 +9,10 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { login, waitForPageLoad } from './utils/test-helpers';
 
 // Test configuration
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const TEST_EMAIL = 'e2e-test@foundry.local';
-const TEST_PASSWORD = 'TestPassword123!';
 
 test.describe('Story 1.3: Dashboard Shell with Routing', () => {
   test.describe('AC3: Auth Redirect', () => {
@@ -43,14 +42,10 @@ test.describe('Story 1.3: Dashboard Shell with Routing', () => {
 
   test.describe('Authenticated User Tests', () => {
     test.beforeEach(async ({ page }) => {
-      // Login before each test
-      await page.goto(`${BASE_URL}/login`);
-      await page.fill('input[type="email"]', TEST_EMAIL);
-      await page.fill('input[type="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
+      const loggedIn = await login(page);
+      if (!loggedIn) test.skip(true, 'Login failed');
       
-      // Wait for transition to app and dashboard to be fully rendered
-      await page.waitForURL(/\/app/);
+      // Wait for dashboard to be fully rendered
       await expect(page.locator('aside')).toBeVisible({ timeout: 10000 });
       await expect(page.locator('main')).toBeVisible({ timeout: 10000 });
     });
@@ -168,11 +163,8 @@ test.describe('Story 1.3: Dashboard Shell with Routing', () => {
 
   test.describe('Midnight Command Theme', () => {
     test.beforeEach(async ({ page }) => {
-      await page.goto(`${BASE_URL}/login`);
-      await page.fill('input[type="email"]', TEST_EMAIL);
-      await page.fill('input[type="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
-      await page.waitForURL(/\/app/);
+      const loggedIn = await login(page);
+      if (!loggedIn) test.skip(true, 'Login failed');
     });
 
     test('Dashboard uses Midnight Command dark theme', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ShareLinkModal } from './ShareLinkModal';
 
@@ -44,7 +44,6 @@ describe('ShareLinkModal - Story 7-6: Shareable Review Links', () => {
     });
 
     it('allows setting expiration from 1-30 days', async () => {
-      const user = userEvent.setup();
       render(<ShareLinkModal isOpen={true} onClose={mockOnClose} client={mockClient} />);
 
       const slider = screen.getByRole('slider');
@@ -53,10 +52,6 @@ describe('ShareLinkModal - Story 7-6: Shareable Review Links', () => {
 
       // Default should be 7 days
       expect(screen.getByText('7 days')).toBeInTheDocument();
-
-      // Change to 14 days
-      await user.clear(slider);
-      await user.type(slider, '14');
     });
 
     it('allows selecting permission level (view, comment, approve)', async () => {
@@ -183,16 +178,15 @@ describe('ShareLinkModal - Story 7-6: Shareable Review Links', () => {
     });
 
     it('updates expiration display when slider changes', async () => {
-      const user = userEvent.setup();
       render(<ShareLinkModal isOpen={true} onClose={mockOnClose} client={mockClient} />);
 
       const slider = screen.getByRole('slider');
 
-      // Simulate changing slider value
-      await user.clear(slider);
-      await user.type(slider, '14');
+      // Change slider value using fireEvent (range inputs don't support user.type)
+      fireEvent.change(slider, { target: { value: '14' } });
 
-      // Display should update (this would need proper slider interaction)
+      // Display should update
+      expect(screen.getByText('14 days')).toBeInTheDocument();
     });
   });
 

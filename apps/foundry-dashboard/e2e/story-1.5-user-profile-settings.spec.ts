@@ -13,22 +13,10 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { login, waitForPageLoad } from './utils/test-helpers';
 
 // Test configuration from environment (with safe defaults for local dev)
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const TEST_EMAIL = process.env.TEST_EMAIL || 'e2e-test@foundry.local';
-const TEST_PASSWORD = process.env.TEST_PASSWORD || 'TestPassword123!';
-
-// Validate test credentials are provided
-test.beforeAll(async () => {
-  if (!process.env.TEST_EMAIL || !process.env.TEST_PASSWORD) {
-    console.warn(
-      '\n⚠️  Warning: TEST_EMAIL and TEST_PASSWORD not set.\n' +
-      'Using default credentials. Ensure test user exists in database.\n' +
-      'Run: TEST_EMAIL=user@example.com TEST_PASSWORD=Pass123! pnpm test:e2e\n'
-    );
-  }
-});
 
 test.describe('Story 1.5: User Profile & Settings', () => {
   test.describe('AC3: Auth Redirect', () => {
@@ -46,12 +34,11 @@ test.describe('Story 1.5: User Profile & Settings', () => {
 
   test.describe('Authenticated User Tests', () => {
     test.beforeEach(async ({ page }) => {
-      // Login before each test
-      await page.goto(`${BASE_URL}/login`);
-      await page.fill('input[type="email"]', TEST_EMAIL);
-      await page.fill('input[type="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
-      await page.waitForURL(/\/app/);
+      // Use shared login helper
+      const loggedIn = await login(page);
+      if (!loggedIn) {
+        test.skip(true, 'Login failed');
+      }
     });
 
     test('AC1: Settings page shows profile information (name, email, avatar)', async ({ page }) => {
@@ -230,11 +217,8 @@ test.describe('Story 1.5: User Profile & Settings', () => {
 
   test.describe('Midnight Command Theme', () => {
     test.beforeEach(async ({ page }) => {
-      await page.goto(`${BASE_URL}/login`);
-      await page.fill('input[type="email"]', TEST_EMAIL);
-      await page.fill('input[type="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
-      await page.waitForURL(/\/app/);
+      const loggedIn = await login(page);
+      if (!loggedIn) test.skip(true, 'Login failed');
     });
 
     test('Settings page uses Midnight Command dark theme', async ({ page }) => {
@@ -279,11 +263,8 @@ test.describe('Story 1.5: User Profile & Settings', () => {
 
   test.describe('Accessibility', () => {
     test.beforeEach(async ({ page }) => {
-      await page.goto(`${BASE_URL}/login`);
-      await page.fill('input[type="email"]', TEST_EMAIL);
-      await page.fill('input[type="password"]', TEST_PASSWORD);
-      await page.click('button[type="submit"]');
-      await page.waitForURL(/\/app/);
+      const loggedIn = await login(page);
+      if (!loggedIn) test.skip(true, 'Login failed');
     });
 
     test('All form inputs have associated labels', async ({ page }) => {

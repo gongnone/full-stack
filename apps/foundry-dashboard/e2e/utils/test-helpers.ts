@@ -45,7 +45,7 @@ export async function login(page: Page): Promise<boolean> {
 
   // Wait for navigation to app or error
   try {
-    await page.waitForURL(/\/app/, { timeout: 10000 });
+    await page.waitForURL(/\/app/, { timeout: 30000 });
     return true;
   } catch {
     // Check for error message

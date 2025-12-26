@@ -50,20 +50,13 @@ test.describe('Story 1.1: Project Foundation for User Access', () => {
   });
 
   test.describe('AC5: Database Schema Applied', () => {
-    test('Auth endpoints respond to login attempts', async ({ page }) => {
+    test('Application allows login', async ({ page }) => {
       await page.goto(`${BASE_URL}/login`);
-
-      // Submit credentials to test auth endpoint responds
-      await page.fill('input[type="email"]', 'test@test.com');
-      await page.fill('input[type="password"]', 'SomePassword123!');
+      await page.fill('input[type="email"]', 'e2e-test@foundry.local');
+      await page.fill('input[type="password"]', 'TestPassword123!');
       await page.click('button[type="submit"]');
-
-      // Wait for response - either error or redirect
-      await page.waitForTimeout(3000);
-
-      // Auth endpoint responded if we're still on page or redirected
-      const currentUrl = page.url();
-      expect(currentUrl).toBeTruthy();
+      await page.waitForURL(/.app/);
+      expect(page.url()).toContain('/app');
     });
 
     test('Login form submits without crashing', async ({ page }) => {
@@ -132,7 +125,8 @@ test.describe('Story 1.1: Project Foundation for User Access', () => {
       // App is responsive
       await page.goto(`${BASE_URL}/`);
       const response = await page.goto(`${BASE_URL}/login`);
-      expect(response?.status()).toBe(200);
+      const status = response?.status();
+      expect([200, 304]).toContain(status);
     });
 
     test('Application handles network errors gracefully', async ({ page }) => {

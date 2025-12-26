@@ -17,7 +17,12 @@
     "foundry:deploy-dashboard": "pnpm i && pnpm --filter foundry-dashboard run deploy",
     "foundry:deploy-engine": "pnpm i && pnpm --filter foundry-engine run deploy",
     "foundry:deploy": "pnpm run foundry:deploy-dashboard && pnpm run foundry:deploy-engine",
-    "foundry:typecheck": "pnpm --filter foundry-dashboard --filter foundry-engine --filter @repo/foundry-core --filter @repo/agent-system run typecheck"
+    "foundry:typecheck": "pnpm --filter foundry-dashboard --filter foundry-engine --filter @repo/foundry-core --filter @repo/agent-system run typecheck",
+    "predeploy:validate": "npx tsx scripts/pre-deploy-validate.ts",
+    "predeploy:validate:stage": "npx tsx scripts/pre-deploy-validate.ts stage",
+    "predeploy:validate:production": "npx tsx scripts/pre-deploy-validate.ts production",
+    "foundry:deploy:stage": "pnpm run predeploy:validate:stage && pnpm i && pnpm --filter foundry-engine run deploy:stage && pnpm --filter foundry-dashboard run deploy:stage",
+    "foundry:deploy:production": "pnpm run predeploy:validate:production && pnpm i && pnpm --filter foundry-engine run deploy:production && pnpm --filter foundry-dashboard run deploy:production"
   },
   "keywords": [],
   "author": "",

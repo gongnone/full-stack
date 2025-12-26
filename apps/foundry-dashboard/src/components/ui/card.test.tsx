@@ -33,8 +33,7 @@ describe('Card', () => {
       </Card>
     );
     const content = screen.getByText('Padded Content');
+    // tailwind-merge deduplicates conflicting classes, so p-10 overrides base p-6
     expect(content).toHaveClass('p-10');
-    // Should still have base classes
-    expect(content).toHaveClass('p-6'); // Base class might be overridden or appended depending on tw-merge behavior in utils
   });
 });

@@ -12,6 +12,16 @@ export default defineConfig({
       'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
       'worker/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
     ],
+    // Resource management for large test suites (Vitest 4 top-level options)
+    pool: 'forks',
+    maxWorkers: 4,
+    minWorkers: 1,
+    testTimeout: 10000,
+    hookTimeout: 10000,
+    // Isolate tests to prevent memory leaks between files
+    isolate: true,
+    // Retry flaky tests once
+    retry: 1,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

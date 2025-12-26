@@ -95,6 +95,33 @@ Replace `stage` with `production` for prod deploys.
 - `BETTER_AUTH_SECRET` - Session encryption
 - Stripe keys as needed
 
+## Testing
+
+### Foundry Tests (apps/foundry-dashboard/)
+
+All E2E and component tests are in the Foundry dashboard app:
+
+```bash
+# E2E tests (Playwright)
+cd apps/foundry-dashboard
+pnpm exec playwright test                    # Run all E2E tests
+pnpm exec playwright test --ui               # Interactive UI mode
+pnpm exec playwright test --grep "@P0"       # Run priority P0 tests only
+
+# Component/Unit tests (Vitest)
+cd apps/foundry-dashboard
+pnpm test                                    # Run all unit tests
+```
+
+**Test locations:**
+- E2E tests: `apps/foundry-dashboard/e2e/`
+- Component tests: `apps/foundry-dashboard/src/**/*.test.tsx`
+- tRPC router tests: `apps/foundry-dashboard/src/server/**/*.test.ts`
+
+### Legacy Tests
+
+Legacy system has minimal test coverage (3 files in data-service). **DO NOT add tests to Legacy** unless explicitly requested - it's maintenance-only.
+
 ## CI/CD
 
 Deployments are handled by **Cloudflare Git Integration** (not GitHub Actions).

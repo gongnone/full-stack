@@ -36,6 +36,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      - name: Build data-ops package
+        run: pnpm run build-package
+
       - name: Build user-application
         run: pnpm --filter user-application run build
 

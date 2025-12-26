@@ -17,8 +17,8 @@ class MockWebSocketPair {
   1: MockWebSocket; // Server
 
   constructor() {
-    this.0 = new MockWebSocket();
-    this.1 = new MockWebSocket();
+    this['0'] = new MockWebSocket();
+    this['1'] = new MockWebSocket();
   }
 }
 

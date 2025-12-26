@@ -55,6 +55,7 @@ Required secrets in Cloudflare for `foundry-dashboard-stage`:
 | Stage | foundry-global-stage | foundry-dashboard-stage |
 | Production | foundry-global | foundry-dashboard-production |
 
-## GitHub Actions
+## CI/CD
 
-`.github/workflows/deploy-stage.yaml` - Deploys all 4 workers on push to `stage` branch
+Deployments are handled by **Cloudflare Git Integration** (not GitHub Actions).
+Each worker has its own Cloudflare project that auto-deploys on push to `stage` or `main`.

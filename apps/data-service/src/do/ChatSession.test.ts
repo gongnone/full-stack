@@ -42,7 +42,7 @@ class MockWebSocket {
 class MockWebSocketPair {
   0: MockWebSocket; 
   1: MockWebSocket; 
-  constructor() { this.0 = new MockWebSocket(); this.1 = new MockWebSocket(); }
+  constructor() { this['0'] = new MockWebSocket(); this['1'] = new MockWebSocket(); }
 }
 // @ts-ignore
 global.WebSocketPair = MockWebSocketPair;

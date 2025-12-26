@@ -74,10 +74,17 @@ pnpm run foundry:deploy:production
 
 ## Environments
 
-| Environment | Domain | Database |
-|-------------|--------|----------|
-| Stage | stage.williamjshaw.ca | foundry-global-stage |
-| Production | hero.williamjshaw.ca | foundry-global-production |
+### Legacy System
+| Environment | URL |
+|-------------|-----|
+| Stage | https://stage.williamjshaw.ca |
+| Production | https://hero.williamjshaw.ca |
+
+### Foundry MVP
+| Environment | URL |
+|-------------|-----|
+| Stage | https://foundry-stage.williamjshaw.ca |
+| Production | https://foundry.williamjshaw.ca |
 
 ## Configuration
 

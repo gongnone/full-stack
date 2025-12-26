@@ -2,17 +2,37 @@
 
 ## Architecture: Dual-System Monorepo
 
-This repo contains TWO separate systems:
+This repo contains TWO completely separate systems with isolated resources:
 
-### Legacy System
+### Legacy System (AudienceHero)
 - **Frontend**: `apps/user-application` → stage.williamjshaw.ca / hero.williamjshaw.ca
-- **Backend**: `apps/data-service` → API worker
+- **Backend**: `apps/data-service` → API worker with Durable Objects
 - **Dependency**: Both require `@repo/data-ops` to be built first (`pnpm run build-package`)
 
 ### Foundry MVP
 - **Frontend**: `apps/foundry-dashboard` → foundry-stage.williamjshaw.ca / foundry.williamjshaw.ca
 - **Backend**: `apps/foundry-engine` → Content engine worker
 - **Auth**: Better Auth with Google OAuth
+
+## Resource Isolation (CRITICAL)
+
+The two systems MUST use separate Cloudflare resources:
+
+### Legacy Resources
+| Resource | Stage | Production |
+|----------|-------|------------|
+| D1 | audience-hero-stage (075a005c) | audience-hero-production (b2c606e3) |
+| R2 | smart-eval-bucket-stage | smart-eval-bucket-production |
+| Vectorize | saas-knowledge-index | saas-knowledge-index |
+| Workflows | halo-research, golden-pheasant, godfather-offer | same |
+
+### Foundry Resources
+| Resource | Stage | Production |
+|----------|-------|------------|
+| D1 | foundry-global-stage (e35604ee) | foundry-global (bd287f3f) |
+| R2 | foundry-media | foundry-media |
+| Vectorize | foundry-embeddings | foundry-embeddings |
+| Workflows | hub-ingestion, spoke-generation, calibration | same |
 
 ## Deploy Scripts (Root package.json)
 
@@ -40,20 +60,16 @@ Replace `stage` with `production` for prod deploys.
 - `data-service` imports from `@repo/data-ops` - MUST run `build-package` first
 - Foundry apps do NOT depend on data-ops
 
-## Environment Secrets (Foundry Stage)
+## Environment Secrets
 
-Required secrets in Cloudflare for `foundry-dashboard-stage`:
+### Foundry Stage (foundry-dashboard-stage)
 - `BETTER_AUTH_SECRET` - Session encryption
 - `GOOGLE_CLIENT_ID` - OAuth
 - `GOOGLE_CLIENT_SECRET` - OAuth
 
-## D1 Databases
-
-| Environment | Database Name | Used By |
-|-------------|---------------|---------|
-| Local | foundry-global-local | foundry-dashboard dev |
-| Stage | foundry-global-stage | foundry-dashboard-stage |
-| Production | foundry-global | foundry-dashboard-production |
+### Legacy Stage (user-application-stage)
+- `BETTER_AUTH_SECRET` - Session encryption
+- Stripe keys as needed
 
 ## CI/CD
 

@@ -1,18 +1,20 @@
 /**
-  Stage "database_id": "e35604ee-6e84-476f-a6ec-e6df6e12d81c" (foundry-global-stage)
-  Production "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750",
-  "service": "data-service-stage",
- * For more details on how to configure Wrangler, refer to:
- * https://developers.cloudflare.com/workers/wrangler/configuration/
+ * Legacy System (AudienceHero) - user-application
+ *
+ * Stage: stage.williamjshaw.ca
+ * Production: hero.williamjshaw.ca
+ *
+ * D1: audience-hero-stage / audience-hero-production
+ * R2: smart-eval-bucket-stage / smart-eval-bucket-production
+ * Vectorize: saas-knowledge-index
+ * Backend: data-service-stage / data-service-production
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "user-application",
   "main": "worker/index.ts",
   "compatibility_date": "2025-07-11",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./dist/client",
     "binding": "ASSETS",
@@ -27,29 +29,32 @@
   "observability": {
     "enabled": true
   },
+
+  // Local development - uses local D1
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "foundry-global-local",
-      "database_id": "a7b557ad-e7c8-4e4a-8fb9-a517b09449f3",
+      "database_name": "audience-hero-local",
+      "database_id": "local",
       "migrations_dir": "../../packages/data-ops/src/drizzle-out"
     }
   ],
   "r2_buckets": [
     {
-      "binding": "MEDIA",
-      "bucket_name": "foundry-media"
+      "binding": "BUCKET",
+      "bucket_name": "smart-eval-bucket-local"
     }
   ],
   "vectorize": [
     {
-      "binding": "EMBEDDINGS",
-      "index_name": "foundry-embeddings"
+      "binding": "KNOWLEDGE_BASE",
+      "index_name": "saas-knowledge-index"
     }
   ],
   "ai": {
     "binding": "AI"
   },
+
   "env": {
     "stage": {
       "name": "user-application-stage",
@@ -61,43 +66,44 @@
         "GITHUB_CLIENT_ID": "",
         "GITHUB_CLIENT_SECRET": ""
       },
+      "routes": [
+        {
+          "custom_domain": true,
+          "pattern": "stage.williamjshaw.ca"
+        }
+      ],
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "audience-hero-stage",
+          "database_id": "075a005c-54da-4e90-ad1a-036816ce4483",
+          "migrations_dir": "../../packages/data-ops/src/drizzle-out"
+        }
+      ],
       "r2_buckets": [
         {
-          "binding": "MEDIA",
-          "bucket_name": "foundry-media"
+          "binding": "BUCKET",
+          "bucket_name": "smart-eval-bucket-stage"
         }
       ],
       "vectorize": [
         {
-          "binding": "EMBEDDINGS",
-          "index_name": "foundry-embeddings"
+          "binding": "KNOWLEDGE_BASE",
+          "index_name": "saas-knowledge-index"
         }
       ],
       "ai": {
         "binding": "AI"
       },
-      "routes": [
-        {
-          "custom_domain": true,
-          "pattern": "stage.williamjshaw.ca",
-        },
-      ],
-      "d1_databases": [
-        {
-          "binding": "DB",
-          "database_id": "e35604ee-6e84-476f-a6ec-e6df6e12d81c",
-          "migrations_dir": "../../packages/data-ops/src/drizzle-out"
-        },
-      ],
       "services": [
         {
           "binding": "BACKEND_SERVICE",
-          "service": "data-service-stage",
+          "service": "data-service-stage"
         },
         {
           "binding": "DATA_SERVICE",
           "service": "data-service-stage"
-        },
+        }
       ],
       "assets": {
         "directory": "./dist/client",
@@ -124,25 +130,26 @@
       "routes": [
         {
           "custom_domain": true,
-          "pattern": "hero.williamjshaw.ca",
-        },
+          "pattern": "hero.williamjshaw.ca"
+        }
       ],
       "d1_databases": [
         {
           "binding": "DB",
+          "database_name": "audience-hero-production",
           "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750"
         }
       ],
       "r2_buckets": [
         {
-          "binding": "MEDIA",
-          "bucket_name": "foundry-media"
+          "binding": "BUCKET",
+          "bucket_name": "smart-eval-bucket-production"
         }
       ],
       "vectorize": [
         {
-          "binding": "EMBEDDINGS",
-          "index_name": "foundry-embeddings"
+          "binding": "KNOWLEDGE_BASE",
+          "index_name": "saas-knowledge-index"
         }
       ],
       "ai": {
@@ -162,13 +169,13 @@
       "services": [
         {
           "binding": "BACKEND_SERVICE",
-          "service": "data-service-production",
+          "service": "data-service-production"
         },
         {
           "binding": "DATA_SERVICE",
           "service": "data-service-production"
-        },
-      ],
+        }
+      ]
     }
   }
 }

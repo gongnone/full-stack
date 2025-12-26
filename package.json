@@ -27,8 +27,7 @@
     "predeploy:validate:production": "npx tsx scripts/pre-deploy-validate.ts production",
     "foundry:deploy:stage": "pnpm run predeploy:validate:stage && pnpm i && pnpm --filter foundry-engine run deploy:stage && pnpm --filter foundry-dashboard run deploy:stage",
     "foundry:deploy:production": "pnpm run predeploy:validate:production && pnpm i && pnpm --filter foundry-engine run deploy:production && pnpm --filter foundry-dashboard run deploy:production",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "pnpm -r test"
   },
   "keywords": [],
   "author": "",

@@ -1,235 +1,225 @@
+/**
+ * Legacy System (AudienceHero) - data-service
+ *
+ * Backend worker for the Legacy system
+ * D1: audience-hero-stage / audience-hero-production
+ * Vectorize: saas-knowledge-index
+ * R2: smart-eval-bucket-stage / smart-eval-bucket-production
+ *
+ * NOTE: Spoke generation and other Foundry workflows are in foundry-engine, NOT here.
+ */
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "data-service",
-	"main": "src/index.ts",
-	"compatibility_date": "2025-06-17",
-	"compatibility_flags": [
-		"nodejs_compat"
-	],
-	"observability": {
-		"enabled": true
-	},
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_id": "e35604ee-6e84-476f-a6ec-e6df6e12d81c",
-			"preview_database_id": "DB"
-		}
-	],
-	"env": {
-		"stage": {
-			"vectorize": [
-				{
-					"binding": "KNOWLEDGE_BASE",
-					"index_name": "saas-knowledge-index"
-				},
-				{
-					"binding": "VECTORIZE",
-					"index_name": "saas-knowledge-index",
-					"remote": true
-				}
-			],
-			"d1_databases": [
-				{
-					"binding": "DB",
-					"database_id": "e35604ee-6e84-476f-a6ec-e6df6e12d81c",
-					"remote": true
-				}
-			],
-			"vars": {
-				"REDDIT_USER_AGENT": "HaloOps/1.0"
-			},
-			"kv_namespaces": [
-				{
-					"binding": "CACHE",
-					"id": "4c3bbe472d204bce99a8c84de8501dd8",
-					"remote": true
-				}
-			],
-			"queues": {
-				"consumers": [
-					{
-						"queue": "smart-data-queue-stage"
-					}
-				],
-				"producers": [
-					{
-						"binding": "QUEUE",
-						"queue": "smart-data-queue-stage"
-					}
-				]
-			},
-			"workflows": [
-				{
-					"binding": "HALO_RESEARCH_WORKFLOW_V2",
-					"name": "halo-research-workflow-v2-stage",
-					"class_name": "HaloResearchWorkflowV2"
-				},
-				{
-					"binding": "GOLDEN_PHEASANT_WORKFLOW",
-					"name": "golden-pheasant-workflow-stage",
-					"class_name": "GoldenPheasantWorkflow"
-				},
-				{
-					"binding": "GODFATHER_OFFER_WORKFLOW",
-					"name": "godfather-offer-workflow-stage",
-					"class_name": "GodfatherOfferWorkflow"
-				},
-				{
-					"binding": "SPOKE_GENERATION_WORKFLOW",
-					"name": "spoke-generation-workflow-stage",
-					"class_name": "SpokeGenerationWorkflow"
-				}
-			],
-			"browser": {
-				"binding": "VIRTUAL_BROWSER"
-			},
-			"ai": {
-				"binding": "AI"
-			},
-			"r2_buckets": [
-				{
-					"binding": "BUCKET",
-					"bucket_name": "smart-eval-bucket-stage"
-				}
-			],
-			"durable_objects": {
-									"bindings": [
-										{
-											"name": "CHAT_SESSION",
-											"class_name": "ChatSession"
-										},
-										{
-											"name": "INGESTION_TRACKER",
-											"class_name": "IngestionTracker"
-										}
-									]
-								},
-								"migrations": [
-									{
-										"tag": "v3",
-										"new_classes": [
-											"ChatSession"
-										]
-									},
-									{
-										"tag": "v4",
-										"deleted_classes": [
-											"EvaluationScheduler",
-											"LinkClickTracker"
-										]
-									},
-									{
-										"tag": "v5",
-										"new_classes": [
-											"IngestionTracker"
-										]
-									}
-								]
-				
-		},
-		"production": {
-			"vectorize": [
-				{
-					"binding": "KNOWLEDGE_BASE",
-					"index_name": "saas-knowledge-index"
-				}
-			],
-			"d1_databases": [
-				{
-					"binding": "DB",
-					"database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750"
-				}
-			],
-			"vars": {
-				"REDDIT_USER_AGENT": "HaloOps/1.0"
-			},
-			"kv_namespaces": [
-				{
-					"binding": "CACHE",
-					"id": "25cee7b23a8340d1a2b4912ef0e75e20"
-				}
-			],
-			"queues": {
-				"consumers": [
-					{
-						"queue": "smart-data-queue-production"
-					}
-				],
-				"producers": [
-					{
-						"binding": "QUEUE",
-						"queue": "smart-data-queue-production"
-					}
-				]
-			},
-			"workflows": [
-				{
-					"binding": "HALO_RESEARCH_WORKFLOW_V2",
-					"name": "halo-research-workflow-v2",
-					"class_name": "HaloResearchWorkflowV2"
-				},
-				{
-					"binding": "GOLDEN_PHEASANT_WORKFLOW",
-					"name": "golden-pheasant-workflow",
-					"class_name": "GoldenPheasantWorkflow"
-				},
-				{
-					"binding": "GODFATHER_OFFER_WORKFLOW",
-					"name": "godfather-offer-workflow",
-					"class_name": "GodfatherOfferWorkflow"
-				},
-				{
-					"binding": "SPOKE_GENERATION_WORKFLOW",
-					"name": "spoke-generation-workflow",
-					"class_name": "SpokeGenerationWorkflow"
-				}
-			],
-			"browser": {
-				"binding": "VIRTUAL_BROWSER"
-			},
-			"ai": {
-				"binding": "AI"
-			},
-			"r2_buckets": [
-				{
-					"binding": "BUCKET",
-					"bucket_name": "smart-eval-bucket-production"
-				}
-			],
-			"durable_objects": {
-				"bindings": [
-					{
-						"name": "CHAT_SESSION",
-						"class_name": "ChatSession"
-					},
-					{
-						"name": "INGESTION_TRACKER",
-						"class_name": "IngestionTracker"
-					}
-				]
-			},
-			"migrations": [
-				{
-					"tag": "v3",
-					"new_classes": [
-						"ChatSession"
-					]
-				},
-				{
-					"tag": "v4",
-					"deleted_classes": [
-						"EvaluationScheduler",
-						"LinkClickTracker"
-					]
-				},
-				{
-					"tag": "v5",
-					"new_classes": [
-						"IngestionTracker"
-					]
-				}
-			]
-		}
-	}
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "data-service",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+
+  // Local development
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_id": "local",
+      "preview_database_id": "DB"
+    }
+  ],
+
+  "env": {
+    "stage": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "audience-hero-stage",
+          "database_id": "075a005c-54da-4e90-ad1a-036816ce4483",
+          "remote": true
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "KNOWLEDGE_BASE",
+          "index_name": "saas-knowledge-index"
+        },
+        {
+          "binding": "VECTORIZE",
+          "index_name": "saas-knowledge-index",
+          "remote": true
+        }
+      ],
+      "vars": {
+        "REDDIT_USER_AGENT": "HaloOps/1.0"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "CACHE",
+          "id": "4c3bbe472d204bce99a8c84de8501dd8",
+          "remote": true
+        }
+      ],
+      "queues": {
+        "consumers": [
+          {
+            "queue": "smart-data-queue-stage"
+          }
+        ],
+        "producers": [
+          {
+            "binding": "QUEUE",
+            "queue": "smart-data-queue-stage"
+          }
+        ]
+      },
+      // Legacy workflows only - NO Foundry workflows
+      "workflows": [
+        {
+          "binding": "HALO_RESEARCH_WORKFLOW_V2",
+          "name": "halo-research-workflow-v2-stage",
+          "class_name": "HaloResearchWorkflowV2"
+        },
+        {
+          "binding": "GOLDEN_PHEASANT_WORKFLOW",
+          "name": "golden-pheasant-workflow-stage",
+          "class_name": "GoldenPheasantWorkflow"
+        },
+        {
+          "binding": "GODFATHER_OFFER_WORKFLOW",
+          "name": "godfather-offer-workflow-stage",
+          "class_name": "GodfatherOfferWorkflow"
+        }
+      ],
+      "browser": {
+        "binding": "VIRTUAL_BROWSER"
+      },
+      "ai": {
+        "binding": "AI"
+      },
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "smart-eval-bucket-stage"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "CHAT_SESSION",
+            "class_name": "ChatSession"
+          },
+          {
+            "name": "INGESTION_TRACKER",
+            "class_name": "IngestionTracker"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v3",
+          "new_classes": ["ChatSession"]
+        },
+        {
+          "tag": "v4",
+          "deleted_classes": ["EvaluationScheduler", "LinkClickTracker"]
+        },
+        {
+          "tag": "v5",
+          "new_classes": ["IngestionTracker"]
+        }
+      ]
+    },
+    "production": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "audience-hero-production",
+          "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "KNOWLEDGE_BASE",
+          "index_name": "saas-knowledge-index"
+        }
+      ],
+      "vars": {
+        "REDDIT_USER_AGENT": "HaloOps/1.0"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "CACHE",
+          "id": "25cee7b23a8340d1a2b4912ef0e75e20"
+        }
+      ],
+      "queues": {
+        "consumers": [
+          {
+            "queue": "smart-data-queue-production"
+          }
+        ],
+        "producers": [
+          {
+            "binding": "QUEUE",
+            "queue": "smart-data-queue-production"
+          }
+        ]
+      },
+      // Legacy workflows only - NO Foundry workflows
+      "workflows": [
+        {
+          "binding": "HALO_RESEARCH_WORKFLOW_V2",
+          "name": "halo-research-workflow-v2",
+          "class_name": "HaloResearchWorkflowV2"
+        },
+        {
+          "binding": "GOLDEN_PHEASANT_WORKFLOW",
+          "name": "golden-pheasant-workflow",
+          "class_name": "GoldenPheasantWorkflow"
+        },
+        {
+          "binding": "GODFATHER_OFFER_WORKFLOW",
+          "name": "godfather-offer-workflow",
+          "class_name": "GodfatherOfferWorkflow"
+        }
+      ],
+      "browser": {
+        "binding": "VIRTUAL_BROWSER"
+      },
+      "ai": {
+        "binding": "AI"
+      },
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "smart-eval-bucket-production"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "CHAT_SESSION",
+            "class_name": "ChatSession"
+          },
+          {
+            "name": "INGESTION_TRACKER",
+            "class_name": "IngestionTracker"
+          }
+        ]
+      },
+      "migrations": [
+        {
+          "tag": "v3",
+          "new_classes": ["ChatSession"]
+        },
+        {
+          "tag": "v4",
+          "deleted_classes": ["EvaluationScheduler", "LinkClickTracker"]
+        },
+        {
+          "tag": "v5",
+          "new_classes": ["IngestionTracker"]
+        }
+      ]
+    }
+  }
 }

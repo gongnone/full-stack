@@ -1,0 +1,134 @@
+name: Deploy to Stage
+
+on:
+  push:
+    branches:
+      - stage
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  # ============================================
+  # LEGACY SYSTEM (user-application + data-service)
+  # Routes to: stage.williamjshaw.ca
+  # ============================================
+
+  deploy-legacy-ui:
+    name: Deploy Legacy UI (user-application)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build user-application
+        run: pnpm --filter user-application run build
+
+      - name: Deploy to Cloudflare
+        run: pnpm --filter user-application run stage:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  deploy-legacy-api:
+    name: Deploy Legacy API (data-service)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build data-ops package
+        run: pnpm run build-package
+
+      - name: Deploy to Cloudflare
+        run: pnpm --filter data-service run stage:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # ============================================
+  # FOUNDRY SYSTEM (foundry-dashboard + foundry-engine)
+  # Routes to: foundry-stage.williamjshaw.ca
+  # ============================================
+
+  deploy-foundry-ui:
+    name: Deploy Foundry UI (foundry-dashboard)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build foundry-dashboard
+        run: pnpm --filter foundry-dashboard run build
+
+      - name: Deploy to Cloudflare
+        run: pnpm --filter foundry-dashboard run stage:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  deploy-foundry-api:
+    name: Deploy Foundry API (foundry-engine)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Deploy to Cloudflare
+        run: pnpm --filter foundry-engine run deploy:stage
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -1,5 +1,29 @@
 # Claude Code Project Memory
 
+## CRITICAL RULES - READ FIRST
+
+### DO NOT Write to Legacy Folders
+
+All new development is for **Foundry MVP only**. Legacy is maintenance-only.
+
+**ALLOWED (Foundry):**
+- ✅ `apps/foundry-dashboard/` - Foundry frontend
+- ✅ `apps/foundry-engine/` - Foundry backend
+- ✅ `packages/foundry-core/` - Shared Foundry code
+
+**FORBIDDEN (Legacy):**
+- ❌ `apps/user-application/` - DO NOT MODIFY
+- ❌ `apps/data-service/` - DO NOT MODIFY
+- ❌ Legacy wrangler.jsonc files - DO NOT TOUCH
+
+### Never Mix Resources
+
+- Legacy uses: `audience-hero-*` D1, `smart-eval-bucket-*` R2, `saas-knowledge-index` Vectorize
+- Foundry uses: `foundry-global-*` D1, `foundry-media` R2, `foundry-embeddings` Vectorize
+- NEVER bind Foundry resources to Legacy workers or vice versa
+
+---
+
 ## Architecture: Dual-System Monorepo
 
 This repo contains TWO completely separate systems with isolated resources:

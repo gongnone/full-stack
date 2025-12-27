@@ -23,6 +23,42 @@ const spokeStatusEnum = z.enum([
   'killed',
 ]);
 
+// Calculate Levenshtein edit distance ratio (0 = identical, 1 = completely different)
+function calculateEditDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return 1;
+  if (b.length === 0) return 1;
+
+  const matrix: number[][] = Array.from({ length: b.length + 1 }, () =>
+    Array(a.length + 1).fill(0)
+  );
+
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i]![0] = i;
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0]![j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i]![j] = matrix[i - 1]![j - 1]!;
+      } else {
+        matrix[i]![j] = Math.min(
+          matrix[i - 1]![j - 1]! + 1,
+          matrix[i]![j - 1]! + 1,
+          matrix[i - 1]![j]! + 1
+        );
+      }
+    }
+  }
+
+  const distance = matrix[b.length]![a.length]!;
+  const maxLen = Math.max(a.length, b.length);
+  return distance / maxLen;
+}
+
 export const spokesRouter = t.router({
   // List spokes with filtering
   list: procedure
@@ -84,6 +120,7 @@ export const spokesRouter = t.router({
     }),
 
   // Trigger generation for a hub (Story 4.1)
+  // Orchestrates spoke generation for all pillars × platforms
   generate: procedure
     .input(z.object({
       clientId: z.string().uuid(),
@@ -104,28 +141,89 @@ export const spokesRouter = t.router({
       );
 
       if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
         throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to start generation workflow',
+          code: response.status === 404 ? 'NOT_FOUND' : 'INTERNAL_SERVER_ERROR',
+          message: (error as any).error || 'Failed to start generation workflow',
         });
       }
 
-      return await response.json() as { instanceId: string, status: string };
+      return await response.json() as {
+        status: string;
+        hubId: string;
+        pillarsCount: number;
+        platformsCount: number;
+        spokesQueued: number;
+        instances: Array<{
+          instanceId: string;
+          spokeId: string;
+          platform: string;
+          pillarId: string;
+        }>;
+      };
+    }),
+
+  // Get workflow status for a spoke generation instance
+  getWorkflowStatus: procedure
+    .input(z.object({
+      instanceId: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const response = await ctx.env.CONTENT_ENGINE.fetch(
+        new Request(`http://internal/api/workflows/${input.instanceId}?type=spoke`, {
+          method: 'GET',
+        })
+      );
+
+      if (!response.ok) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Workflow not found',
+        });
+      }
+
+      return await response.json() as {
+        workflowType: string;
+        status: 'queued' | 'running' | 'complete' | 'errored';
+        output?: unknown;
+        error?: string;
+      };
     }),
 
   // Edit spoke content (marks as mutated for Kill Chain survival)
   edit: procedure
     .input(z.object({
+      clientId: z.string().uuid(),
       spokeId: z.string().uuid(),
-      content: z.string(),
+      content: z.string().min(1).max(5000),
     }))
     .mutation(async ({ ctx, input }) => {
-      // TODO: Update content, set is_mutated = 1
-      // TODO: Create entry in mutation_registry
+      // Get original spoke to calculate edit distance
+      const original = await ctx.callAgent(input.clientId, 'getSpoke', {
+        spokeId: input.spokeId,
+      }) as { content: string } | null;
+
+      if (!original) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Spoke not found',
+        });
+      }
+
+      // Update spoke - DO automatically sets mutated_at when content changes
+      await ctx.callAgent(input.clientId, 'updateSpoke', {
+        spokeId: input.spokeId,
+        updates: {
+          content: input.content,
+        },
+      });
+
+      // Calculate Levenshtein edit distance ratio
+      const editDistance = calculateEditDistance(original.content, input.content);
 
       return {
         success: true,
-        editDistance: 0.15, // Levenshtein ratio
+        editDistance,
       };
     }),
 

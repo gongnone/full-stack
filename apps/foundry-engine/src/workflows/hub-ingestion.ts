@@ -53,8 +53,24 @@ export class HubIngestionWorkflow extends WorkflowEntrypoint<Env, HubIngestionPa
 
   async run(event: WorkflowEvent<HubIngestionParams>, step: WorkflowStep) {
     const { clientId, hubId, sourceContent, platform, angle } = event.payload;
+    const workflowStartTime = Date.now();
+
+    // Structured logging helper for NFR-P2 (30s ingestion SLA)
+    const logMetric = (stage: string, durationMs: number, metadata?: Record<string, unknown>) => {
+      console.log(JSON.stringify({
+        event: 'hub_ingestion_metric',
+        hubId,
+        clientId,
+        stage,
+        durationMs,
+        contentLength: sourceContent.length,
+        timestamp: new Date().toISOString(),
+        ...metadata,
+      }));
+    };
 
     // Step 1: Initialize extraction progress
+    const initStart = Date.now();
     await step.do('init-progress', async () => {
       const now = Date.now();
       await this.env.DB.prepare(`
@@ -63,8 +79,10 @@ export class HubIngestionWorkflow extends WorkflowEntrypoint<Env, HubIngestionPa
         VALUES (?, ?, 'processing', 'parsing', 5, 'Initializing extraction...', NULL, ?)
       `).bind(hubId, clientId, now).run();
     });
+    logMetric('init-progress', Date.now() - initStart);
 
     // Step 2: Get Brand DNA for context (optional - gracefully handle missing)
+    const brandDnaStart = Date.now();
     const brandDNA = await step.do('get-brand-dna', async () => {
       await this.updateProgress(hubId, clientId, 'parsing', 15, 'Loading brand context...');
 
@@ -92,8 +110,10 @@ export class HubIngestionWorkflow extends WorkflowEntrypoint<Env, HubIngestionPa
         return { voiceMarkers: [], signaturePatterns: [] };
       }
     });
+    logMetric('get-brand-dna', Date.now() - brandDnaStart);
 
     // Step 3: Generate embeddings for source content
+    const embeddingsStart = Date.now();
     const embeddings = await step.do('generate-embeddings', async () => {
       await this.updateProgress(hubId, clientId, 'themes', 25, 'Generating content embeddings...');
 
@@ -112,8 +132,10 @@ export class HubIngestionWorkflow extends WorkflowEntrypoint<Env, HubIngestionPa
 
       return result.data[0];
     });
+    logMetric('generate-embeddings', Date.now() - embeddingsStart);
 
-    // Step 4: Extract content pillars using AI
+    // Step 4: Extract content pillars using AI (critical path for NFR-P2)
+    const extractStart = Date.now();
     const pillars = await step.do('extract-pillars', async () => {
       await this.updateProgress(hubId, clientId, 'claims', 40, 'Extracting thematic pillars with AI...');
 
@@ -273,8 +295,10 @@ Example output format:
       console.log(`Generated ${themes.length} fallback pillars from content analysis`);
       return themes;
     });
+    logMetric('extract-pillars', Date.now() - extractStart, { pillarCount: pillars.length });
 
     // Step 5: Write extracted pillars to D1
+    const writeStart = Date.now();
     await step.do('write-pillars-to-d1', async () => {
       await this.updateProgress(hubId, clientId, 'pillars', 75, 'Saving extracted pillars...');
 
@@ -304,6 +328,7 @@ Example output format:
         UPDATE hub_sources SET status = 'ready', updated_at = ? WHERE id = ?
       `).bind(now, hubId).run();
     });
+    logMetric('write-pillars-to-d1', Date.now() - writeStart, { pillarCount: pillars.length });
 
     // Step 6: Mark extraction as complete
     await step.do('complete-extraction', async () => {
@@ -315,6 +340,13 @@ Example output format:
         `Extraction complete! Found ${pillars.length} pillars.`,
         'completed'
       );
+    });
+
+    // Log total extraction time (NFR-P2: should be < 30s)
+    const totalExtractionMs = Date.now() - workflowStartTime;
+    logMetric('total-extraction', totalExtractionMs, {
+      pillarCount: pillars.length,
+      slaCompliant: totalExtractionMs < 30000,
     });
 
     // Step 7: Queue spoke generation for each platform variant (optional - can be triggered separately)

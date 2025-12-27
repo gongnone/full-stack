@@ -6,6 +6,7 @@
 import { useState, useMemo } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
+import { useClientId } from '@/lib/use-client-id';
 import { SpokeTreeView, GenerationProgress, PlatformFilter } from '@/components/spokes';
 import type { Pillar, Spoke, SpokePlatform, SpokeGenerationProgress } from '../../../worker/types';
 
@@ -139,9 +140,8 @@ function HubDetailPage() {
   const [generationProgress, setGenerationProgress] = useState<SpokeGenerationProgress | null>(null);
   const [activeTab, setActiveTab] = useState<'pillars' | 'spokes'>('pillars');
 
-  // Get client ID
-  const { data: userData } = trpc.auth.me.useQuery();
-  const clientId = userData?.user?.id || '';
+  // Get client ID using shared hook for consistency with hub creation wizard
+  const clientId = useClientId() || '';
 
   // Fetch Hub data
   const { data: hub, isLoading, error, refetch: refetchHub } = trpc.hubs.get.useQuery(
@@ -200,7 +200,7 @@ function HubDetailPage() {
         return;
       }
 
-      const pillar = pillars[currentPillar];
+      const pillar = pillars[currentPillar]!; // Non-null assertion - checked above
       const newSpokes = 7; // 7 platforms per pillar
       totalSpokes += newSpokes;
 

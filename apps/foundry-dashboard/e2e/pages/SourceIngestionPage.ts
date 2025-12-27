@@ -53,13 +53,13 @@ export class SourceIngestionPage extends BasePage {
     this.fileInput = page.locator('input[type="file"]');
     this.uploadProgress = page.locator('[data-testid="upload-progress"], .upload-progress, [role="progressbar"]');
     this.uploadedFile = page.locator('[data-testid="uploaded-file"], .uploaded-file');
-    this.uploadError = page.locator('[data-testid="upload-error"], .upload-error, text=/error|failed/i');
+    this.uploadError = page.locator('[data-testid="upload-error"], .upload-error').or(page.getByText(/error|failed/i));
 
     // Paste text
-    this.textInput = page.locator('textarea[data-testid="source-text"], textarea[placeholder*="paste" i], textarea[placeholder*="transcript" i]');
-    this.charCount = page.locator('[data-testid="char-count"], text=/\\d+ characters/i');
-    this.wordCount = page.locator('[data-testid="word-count"], text=/\\d+ words/i');
-    this.minLengthWarning = page.locator('[data-testid="min-length-warning"], text=/minimum/i');
+    this.textInput = page.locator('textarea[data-testid="source-text"], textarea[placeholder*="paste" i], textarea[placeholder*="transcript" i], textarea[placeholder*="content" i]');
+    this.charCount = page.locator('[data-testid="char-count"]').or(page.getByText(/\d+\s*\/\s*\d+\s*min\s*characters/i));
+    this.wordCount = page.locator('[data-testid="word-count"]').or(page.getByText(/\d+\s*words/i));
+    this.minLengthWarning = page.locator('[data-testid="min-length-warning"]').or(page.getByText(/minimum/i));
 
     // URL input
     this.urlInput = page.locator('input[type="url"], input[placeholder*="URL" i], input[name="url"]');

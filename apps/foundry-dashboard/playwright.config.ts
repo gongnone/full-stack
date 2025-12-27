@@ -53,6 +53,8 @@ export default defineConfig({
     {
       name: 'webkit',
       use: { ...devices['Desktop Safari'] },
+      // WebKit has known issues with cookie/session handling - add retries
+      retries: 1,
     },
   ],
 

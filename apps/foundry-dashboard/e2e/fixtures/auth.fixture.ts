@@ -55,10 +55,18 @@ export const test = base.extend<AuthFixtures>({
     // Navigate to login
     await page.goto(`${config.baseUrl}/login`);
 
-    // Fill login form
-    await page.fill('#email, input[type="email"]', config.testEmail);
-    await page.fill('#password, input[type="password"]', config.testPassword);
-    await page.click('button[type="submit"]');
+    // Wait for login form to be visible
+    await page.waitForLoadState('domcontentloaded');
+
+    // Fill login form using placeholder-based selectors (most reliable cross-browser)
+    const emailInput = page.getByPlaceholder('you@example.com');
+    const passwordInput = page.getByPlaceholder('••••••••');
+    const signInButton = page.getByRole('button', { name: 'Sign in' });
+
+    await emailInput.waitFor({ state: 'visible', timeout: 10000 });
+    await emailInput.fill(config.testEmail);
+    await passwordInput.fill(config.testPassword);
+    await signInButton.click();
 
     // Wait for successful login
     try {
@@ -75,8 +83,14 @@ export const test = base.extend<AuthFixtures>({
       throw new Error('E2E Auth Fixture: Login timeout');
     }
 
-    // Wait for page to stabilize
+    // Wait for page to stabilize and verify we're still authenticated
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+
+    // Double-check we're on an authenticated page (not redirected back to login)
+    const currentUrl = page.url();
+    if (currentUrl.includes('/login') || currentUrl.includes('/signup')) {
+      throw new Error(`E2E Auth Fixture: Session not persisted. Current URL: ${currentUrl}`);
+    }
 
     await use(page);
   },

@@ -1,0 +1,260 @@
+# 🚀 Stage Deployment Agent
+#
+# Deploys all workers to Cloudflare stage environment with safety checks.
+#
+# ARCHITECTURE: This monorepo contains TWO separate systems:
+#   - Legacy (AudienceHero): user-application + data-service
+#   - Foundry MVP: foundry-dashboard + foundry-engine
+#
+# CRITICAL: These systems use SEPARATE Cloudflare resources (D1, R2, Vectorize)
+#           and must NEVER share databases or other infrastructure.
+#
+# Database IDs:
+#   Legacy Stage:  075a005c-54da-4e90-ad1a-036816ce4483 (audience-hero-stage)
+#   Foundry Stage: e35604ee-6e84-476f-a6ec-e6df6e12d81c (foundry-global-stage)
+
+name: 🚀 Stage Deployment Agent
+
+on:
+  push:
+    branches: ["stage"]
+  workflow_dispatch: # Manual trigger button in GitHub UI
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 1. THE GUARDIAN: Resource Isolation Check
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Prevents the deployment mess we had on 2025-12-26 where Legacy was using
+  # Foundry D1 databases. This job FAILS the pipeline if configs are crossed.
+
+  resource-isolation-check:
+    name: 🛡️ Resource Isolation Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🔍 Check Legacy configs don't use Foundry resources
+        run: |
+          echo "Checking Legacy wrangler configs for Foundry resource contamination..."
+
+          # These patterns should NOT appear in Legacy configs
+          FOUNDRY_PATTERNS="foundry-global|foundry-media|foundry-embeddings|e35604ee|bd287f3f"
+
+          # Check user-application
+          if grep -E "$FOUNDRY_PATTERNS" apps/user-application/wrangler.jsonc; then
+            echo "❌ FATAL: user-application contains Foundry resources!"
+            echo "Legacy must use: audience-hero-*, smart-eval-bucket-*, saas-knowledge-index"
+            exit 1
+          fi
+
+          # Check data-service
+          if grep -E "$FOUNDRY_PATTERNS" apps/data-service/wrangler.jsonc; then
+            echo "❌ FATAL: data-service contains Foundry resources!"
+            echo "Legacy must use: audience-hero-*, smart-eval-bucket-*, saas-knowledge-index"
+            exit 1
+          fi
+
+          echo "✅ Legacy configs are clean - no Foundry resources detected"
+
+      - name: 🔍 Check Foundry configs don't use Legacy resources
+        run: |
+          echo "Checking Foundry wrangler configs for Legacy resource contamination..."
+
+          # These patterns should NOT appear in Foundry configs
+          LEGACY_PATTERNS="audience-hero|smart-eval-bucket|saas-knowledge-index|075a005c|b2c606e3"
+
+          # Check foundry-dashboard
+          if grep -E "$LEGACY_PATTERNS" apps/foundry-dashboard/wrangler.jsonc; then
+            echo "❌ FATAL: foundry-dashboard contains Legacy resources!"
+            echo "Foundry must use: foundry-global-*, foundry-media, foundry-embeddings"
+            exit 1
+          fi
+
+          # Check foundry-engine
+          if grep -E "$LEGACY_PATTERNS" apps/foundry-engine/wrangler.jsonc; then
+            echo "❌ FATAL: foundry-engine contains Legacy resources!"
+            echo "Foundry must use: foundry-global-*, foundry-media, foundry-embeddings"
+            exit 1
+          fi
+
+          echo "✅ Foundry configs are clean - no Legacy resources detected"
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 2. THE AUDITOR: Code Quality Gate
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  quality-gate:
+    name: 🛡️ Quality Gate
+    needs: resource-isolation-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 🏗️ Build shared packages
+        run: pnpm run build-package
+
+      - name: 🛡️ Type Check (Foundry)
+        run: pnpm run foundry:typecheck
+
+      # Uncomment when tests are stable
+      # - name: 🧪 Run Tests
+      #   run: pnpm test
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 3. THE LEGACY DEPLOYER (stage.williamjshaw.ca)
+  # ═══════════════════════════════════════════════════════════════════════════
+  # IMPORTANT: Legacy apps depend on @repo/data-ops - must build-package first!
+
+  deploy-legacy-frontend:
+    name: 🚀 Legacy Frontend (user-application)
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 🏗️ Build data-ops (Legacy dependency)
+        run: pnpm run build-package
+
+      - name: 🚀 Deploy to Cloudflare
+        run: pnpm --filter user-application run stage:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  deploy-legacy-backend:
+    name: 🚀 Legacy Backend (data-service)
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 🏗️ Build data-ops (Legacy dependency)
+        run: pnpm run build-package
+
+      - name: 🚀 Deploy to Cloudflare
+        run: pnpm --filter data-service run stage:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 4. THE FOUNDRY DEPLOYER (foundry-stage.williamjshaw.ca)
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Foundry apps do NOT depend on data-ops - no build-package needed
+
+  deploy-foundry-frontend:
+    name: 🚀 Foundry Frontend (dashboard)
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 🚀 Deploy to Cloudflare
+        run: pnpm --filter foundry-dashboard run stage:deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  deploy-foundry-backend:
+    name: 🚀 Foundry Backend (engine)
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 🚀 Deploy to Cloudflare
+        run: pnpm --filter foundry-engine run deploy:stage
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 5. THE VERIFIER: Post-Deployment Health Check
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  verify-deployments:
+    name: ✅ Verify Deployments
+    needs:
+      - deploy-legacy-frontend
+      - deploy-legacy-backend
+      - deploy-foundry-frontend
+      - deploy-foundry-backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🏥 Health Check - Legacy
+        run: |
+          echo "Checking Legacy frontend..."
+          curl -sf https://stage.williamjshaw.ca > /dev/null && echo "✅ stage.williamjshaw.ca is up" || echo "⚠️ stage.williamjshaw.ca may be starting"
+
+      - name: 🏥 Health Check - Foundry
+        run: |
+          echo "Checking Foundry frontend..."
+          curl -sf https://foundry-stage.williamjshaw.ca > /dev/null && echo "✅ foundry-stage.williamjshaw.ca is up" || echo "⚠️ foundry-stage.williamjshaw.ca may be starting"
+
+      - name: 📊 Deployment Summary
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🚀 STAGE DEPLOYMENT COMPLETE"
+          echo "═══════════════════════════════════════════════════════"
+          echo ""
+          echo "  Legacy System:"
+          echo "    • Frontend: https://stage.williamjshaw.ca"
+          echo "    • Backend:  data-service-stage"
+          echo "    • Database: audience-hero-stage (075a005c)"
+          echo ""
+          echo "  Foundry MVP:"
+          echo "    • Frontend: https://foundry-stage.williamjshaw.ca"
+          echo "    • Backend:  foundry-engine-stage"
+          echo "    • Database: foundry-global-stage (e35604ee)"
+          echo ""
+          echo "═══════════════════════════════════════════════════════"

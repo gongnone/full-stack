@@ -373,7 +373,8 @@ export class ClientAgent extends DurableObject<Env> {
 
   // Brand DNA Methods
   private async getBrandDNA(): Promise<BrandDNA> {
-    const row = this.sql.exec(`SELECT * FROM brand_dna WHERE id = 1`).one()
+    const rows = this.sql.exec(`SELECT * FROM brand_dna WHERE id = 1`).toArray()
+    const row = rows.length > 0 ? rows[0] : null
 
     // Read from normalized tables
     const voiceMarkers = this.sql.exec(`SELECT * FROM voice_markers ORDER BY created_at DESC`).toArray().map(r => ({
@@ -405,11 +406,11 @@ export class ClientAgent extends DurableObject<Env> {
       voiceMarkers,
       bannedWords,
       stances,
-      signaturePatterns: JSON.parse(row.signature_patterns as string || '[]'),
-      toneProfile: JSON.parse(row.tone_profile as string || '{}'),
-      voiceBaseline: row.voice_baseline as number | null,
-      timeToDNA: row.time_to_dna as number | null,
-      lastCalibration: row.last_calibration as string | null,
+      signaturePatterns: row ? JSON.parse(row.signature_patterns as string || '[]') : [],
+      toneProfile: row ? JSON.parse(row.tone_profile as string || '{}') : {},
+      voiceBaseline: row?.voice_baseline as number | null ?? null,
+      timeToDNA: row?.time_to_dna as number | null ?? null,
+      lastCalibration: row?.last_calibration as string | null ?? null,
     }
   }
 
@@ -985,14 +986,18 @@ export class ClientAgent extends DurableObject<Env> {
 
   private async getReviewQueue(params: { filter?: string; limit?: number }): Promise<Spoke[]> {
     let query = `SELECT * FROM spokes WHERE status = 'reviewing'`
+    let hasOrderBy = false
 
     if (params.filter === 'top10') {
       query += ` ORDER BY g7_engagement DESC`
+      hasOrderBy = true
     } else if (params.filter === 'flagged') {
       query += ` AND (g2_hook < 50 OR g4_voice = 0 OR g5_platform = 0)`
     }
 
-    query += ` ORDER BY created_at DESC`
+    if (!hasOrderBy) {
+      query += ` ORDER BY created_at DESC`
+    }
     if (params.limit) query += ` LIMIT ${params.limit}`
 
     return this.sql.exec(query).toArray().map(row => ({

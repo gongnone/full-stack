@@ -91,7 +91,7 @@ export const clientsRouter = t.router({
   // List team members for a client
   listMembers: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
       // Check if user is member of this client
@@ -123,7 +123,7 @@ export const clientsRouter = t.router({
   // Add a team member
   addMember: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       email: z.string().email(),
       role: z.enum(['agency_owner', 'account_manager', 'creator', 'client_admin', 'client_reviewer']),
     }))
@@ -175,7 +175,7 @@ export const clientsRouter = t.router({
   // Switch active client context
   switch: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
       const startTime = performance.now();
@@ -213,7 +213,7 @@ export const clientsRouter = t.router({
   // Get Brand DNA Report for a client
   getDNAReport: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
       const dna = await ctx.callAgent(input.clientId, 'getBrandDNA', {});
@@ -239,7 +239,7 @@ export const clientsRouter = t.router({
   // Generate a shareable review link
   generateShareableLink: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       expiresInDays: z.number().min(1).max(30).default(7),
       permissions: z.enum(['view', 'approve', 'comment']).default('view'),
       allowedEmails: z.array(z.string().email()).optional(),
@@ -360,7 +360,7 @@ export const clientsRouter = t.router({
   // Update a client's details
   update: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       name: z.string().min(1).max(100).optional(),
       industry: z.string().optional(),
       contactEmail: z.string().email().optional(),
@@ -422,7 +422,7 @@ export const clientsRouter = t.router({
   // Update a member's role (RBAC)
   updateMember: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       memberId: z.string().uuid(),
       role: z.enum(['agency_owner', 'account_manager', 'creator', 'client_admin', 'client_reviewer']),
     }))
@@ -451,7 +451,7 @@ export const clientsRouter = t.router({
   // Remove a team member
   removeMember: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       memberId: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -499,7 +499,7 @@ export const clientsRouter = t.router({
   // Get details for a specific client
   getById: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
       // Check if user is member

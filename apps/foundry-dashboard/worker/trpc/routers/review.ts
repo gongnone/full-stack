@@ -9,7 +9,7 @@ export const reviewRouter = t.router({
   // Get the bulk approval queue
   getQueue: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       filter: z.enum(['all', 'top10', 'flagged']).default('all'),
       limit: z.number().min(1).max(100).default(50),
     }))
@@ -29,7 +29,7 @@ export const reviewRouter = t.router({
   // Approve multiple spokes at once
   bulkApprove: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       spokeIds: z.array(z.string().uuid()),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -41,7 +41,7 @@ export const reviewRouter = t.router({
   // Reject multiple spokes
   bulkReject: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       spokeIds: z.array(z.string().uuid()),
       reason: z.string().optional(),
     }))
@@ -55,7 +55,7 @@ export const reviewRouter = t.router({
   // Kill entire Hub from review queue (cascade)
   killHub: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       hubId: z.string().uuid(),
       reason: z.string().optional(),
     }))
@@ -69,7 +69,7 @@ export const reviewRouter = t.router({
   // Single swipe action (optimized for mobile)
   swipeAction: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       spokeId: z.string().uuid(),
       action: z.enum(['approve', 'reject', 'skip']),
     }))

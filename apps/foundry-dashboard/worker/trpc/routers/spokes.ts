@@ -63,7 +63,7 @@ export const spokesRouter = t.router({
   // List spokes with filtering
   list: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       hubId: z.string().uuid().optional(),
       pillarId: z.string().uuid().optional(),
       platform: platformEnum.optional(),
@@ -84,7 +84,7 @@ export const spokesRouter = t.router({
   // Get a single spoke with quality scores and feedback
   get: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       spokeId: z.string().uuid(),
     }))
     .query(async ({ ctx, input }) => {
@@ -96,7 +96,7 @@ export const spokesRouter = t.router({
   // Approve a single spoke
   approve: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       spokeId: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -108,7 +108,7 @@ export const spokesRouter = t.router({
   // Reject a spoke
   reject: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       spokeId: z.string().uuid(),
       reason: z.string().optional(),
     }))
@@ -123,7 +123,7 @@ export const spokesRouter = t.router({
   // Orchestrates spoke generation for all pillars × platforms
   generate: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       hubId: z.string().uuid(),
       platforms: z.array(platformEnum).default(['twitter', 'linkedin']),
     }))
@@ -193,7 +193,7 @@ export const spokesRouter = t.router({
   // Edit spoke content (marks as mutated for Kill Chain survival)
   edit: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       spokeId: z.string().uuid(),
       content: z.string().min(1).max(5000),
     }))

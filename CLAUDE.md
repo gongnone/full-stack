@@ -122,7 +122,41 @@ pnpm test                                    # Run all unit tests
 
 Legacy system has minimal test coverage (3 files in data-service). **DO NOT add tests to Legacy** unless explicitly requested - it's maintenance-only.
 
-## CI/CD
+## CI/CD (GitHub Actions)
 
-Deployments are handled by **Cloudflare Git Integration** (not GitHub Actions).
-Each worker has its own Cloudflare project that auto-deploys on push to `stage` or `main`.
+Deployments are automated via **GitHub Actions** workflows:
+
+| Branch | Environment | Workflow |
+|--------|-------------|----------|
+| `stage` | Stage | `.github/workflows/deploy-stage.yaml` |
+| `main` | Production | `.github/workflows/deploy-production.yaml` |
+
+### GitHub Secrets Required
+- `CLOUDFLARE_API_TOKEN` - Token with "Edit Cloudflare Workers" permissions
+- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
+
+### Workflow Features
+- Resource isolation checks (prevents Legacy/Foundry database collision)
+- TypeScript type checking (`foundry:typecheck:build`)
+- Parallel deployment of all 4 workers
+- Health check verification
+
+### Manual Trigger
+```bash
+gh workflow run "deploy-stage.yaml" --ref stage
+gh workflow run "deploy-production.yaml" --ref main
+```
+
+### Cloudflare Dashboard Secrets (foundry-dashboard)
+Set in Workers & Pages → foundry-dashboard-stage/production → Settings → Variables:
+- `BETTER_AUTH_SECRET` - Generate with `openssl rand -base64 32`
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Google OAuth
+- `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` - GitHub OAuth
+
+### OAuth Callback URLs
+- Stage: `https://foundry-stage.williamjshaw.ca/api/auth/callback/google`
+- Production: `https://foundry.williamjshaw.ca/api/auth/callback/google`
+
+### Known Issues
+- **Queue Consumer Conflict**: If `foundry-engine` deploy fails with "queue already has consumer" (code 11004), delete consumers in Cloudflare Dashboard → Queues → [queue] → Consumers → Delete, then redeploy.
+- **Legacy TypeScript Errors**: The Legacy frontend has pre-existing type errors that show as warnings but don't block deployment.

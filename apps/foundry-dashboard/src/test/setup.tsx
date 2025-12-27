@@ -106,7 +106,8 @@ vi.mock('@/lib/trpc-client', () => ({
   },
 }));
 
-// Mock useClientId hook
+// Mock useClientId hooks
 vi.mock('@/lib/use-client-id', () => ({
   useClientId: vi.fn(() => 'client-1'),
+  useRequiredClientId: vi.fn(() => 'client-1'),
 }));

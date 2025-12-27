@@ -32,7 +32,7 @@ vi.mock('@/lib/constants', () => ({
 }));
 
 // ResizeObserver mock
-global.ResizeObserver = class ResizeObserver {
+(globalThis as any).ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
@@ -83,7 +83,7 @@ describe('ZeroEditChart', () => {
     expect(screen.getByText(/Content approved without modifications/i)).toBeInTheDocument();
     
     // Check if current rate is displayed (may appear in multiple places)
-    const lastRate = mockData.data[mockData.data.length - 1].rate.toFixed(1) + '%';
+    const lastRate = mockData.data[mockData.data.length - 1]!.rate.toFixed(1) + '%';
     expect(screen.getAllByText(lastRate).length).toBeGreaterThan(0);
 
     // Check stats footer

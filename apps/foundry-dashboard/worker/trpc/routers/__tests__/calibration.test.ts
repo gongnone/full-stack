@@ -28,8 +28,8 @@ describe('calibrationRouter', () => {
       const result = await caller.listSamples(input);
 
       expect(result.samples).toHaveLength(2);
-      expect(result.samples[0].qualityBadge).toBe('excellent');
-      expect(result.samples[1].qualityBadge).toBe('pending');
+      expect(result.samples[0]!.qualityBadge).toBe('excellent');
+      expect(result.samples[1]!.qualityBadge).toBe('pending');
     });
   });
 

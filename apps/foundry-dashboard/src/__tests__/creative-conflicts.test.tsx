@@ -128,7 +128,7 @@ describe('CreativeConflictsPage', () => {
       const user = userEvent.setup();
       render(<CreativeConflictsPage />);
 
-      const platformSelect = screen.getAllByRole('combobox')[0];
+      const platformSelect = screen.getAllByRole('combobox')[0]!;
       await user.selectOptions(platformSelect, 'twitter');
 
       // After filtering, only twitter spokes should be visible
@@ -141,7 +141,7 @@ describe('CreativeConflictsPage', () => {
       const user = userEvent.setup();
       render(<CreativeConflictsPage />);
 
-      const gateSelect = screen.getAllByRole('combobox')[1];
+      const gateSelect = screen.getAllByRole('combobox')[1]!;
       await user.selectOptions(gateSelect, 'g2');
 
       // After filtering by G2, only spokes with G2 failures should show
@@ -230,7 +230,7 @@ describe('CreativeConflictsPage', () => {
       const user = userEvent.setup();
       render(<CreativeConflictsPage />);
 
-      const rewriteButton = screen.getAllByText('Request Rewrite')[0];
+      const rewriteButton = screen.getAllByText('Request Rewrite')[0]!;
       await user.click(rewriteButton);
 
       await waitFor(() => {
@@ -244,7 +244,7 @@ describe('CreativeConflictsPage', () => {
       const user = userEvent.setup();
       render(<CreativeConflictsPage />);
 
-      await user.click(screen.getAllByText('Request Rewrite')[0]);
+      await user.click(screen.getAllByText('Request Rewrite')[0]!);
 
       await waitFor(() => {
         expect(screen.getByText('Request Manual Rewrite')).toBeInTheDocument();
@@ -258,7 +258,7 @@ describe('CreativeConflictsPage', () => {
       const user = userEvent.setup();
       render(<CreativeConflictsPage />);
 
-      await user.click(screen.getAllByText('Request Rewrite')[0]);
+      await user.click(screen.getAllByText('Request Rewrite')[0]!);
 
       await waitFor(() => {
         const textarea = screen.getByPlaceholderText(/Please make the hook less salesy/i);
@@ -270,7 +270,7 @@ describe('CreativeConflictsPage', () => {
       const user = userEvent.setup();
       render(<CreativeConflictsPage />);
 
-      await user.click(screen.getAllByText('Request Rewrite')[0]);
+      await user.click(screen.getAllByText('Request Rewrite')[0]!);
 
       await waitFor(async () => {
         const textarea = screen.getByPlaceholderText(/Please make the hook less salesy/i);
@@ -283,7 +283,7 @@ describe('CreativeConflictsPage', () => {
       const user = userEvent.setup();
       render(<CreativeConflictsPage />);
 
-      await user.click(screen.getAllByText('Request Rewrite')[0]);
+      await user.click(screen.getAllByText('Request Rewrite')[0]!);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
@@ -294,7 +294,7 @@ describe('CreativeConflictsPage', () => {
       const user = userEvent.setup();
       render(<CreativeConflictsPage />);
 
-      await user.click(screen.getAllByText('Request Rewrite')[0]);
+      await user.click(screen.getAllByText('Request Rewrite')[0]!);
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: 'Submit Feedback' })).toBeInTheDocument();
@@ -305,7 +305,7 @@ describe('CreativeConflictsPage', () => {
       const user = userEvent.setup();
       render(<CreativeConflictsPage />);
 
-      await user.click(screen.getAllByText('Request Rewrite')[0]);
+      await user.click(screen.getAllByText('Request Rewrite')[0]!);
 
       await waitFor(() => {
         const submitButton = screen.getByRole('button', { name: 'Submit Feedback' });
@@ -317,7 +317,7 @@ describe('CreativeConflictsPage', () => {
       const user = userEvent.setup();
       render(<CreativeConflictsPage />);
 
-      await user.click(screen.getAllByText('Request Rewrite')[0]);
+      await user.click(screen.getAllByText('Request Rewrite')[0]!);
 
       await waitFor(async () => {
         const textarea = screen.getByPlaceholderText(/Please make the hook less salesy/i);
@@ -332,7 +332,7 @@ describe('CreativeConflictsPage', () => {
       const user = userEvent.setup();
       render(<CreativeConflictsPage />);
 
-      await user.click(screen.getAllByText('Request Rewrite')[0]);
+      await user.click(screen.getAllByText('Request Rewrite')[0]!);
 
       await waitFor(async () => {
         const cancelButton = screen.getByRole('button', { name: 'Cancel' });
@@ -403,7 +403,7 @@ describe('CreativeConflictsPage', () => {
 
     it('buttons are keyboard accessible', async () => {
       render(<CreativeConflictsPage />);
-      const approveButton = screen.getAllByText('Approve Anyway')[0];
+      const approveButton = screen.getAllByText('Approve Anyway')[0]!;
       approveButton.focus();
       expect(approveButton).toHaveFocus();
     });

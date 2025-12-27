@@ -17,26 +17,26 @@ vi.mock('./RecommendationsSection', () => ({
   RecommendationsSection: () => <div data-testid="recommendations-section" />,
 }));
 
-const mockReport: BrandDNAReport = {
+const mockReport = {
   strengthScore: 85,
   status: 'good',
   sampleCount: 150,
   primaryTone: 'Professional',
   writingStyle: 'Concise',
   targetAudience: 'Executives',
-  signaturePhrases: ['Leverage', 'Synergy'],
+  signaturePhrases: [{ phrase: 'Leverage', example: 'Leverage our skills' }, { phrase: 'Synergy', example: 'Create synergy' }],
   topicsToAvoid: ['Cheap', 'Discount'],
   breakdown: {
-    toneMatch: 80,
-    styleConsistency: 85,
-    vocabularyAlignment: 90,
+    tone_match: 80,
+    style_consistency: 85,
+    vocabulary_alignment: 90,
   },
-  recommendations: ['Add more samples'],
+  recommendations: [{ type: 'add_samples', message: 'Add more samples' }],
   lastCalibration: {
     timestamp: 1672531200, // 2023-01-01
-    source: 'manual_upload',
+    source: 'manual',
   },
-};
+} as any;
 
 describe('BrandDNACard', () => {
   it('renders strength score and status badge', () => {

@@ -26,7 +26,7 @@ describe('clientsRouter', () => {
 
       expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT id, name'));
       expect(result.items).toHaveLength(1);
-      expect(result.items[0].name).toBe('Client 1');
+      expect(result.items[0]!.name).toBe('Client 1');
     });
   });
 

@@ -45,7 +45,7 @@ describe('VoiceRecorder', () => {
     vi.useFakeTimers();
 
     // Mock navigator.mediaDevices.getUserMedia
-    Object.defineProperty(global.navigator, 'mediaDevices', {
+    Object.defineProperty((globalThis as any).navigator, 'mediaDevices', {
       value: {
         getUserMedia: vi.fn().mockResolvedValue(mockStream),
       },
@@ -54,7 +54,7 @@ describe('VoiceRecorder', () => {
     });
 
     // Mock navigator.permissions.query
-    Object.defineProperty(global.navigator, 'permissions', {
+    Object.defineProperty((globalThis as any).navigator, 'permissions', {
       value: {
         query: vi.fn().mockResolvedValue({ state: 'prompt', onchange: null }),
       },
@@ -63,14 +63,14 @@ describe('VoiceRecorder', () => {
     });
 
     // Mock navigator.userAgent (not Safari)
-    Object.defineProperty(global.navigator, 'userAgent', {
+    Object.defineProperty((globalThis as any).navigator, 'userAgent', {
       value: 'Mozilla/5.0 Chrome/120.0.0.0',
       writable: true,
       configurable: true,
     });
 
     // Mock MediaRecorder constructor
-    (global as any).MediaRecorder = MockMediaRecorder;
+    (globalThis as any).MediaRecorder = MockMediaRecorder;
   });
 
   afterEach(() => {
@@ -174,7 +174,7 @@ describe('VoiceRecorder', () => {
       vi.useRealTimers(); // Use real timers for async error handling
 
       const mockGetUserMedia = vi.fn().mockRejectedValue(new Error('Permission denied'));
-      Object.defineProperty(global.navigator, 'mediaDevices', {
+      Object.defineProperty((globalThis as any).navigator, 'mediaDevices', {
         value: { getUserMedia: mockGetUserMedia },
         writable: true,
         configurable: true,
@@ -194,7 +194,7 @@ describe('VoiceRecorder', () => {
       vi.useRealTimers(); // Use real timers for async error handling
 
       const mockGetUserMedia = vi.fn().mockRejectedValue(new Error('Permission denied'));
-      Object.defineProperty(global.navigator, 'mediaDevices', {
+      Object.defineProperty((globalThis as any).navigator, 'mediaDevices', {
         value: { getUserMedia: mockGetUserMedia },
         writable: true,
         configurable: true,

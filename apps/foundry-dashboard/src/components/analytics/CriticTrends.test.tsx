@@ -36,7 +36,7 @@ vi.mock('@/lib/constants', () => ({
 }));
 
 // ResizeObserver mock
-global.ResizeObserver = class ResizeObserver {
+(globalThis as any).ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}

@@ -19,7 +19,7 @@ vi.mock('@/lib/use-client-id', () => ({
   useClientId: () => mockClientId,
 }));
 
-global.ResizeObserver = class ResizeObserver {
+(globalThis as any).ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}

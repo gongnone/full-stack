@@ -11,7 +11,7 @@ describe('RecommendationsSection', () => {
   const mockOnRecordVoice = vi.fn();
 
   const defaultProps = {
-    status: 'weak' as const,
+    status: 'needs_training' as const,
     strengthScore: 45,
     recommendations: [
       { type: 'add_samples' as const, message: 'Add more content samples' },
@@ -39,9 +39,9 @@ describe('RecommendationsSection', () => {
     });
   });
 
-  describe('Weak Status', () => {
-    it('renders weak status title', () => {
-      render(<RecommendationsSection {...defaultProps} status="weak" strengthScore={45} />);
+  describe('Needs Training Status', () => {
+    it('renders needs training status title', () => {
+      render(<RecommendationsSection {...defaultProps} status="needs_training" strengthScore={45} />);
 
       expect(screen.getByText('Needs More Training')).toBeInTheDocument();
     });

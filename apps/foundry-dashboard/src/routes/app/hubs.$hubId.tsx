@@ -3,12 +3,20 @@
  * Hub Detail Route - Display Hub with pillars and spoke tree view
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { SpokeTreeView, GenerationProgress, PlatformFilter } from '@/components/spokes';
 import type { Pillar, Spoke, SpokePlatform, SpokeGenerationProgress } from '../../../worker/types';
+
+// Types for workflow polling
+interface WorkflowInstance {
+  instanceId: string;
+  spokeId: string;
+  platform: string;
+  pillarId: string;
+}
 
 export const Route = createFileRoute('/app/hubs/$hubId')({
   component: HubDetailPage,
@@ -139,6 +147,8 @@ function HubDetailPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState<SpokeGenerationProgress | null>(null);
   const [activeTab, setActiveTab] = useState<'pillars' | 'spokes'>('pillars');
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const workflowStartTimeRef = useRef<number>(0);
 
   // Get client ID using shared hook for consistency with hub creation wizard
   const clientId = useClientId() || '';
@@ -150,79 +160,199 @@ function HubDetailPage() {
   );
 
   // Fetch spokes for this hub
-  const { data: spokesData, refetch: refetchSpokes } = trpc.spokes.list.useQuery(
+  const { data: spokesData, refetch: refetchSpokes, error: spokesError } = trpc.spokes.list.useQuery(
     { clientId, hubId },
     { enabled: !!clientId && !!hubId && activeTab === 'spokes' }
   );
 
+  // Debug: Log spokes data
+  useEffect(() => {
+    console.log('[Spokes Debug] clientId:', clientId, 'hubId:', hubId, 'activeTab:', activeTab);
+    console.log('[Spokes Debug] spokesData:', spokesData);
+    console.log('[Spokes Debug] spokesError:', spokesError);
+    if (spokesData?.items) {
+      console.log('[Spokes Debug] items count:', spokesData.items.length);
+    }
+  }, [spokesData, spokesError, clientId, hubId, activeTab]);
+
+  // Utility to get workflow status
+  const trpcUtils = trpc.useUtils();
+
+  // Poll workflow status for real progress tracking
+  const pollWorkflowStatus = useCallback((instances: WorkflowInstance[]) => {
+    const totalSpokes = instances.length;
+    const pillars = hub?.pillars || [];
+    workflowStartTimeRef.current = Date.now() / 1000;
+
+    // Clear any existing polling
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    // Track which instances are done (to avoid re-counting)
+    const instanceStatus: Record<string, 'pending' | 'complete' | 'errored'> = {};
+    instances.forEach((inst) => {
+      instanceStatus[inst.instanceId] = 'pending';
+    });
+
+    // Track poll count for timeout (max 10 minutes = 200 polls at 3s each)
+    let pollCount = 0;
+    const MAX_POLLS = 200;
+
+    const checkStatus = async () => {
+      pollCount++;
+      // Only log every 10th poll to reduce spam
+      if (pollCount % 10 === 1) {
+        console.log('[Spoke Gen] Poll #' + pollCount + ' checking', instances.length, 'instances');
+      }
+
+      // Timeout after MAX_POLLS
+      if (pollCount > MAX_POLLS) {
+        console.warn('[Spoke Gen] Polling timeout after', MAX_POLLS, 'polls');
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        setIsGenerating(false);
+        return;
+      }
+
+      let completedSpokes = 0;
+      let failedSpokes = 0;
+      let currentPillarId: string | null = null;
+
+      // Track completed per pillar for this check
+      const pillarProgress: Record<string, { completed: number; total: number }> = {};
+      instances.forEach((inst) => {
+        if (!pillarProgress[inst.pillarId]) {
+          pillarProgress[inst.pillarId] = { completed: 0, total: 0 };
+        }
+        pillarProgress[inst.pillarId]!.total++;
+      });
+
+      // Check each workflow instance status
+      for (const inst of instances) {
+        // Skip if already known to be done
+        if (instanceStatus[inst.instanceId] !== 'pending') {
+          if (instanceStatus[inst.instanceId] === 'complete') {
+            completedSpokes++;
+            pillarProgress[inst.pillarId]!.completed++;
+          } else if (instanceStatus[inst.instanceId] === 'errored') {
+            failedSpokes++;
+            pillarProgress[inst.pillarId]!.completed++;
+          }
+          continue;
+        }
+
+        try {
+          // Invalidate cache first to ensure fresh data on each poll
+          await trpcUtils.spokes.getWorkflowStatus.invalidate({ instanceId: inst.instanceId });
+          const status = await trpcUtils.spokes.getWorkflowStatus.fetch({ instanceId: inst.instanceId });
+          if (status.status === 'complete') {
+            console.log('[Spoke Gen] Instance', inst.instanceId.slice(0, 8), '✓ complete');
+          } else if (status.status !== 'running') {
+            console.log('[Spoke Gen] Instance', inst.instanceId.slice(0, 8), 'status:', status.status);
+          }
+          if (status.status === 'complete') {
+            instanceStatus[inst.instanceId] = 'complete';
+            completedSpokes++;
+            pillarProgress[inst.pillarId]!.completed++;
+          } else if (status.status === 'errored') {
+            instanceStatus[inst.instanceId] = 'errored';
+            failedSpokes++;
+            pillarProgress[inst.pillarId]!.completed++;
+          } else if (status.status === 'running' && !currentPillarId) {
+            currentPillarId = inst.pillarId;
+          }
+        } catch (err) {
+          console.error('[Spoke Gen] Error fetching status for', inst.instanceId.slice(0, 8), err);
+        }
+      }
+      // Only log progress summary when there's a change or every 10th poll
+      if (pollCount % 10 === 0 || completedSpokes + failedSpokes === totalSpokes) {
+        console.log('[Spoke Gen] Progress:', completedSpokes, '/', totalSpokes, 'completed,', failedSpokes, 'failed');
+      }
+
+      // Find current pillar name
+      const currentPillar = pillars.find(p => p.id === currentPillarId);
+      const completedPillars = Object.values(pillarProgress).filter(
+        p => p.completed >= p.total
+      ).length;
+
+      // Update progress UI
+      setGenerationProgress({
+        hub_id: hubId,
+        client_id: clientId,
+        status: completedSpokes + failedSpokes >= totalSpokes ? 'completed' : 'generating',
+        total_pillars: pillars.length,
+        completed_pillars: completedPillars,
+        total_spokes: totalSpokes,
+        completed_spokes: completedSpokes,
+        current_pillar_id: currentPillarId,
+        current_pillar_name: currentPillar?.title || null,
+        error_message: failedSpokes > 0 ? `${failedSpokes} spokes failed` : null,
+        started_at: workflowStartTimeRef.current,
+        completed_at: completedSpokes + failedSpokes >= totalSpokes ? Date.now() / 1000 : null,
+        updated_at: Date.now() / 1000,
+      });
+
+      // Check if all done
+      if (completedSpokes + failedSpokes >= totalSpokes) {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+        setIsGenerating(false);
+        // Switch to spokes tab FIRST so query is enabled
+        setActiveTab('spokes');
+        // Invalidate queries to force fresh fetch
+        await trpcUtils.spokes.list.invalidate({ clientId, hubId });
+        await trpcUtils.hubs.get.invalidate({ hubId, clientId });
+      }
+    };
+
+    // Initial check
+    checkStatus();
+
+    // Poll every 3 seconds
+    // Poll every 5 seconds (was 3s - reduced to avoid API spam)
+    pollingIntervalRef.current = setInterval(checkStatus, 5000);
+  }, [hub?.pillars, hubId, clientId, trpcUtils, refetchHub, refetchSpokes]);
+
   // Generate spokes mutation
   const generateMutation = trpc.spokes.generate.useMutation({
-    onSuccess: () => {
-      // Start polling for progress (mock for now)
+    onSuccess: (data) => {
+      console.log('[Spoke Gen] Generate success! Instances:', data.instances?.length || 0, data);
       setIsGenerating(true);
-      simulateGeneration();
+      // Start real workflow polling with actual instance IDs
+      if (data.instances && data.instances.length > 0) {
+        console.log('[Spoke Gen] Starting polling for', data.instances.length, 'instances');
+        pollWorkflowStatus(data.instances);
+      } else {
+        // Edge case: no spokes queued (empty pillars?)
+        setIsGenerating(false);
+        setGenerationProgress({
+          hub_id: hubId,
+          client_id: clientId,
+          status: 'completed',
+          total_pillars: hub?.pillars.length || 0,
+          completed_pillars: hub?.pillars.length || 0,
+          total_spokes: 0,
+          completed_spokes: 0,
+          current_pillar_id: null,
+          current_pillar_name: null,
+          error_message: 'No spokes to generate',
+          started_at: Date.now() / 1000,
+          completed_at: Date.now() / 1000,
+          updated_at: Date.now() / 1000,
+        });
+      }
     },
     onError: (error) => {
       alert(`Generation failed: ${error.message}`);
       setIsGenerating(false);
     },
   });
-
-  // Simulate generation progress (until we have real polling)
-  const simulateGeneration = () => {
-    const pillars = hub?.pillars || [];
-    let currentPillar = 0;
-    let totalSpokes = 0;
-
-    const interval = setInterval(() => {
-      if (currentPillar >= pillars.length) {
-        setGenerationProgress({
-          hub_id: hubId,
-          client_id: clientId,
-          status: 'completed',
-          total_pillars: pillars.length,
-          completed_pillars: pillars.length,
-          total_spokes: totalSpokes,
-          completed_spokes: totalSpokes,
-          current_pillar_id: null,
-          current_pillar_name: null,
-          error_message: null,
-          started_at: Date.now() / 1000 - 30,
-          completed_at: Date.now() / 1000,
-          updated_at: Date.now() / 1000,
-        });
-        setIsGenerating(false);
-        clearInterval(interval);
-        // Refresh data
-        refetchHub();
-        refetchSpokes();
-        setActiveTab('spokes');
-        return;
-      }
-
-      const pillar = pillars[currentPillar]!; // Non-null assertion - checked above
-      const newSpokes = 7; // 7 platforms per pillar
-      totalSpokes += newSpokes;
-
-      setGenerationProgress({
-        hub_id: hubId,
-        client_id: clientId,
-        status: 'generating',
-        total_pillars: pillars.length,
-        completed_pillars: currentPillar,
-        total_spokes: pillars.length * 7,
-        completed_spokes: totalSpokes,
-        current_pillar_id: pillar.id,
-        current_pillar_name: pillar.title,
-        error_message: null,
-        started_at: Date.now() / 1000 - currentPillar * 5,
-        completed_at: null,
-        updated_at: Date.now() / 1000,
-      });
-
-      currentPillar++;
-    }, 2000);
-  };
 
   const handleGenerateSpokes = () => {
     if (!clientId || !hubId) return;

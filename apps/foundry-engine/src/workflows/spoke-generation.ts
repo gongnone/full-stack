@@ -128,7 +128,7 @@ PLATFORM REQUIREMENTS (${platform.toUpperCase()}):
 - Style: ${platformSpec.style}
 
 CONTENT PILLAR: ${pillarTitle}
-HOOK OPTIONS: ${hooks.join(' | ')}
+HOOK OPTIONS: ${Array.isArray(hooks) && hooks.length > 0 ? hooks.join(' | ') : 'Create an attention-grabbing opener'}
 
 Generate content that:
 1. Opens with a strong hook

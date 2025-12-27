@@ -74,11 +74,28 @@ export const spokesRouter = t.router({
     }))
     .query(async ({ ctx, input }) => {
       // Proxy to Durable Object
-      return await ctx.callAgent(input.clientId, 'listSpokes', {
+      const spokes = await ctx.callAgent(input.clientId, 'listSpokes', {
         hubId: input.hubId,
         status: input.status,
         limit: input.limit,
-      });
+      }) as any[];
+      // Transform camelCase (DO) to snake_case (frontend types)
+      const items = spokes.map((s) => ({
+        id: s.id,
+        hub_id: s.hubId,
+        pillar_id: s.pillarId,
+        platform: s.platform,
+        content: s.content,
+        status: s.status,
+        quality_scores: s.qualityScores,
+        visual_archetype: s.visualArchetype,
+        image_prompt: s.imagePrompt,
+        thumbnail_concept: s.thumbnailConcept,
+        regeneration_count: s.regenerationCount,
+        mutated_at: s.mutatedAt,
+        created_at: s.createdAt,
+      }));
+      return { items };
     }),
 
   // Get a single spoke with quality scores and feedback
@@ -128,6 +145,54 @@ export const spokesRouter = t.router({
       platforms: z.array(platformEnum).default(['twitter', 'linkedin']),
     }))
     .mutation(async ({ ctx, input }) => {
+      // Fetch hub and pillars from D1 (source of truth)
+      const hub = await ctx.db.prepare(`
+        SELECT h.id, h.title, hs.raw_content as source_content
+        FROM hubs h
+        JOIN hub_sources hs ON h.source_id = hs.id
+        WHERE h.id = ? AND h.client_id = ?
+      `).bind(input.hubId, input.clientId).first<{
+        id: string;
+        title: string;
+        source_content: string | null;
+      }>();
+
+      if (!hub) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Hub not found',
+        });
+      }
+
+      // Fetch pillars from D1
+      const pillarsResult = await ctx.db.prepare(`
+        SELECT id, title, core_claim, supporting_points
+        FROM extracted_pillars
+        WHERE hub_id = ? AND client_id = ?
+        ORDER BY created_at ASC
+      `).bind(input.hubId, input.clientId).all<{
+        id: string;
+        title: string;
+        core_claim: string | null;
+        supporting_points: string | null;
+      }>();
+
+      const pillars = pillarsResult.results.map(p => ({
+        pillarId: p.id,
+        title: p.title,
+        // Use supporting_points as hooks (they serve same purpose)
+        hooks: p.supporting_points ? JSON.parse(p.supporting_points) : [],
+        summary: p.core_claim || '',
+      }));
+
+      if (pillars.length === 0) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Hub has no pillars. Run extraction first.',
+        });
+      }
+
+      // Pass hub and pillar data to engine (instead of having engine query DO)
       const response = await ctx.env.CONTENT_ENGINE.fetch(
         new Request('http://internal/api/spokes/generate', {
           method: 'POST',
@@ -136,6 +201,11 @@ export const spokesRouter = t.router({
             clientId: input.clientId,
             hubId: input.hubId,
             platforms: input.platforms,
+            // Include hub/pillar data so engine doesn't need to query DO
+            hubData: {
+              sourceContent: hub.source_content || '',
+              pillars,
+            },
           }),
         })
       );

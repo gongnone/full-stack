@@ -160,7 +160,29 @@ export class ClientAgent extends DurableObject<Env> {
       )
     `)
 
+    // Migration: Remove FK constraint from existing spokes tables
+    // The old schema had FOREIGN KEY (hub_id) REFERENCES hubs(id) which fails
+    // because hubs are in D1, not in this DO's SQLite.
+    // This migration recreates the table without the FK.
+    try {
+      // Check if table exists with old schema by trying to insert a test row
+      // If FK constraint exists and hubs table is empty, it will fail
+      const tableInfo = this.sql.exec(`PRAGMA table_info(spokes)`).toArray()
+      if (tableInfo.length > 0) {
+        // Table exists - check for FK by looking at foreign_key_list
+        const fkList = this.sql.exec(`PRAGMA foreign_key_list(spokes)`).toArray()
+        if (fkList.length > 0) {
+          // Old table has FK - recreate without it
+          this.sql.exec(`DROP TABLE IF EXISTS feedback`) // depends on spokes
+          this.sql.exec(`DROP TABLE IF EXISTS spokes`)
+        }
+      }
+    } catch {
+      // Table might not exist yet, which is fine
+    }
+
     // Spokes table
+    // Note: No FK constraint on hub_id - hubs are in D1, spokes in DO SQLite
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS spokes (
         id TEXT PRIMARY KEY,
@@ -180,12 +202,12 @@ export class ClientAgent extends DurableObject<Env> {
         thumbnail_concept TEXT,
         regeneration_count INTEGER DEFAULT 0,
         mutated_at TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (hub_id) REFERENCES hubs(id)
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `)
 
     // Feedback storage for self-healing loop
+    // Note: No FK to spokes - we handle referential integrity in application code
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS feedback (
         id TEXT PRIMARY KEY,
@@ -193,8 +215,7 @@ export class ClientAgent extends DurableObject<Env> {
         gate TEXT NOT NULL,
         critic_output TEXT NOT NULL,
         iteration INTEGER NOT NULL,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (spoke_id) REFERENCES spokes(id)
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `)
 

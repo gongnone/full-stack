@@ -61,38 +61,23 @@ app.post('/api/hubs/ingest', async (c) => {
 // Trigger Spoke Generation Workflow
 // This orchestrates spoke generation for all pillars × platforms
 app.post('/api/spokes/generate', async (c) => {
-  const { clientId, hubId, platforms } = await c.req.json();
+  const { clientId, hubId, platforms, hubData } = await c.req.json();
 
-  // Get hub with pillars from Client Agent
-  const id = c.env.CLIENT_AGENT.idFromName(clientId);
-  const agent = c.env.CLIENT_AGENT.get(id);
+  // hubData is passed from the dashboard (which queries D1)
+  // This avoids the DO needing to duplicate hub storage
+  if (!hubData || !hubData.pillars || hubData.pillars.length === 0) {
+    return c.json({ error: 'Hub has no pillars. Run extraction first.' }, 400);
+  }
 
-  const hubResponse = await agent.fetch(new Request('http://internal/rpc', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      method: 'getHub',
-      params: { hubId },
-    }),
-  }));
-
-  const hub = await hubResponse.json() as {
-    id: string;
+  const { sourceContent, pillars } = hubData as {
     sourceContent: string;
     pillars: Array<{
       pillarId: string;
       title: string;
       hooks: string[];
+      summary?: string;
     }>;
-  } | null;
-
-  if (!hub) {
-    return c.json({ error: 'Hub not found' }, 404);
-  }
-
-  if (!hub.pillars || hub.pillars.length === 0) {
-    return c.json({ error: 'Hub has no pillars. Run ingestion first.' }, 400);
-  }
+  };
 
   // Create workflow instances for each pillar × platform
   const workflowInstances: Array<{
@@ -104,7 +89,7 @@ app.post('/api/spokes/generate', async (c) => {
 
   const targetPlatforms = platforms || ['twitter', 'linkedin'];
 
-  for (const pillar of hub.pillars) {
+  for (const pillar of pillars) {
     for (const platform of targetPlatforms) {
       const spokeId = crypto.randomUUID();
 
@@ -116,8 +101,8 @@ app.post('/api/spokes/generate', async (c) => {
           platform,
           pillarId: pillar.pillarId,
           pillarTitle: pillar.title,
-          hooks: pillar.hooks,
-          sourceContent: hub.sourceContent,
+          hooks: pillar.hooks || [],
+          sourceContent: sourceContent,
         },
       });
 
@@ -133,7 +118,7 @@ app.post('/api/spokes/generate', async (c) => {
   return c.json({
     status: 'started',
     hubId,
-    pillarsCount: hub.pillars.length,
+    pillarsCount: pillars.length,
     platformsCount: targetPlatforms.length,
     spokesQueued: workflowInstances.length,
     instances: workflowInstances,

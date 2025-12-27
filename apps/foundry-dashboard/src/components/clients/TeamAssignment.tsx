@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { useToast } from '@/lib/toast';
 import { UI_CONFIG } from '@/lib/constants';
-import { ROLE_LABELS, ROLE_DESCRIPTIONS } from '@/lib/rbac';
+import { ROLE_LABELS, ROLE_DESCRIPTIONS, type ClientRole } from '@/lib/rbac';
 import * as Dialog from '@radix-ui/react-dialog';
 import { UserPlus, Shield, X } from 'lucide-react';
 import { RBACEditor } from './RBACEditor';
@@ -22,7 +22,7 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
   const [isRBACEditorOpen, setIsRBACEditorOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [newMemberEmail, setNewMemberEmail] = useState('');
-  const [newMemberRole, setNewMemberRole] = useState<string>('creator');
+  const [newMemberRole, setNewMemberRole] = useState<ClientRole>('creator');
 
   const utils = trpc.useUtils();
   const membersQuery = trpc.clients.listMembers.useQuery(
@@ -137,7 +137,7 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
                       <select
                         id="member-role"
                         value={newMemberRole}
-                        onChange={(e) => setNewMemberRole(e.target.value)}
+                        onChange={(e) => setNewMemberRole(e.target.value as ClientRole)}
                         className="w-full px-3 py-2 rounded-lg bg-black/20 border transition-all focus:ring-2 focus:ring-blue-500/20"
                         style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
                       >
@@ -148,7 +148,7 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
                         ))}
                       </select>
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {ROLE_DESCRIPTIONS[newMemberRole as any]}
+                        {ROLE_DESCRIPTIONS[newMemberRole]}
                       </p>
                     </div>
 
@@ -213,7 +213,7 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
                           style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}
                         >
                           <Shield className="w-3 h-3" />
-                          {ROLE_LABELS[member.role as any] || member.role}
+                          {ROLE_LABELS[member.role as ClientRole] || member.role}
                         </button>
 
                         <button

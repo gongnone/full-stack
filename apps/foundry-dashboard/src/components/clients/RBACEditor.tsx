@@ -6,6 +6,13 @@ import { CLIENT_ROLES } from '@/lib/rbac';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Shield, Check } from 'lucide-react';
 
+interface RBACEditorProps {
+  isOpen: boolean;
+  onClose: () => void;
+  client: { id: string; name: string };
+  member: { id: string; userId: string; email: string; name?: string; role: string };
+}
+
 export function RBACEditor({ isOpen, onClose, client, member }: RBACEditorProps) {
   const { addToast } = useToast();
   const [selectedRole, setSelectedRole] = useState(member.role);

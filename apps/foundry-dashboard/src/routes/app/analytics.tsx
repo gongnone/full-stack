@@ -16,7 +16,7 @@ export const Route = createFileRoute('/app/analytics')({
 
 function AnalyticsPage() {
   const clientId = useClientId();
-  const [periodDays, setPeriodDays] = useState(ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS);
+  const [periodDays, setPeriodDays] = useState<number>(ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS);
 
   const zeroEditQuery = trpc.analytics.getZeroEditRate.useQuery(
     { clientId: clientId!, periodDays },

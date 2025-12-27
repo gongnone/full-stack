@@ -24,12 +24,18 @@ export function ClientManager() {
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<{
+    name: string;
+    industry: string;
+    contactEmail: string;
+    brandColor: string;
+    status: 'active' | 'paused' | 'archived';
+  }>({
     name: '',
     industry: '',
     contactEmail: '',
     brandColor: CLIENT_CONFIG.DEFAULT_BRAND_COLOR,
-    status: 'active' as const,
+    status: 'active',
   });
 
   const utils = trpc.useUtils();

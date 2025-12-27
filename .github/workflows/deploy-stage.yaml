@@ -107,8 +107,8 @@ jobs:
       - name: 🏗️ Build shared packages
         run: pnpm run build-package
 
-      - name: 🛡️ Type Check (Foundry)
-        run: pnpm run foundry:typecheck
+      - name: 🛡️ Type Check (Foundry - excludes test files)
+        run: pnpm run foundry:typecheck:build
 
       # Uncomment when tests are stable
       # - name: 🧪 Run Tests

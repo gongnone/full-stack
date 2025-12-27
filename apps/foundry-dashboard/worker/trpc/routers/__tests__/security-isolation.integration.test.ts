@@ -123,7 +123,7 @@ describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
       });
 
       try {
-        const result = await caller.list();
+        const result = await caller.list({});
         const clients = result.items || [];
 
         // All returned clients should belong to account1

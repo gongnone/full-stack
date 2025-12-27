@@ -21,7 +21,9 @@ import {
   IntegrationContext,
 } from './integration-harness';
 import { reviewRouter } from '../review';
-import { randomUUID } from 'crypto';
+
+// Use web crypto API
+const randomUUID = (): string => crypto.randomUUID();
 
 describe('Story 5.3: Review Approval Integration Tests', () => {
   let ctx: IntegrationContext;
@@ -53,7 +55,7 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
 
   describe('AC1: ArrowRight Approves (swipeAction with approve)', () => {
     it('should update spoke status to approved in D1', async () => {
-      const spokeId = testHub.spokeIds[0];
+      const spokeId = testHub.spokeIds[0]!;
 
       // Verify initial state
       const beforeApproval = await ctx.db.prepare(`
@@ -135,7 +137,7 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
 
   describe('AC2: ArrowLeft Rejects (swipeAction with reject)', () => {
     it('should update spoke status to rejected in D1', async () => {
-      const spokeId = testHub.spokeIds[1];
+      const spokeId = testHub.spokeIds[1]!;
 
       // Execute reject action
       const caller = reviewRouter.createCaller({

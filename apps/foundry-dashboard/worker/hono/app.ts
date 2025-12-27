@@ -32,8 +32,64 @@ app.use('*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
-// Health check
+// Health check (simple)
 app.get('/health', (c) => c.json({ status: 'ok', service: 'foundry-dashboard' }));
+
+// API Health check (comprehensive - for smoke tests)
+app.get('/api/health', async (c) => {
+  const checks: Record<string, string> = {};
+  let allHealthy = true;
+
+  // Check 1: Basic response
+  checks['api'] = 'ok';
+
+  // Check 2: D1 Database connectivity
+  try {
+    await c.env.DB.prepare('SELECT 1').first();
+    checks['d1'] = 'ok';
+  } catch (e: any) {
+    checks['d1'] = 'error';
+    allHealthy = false;
+  }
+
+  // Check 3: R2 connectivity (if MEDIA bucket exists)
+  if (c.env.MEDIA) {
+    try {
+      // List with limit 1 to check connectivity without reading data
+      await c.env.MEDIA.list({ limit: 1 });
+      checks['r2'] = 'ok';
+    } catch {
+      checks['r2'] = 'error';
+      allHealthy = false;
+    }
+  } else {
+    checks['r2'] = 'not_configured';
+  }
+
+  return c.json({
+    status: allHealthy ? 'ok' : 'degraded',
+    service: 'foundry-dashboard',
+    checks,
+    timestamp: new Date().toISOString(),
+  }, allHealthy ? 200 : 503);
+});
+
+// D1 Database health check (dedicated endpoint)
+app.get('/api/health/db', async (c) => {
+  try {
+    const result = await c.env.DB.prepare('SELECT 1 as check_value').first();
+    return c.json({
+      status: 'ok',
+      database: 'foundry-global',
+      result,
+    });
+  } catch (e: any) {
+    return c.json({
+      status: 'error',
+      error: e.message,
+    }, 503);
+  }
+});
 
 // Test cookie setting
 app.get('/api/debug/set-cookie', (c) => {

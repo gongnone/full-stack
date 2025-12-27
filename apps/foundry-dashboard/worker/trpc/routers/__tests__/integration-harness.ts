@@ -28,40 +28,49 @@
  */
 
 import type { Context } from '../../context';
-import { randomUUID } from 'crypto';
+
+// Use web crypto API (available in Cloudflare Workers and Node 19+)
+const randomUUID = (): string => crypto.randomUUID();
 
 // In-memory storage for mock D1
 const inMemoryData: Map<string, any[]> = new Map();
 
-// D1Database interface for test usage (matches Cloudflare's D1Database)
-interface D1Database {
-  prepare(query: string): D1PreparedStatement;
-  exec(query: string): Promise<D1ExecResult>;
-}
+// D1Database interface for test usage
+// These are simplified versions that match the subset we use in tests
+// The actual Cloudflare types are more complex but we only need basic functionality
+type MockD1Database = {
+  prepare(query: string): MockD1PreparedStatement;
+  exec(query: string): Promise<MockD1ExecResult>;
+  batch<T = unknown>(statements: MockD1PreparedStatement[]): Promise<MockD1Result<T>[]>;
+  withSession(constraintOrBookmark?: string): any;
+  dump(): Promise<ArrayBuffer>;
+};
 
-interface D1PreparedStatement {
-  bind(...values: unknown[]): D1PreparedStatement;
+type MockD1PreparedStatement = {
+  bind(...values: unknown[]): MockD1PreparedStatement;
   first<T = unknown>(columnName?: string): Promise<T | null>;
-  run(): Promise<D1Result>;
-  all<T = unknown>(): Promise<D1Result<T>>;
-}
+  run(): Promise<MockD1Result>;
+  all<T = unknown>(): Promise<MockD1Result<T>>;
+  raw<T = unknown[]>(options?: { columnNames?: boolean }): Promise<T[]>;
+};
 
-interface D1Result<T = unknown> {
+type MockD1Result<T = unknown> = {
   results?: T[];
   success: boolean;
   meta?: unknown;
-}
+};
 
-interface D1ExecResult {
+type MockD1ExecResult = {
   count: number;
   duration: number;
-}
+};
 
 /**
  * Create a mock D1 database for integration testing
  * This simulates D1's behavior with in-memory SQLite-like storage
+ * Returns `any` to be compatible with both our mock interface and Cloudflare's D1Database
  */
-function createMockD1(): D1Database {
+function createMockD1(): any {
   // Initialize tables
   const tables: Record<string, any[]> = {
     accounts: [],
@@ -72,12 +81,13 @@ function createMockD1(): D1Database {
     spokes: [],
   };
 
-  return {
-    prepare(query: string): D1PreparedStatement {
+  // Create the database object
+  const db: MockD1Database = {
+    prepare(query: string): MockD1PreparedStatement {
       let boundValues: unknown[] = [];
 
-      const stmt: D1PreparedStatement = {
-        bind(...values: unknown[]): D1PreparedStatement {
+      const stmt: MockD1PreparedStatement = {
+        bind(...values: unknown[]): MockD1PreparedStatement {
           boundValues = values;
           return stmt;
         },
@@ -87,24 +97,24 @@ function createMockD1(): D1Database {
           return result.results?.[0] || null;
         },
 
-        async run(): Promise<D1Result> {
+        async run(): Promise<MockD1Result> {
           // Handle INSERT
           const insertMatch = query.match(/INSERT INTO (\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/i);
-          if (insertMatch) {
+          if (insertMatch && insertMatch[1] && insertMatch[2]) {
             const tableName = insertMatch[1];
             const columns = insertMatch[2].split(',').map(c => c.trim());
             const row: Record<string, unknown> = {};
             columns.forEach((col, i) => {
-              row[col] = boundValues[i];
+              if (col) row[col] = boundValues[i];
             });
             if (!tables[tableName]) tables[tableName] = [];
-            tables[tableName].push(row);
+            tables[tableName]!.push(row);
             return { success: true };
           }
 
           // Handle UPDATE
           const updateMatch = query.match(/UPDATE (\w+)\s+SET\s+(.+?)\s+WHERE\s+(.+)/i);
-          if (updateMatch) {
+          if (updateMatch && updateMatch[1] && updateMatch[2] && updateMatch[3]) {
             const tableName = updateMatch[1];
             const setClause = updateMatch[2];
             const whereClause = updateMatch[3];
@@ -115,27 +125,32 @@ function createMockD1(): D1Database {
             let valueIdx = 0;
 
             setParts.forEach(part => {
-              const [col, ...valParts] = part.split('=');
-              const val = valParts.join('=').trim(); // Rejoin in case value contains '='
+              const parts = part.split('=');
+              const col = parts[0];
+              const val = parts.slice(1).join('=').trim(); // Rejoin in case value contains '='
+
+              if (!col) return;
+              const colTrimmed = col.trim();
 
               if (val === '?') {
-                updates[col.trim()] = boundValues[valueIdx++];
+                updates[colTrimmed] = boundValues[valueIdx++];
               } else if (val.includes('datetime')) {
-                updates[col.trim()] = new Date().toISOString();
+                updates[colTrimmed] = new Date().toISOString();
               } else if (val.includes('+')) {
                 // Handle increment like regeneration_count + 1
-                updates[col.trim()] = '__increment__';
+                updates[colTrimmed] = '__increment__';
               } else if (val.startsWith("'") && val.endsWith("'")) {
                 // Handle literal string value
-                updates[col.trim()] = val.slice(1, -1);
+                updates[colTrimmed] = val.slice(1, -1);
               } else if (val === 'NULL') {
-                updates[col.trim()] = null;
+                updates[colTrimmed] = null;
               }
             });
 
             // Find matching rows and update them
-            if (tables[tableName]) {
-              tables[tableName].forEach(row => {
+            const tableData = tables[tableName];
+            if (tableData) {
+              tableData.forEach((row: Record<string, unknown>) => {
                 let matches = true;
                 const conditions = whereClause.split('AND').map(c => c.trim());
                 let condValueIdx = valueIdx;
@@ -143,7 +158,7 @@ function createMockD1(): D1Database {
                 conditions.forEach(cond => {
                   // Handle parameterized = clause
                   const paramMatch = cond.match(/(\w+)\s*=\s*\?/);
-                  if (paramMatch) {
+                  if (paramMatch && paramMatch[1]) {
                     const col = paramMatch[1];
                     if (row[col] !== boundValues[condValueIdx++]) {
                       matches = false;
@@ -153,7 +168,7 @@ function createMockD1(): D1Database {
 
                   // Handle literal string = clause
                   const literalMatch = cond.match(/(\w+)\s*=\s*'([^']+)'/);
-                  if (literalMatch) {
+                  if (literalMatch && literalMatch[1]) {
                     const col = literalMatch[1];
                     const val = literalMatch[2];
                     if (row[col] !== val) {
@@ -165,7 +180,7 @@ function createMockD1(): D1Database {
                 if (matches) {
                   Object.entries(updates).forEach(([key, val]) => {
                     if (val === '__increment__') {
-                      row[key] = (row[key] || 0) + 1;
+                      row[key] = ((row[key] as number) || 0) + 1;
                     } else {
                       row[key] = val;
                     }
@@ -179,25 +194,31 @@ function createMockD1(): D1Database {
           return { success: true };
         },
 
-        async all<T = unknown>(): Promise<D1Result<T>> {
+        async raw<T = unknown[]>(): Promise<T[]> {
+          const result = await stmt.all<T>();
+          return (result.results || []) as T[];
+        },
+
+        async all<T = unknown>(): Promise<MockD1Result<T>> {
           // Handle COUNT first (before general SELECT)
           const countMatch = query.match(/SELECT\s+COUNT\(\*\)\s+as\s+(\w+)\s+FROM\s+(\w+)(?:\s+WHERE\s+(.+))?/i);
-          if (countMatch) {
+          if (countMatch && countMatch[1] && countMatch[2]) {
             const countAlias = countMatch[1];
             const tableName = countMatch[2];
             const whereClause = countMatch[3];
 
-            let count = (tables[tableName] || []).length;
+            const tableData = tables[tableName] || [];
+            let count = tableData.length;
 
             if (whereClause) {
               let valueIdx = 0;
               const conditions = whereClause.split('AND').map(c => c.trim());
-              const filteredRows = (tables[tableName] || []).filter(row => {
+              const filteredRows = tableData.filter((row: Record<string, unknown>) => {
                 let matches = true;
                 conditions.forEach(cond => {
                   // Handle parameterized = clause
                   const eqMatch = cond.match(/(\w+)\s*=\s*\?/);
-                  if (eqMatch) {
+                  if (eqMatch && eqMatch[1]) {
                     const col = eqMatch[1];
                     if (row[col] !== boundValues[valueIdx++]) {
                       matches = false;
@@ -206,7 +227,7 @@ function createMockD1(): D1Database {
                   }
                   // Handle literal string = clause (e.g., status = 'pending')
                   const literalMatch = cond.match(/(\w+)\s*=\s*'([^']+)'/);
-                  if (literalMatch) {
+                  if (literalMatch && literalMatch[1]) {
                     const col = literalMatch[1];
                     const val = literalMatch[2];
                     if (row[col] !== val) {
@@ -219,12 +240,14 @@ function createMockD1(): D1Database {
               count = filteredRows.length;
             }
 
-            return { results: [{ [countAlias]: count }] as T[], success: true };
+            const resultObj: Record<string, number> = {};
+            resultObj[countAlias] = count;
+            return { results: [resultObj] as T[], success: true };
           }
 
           // Handle SELECT
           const selectMatch = query.match(/SELECT\s+(.+?)\s+FROM\s+(\w+)(?:\s+WHERE\s+(.+))?/i);
-          if (selectMatch) {
+          if (selectMatch && selectMatch[2]) {
             const tableName = selectMatch[2];
             const whereClause = selectMatch[3];
 
@@ -233,16 +256,16 @@ function createMockD1(): D1Database {
             if (whereClause) {
               const conditions = whereClause.split('AND').map(c => c.trim());
 
-              results = results.filter(row => {
+              results = results.filter((row: Record<string, unknown>) => {
                 let matches = true;
                 let valueIdx = 0; // Each row filter starts fresh
 
                 conditions.forEach(cond => {
                   // Handle IN clause
                   const inMatch = cond.match(/(\w+)\s+IN\s*\(\s*\?\s*(?:,\s*\?\s*)*\)/i);
-                  if (inMatch) {
+                  if (inMatch && inMatch[1]) {
                     const col = inMatch[1];
-                    const inValues = [];
+                    const inValues: unknown[] = [];
                     const placeholderCount = (cond.match(/\?/g) || []).length;
                     for (let i = 0; i < placeholderCount; i++) {
                       inValues.push(boundValues[valueIdx++]);
@@ -255,7 +278,7 @@ function createMockD1(): D1Database {
 
                   // Handle parameterized = clause
                   const eqMatch = cond.match(/(\w+)\s*=\s*\?/);
-                  if (eqMatch) {
+                  if (eqMatch && eqMatch[1]) {
                     const col = eqMatch[1];
                     if (row[col] !== boundValues[valueIdx++]) {
                       matches = false;
@@ -265,7 +288,7 @@ function createMockD1(): D1Database {
 
                   // Handle literal string = clause (e.g., status = 'pending')
                   const literalMatch = cond.match(/(\w+)\s*=\s*'([^']+)'/);
-                  if (literalMatch) {
+                  if (literalMatch && literalMatch[1]) {
                     const col = literalMatch[1];
                     const val = literalMatch[2];
                     if (row[col] !== val) {
@@ -287,17 +310,41 @@ function createMockD1(): D1Database {
       return stmt;
     },
 
-    async exec(queries: string): Promise<D1ExecResult> {
+    async exec(queries: string): Promise<MockD1ExecResult> {
       // For schema creation, just initialize tables
       const createMatches = queries.matchAll(/CREATE TABLE IF NOT EXISTS (\w+)/gi);
       for (const match of createMatches) {
-        if (!tables[match[1]]) {
-          tables[match[1]] = [];
+        const tableName = match[1];
+        if (tableName && !tables[tableName]) {
+          tables[tableName] = [];
         }
       }
       return { count: 1, duration: 0 };
     },
+
+    async batch<T = unknown>(statements: MockD1PreparedStatement[]): Promise<MockD1Result<T>[]> {
+      const results: MockD1Result<T>[] = [];
+      for (const stmt of statements) {
+        results.push(await stmt.all<T>());
+      }
+      return results;
+    },
+
+    withSession(_constraintOrBookmark?: string): any {
+      // Return a session that delegates to the main database
+      // Cast to any to avoid type conflicts with Cloudflare's complex D1DatabaseSession
+      return {
+        exec: (query: string) => db.exec(query),
+        prepare: (query: string) => db.prepare(query),
+      } as any;
+    },
+
+    async dump(): Promise<ArrayBuffer> {
+      return new ArrayBuffer(0);
+    },
   };
+
+  return db;
 }
 
 export interface IntegrationContext extends Context {

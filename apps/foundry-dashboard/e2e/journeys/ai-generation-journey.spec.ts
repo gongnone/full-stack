@@ -65,10 +65,7 @@ test.describe('@P0 Phase 1: Source Material Ingestion', () => {
     expect(bodyVisible).toBe(true);
   });
 
-  // Skip webkit - known cookie persistence issues on localhost
-  test('1.2 Paste text tab is functional', async ({ sourceIngestionPage }, testInfo) => {
-    test.skip(testInfo.project.name === 'webkit', 'WebKit has cookie persistence issues on localhost');
-
+  test('1.2 Paste text tab is functional', async ({ sourceIngestionPage }) => {
     await sourceIngestionPage.goto();
 
     // Try to switch to paste text tab
@@ -82,10 +79,7 @@ test.describe('@P0 Phase 1: Source Material Ingestion', () => {
     // Should have substantial content
   });
 
-  // Skip webkit - known cookie persistence issues on localhost
-  test('1.3 Source validation works', async ({ sourceIngestionPage }, testInfo) => {
-    test.skip(testInfo.project.name === 'webkit', 'WebKit has cookie persistence issues on localhost');
-
+  test('1.3 Source validation works', async ({ sourceIngestionPage }) => {
     await sourceIngestionPage.goto();
     await sourceIngestionPage.selectPasteTextTab();
 

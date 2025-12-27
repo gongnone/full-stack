@@ -15,7 +15,8 @@ import type {
     SophisticationLevel,
     AwarenessLevel,
     EmotionalState,
-    ContentCategory
+    ContentCategory,
+    AgentContext
 } from '../types/halo-types';
 
 const MODEL = '@cf/meta/llama-3.1-70b-instruct';
@@ -121,6 +122,8 @@ function classifyWithHeuristics(content: string, id: string): ClassifiedContent 
         emotionalState,
         category,
         confidence: 60, // Lower confidence for heuristic-based
+        relevanceScore: 50, // Default for fallback
+        isRelevant: true,   // Default to include
         reasoning: 'Classified using keyword heuristics'
     };
 }
@@ -130,7 +133,8 @@ function classifyWithHeuristics(content: string, id: string): ClassifiedContent 
  */
 async function classifyBatchWithAI(
     env: AgentEnv,
-    extracts: Array<{ id: string; content: string; source: any }>
+    extracts: Array<{ id: string; content: string; source: any }>,
+    context: AgentContext // Added context for topic/audience
 ): Promise<ClassifiedContent[]> {
     // Format extracts for the prompt
     const extractsText = extracts.map((e, idx) => {
@@ -139,7 +143,10 @@ Platform: ${e.source?.platform || 'unknown'}
 Content: ${e.content.slice(0, 500)}...`;
     }).join('\n\n');
 
-    const prompt = PHASE_3_CLASSIFICATION.replace('{extracts}', extractsText);
+    const prompt = PHASE_3_CLASSIFICATION
+        .replace('{extracts}', extractsText)
+        .replace('{topic}', context.topic || 'unknown topic') // Pass topic from env/context
+        .replace('{audience}', context.targetAudience || 'target audience'); // Pass audience
 
     const response = await env.AI.run(MODEL, {
         messages: [
@@ -159,6 +166,10 @@ Content: ${e.content.slice(0, 500)}...`;
             awarenessLevel: validateAwareness(c.awarenessLevel),
             emotionalState: validateEmotion(c.emotionalState),
             category: validateCategory(c.category),
+            // New Relevance Fields
+            relevanceScore: typeof c.relevanceScore === 'number' ? c.relevanceScore : 50,
+            isRelevant: typeof c.isRelevant === 'boolean' ? c.isRelevant : true,
+
             confidence: typeof c.confidence === 'number' ? c.confidence : 70,
             reasoning: c.reasoning || ''
         }));
@@ -207,7 +218,8 @@ function calculateDistribution(classifications: ClassifiedContent[]): Classifica
  */
 export async function runClassificationAgent(
     env: AgentEnv,
-    listeningResult: ListeningResult
+    listeningResult: ListeningResult,
+    context: AgentContext // Added context
 ): Promise<ClassificationResult> {
     console.log(`[Phase 3] Starting Classification of ${listeningResult.rawExtracts.length} extracts`);
 
@@ -223,11 +235,13 @@ export async function runClassificationAgent(
         console.log(`[Phase 3] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(extracts.length / BATCH_SIZE)}`);
 
         try {
-            const batchClassifications = await classifyBatchWithAI(env, batch);
+            const batchClassifications = await classifyBatchWithAI(env, batch, context);
 
             // Match classifications to extract IDs
             batch.forEach((extract, idx) => {
-                const classification = batchClassifications[idx] || classifyWithHeuristics(extract.content, extract.id);
+                const classification = batchClassifications.find(c => c.extractId === extract.id) ||
+                    classifyWithHeuristics(extract.content, extract.id);
+
                 classification.extractId = extract.id; // Ensure ID is correct
                 allClassifications.push(classification);
             });
@@ -239,7 +253,13 @@ export async function runClassificationAgent(
         }
     }
 
-    const distribution = calculateDistribution(allClassifications);
+    // FILTER OUT IRRELEVANT CONTENT (Relevance Logic)
+    const relevantClassifications = allClassifications.filter(c => c.isRelevant && c.relevanceScore >= 50);
+    const droppedCount = allClassifications.length - relevantClassifications.length;
+
+    console.log(`[Phase 3] Filtered out ${droppedCount} irrelevant extracts.`);
+
+    const distribution = calculateDistribution(relevantClassifications);
 
     console.log(`[Phase 3] Classification complete. Distribution:`, {
         sophistication: distribution.bySophistication,
@@ -247,7 +267,7 @@ export async function runClassificationAgent(
     });
 
     return {
-        classifiedContent: allClassifications,
+        classifiedContent: relevantClassifications,
         distribution,
         timestamp: new Date().toISOString()
     };

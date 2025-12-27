@@ -1,0 +1,200 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: Foundry
+      - navigation [ref=e11]:
+        - link "Dashboard" [ref=e12] [cursor=pointer]:
+          - /url: /app
+          - img [ref=e13]
+          - text: Dashboard
+        - link "Hubs" [ref=e15] [cursor=pointer]:
+          - /url: /app/hubs
+          - img [ref=e16]
+          - text: Hubs
+        - link "Review" [ref=e18] [cursor=pointer]:
+          - /url: /app/review
+          - img [ref=e19]
+          - text: Review
+        - link "Clients" [ref=e21] [cursor=pointer]:
+          - /url: /app/clients
+          - img [ref=e22]
+          - text: Clients
+        - link "Brand DNA" [ref=e24] [cursor=pointer]:
+          - /url: /app/brand-dna
+          - img [ref=e25]
+          - text: Brand DNA
+        - link "Analytics" [ref=e27] [cursor=pointer]:
+          - /url: /app/analytics
+          - img [ref=e28]
+          - text: Analytics
+        - link "Settings" [ref=e30] [cursor=pointer]:
+          - /url: /app/settings
+          - img [ref=e31]
+          - text: Settings
+      - generic [ref=e35]:
+        - generic [ref=e36]: Command Palette
+        - generic [ref=e37]: Cmd+K
+      - generic [ref=e39]:
+        - generic [ref=e40]: E
+        - generic [ref=e41]:
+          - paragraph [ref=e42]: E2E Test User
+          - paragraph [ref=e43]: e2e-test@foundry.local
+        - button "Sign out" [ref=e44]:
+          - img [ref=e45]
+    - generic [ref=e47]:
+      - banner [ref=e48]:
+        - button "E2E Test Client" [ref=e49]:
+          - img [ref=e51]
+          - generic [ref=e59]: E2E Test Client
+          - img [ref=e60]
+        - generic [ref=e62]:
+          - img [ref=e64]
+          - generic [ref=e73]:
+            - generic [ref=e74]:
+              - generic [ref=e75]: E2E Test Client
+              - img [ref=e76]
+            - generic [ref=e78]: Active Workspace
+        - button "Search Cmd+K" [ref=e79]:
+          - img [ref=e80]
+          - generic [ref=e82]: Search
+          - generic [ref=e83]: Cmd+K
+      - main [ref=e84]:
+        - generic [ref=e85]:
+          - generic [ref=e86]:
+            - generic [ref=e87]:
+              - heading "Clients" [level=1] [ref=e88]
+              - paragraph [ref=e89]: Manage your client accounts and team access
+            - button "Add Client" [ref=e90]:
+              - img [ref=e91]
+              - text: Add Client
+          - generic [ref=e94]:
+            - generic [ref=e95]:
+              - generic [ref=e96]:
+                - generic [ref=e97]:
+                  - img [ref=e99]
+                  - generic [ref=e107]:
+                    - generic [ref=e108]:
+                      - paragraph [ref=e109]: E2E Test 1766685288288
+                      - generic [ref=e110]: active
+                    - paragraph [ref=e111]: Testing
+                - button [ref=e112]:
+                  - img [ref=e113]
+              - paragraph [ref=e118]: No contact email
+            - generic [ref=e119]:
+              - generic [ref=e120]:
+                - generic [ref=e121]:
+                  - img [ref=e123]
+                  - generic [ref=e131]:
+                    - generic [ref=e132]:
+                      - paragraph [ref=e133]: E2E Test 1766639532666
+                      - generic [ref=e134]: active
+                    - paragraph [ref=e135]: Testing
+                - button [ref=e136]:
+                  - img [ref=e137]
+              - paragraph [ref=e142]: No contact email
+            - generic [ref=e143]:
+              - generic [ref=e144]:
+                - generic [ref=e145]:
+                  - img [ref=e147]
+                  - generic [ref=e155]:
+                    - generic [ref=e156]:
+                      - paragraph [ref=e157]: E2E Test 1766637547923
+                      - generic [ref=e158]: active
+                    - paragraph [ref=e159]: Testing
+                - button [ref=e160]:
+                  - img [ref=e161]
+              - paragraph [ref=e166]: No contact email
+            - generic [ref=e167]:
+              - generic [ref=e168]:
+                - generic [ref=e169]:
+                  - img [ref=e171]
+                  - generic [ref=e179]:
+                    - generic [ref=e180]:
+                      - paragraph [ref=e181]: E2E Test 1766610448417
+                      - generic [ref=e182]: active
+                    - paragraph [ref=e183]: Testing
+                - button [ref=e184]:
+                  - img [ref=e185]
+              - paragraph [ref=e190]: No contact email
+            - generic [ref=e191]:
+              - generic [ref=e192]:
+                - generic [ref=e193]:
+                  - img [ref=e195]
+                  - generic [ref=e203]:
+                    - generic [ref=e204]:
+                      - paragraph [ref=e205]: E2E Test Client
+                      - generic [ref=e206]: active
+                    - paragraph [ref=e207]: Technology
+                - button [ref=e208]:
+                  - img [ref=e209]
+              - paragraph [ref=e214]: No contact email
+            - generic [ref=e215]:
+              - generic [ref=e216]:
+                - generic [ref=e217]:
+                  - img [ref=e219]
+                  - generic [ref=e227]:
+                    - generic [ref=e228]:
+                      - paragraph [ref=e229]: E2E Test 1766583477601
+                      - generic [ref=e230]: active
+                    - paragraph [ref=e231]: Testing
+                - button [ref=e232]:
+                  - img [ref=e233]
+              - paragraph [ref=e238]: No contact email
+            - generic [ref=e239]:
+              - generic [ref=e240]:
+                - generic [ref=e241]:
+                  - img [ref=e243]
+                  - generic [ref=e251]:
+                    - generic [ref=e252]:
+                      - paragraph [ref=e253]: E2E Test 1766583110991
+                      - generic [ref=e254]: active
+                    - paragraph [ref=e255]: Testing
+                - button [ref=e256]:
+                  - img [ref=e257]
+              - paragraph [ref=e262]: No contact email
+            - generic [ref=e263]:
+              - generic [ref=e264]:
+                - generic [ref=e265]:
+                  - img [ref=e267]
+                  - generic [ref=e275]:
+                    - generic [ref=e276]:
+                      - paragraph [ref=e277]: E2E Test 1766544008188
+                      - generic [ref=e278]: active
+                    - paragraph [ref=e279]: Testing
+                - button [ref=e280]:
+                  - img [ref=e281]
+              - paragraph [ref=e286]: No contact email
+            - generic [ref=e287]:
+              - generic [ref=e288]:
+                - generic [ref=e289]:
+                  - img [ref=e291]
+                  - generic [ref=e299]:
+                    - generic [ref=e300]:
+                      - paragraph [ref=e301]: E2E Test 1766543848209
+                      - generic [ref=e302]: active
+                    - paragraph [ref=e303]: Testing
+                - button [ref=e304]:
+                  - img [ref=e305]
+              - paragraph [ref=e310]: No contact email
+            - generic [ref=e311]:
+              - generic [ref=e312]:
+                - generic [ref=e313]:
+                  - img [ref=e315]
+                  - generic [ref=e323]:
+                    - generic [ref=e324]:
+                      - paragraph [ref=e325]: E2E Test Client
+                      - generic [ref=e326]: active
+                    - paragraph [ref=e327]: Technology
+                - button [ref=e328]:
+                  - img [ref=e329]
+              - paragraph [ref=e334]: No contact email
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications (F8)":
+    - list
+```

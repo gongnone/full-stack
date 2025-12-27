@@ -1,0 +1,131 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "foundry-dashboard",
+  "main": "worker/index.ts",
+  "compatibility_date": "2024-12-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  },
+
+  "observability": {
+    "enabled": true
+  },
+
+  // Local development D1 binding (separate from production)
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "foundry-global-local",
+      "database_id": "a7b557ad-e7c8-4e4a-8fb9-a517b09449f3"
+    }
+  ],
+
+  // R2 bucket for media storage
+  "r2_buckets": [
+    {
+      "binding": "MEDIA",
+      "bucket_name": "foundry-media"
+    }
+  ],
+
+  // Vectorize index for Brand DNA embeddings
+  "vectorize": [
+    {
+      "binding": "EMBEDDINGS",
+      "index_name": "foundry-embeddings"
+    }
+  ],
+
+  // Workers AI for transcription and entity extraction (Story 2.2)
+  "ai": {
+    "binding": "AI"
+  },
+
+  // Stage environment
+  "env": {
+    "stage": {
+      "name": "foundry-dashboard-stage",
+      "keep_vars": true,
+      "routes": [
+        {
+          "pattern": "foundry-stage.williamjshaw.ca",
+          "custom_domain": true
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "stage",
+        "BETTER_AUTH_URL": "https://foundry-stage.williamjshaw.ca"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "foundry-global-stage",
+          "database_id": "e35604ee-6e84-476f-a6ec-e6df6e12d81c"
+        }
+      ],
+      "services": [
+        {
+          "binding": "CONTENT_ENGINE",
+          "service": "foundry-engine-stage"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "MEDIA",
+          "bucket_name": "foundry-media"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "EMBEDDINGS",
+          "index_name": "foundry-embeddings"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      }
+    },
+    "production": {
+      "name": "foundry-dashboard-production",
+      "keep_vars": true,
+      "routes": [
+        {
+          "pattern": "foundry.williamjshaw.ca",
+          "custom_domain": true
+        }
+      ],
+      "vars": {
+        "ENVIRONMENT": "production",
+        "BETTER_AUTH_URL": "https://foundry.williamjshaw.ca"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "foundry-global",
+          "database_id": "bd287f3f-8147-49b5-9cae-466c60a975c6"
+        }
+      ],
+      "services": [
+        {
+          "binding": "CONTENT_ENGINE",
+          "service": "foundry-engine-production"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "MEDIA",
+          "bucket_name": "foundry-media"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "EMBEDDINGS",
+          "index_name": "foundry-embeddings"
+        }
+      ]
+    }
+  }
+}

@@ -7,6 +7,7 @@
  */
 
 import { performWebSearch } from '../tools';
+import { scrapePageContent } from '../tools/browser-tools';
 import { PHASE_2_LISTENING } from '../prompts/halo-phases';
 import type { ListeningResult, RawExtract, DiscoveryResult, AgentEnv } from '../types/halo-types';
 import { nanoid } from 'nanoid';
@@ -77,7 +78,10 @@ async function processResultsWithAI(
             source: {
                 url: extract.source?.url || '',
                 platform: extract.source?.platform || 'other',
-                title: extract.source?.title || ''
+                title: extract.source?.title || '',
+                reviewRating: extract.source?.reviewRating,
+                whatWasMissing: extract.source?.whatWasMissing,
+                reviewTitle: extract.source?.reviewTitle
             },
             content: extract.content || '',
             verbatimQuotes: Array.isArray(extract.verbatimQuotes) ? extract.verbatimQuotes : [],
@@ -182,19 +186,43 @@ export async function runListeningAgent(
     console.log(`[Phase 2] Executing ${uniqueQueries.length} deep search queries...`);
 
     // Execute searches in parallel
+    // Execute searches in parallel to find specific URLs
     const searchPromises = uniqueQueries.map(q => performWebSearch(q, env.TAVILY_API_KEY));
     const searchResults = await Promise.all(searchPromises);
 
     // Collect all raw results
     const allResults: { title: string; url: string; content: string }[] = [];
-    searchResults.forEach(sr => {
-        sr.results.forEach(r => {
+
+    // Process search results
+    for (const sr of searchResults) {
+        for (const r of sr.results) {
             if (!processedUrls.has(r.url)) {
                 processedUrls.add(r.url);
-                allResults.push(r);
+
+                // Active Scraping Logic (Tier 2 Upgrade)
+                let finalContent = r.content;
+                let finalTitle = r.title;
+
+                const isTargetPlatform = r.url.includes('reddit.com') || r.url.includes('amazon.com');
+
+                if (env.VIRTUAL_BROWSER && isTargetPlatform) {
+                    console.log(`[Phase 2] Active Scraping: ${r.url}`);
+                    const scraped = await scrapePageContent(env.VIRTUAL_BROWSER, r.url);
+                    if (scraped.content && scraped.content.length > 500) {
+                        finalContent = scraped.content.slice(0, 15000); // Capture much more content
+                        finalTitle = scraped.title || finalTitle;
+                        console.log(`[Phase 2] Scraped ${finalContent.length} chars from ${r.url}`);
+                    }
+                }
+
+                allResults.push({
+                    title: finalTitle,
+                    url: r.url,
+                    content: finalContent
+                });
             }
-        });
-    });
+        }
+    }
 
     console.log(`[Phase 2] Collected ${allResults.length} unique content pieces`);
 

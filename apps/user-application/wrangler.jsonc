@@ -1,26 +1,20 @@
-/** 
-  Stage "database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003"
-  Production "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750",
-  "service": "data-service-stage",
- * For more details on how to configure Wrangler, refer to:
- * https://developers.cloudflare.com/workers/wrangler/configuration/
+/**
+ * Legacy System (AudienceHero) - user-application
+ *
+ * Stage: stage.williamjshaw.ca
+ * Production: hero.williamjshaw.ca
+ *
+ * D1: audience-hero-stage / audience-hero-production
+ * R2: smart-eval-bucket-stage / smart-eval-bucket-production
+ * Vectorize: saas-knowledge-index
+ * Backend: data-service-stage / data-service-production
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "user-application",
   "main": "worker/index.ts",
-  "queues": {
-    "producers": [
-      {
-        "binding": "GENERATION_QUEUE",
-        "queue": "social-media-generation-queue"
-      }
-    ]
-  },
   "compatibility_date": "2025-07-11",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "./dist/client",
     "binding": "ASSETS",
@@ -33,45 +27,83 @@
     ]
   },
   "observability": {
-    "enabled": true,
+    "enabled": true
   },
+
+  // Local development - uses local D1
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "audience-hero-local",
+      "database_id": "local",
+      "migrations_dir": "../../packages/data-ops/src/drizzle-out"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "smart-eval-bucket-local"
+    }
+  ],
+  "vectorize": [
+    {
+      "binding": "KNOWLEDGE_BASE",
+      "index_name": "saas-knowledge-index"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+
   "env": {
     "stage": {
       "name": "user-application-stage",
+      "keep_vars": true,
       "vars": {
         "STRIPE_PRODUCT_BASIC": "price_1Sb2JRJM6cAn49gquuNTPlU0",
         "STRIPE_PRODUCT_PREMIUM": "price_1Sb2NDJM6cAn49gqJezNsHZG",
+        "BETTER_AUTH_URL": "https://stage.williamjshaw.ca",
+        "GITHUB_CLIENT_ID": "",
+        "GITHUB_CLIENT_SECRET": ""
       },
       "routes": [
         {
           "custom_domain": true,
-          "pattern": "stage.williamjshaw.ca",
-        },
+          "pattern": "stage.williamjshaw.ca"
+        }
       ],
       "d1_databases": [
         {
           "binding": "DB",
-          "database_id": "ffb0b27b-7c2c-48bb-933a-d3038598d003",
+          "database_name": "audience-hero-stage",
+          "database_id": "075a005c-54da-4e90-ad1a-036816ce4483",
           "migrations_dir": "../../packages/data-ops/src/drizzle-out"
-        },
+        }
       ],
-      "queues": {
-        "producers": [
-          {
-            "binding": "GENERATION_QUEUE",
-            "queue": "social-media-generation-queue"
-          }
-        ]
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "smart-eval-bucket-stage"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "KNOWLEDGE_BASE",
+          "index_name": "saas-knowledge-index"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
       },
       "services": [
         {
           "binding": "BACKEND_SERVICE",
-          "service": "data-service-stage",
+          "service": "data-service-stage"
         },
         {
           "binding": "DATA_SERVICE",
           "service": "data-service-stage"
-        },
+        }
       ],
       "assets": {
         "directory": "./dist/client",
@@ -87,23 +119,42 @@
     },
     "production": {
       "name": "user-application-production",
+      "keep_vars": true,
       "vars": {
         "STRIPE_PRODUCT_BASIC": "price_1Sb2JRJM6cAn49gquuNTPlU0",
         "STRIPE_PRODUCT_PREMIUM": "price_1Sb2NDJM6cAn49gqJezNsHZG",
-        "BETTER_AUTH_URL": "https://hero.williamjshaw.ca"
+        "BETTER_AUTH_URL": "https://hero.williamjshaw.ca",
+        "GITHUB_CLIENT_ID": "",
+        "GITHUB_CLIENT_SECRET": ""
       },
       "routes": [
         {
           "custom_domain": true,
-          "pattern": "hero.williamjshaw.ca",
-        },
+          "pattern": "hero.williamjshaw.ca"
+        }
       ],
       "d1_databases": [
         {
           "binding": "DB",
-          "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750",
-        },
+          "database_name": "audience-hero-production",
+          "database_id": "b2c606e3-d4b4-45b6-b0c1-d9fb77791750"
+        }
       ],
+      "r2_buckets": [
+        {
+          "binding": "BUCKET",
+          "bucket_name": "smart-eval-bucket-production"
+        }
+      ],
+      "vectorize": [
+        {
+          "binding": "KNOWLEDGE_BASE",
+          "index_name": "saas-knowledge-index"
+        }
+      ],
+      "ai": {
+        "binding": "AI"
+      },
       "assets": {
         "directory": "./dist/client",
         "binding": "ASSETS",
@@ -115,24 +166,16 @@
           "/api/ws"
         ]
       },
-      "queues": {
-        "producers": [
-          {
-            "binding": "GENERATION_QUEUE",
-            "queue": "social-media-generation-queue"
-          }
-        ]
-      },
       "services": [
         {
           "binding": "BACKEND_SERVICE",
-          "service": "data-service-production",
+          "service": "data-service-production"
         },
         {
           "binding": "DATA_SERVICE",
           "service": "data-service-production"
-        },
-      ],
+        }
+      ]
     }
   }
 }

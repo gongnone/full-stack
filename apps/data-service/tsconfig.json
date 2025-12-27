@@ -39,7 +39,8 @@
 		"types": ["./worker-configuration.d.ts", "./service-bindings.d.ts"],
 		"paths": {
 			"@/*": ["./src/*"],
-			"@/bindings": ["./service-bindings.d.ts"]
+			"@/bindings": ["./service-bindings.d.ts"],
+			"@repo/agent-system": ["../../packages/agent-system/src/index.ts"]
 		}
 	},
 	"exclude": ["test"],

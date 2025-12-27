@@ -10,6 +10,11 @@ export const trpc = createTRPCOptionsProxy<AppRouter>({
         links: [
             httpBatchLink({
                 url: "/trpc",
+                headers() {
+                    // Retrieve clientId from localStorage
+                    const clientId = localStorage.getItem("selectedClientId");
+                    return clientId ? { "x-client-id": clientId } : {};
+                },
             }),
         ],
     }),

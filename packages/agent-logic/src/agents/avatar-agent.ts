@@ -192,7 +192,18 @@ async function buildAvatarWithAI(
                 deepestFears: avatarData.dimensions?.deepestFears || [],
                 communicationPrefs: avatarData.dimensions?.communicationPrefs || ['Direct', 'Practical'],
                 vernacular: vernacular,
-                dayInLife: avatarData.dimensions?.dayInLife || 'A typical day involves...',
+                dayInLife: (typeof avatarData.dimensions?.dayInLife === 'object') ? avatarData.dimensions.dayInLife : {
+                    wakeTime: "7:00 AM",
+                    morningRoutine: "Coffee",
+                    checkPhoneFirst: true,
+                    commuteType: "WFH",
+                    peakStressTime: "10:00 AM",
+                    downtime: "TV",
+                    eveningRoutine: "Read",
+                    bedTime: "11:00 PM",
+                    bestContactTimes: ["9:00 AM"]
+                },
+                competitorGapsTheyFeel: avatarData.dimensions?.competitorGapsTheyFeel || [],
                 happinessTriggers: avatarData.dimensions?.happinessTriggers || []
             },
             psychographics: avatarData.psychographics || 'A professional seeking solutions...',
@@ -235,7 +246,18 @@ function buildFallbackAvatar(
             deepestFears: aggregated.barriers_uncertainties.slice(0, 3),
             communicationPrefs: ['Direct communication', 'Practical advice'],
             vernacular: vernacular,
-            dayInLife: `Spends time researching ${context.topic}, looking for solutions to their challenges.`,
+            dayInLife: {
+                wakeTime: "7:00 AM",
+                morningRoutine: "Checks phone, coffee",
+                checkPhoneFirst: true,
+                commuteType: "WFH/Hybrid",
+                peakStressTime: "11:00 AM",
+                downtime: "Streaming TV",
+                eveningRoutine: "Social media",
+                bedTime: "11:30 PM",
+                bestContactTimes: ["8:00 AM", "6:00 PM"]
+            },
+            competitorGapsTheyFeel: ["Lack of actionable advice", "Overwhelming information"],
             happinessTriggers: ['Finding effective solutions', 'Saving time', 'Getting results']
         },
         psychographics: `A motivated individual actively seeking better solutions for ${context.topic}. They spend considerable time online researching and often feel frustrated by the lack of clear, actionable guidance.`,
@@ -257,7 +279,7 @@ function countDimensionsCovered(avatar: DreamBuyerAvatar): number {
     if (dims.deepestFears.length > 0) count++;
     if (dims.communicationPrefs.length > 0) count++;
     if (dims.vernacular.length > 0) count++;
-    if (dims.dayInLife.length > 50) count++;
+    if (dims.dayInLife && dims.dayInLife.morningRoutine && dims.dayInLife.morningRoutine.length > 5) count++;
     if (dims.happinessTriggers.length > 0) count++;
 
     return count;

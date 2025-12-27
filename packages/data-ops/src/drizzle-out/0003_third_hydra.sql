@@ -1,1 +1,0 @@
-ALTER TABLE `user` ADD `credits` integer DEFAULT 10 NOT NULL;

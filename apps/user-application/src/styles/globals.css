@@ -49,6 +49,12 @@
   --color-border: var(--border);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive: var(--destructive);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning: var(--warning);
+  --color-info-foreground: var(--info-foreground);
+  --color-info: var(--info);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -67,6 +73,19 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --animate-red-pulse: red-pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  @keyframes red-pulse {
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 0 0 rgba(244, 33, 46, 0);
+    }
+    50% {
+      opacity: 0.8;
+      box-shadow: 0 0 40px 10px rgba(244, 33, 46, 0.3);
+    }
+  }
 }
 
 :root {
@@ -86,6 +105,12 @@
   --accent-foreground: oklch(0.5445 0.1903 259.4848);
   --destructive: oklch(0.6290 0.1902 23.0704);
   --destructive-foreground: oklch(1.0000 0 0);
+  --success: #00D26A;
+  --success-foreground: #FFFFFF;
+  --warning: #FFD60A;
+  --warning-foreground: #0F1419;
+  --info: #1D9BF0;
+  --info-foreground: #FFFFFF;
   --border: oklch(0.9300 0.0094 286.2156);
   --input: oklch(0.9401 0 0);
   --ring: oklch(0 0 0);
@@ -125,59 +150,104 @@
   --tracking-normal: -0.025em;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   MIDNIGHT COMMAND THEME - The Agentic Content Foundry
+   Design Spec: _bmad-output/ux-design-specification.md
+   ═══════════════════════════════════════════════════════════════════════════ */
 .dark {
-  --background: oklch(0.2223 0.0060 271.1393);
-  --foreground: oklch(0.9551 0 0);
-  --card: oklch(0.2568 0.0076 274.6528);
-  --card-foreground: oklch(0.9551 0 0);
-  --popover: oklch(0.2568 0.0076 274.6528);
-  --popover-foreground: oklch(0.9551 0 0);
-  --primary: oklch(0.6132 0.2294 291.7437);
-  --primary-foreground: oklch(1.0000 0 0);
-  --secondary: oklch(0.2940 0.0130 272.9312);
-  --secondary-foreground: oklch(0.9551 0 0);
-  --muted: oklch(0.2940 0.0130 272.9312);
-  --muted-foreground: oklch(0.7058 0 0);
-  --accent: oklch(0.2795 0.0368 260.0310);
-  --accent-foreground: oklch(0.7857 0.1153 246.6596);
-  --destructive: oklch(0.7106 0.1661 22.2162);
-  --destructive-foreground: oklch(1.0000 0 0);
-  --border: oklch(0.3289 0.0092 268.3843);
-  --input: oklch(0.3289 0.0092 268.3843);
-  --ring: oklch(0.6132 0.2294 291.7437);
-  --chart-1: oklch(0.8003 0.1821 151.7110);
-  --chart-2: oklch(0.6132 0.2294 291.7437);
-  --chart-3: oklch(0.8077 0.1035 19.5706);
-  --chart-4: oklch(0.6691 0.1569 260.1063);
-  --chart-5: oklch(0.7058 0 0);
-  --radius: 1.4rem;
-  --sidebar: oklch(0.2011 0.0039 286.0396);
-  --sidebar-foreground: oklch(0.9551 0 0);
-  --sidebar-primary: oklch(0.6132 0.2294 291.7437);
-  --sidebar-primary-foreground: oklch(1.0000 0 0);
-  --sidebar-accent: oklch(0.2940 0.0130 272.9312);
-  --sidebar-accent-foreground: oklch(0.6132 0.2294 291.7437);
-  --sidebar-border: oklch(0.3289 0.0092 268.3843);
-  --sidebar-ring: oklch(0.6132 0.2294 291.7437);
-  --font-sans: Plus Jakarta Sans, sans-serif;
+  /* ─────────────────────────────────────────────────────────────────────────
+     Core Backgrounds (Midnight Command Palette)
+     ───────────────────────────────────────────────────────────────────────── */
+  --background: #0F1419;           /* bg-base: Deep midnight */
+  --foreground: #F7F9F9;           /* text-primary: Crisp white */
+  --card: #242D35;                 /* bg-card: Elevated surface */
+  --card-foreground: #F7F9F9;
+  --popover: #1A1F26;              /* bg-elevated: Modal/dropdown */
+  --popover-foreground: #F7F9F9;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Action Colors (Semantic Intent)
+     ───────────────────────────────────────────────────────────────────────── */
+  --primary: #1D9BF0;              /* accent-edit: Edit/modify actions */
+  --primary-foreground: #FFFFFF;
+  --secondary: #1A1F26;            /* bg-elevated: Secondary surfaces */
+  --secondary-foreground: #F7F9F9;
+  --muted: #1A1F26;
+  --muted-foreground: #8B98A5;     /* text-secondary: De-emphasized */
+  --accent: #1D9BF0;               /* accent-edit: Interactive elements */
+  --accent-foreground: #FFFFFF;
+  --destructive: #F4212E;          /* accent-kill: Delete/remove/reject */
+  --destructive-foreground: #FFFFFF;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Foundry-Specific Semantic Colors (NEW)
+     ───────────────────────────────────────────────────────────────────────── */
+  --success: #00D26A;              /* accent-approve: Approve/publish/confirm */
+  --success-foreground: #FFFFFF;
+  --warning: #FFD60A;              /* Attention/caution states */
+  --warning-foreground: #0F1419;
+  --info: #1D9BF0;                 /* Informational states */
+  --info-foreground: #FFFFFF;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Borders & Inputs
+     ───────────────────────────────────────────────────────────────────────── */
+  --border: #2F3336;               /* border-subtle: Card edges */
+  --input: #2F3336;                /* Form input borders */
+  --ring: #1D9BF0;                 /* Focus ring color */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Chart Colors (Data Visualization)
+     ───────────────────────────────────────────────────────────────────────── */
+  --chart-1: #00D26A;              /* Success/positive metrics */
+  --chart-2: #1D9BF0;              /* Primary/neutral metrics */
+  --chart-3: #FFD60A;              /* Warning/attention metrics */
+  --chart-4: #F4212E;              /* Negative/kill metrics */
+  --chart-5: #8B98A5;              /* Muted/secondary metrics */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Sidebar (Navigation Chrome)
+     ───────────────────────────────────────────────────────────────────────── */
+  --sidebar: #0F1419;              /* Match base background */
+  --sidebar-foreground: #F7F9F9;
+  --sidebar-primary: #1D9BF0;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1A1F26;
+  --sidebar-accent-foreground: #F7F9F9;
+  --sidebar-border: #2F3336;
+  --sidebar-ring: #1D9BF0;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Typography (Foundry Type System)
+     ───────────────────────────────────────────────────────────────────────── */
+  --font-sans: Inter, system-ui, sans-serif;
   --font-serif: Lora, serif;
-  --font-mono: IBM Plex Mono, monospace;
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", monospace;
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Spacing & Radius
+     ───────────────────────────────────────────────────────────────────────── */
+  --radius: 0.5rem;                /* Tighter radius for professional feel */
+
+  /* ─────────────────────────────────────────────────────────────────────────
+     Shadows (Subtle depth for dark UI)
+     ───────────────────────────────────────────────────────────────────────── */
   --shadow-color: hsl(0 0% 0%);
-  --shadow-opacity: 0.16;
-  --shadow-blur: 3px;
+  --shadow-opacity: 0.4;           /* Deeper shadows for dark mode */
+  --shadow-blur: 4px;
   --shadow-spread: 0px;
   --shadow-offset-x: 0px;
   --shadow-offset-y: 2px;
-  --letter-spacing: -0.025em;
-  --spacing: 0.27rem;
-  --shadow-2xs: 0px 2px 3px 0px hsl(0 0% 0% / 0.08);
-  --shadow-xs: 0px 2px 3px 0px hsl(0 0% 0% / 0.08);
-  --shadow-sm: 0px 2px 3px 0px hsl(0 0% 0% / 0.16), 0px 1px 2px -1px hsl(0 0% 0% / 0.16);
-  --shadow: 0px 2px 3px 0px hsl(0 0% 0% / 0.16), 0px 1px 2px -1px hsl(0 0% 0% / 0.16);
-  --shadow-md: 0px 2px 3px 0px hsl(0 0% 0% / 0.16), 0px 2px 4px -1px hsl(0 0% 0% / 0.16);
-  --shadow-lg: 0px 2px 3px 0px hsl(0 0% 0% / 0.16), 0px 4px 6px -1px hsl(0 0% 0% / 0.16);
-  --shadow-xl: 0px 2px 3px 0px hsl(0 0% 0% / 0.16), 0px 8px 10px -1px hsl(0 0% 0% / 0.16);
-  --shadow-2xl: 0px 2px 3px 0px hsl(0 0% 0% / 0.40);
+  --letter-spacing: -0.01em;
+  --spacing: 0.25rem;
+  --shadow-2xs: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-xs: 0 1px 3px 0 rgb(0 0 0 / 0.4);
+  --shadow-sm: 0 2px 4px 0 rgb(0 0 0 / 0.4);
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 6px 10px -2px rgb(0 0 0 / 0.4), 0 3px 6px -3px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.6);
 }
 
 @layer base {

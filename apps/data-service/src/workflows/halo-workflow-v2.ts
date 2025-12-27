@@ -14,6 +14,7 @@
 import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from 'cloudflare:workers';
 import {
     runDiscoveryAgent,
+    runCompetitorReconAgent,
     runListeningAgent,
     runClassificationAgent,
     runAvatarAgent,
@@ -21,7 +22,7 @@ import {
     runHVCOAgent,
     type AgentContext,
     type AgentEnv
-} from '@repo/agent-logic/agents';
+} from '@repo/agent-logic';
 import { HaloResearchSchemaV2 } from '@repo/data-ops/zod/halo-schema-v2';
 
 type Params = {
@@ -75,6 +76,22 @@ export class HaloResearchWorkflowV2 extends WorkflowEntrypoint<Env, Params> {
         });
 
         // ========================================
+        // PHASE 1.5: COMPETITOR RECON (Funnel Hacking)
+        // ========================================
+        const competitorRecon = await step.do('phase-1.5-competitor', {
+            retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' }
+        }, async () => {
+            console.log(`[Phase 1.5] Starting Competitor Recon Agent`);
+            const result = await runCompetitorReconAgent(env, context, discovery);
+            console.log(`[Phase 1.5] Analyzed ${result.competitors.length} competitors`);
+            return result;
+        });
+
+        await step.do('update-status-1.5', async () => {
+            await this.updateWorkflowStatus(runId, 'competitor_complete', 1.5);
+        });
+
+        // ========================================
         // PHASE 2: DEEP LISTENING (Extract Content)
         // ========================================
         const listening = await step.do('phase-2-listening', {
@@ -97,7 +114,7 @@ export class HaloResearchWorkflowV2 extends WorkflowEntrypoint<Env, Params> {
             retries: { limit: 2, delay: '10 seconds', backoff: 'exponential' }
         }, async () => {
             console.log(`[Phase 3] Starting Classification Agent`);
-            const result = await runClassificationAgent(env, listening);
+            const result = await runClassificationAgent(env, listening, context);
             console.log(`[Phase 3] Classified ${result.classifiedContent.length} items`);
             return result;
         });
@@ -150,6 +167,10 @@ export class HaloResearchWorkflowV2 extends WorkflowEntrypoint<Env, Params> {
             return result;
         });
 
+        await step.do('update-status-6', async () => {
+            await this.updateWorkflowStatus(runId, 'hvco_complete', 6);
+        });
+
         // ========================================
         // SAVE ALL RESULTS
         // ========================================
@@ -164,6 +185,7 @@ export class HaloResearchWorkflowV2 extends WorkflowEntrypoint<Env, Params> {
 
             await saveHaloResearchV2(db, projectId, runId, {
                 discovery,
+                competitorRecon,
                 listening,
                 classification,
                 avatar,
@@ -191,7 +213,7 @@ export class HaloResearchWorkflowV2 extends WorkflowEntrypoint<Env, Params> {
             const db = drizzle(this.env.DB);
             await db.update(workflowRuns)
                 .set({
-                    currentStep: step,
+                    current_step: step,
                     progress: Math.round((phaseNum / 6) * 100)
                 })
                 .where(eq(workflowRuns.id, runId));

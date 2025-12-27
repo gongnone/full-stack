@@ -1,0 +1,57 @@
+# BMM Workflow Status Tracker
+# Tracks completed workflows and their output artifacts
+
+project_name: 'full-stack'
+product_name: 'The Agentic Content Foundry'
+last_updated: '2025-12-20'
+
+workflows:
+  brainstorming:
+    status: 'complete'
+    output: 'analysis/brainstorming-session-2025-12-19.md'
+    completed_at: '2025-12-19'
+    techniques_used:
+      - 'Morphological Analysis'
+    ideas_generated: 8
+
+  product-brief:
+    status: 'complete'
+    output: 'analysis/product-brief-full-stack-2025-12-19.md'
+    completed_at: '2025-12-20'
+    steps_completed: [1, 2, 3, 4, 5, 6]
+    sections:
+      - 'Executive Summary'
+      - 'Core Vision'
+      - 'Target Users'
+      - 'Success Metrics'
+      - 'MVP Scope'
+      - 'Future Vision'
+
+  # Recommended next workflows
+  prd:
+    status: 'not_started'
+    depends_on: 'product-brief'
+
+  ux-design:
+    status: 'not_started'
+    depends_on: 'product-brief'
+
+# Key artifacts for downstream workflows
+key_artifacts:
+  north_star_metric: 'Zero-Edit Rate'
+  target_users:
+    - 'Fractional CMO / Content Agency'
+    - 'Personal Brand Consultant'
+    - 'High-Growth Media Team'
+  mvp_features:
+    - 'Source of Truth Ingestion'
+    - 'Multimodal Hub-to-Spoke Engine (25 spokes/hub)'
+    - 'Adversarial Quality Gate (G2, G4, G5)'
+    - 'Executive Producer Dashboard'
+    - 'ContentValidationWorkflow'
+  platforms:
+    - 'X/Twitter'
+    - 'LinkedIn'
+    - 'TikTok'
+    - 'Instagram'
+    - 'YouTube Shorts'

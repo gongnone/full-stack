@@ -3,7 +3,7 @@ import { type FormEvent } from 'react';
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Search, CheckCircle2 } from 'lucide-react';
+import { Search, CheckCircle2 } from 'lucide-react';
 
 // SAFE IMPORTS ONLY
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SourcesTable } from '@/components/research/SourcesTable';
+import { WorkflowProgress } from '@/components/research/WorkflowProgress';
 // IMPORT NEW COMPONENT
 import { ResearchResults } from "@/components/dashboard/research-results";
 
@@ -62,22 +63,17 @@ function ResearchTab() {
         e.preventDefault();
         const form = e.target as HTMLFormElement;
         const keywordsInput = form.elements.namedItem('keywords') as HTMLInputElement;
-        const identityInput = form.elements.namedItem('identity') as HTMLInputElement;
-        const struggleInput = form.elements.namedItem('struggle') as HTMLInputElement;
-        const outcomeInput = form.elements.namedItem('outcome') as HTMLInputElement;
+        const audienceInput = form.elements.namedItem('audience') as HTMLInputElement;
+        const productInput = form.elements.namedItem('product') as HTMLTextAreaElement;
 
         const keywords = keywordsInput?.value || "";
-        const identity = identityInput?.value || "";
-        const struggle = struggleInput?.value || "";
-        const outcome = outcomeInput?.value || "";
+        const targetAudience = audienceInput?.value || "";
+        const productDescription = productInput?.value || "";
 
         if (!keywords.trim()) {
             toast.error("Please enter a topic or niche.");
             return;
         }
-
-        const targetAudience = `${identity} facing ${struggle}`;
-        const productDescription = `Helping them achieve ${outcome}`;
 
         try {
             await launchMutation.mutateAsync({
@@ -103,9 +99,10 @@ function ResearchTab() {
         avatar: research.avatar || { name: 'Unknown', demographics: {}, psychographics: {} },
         // Gap 4 Fix: Correct mapping from Backend -> Frontend
         painPoints: research.painPoints || [],
-        competitorGaps: research.unexpectedInsights || [],
+        competitorGaps: research.competitorGaps || [], // Fix: Use pre-aggregated gaps from backend
         marketDesire: Array.isArray(research.desires) ? research.desires[0] : (research.desires || "Undetermined"),
-        verbatimQuotes: Array.isArray(research.vernacular) ? research.vernacular : (typeof research.vernacular === 'object' ? Object.values(research.vernacular) : [])
+        verbatimQuotes: research.verbatimQuotes || [], // V2 Mapping: Use aggregated quotes from Source Metadata
+        hvcoTitles: research.hvcoTitles || []          // V2 Mapping: Phase 6 Titles
     } : null;
 
 
@@ -128,65 +125,53 @@ function ResearchTab() {
                     </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    <form onSubmit={handleLaunch} className="flex flex-col gap-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* 1. Niche / Keywords */}
-                            <div className="space-y-2">
-                                <Label htmlFor="keywords">Target Niche / Keywords</Label>
-                                <Input
-                                    id="keywords"
-                                    name="keywords"
-                                    placeholder="e.g. SaaS for Crossfit Gyms"
-                                    disabled={isProcessing || hasResults}
-                                    defaultValue={research?.topic || ""}
-                                    className="bg-background/50"
-                                />
-                                <p className="text-xs text-muted-foreground">The broad market category to scan.</p>
+                    {!hasResults ? (
+                        <form onSubmit={handleLaunch} className="flex flex-col gap-6">
+                            <div className="grid grid-cols-1 gap-4">
+                                {/* 1. Niche / Keywords */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="keywords">Target Niche / Keywords</Label>
+                                    <Input
+                                        id="keywords"
+                                        name="keywords"
+                                        placeholder="e.g. SaaS for Crossfit Gyms"
+                                        disabled={isProcessing}
+                                        defaultValue={research?.topic || ""}
+                                        className="bg-background/50"
+                                    />
+                                    <p className="text-xs text-muted-foreground">The broad market category to scan.</p>
+                                </div>
+
+                                {/* 2. Target Audience */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="audience">Target Audience</Label>
+                                    <Input
+                                        id="audience"
+                                        name="audience"
+                                        placeholder="e.g. Frustrated Agency Owner facing burnout"
+                                        disabled={isProcessing}
+                                        defaultValue={research?.targetAudience || research?.avatar?.name || ""}
+                                        className="bg-background/50"
+                                    />
+                                    <p className="text-xs text-muted-foreground">Who are we trying to reach?</p>
+                                </div>
+
+                                {/* 3. Product / Offer Context */}
+                                <div className="space-y-2">
+                                    <Label htmlFor="product">Product / Offer Context</Label>
+                                    <textarea
+                                        id="product"
+                                        name="product"
+                                        placeholder="Describe what you are selling. E.g. 'A high-ticket coaching program helping agency owners scale to $50k/mo by removing themselves from delivery.'"
+                                        disabled={isProcessing}
+                                        defaultValue={research?.productDescription || ""}
+                                        className="flex w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[100px]"
+                                    />
+                                    <p className="text-xs text-muted-foreground">Give the agent context on what you are selling (optional but recommended).</p>
+                                </div>
                             </div>
 
-                            {/* 2. Target Identity */}
-                            <div className="space-y-2">
-                                <Label htmlFor="identity">Target Identity (Who)</Label>
-                                <Input
-                                    id="identity"
-                                    name="identity"
-                                    placeholder="e.g. Frustrated Agency Owner"
-                                    disabled={isProcessing || hasResults}
-                                    defaultValue={research?.avatar?.name || ""}
-                                    className="bg-background/50"
-                                />
-                                <p className="text-xs text-muted-foreground">The specific persona you want to reach.</p>
-                            </div>
-
-                            {/* 3. Current Struggle (Hell) */}
-                            <div className="space-y-2">
-                                <Label htmlFor="struggle">Current Struggle (Hell)</Label>
-                                <Input
-                                    id="struggle"
-                                    name="struggle"
-                                    placeholder="e.g. Working 80hrs, inconsistent leads"
-                                    disabled={isProcessing || hasResults}
-                                    className="bg-background/50"
-                                />
-                                <p className="text-xs text-muted-foreground">Their painful current reality.</p>
-                            </div>
-
-                            {/* 4. Desired Outcome (Heaven) */}
-                            <div className="space-y-2">
-                                <Label htmlFor="outcome">Desired Outcome (Heaven)</Label>
-                                <Input
-                                    id="outcome"
-                                    name="outcome"
-                                    placeholder="e.g. Productized service, 20hr week"
-                                    disabled={isProcessing || hasResults}
-                                    className="bg-background/50"
-                                />
-                                <p className="text-xs text-muted-foreground">The dream state they crave.</p>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-2">
-                            {!hasResults && (
+                            <div className="flex justify-end pt-2">
                                 <Button type="submit" disabled={isProcessing || launchMutation.isPending} className="w-full md:w-auto">
                                     {isProcessing ? (
                                         <span className="flex items-center gap-2">Processing...</span>
@@ -194,26 +179,27 @@ function ResearchTab() {
                                         <span className="flex items-center gap-2"><Search className="w-4 h-4" /> Launch Research Agent</span>
                                     )}
                                 </Button>
-                            )}
-
-                            {hasResults && (
-                                <Button variant="outline" type="button" onClick={() => window.location.reload()}>
-                                    New Mission
-                                </Button>
-                            )}
+                            </div>
+                        </form>
+                    ) : (
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-4 p-2">
+                            <div className="text-sm text-muted-foreground">
+                                <span className="font-semibold text-slate-700">Topic:</span> {research?.topic} • <span className="font-semibold text-slate-700">Target:</span> {research?.targetAudience}
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
+                                Start New Mission
+                            </Button>
                         </div>
-                    </form>
+                    )}
 
-                    {/* Native Tailwind Progress */}
+                    {/* Workflow Progress - Step-based display */}
                     {isProcessing && (
-                        <div className="space-y-2 animate-in fade-in slide-in-from-top-2 pt-2">
-                            <div className="flex justify-between text-xs text-muted-foreground font-mono">
-                                <span className="flex items-center"><Loader2 className="h-3 w-3 mr-1 animate-spin" /> INTERCEPTING SIGNALS</span>
-                                <span>{isRefetching ? "SYNCING..." : "LIVE"}</span>
-                            </div>
-                            <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-600 w-[45%] animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]" />
-                            </div>
+                        <div className="pt-2">
+                            <WorkflowProgress
+                                currentStep={research?.progress}
+                                status={status}
+                                isRefetching={isRefetching}
+                            />
                         </div>
                     )}
                 </CardContent>
@@ -230,7 +216,7 @@ function ResearchTab() {
             {/* 🛡️ QA: Toggle this to MOCK_DATA for layout testing */}
             {(hasResults && researchData) ? (
                 <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <ResearchResults data={researchData} />
+                    <ResearchResults data={researchData} fullData={research} />
 
                     {/* 3. TRACEABILITY / PROOF OF WORK */}
                     <SourcesTable sources={research?.sources || []} projectId={projectId} />

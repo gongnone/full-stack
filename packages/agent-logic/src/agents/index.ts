@@ -13,6 +13,9 @@
 // Phase 1: Discovery
 export { runDiscoveryAgent } from './discovery-agent';
 
+// Phase 1.5: Competitor Recon
+export { runCompetitorReconAgent } from './competitor-recon-agent';
+
 // Phase 2: Deep Listening
 export { runListeningAgent } from './listening-agent';
 

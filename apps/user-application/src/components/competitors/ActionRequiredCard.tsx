@@ -26,7 +26,7 @@ export function ActionRequiredCard({ projectId }: ActionRequiredCardProps) {
 
     if (!run || run.status !== 'paused_hitl') return null;
 
-    const request = run.hitlRequest ? JSON.parse(run.hitlRequest) : { instruction: "Manual verification required." };
+    const request = run.hitl_request ? JSON.parse(run.hitl_request) : { instruction: "Manual verification required." };
 
     const handleSubmit = async () => {
         // Mock submission

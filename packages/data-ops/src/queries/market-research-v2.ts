@@ -11,7 +11,9 @@ import {
     dreamBuyerAvatar,
     researchSources,
     workflowRuns,
-    hvcoTitles
+    hvcoTitles,
+    competitors,
+    competitorOfferMap
 } from '../schema';
 import { nanoid } from 'nanoid';
 import { DrizzleD1Database } from "drizzle-orm/d1";
@@ -21,7 +23,8 @@ import type {
     ClassificationResult,
     AvatarSynthesisResult,
     ProblemIdentificationResult,
-    HVCOGenerationResult
+    HVCOGenerationResult,
+    CompetitorReconResult
 } from '../zod/halo-schema-v2';
 
 type Db = DrizzleD1Database<any>;
@@ -38,6 +41,7 @@ export async function saveHaloResearchV2(
         listening: ListeningResult;
         classification: ClassificationResult;
         avatar: AvatarSynthesisResult;
+        competitorRecon?: CompetitorReconResult;
         problems: ProblemIdentificationResult;
         hvco: HVCOGenerationResult;
         topic: string;
@@ -59,7 +63,8 @@ export async function saveHaloResearchV2(
     await db.update(workflowRuns)
         .set({
             status: 'complete',
-            currentStep: 'complete',
+            current_step: 'complete',
+            progress: 100,
             completedAt: new Date()
         })
         .where(eq(workflowRuns.id, runId));
@@ -75,7 +80,10 @@ export async function saveHaloResearchV2(
         unexpectedInsights: JSON.stringify(
             data.classification.classifiedContent
                 .filter(c => c.category === 'unexpected_insights')
-                .map(c => c.extractId)
+                .map(c => {
+                    const extract = data.listening.rawExtracts.find(e => e.id === c.extractId);
+                    return extract ? extract.content.slice(0, 300) : "Insight content missing";
+                })
         ),
         primalDesires: JSON.stringify([data.problems.primaryProblem.hvcoOpportunity]),
     } as any);
@@ -91,11 +99,12 @@ export async function saveHaloResearchV2(
             summary: data.avatar.avatar.psychographics,
             dominantEmotion: data.avatar.avatar.dominantEmotion
         }),
-        dayInTheLife: data.avatar.avatar.dimensions.dayInLife,
+        dayInTheLife: JSON.stringify(data.avatar.avatar.dimensions.dayInLife),
         mediaConsumption: JSON.stringify(data.avatar.avatar.dimensions.informationSources),
         buyingBehavior: JSON.stringify({
             communicationPrefs: data.avatar.avatar.dimensions.communicationPrefs,
-            happinessTriggers: data.avatar.avatar.dimensions.happinessTriggers
+            happinessTriggers: data.avatar.avatar.dimensions.happinessTriggers,
+            competitorGapsTheyFeel: data.avatar.avatar.dimensions.competitorGapsTheyFeel
         })
     });
 
@@ -123,6 +132,10 @@ export async function saveHaloResearchV2(
                 category: classification?.category,
                 engagement: extract.engagement
             }),
+            // New Amazon Fields
+            reviewRating: (extract.source as any).reviewRating || null,
+            whatWasMissing: (extract.source as any).whatWasMissing || null,
+            reviewTitle: (extract.source as any).reviewTitle || null,
             createdAt: new Date()
         };
     });
@@ -154,6 +167,44 @@ export async function saveHaloResearchV2(
         } as any);
     }
 
+    // 7. Save Competitor Recon (Phase 1.5)
+    if (data.competitorRecon && data.competitorRecon.competitors) {
+        for (const comp of data.competitorRecon.competitors) {
+            const competitorId = nanoid();
+
+            // Save Competitor Profile
+            await db.insert(competitors).values({
+                id: competitorId,
+                projectId: projectId,
+                name: comp.competitorName,
+                websiteUrl: comp.url,
+                entryProductPrice: comp.primaryOffer.price ? parseFloat(comp.primaryOffer.price.replace(/[^0-9.]/g, '')) || 0 : 0,
+                status: 'analyzed'
+            } as any);
+
+            // Save Offer Map
+            await db.insert(competitorOfferMap).values({
+                id: nanoid(),
+                competitorId: competitorId,
+                hvco: comp.hvco,
+
+                // Mapping new Agent fields to existing Schema
+                pricing: JSON.stringify({
+                    entry: comp.primaryOffer.price,
+                    name: comp.primaryOffer.name,
+                    promise: comp.primaryOffer.promise
+                }),
+
+                // Funnel steps -> Value Build
+                valueBuild: JSON.stringify(comp.funnelSteps),
+
+                weaknesses: JSON.stringify(comp.weaknesses),
+                strengths: JSON.stringify([]) // Default empty
+            } as any);
+        }
+        console.log(`[DB V2] Saved ${data.competitorRecon.competitors.length} competitors`);
+    }
+
     console.log(`[DB V2] Saved: ${sourcesToSave.length} sources, ${data.hvco.titles.length} HVCO titles`);
 
     return true;
@@ -175,27 +226,66 @@ export async function getMarketResearchV2(db: Db, projectId: string) {
         const avatar = await db.select().from(dreamBuyerAvatar).where(eq(dreamBuyerAvatar.projectId, projectId)).get();
         const analysis = await db.select().from(haloAnalysis).where(eq(haloAnalysis.projectId, projectId)).get();
         const sources = await db.select().from(researchSources).where(eq(researchSources.projectId, projectId)).orderBy(desc(researchSources.sophisticationScore)).limit(50);
-        const titles = await db.select().from(hvcoTitles).where(eq(hvcoTitles.projectId, projectId)).orderBy(desc(hvcoTitles.criticScore)).limit(20);
-        const workflow = await db.select().from(workflowRuns).where(eq(workflowRuns.projectId, projectId)).orderBy(desc(workflowRuns.startedAt)).limit(1).get();
+
+        // Fetch Phase 1.5 Competitor Data for Gaps
+        const compOffers = await db.select().from(competitorOfferMap)
+            .leftJoin(competitors, eq(competitorOfferMap.competitorId, competitors.id))
+            .where(eq(competitors.projectId, projectId));
+
+        // Helper to ensure array type safety
+        const ensureArray = (val: any) => Array.isArray(val) ? val : [];
 
         // Parse stored JSON data
         const demographics = avatar?.demographics ? JSON.parse(avatar.demographics) : {};
         const psychographics = avatar?.psychographics ? JSON.parse(avatar.psychographics) : {};
-        const vernacular = analysis?.vernacular ? JSON.parse(analysis.vernacular) : [];
-        const painsAndFears = analysis?.painsAndFears ? JSON.parse(analysis.painsAndFears) : [];
-        const hopesAndDreams = analysis?.hopesAndDreams ? JSON.parse(analysis.hopesAndDreams) : [];
-        const barriers = analysis?.barriersAndUncertainties ? JSON.parse(analysis.barriersAndUncertainties) : [];
+        const buyingBehavior = avatar?.buyingBehavior ? JSON.parse(avatar.buyingBehavior) : {};
+        const vernacular = ensureArray(analysis?.vernacular ? JSON.parse(analysis.vernacular) : []);
+        const painsAndFears = ensureArray(analysis?.painsAndFears ? JSON.parse(analysis.painsAndFears) : []);
+        const hopesAndDreams = ensureArray(analysis?.hopesAndDreams ? JSON.parse(analysis.hopesAndDreams) : []);
+        const barriers = ensureArray(analysis?.barriersAndUncertainties ? JSON.parse(analysis.barriersAndUncertainties) : []);
+
+        const titles = await db.select().from(hvcoTitles).where(eq(hvcoTitles.projectId, projectId)).orderBy(desc(hvcoTitles.criticScore)).limit(20);
+        const workflow = await db.select().from(workflowRuns).where(eq(workflowRuns.projectId, projectId)).orderBy(desc(workflowRuns.startedAt)).limit(1).get();
+
+        // Aggregate Competitor Gaps
+        const competitorWeaknesses = compOffers.flatMap(c => {
+            const weaknesses = ensureArray(c.competitor_offer_map?.weaknesses ? JSON.parse(c.competitor_offer_map.weaknesses) : []);
+            return weaknesses.map((w: string) => `${c.competitors?.name || 'Competitor'}: ${w}`);
+        });
+
+        const avatarGaps = ensureArray(buyingBehavior.competitorGapsTheyFeel || []);
+        const allCompetitorGaps = [...competitorWeaknesses, ...avatarGaps];
+
+        // Aggregate Verbatim Quotes from Sources
+        const allVerbatimQuotes = sources.flatMap(s => {
+            const metadata = s.metadata ? JSON.parse(s.metadata) : {};
+            return ensureArray(metadata.verbatimQuotes || []);
+        }).slice(0, 20); // Top 20 quotes
 
         return {
             status: workflow?.status || project?.status || 'idle',
-            progress: workflow?.currentStep || 'unknown',
+            progress: workflow?.progress || 0,
+            currentStep: workflow?.current_step || 'unknown',
             topic: project?.industry || project?.name || 'Market Research',
+            targetAudience: project?.targetMarket || 'Target Audience', // V2 Mapping
+            productDescription: project?.valueProposition || '',        // V2 Mapping
 
-            // Avatar (9 Dimensions)
+            // Competitor Gaps (Aggregated)
+            competitorGaps: allCompetitorGaps,
+
+            // Verbatim Quotes (Aggregated from Sources)
+            verbatimQuotes: allVerbatimQuotes,
+
+            // ... rest of object
+            runId: workflow?.id || null, // Added for Report
+            qualityScore: Math.round(sources.length * 2.5), // Approx score based on source depth
+            evidenceCount: allVerbatimQuotes.length,
+
             avatar: avatar ? {
                 name: avatar.summaryParagraph || project?.targetMarket || "Target Audience",
                 demographics,
                 psychographics: psychographics.summary || '',
+                evidenceCount: allVerbatimQuotes.length, // Added for Header
                 dimensions: {
                     wateringHoles: psychographics.wateringHoles || [],
                     informationSources: avatar.mediaConsumption ? JSON.parse(avatar.mediaConsumption) : [],
@@ -217,6 +307,54 @@ export async function getMarketResearchV2(db: Db, projectId: string) {
             vernacular: vernacular.map((v: any) => typeof v === 'string' ? { phrase: v, source: '', context: '' } : v),
             unexpectedInsights: analysis?.unexpectedInsights ? JSON.parse(analysis.unexpectedInsights) : [],
 
+            // MAPPED OBJECTS FOR FULL REPORT (Reconstructing Agent Output structure)
+            discovery: {
+                wateringHoles: psychographics.wateringHoles?.map((w: string) => ({
+                    platform: 'Manual/inferred',
+                    name: w,
+                    url: '#',
+                    relevanceScore: 100
+                })) || []
+            },
+
+            competitorRecon: {
+                competitors: compOffers.map(c => {
+                    const offerMap = c.competitor_offer_map;
+                    const comp = c.competitors;
+                    const pricing = offerMap?.pricing ? JSON.parse(offerMap.pricing) : {};
+                    const weaknesses = offerMap?.weaknesses ? JSON.parse(offerMap.weaknesses) : [];
+
+                    return {
+                        competitorName: comp?.name || 'Unknown',
+                        url: comp?.websiteUrl || '',
+                        primaryOffer: {
+                            promise: offerMap?.hvco || 'N/A',
+                            price: pricing.entry || pricing.human || 'N/A',
+                            name: pricing.name || 'Offer'
+                        },
+                        weaknesses: weaknesses
+                    };
+                })
+            },
+
+            problems: {
+                primaryProblem: {
+                    problem: painsAndFears[0] || "Primary Market Pain",
+                    totalScore: 95,
+                    evidenceQuotes: allVerbatimQuotes.slice(0, 3).map(q => ({ quote: q })),
+                    relatedPains: painsAndFears.slice(1, 4)
+                }
+            },
+
+            hvco: {
+                titles: titles.map(t => ({
+                    title: t.title,
+                    formula: t.formula,
+                    totalScore: t.criticScore
+                })),
+                recommendedTitle: titles.find(t => t.isWinner) || titles[0]
+            },
+
             // Sources with classification
             sources: sources.map(s => {
                 const metadata = s.metadata ? JSON.parse(s.metadata) : {};
@@ -236,7 +374,7 @@ export async function getMarketResearchV2(db: Db, projectId: string) {
                 };
             }),
 
-            // HVCO Titles
+            // HVCO Titles (Legacy Array)
             hvcoTitles: titles.map(t => {
                 const feedback = t.criticFeedback ? JSON.parse(t.criticFeedback) : {};
                 return {
@@ -301,3 +439,34 @@ export async function getResearchQualityMetrics(db: Db, projectId: string) {
                 dimensionsCovered >= 3 ? 'C' : 'D'
     };
 }
+
+// ============================================
+// PROJECT MANAGEMENT (Migrated from V1)
+// ============================================
+
+export const createProject = async (db: Db, userId: string, name: string) => {
+    const projectId = nanoid();
+    await db.insert(projects).values({
+        id: projectId,
+        accountId: userId,
+        name,
+        industry: '',
+        status: 'research',
+    });
+    return projectId;
+};
+
+export const getProjects = async (db: Db, userId: string) => {
+    return await db.select()
+        .from(projects)
+        .where(eq(projects.accountId, userId))
+        .orderBy(desc(projects.createdAt));
+};
+
+export const getProject = async (db: Db, projectId: string) => {
+    const result = await db.select()
+        .from(projects)
+        .where(eq(projects.id, projectId))
+        .get();
+    return result;
+};

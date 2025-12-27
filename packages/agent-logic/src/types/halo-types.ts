@@ -8,7 +8,7 @@
 // ============================================
 
 export interface WateringHole {
-    platform: 'reddit' | 'youtube' | 'facebook' | 'quora' | 'forum' | 'other';
+    platform: 'reddit' | 'youtube' | 'facebook' | 'quora' | 'forum' | 'amazon_book' | 'other';
     url: string;
     name: string;
     relevanceScore: number; // 0-100
@@ -23,6 +23,28 @@ export interface DiscoveryResult {
 }
 
 // ============================================
+// PHASE 1.5: COMPETITOR RECON
+// ============================================
+
+export interface CompetitorOffer {
+    competitorName: string;
+    url: string;
+    hvco: string;
+    primaryOffer: {
+        name: string;
+        price: string;
+        promise: string;
+    };
+    funnelSteps: string[];
+    weaknesses: string[];
+}
+
+export interface CompetitorReconResult {
+    competitors: CompetitorOffer[];
+    timestamp: string;
+}
+
+// ============================================
 // PHASE 2: DEEP LISTENING (Content Extraction)
 // ============================================
 
@@ -30,6 +52,9 @@ export interface ContentSource {
     url: string;
     platform: string;
     title: string;
+    reviewRating?: number;     // for Amazon 3-star analysis
+    whatWasMissing?: string;   // Golden Gap
+    reviewTitle?: string;
 }
 
 export interface RawExtract {
@@ -67,6 +92,8 @@ export interface ClassifiedContent {
     emotionalState: EmotionalState;
     category: ContentCategory;
     confidence: number; // 0-100
+    relevanceScore: number; // 0-100 (Relevance to topic)
+    isRelevant: boolean; // Should be included?
     reasoning: string;
 }
 
@@ -107,7 +134,18 @@ export interface AvatarDimensions {
     deepestFears: string[];            // Dim 5: Fears
     communicationPrefs: string[];      // Dim 6: How they communicate
     vernacular: VernacularEntry[];     // Dim 7: Their exact language
-    dayInLife: string;                 // Dim 8: Typical day narrative
+    dayInLife: {
+        wakeTime: string;
+        morningRoutine: string;
+        checkPhoneFirst: boolean;
+        commuteType: string;
+        peakStressTime: string;
+        downtime: string;
+        eveningRoutine: string;
+        bedTime: string;
+        bestContactTimes: string[];
+    }; // Dim 8: Typical day narrative
+    competitorGapsTheyFeel: string[];
     happinessTriggers: string[];       // Dim 9: What makes them happy
 }
 
@@ -192,6 +230,7 @@ export interface CompleteHaloResearch {
 
     // Phase outputs
     discovery: DiscoveryResult;
+    competitorRecon?: CompetitorReconResult; // Phase 1.5
     listening: ListeningResult;
     classification: ClassificationResult;
     avatar: AvatarSynthesisResult;
@@ -212,6 +251,7 @@ export interface AgentEnv {
     AI: any;                           // Cloudflare Workers AI binding
     TAVILY_API_KEY: string;
     DB: any;                           // D1 Database binding
+    VIRTUAL_BROWSER?: any;             // Cloudflare Browser Binding
 }
 
 export interface AgentContext {

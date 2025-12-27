@@ -5,6 +5,7 @@ import "./styles/globals.css";
 
 import { createRouter } from "./router";
 import reportWebVitals from "./reportWebVitals";
+import { ThemeProvider } from "./components/common/theme-provider";
 
 // Create a new router instance
 const router = createRouter();
@@ -15,7 +16,9 @@ if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <StrictMode>
-      <RouterProvider router={router} />
+      <ThemeProvider defaultTheme="dark" storageKey="audiencehero-theme">
+        <RouterProvider router={router} />
+      </ThemeProvider>
     </StrictMode>,
   );
 }

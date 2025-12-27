@@ -1,5 +1,5 @@
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:workers';
-import { PHASE_PROMPTS } from '@repo/agent-logic/prompts';
+import { PHASE_PROMPTS } from '@repo/agent-logic';
 import { initDatabase } from '@repo/data-ops/database';
 import { haloAnalysis, dreamBuyerAvatar, competitorOfferMap, godfatherOffer } from '@repo/data-ops/schema';
 import { eq, desc } from 'drizzle-orm';

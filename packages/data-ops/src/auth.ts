@@ -1,6 +1,9 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { getDb } from "./db/database";
+// import * as authSchema from "./drizzle-out/auth-schema"; // Import all as authSchema
+import { stripe } from "@better-auth/stripe";
+import Stripe from "stripe";
 import {
   account,
   session,
@@ -8,8 +11,6 @@ import {
   user,
   verification,
 } from "./drizzle-out/auth-schema";
-import { stripe } from "@better-auth/stripe";
-import Stripe from "stripe";
 
 let auth: ReturnType<typeof betterAuth>;
 
@@ -19,11 +20,18 @@ type StripeConfig = {
   stripeApiKey?: string;
 };
 
+type AuthConfig = {
+  baseURL?: string;
+  trustedOrigins?: string[];
+};
+
 export function createBetterAuth(
   database: NonNullable<Parameters<typeof betterAuth>[0]>["database"],
   secret: string,
   stripeConfig?: StripeConfig,
   google?: { clientId: string; clientSecret: string },
+  github?: { clientId: string; clientSecret: string },
+  authConfig?: AuthConfig,
 ): ReturnType<typeof betterAuth> {
   const stripeKey = stripeConfig?.stripeApiKey || process.env.STRIPE_KEY;
   const stripeWebhookSecret = stripeConfig?.stripeWebhookSecret || process.env.STRIPE_WEBHOOK_SECRET;
@@ -35,13 +43,24 @@ export function createBetterAuth(
   return betterAuth({
     database,
     secret: secret,
+    baseURL: authConfig?.baseURL,
+    trustedOrigins: authConfig?.trustedOrigins ?? [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "https://stage.williamjshaw.ca",
+      "https://hero.williamjshaw.ca",
+    ],
     emailAndPassword: {
-      enabled: false,
+      enabled: true,
     },
     socialProviders: {
       google: {
         clientId: google?.clientId ?? "",
         clientSecret: google?.clientSecret ?? "",
+      },
+      github: {
+        clientId: github?.clientId ?? "",
+        clientSecret: github?.clientSecret ?? "",
       },
     },
     plugins: stripeKey && stripeWebhookSecret ? [
@@ -62,6 +81,8 @@ export function getAuth(
   google: { clientId: string; clientSecret: string },
   stripe: StripeConfig,
   secret: string,
+  github?: { clientId: string; clientSecret: string },
+  authConfig?: AuthConfig,
 ): ReturnType<typeof betterAuth> {
   if (auth) return auth;
 
@@ -79,6 +100,8 @@ export function getAuth(
     secret,
     stripe,
     google,
+    github,
+    authConfig,
   );
   return auth;
 }

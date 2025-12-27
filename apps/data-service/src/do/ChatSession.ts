@@ -201,7 +201,7 @@ export class ChatSession extends DurableObject<Env> {
                     const searchResults = await performWebSearch(args.query, this.env.TAVILY_API_KEY || "no-key");
 
                     // Append Tool Result
-                    const toolResultMsg = `[System: Performed live web search for '${args.query}'. Results: ${searchResults.substring(0, 1500)}...]`;
+                    const toolResultMsg = `[System: Performed live web search for '${args.query}'. Results: ${searchResults.formattedOutput.substring(0, 1500)}...]`;
                     this.messages.push({ role: "system", content: toolResultMsg });
                     await this.saveState();
 
@@ -317,9 +317,9 @@ export class ChatSession extends DurableObject<Env> {
             id: campaignId,
             userId: "user_test",
             name: name,
-            researchData: this.phaseData.research,
-            offerData: this.phaseData.offer,
-            brandVoice: brandVoice,
+            researchData: JSON.stringify(this.phaseData.research),
+            offerData: JSON.stringify(this.phaseData.offer),
+            brandVoice: JSON.stringify(brandVoice),
         });
 
         return `[System: Campaign '${name}' saved successfully with ID: ${campaignId}. You can now use this context in the Generator.]`;

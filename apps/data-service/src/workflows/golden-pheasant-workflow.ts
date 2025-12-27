@@ -1,6 +1,6 @@
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:workers';
 import puppeteer from '@cloudflare/puppeteer';
-import { PHASE_PROMPTS } from '@repo/agent-logic/prompts';
+import { PHASE_PROMPTS } from '@repo/agent-logic';
 import { initDatabase } from '@repo/data-ops/database';
 import { competitors, competitorOfferMap, projects } from '@repo/data-ops/schema';
 import { processUploadedDocument } from './steps/document-processor';

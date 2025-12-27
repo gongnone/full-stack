@@ -6,11 +6,29 @@
     "build-package": "pnpm --filter @repo/data-ops run build",
     "dev-frontend": "pnpm --filter user-application run dev",
     "dev-data-service": "pnpm --filter data-service run dev",
-    "stage:deploy-frontend": "pnpm i && pnpm run build-package && pnpm --filter user-application run stage:deploy",
-    "production:deploy-frontend": "pnpm i && pnpm run build-package && pnpm --filter user-application run production:deploy",
-    "stage:deploy-data-service": "pnpm i && pnpm run build-package && pnpm --filter data-service run stage:deploy",
-    "production:deploy-data-service": "pnpm i && pnpm run build-package && pnpm --filter data-service run production:deploy",
-    "ingest": "npx tsx scripts/ingest-knowledge.ts"
+    "deploy:stage:legacy": "pnpm i && pnpm run build-package && pnpm --filter user-application run stage:deploy",
+    "deploy:stage:foundry": "pnpm i && pnpm --filter foundry-dashboard run stage:deploy",
+    "deploy:stage:backend-legacy": "pnpm i && pnpm run build-package && pnpm --filter data-service run stage:deploy",
+    "deploy:stage:backend-foundry": "pnpm i && pnpm --filter foundry-engine run deploy:stage",
+    "deploy:production:legacy": "pnpm i && pnpm run build-package && pnpm --filter user-application run production:deploy",
+    "deploy:production:foundry": "pnpm i && pnpm --filter foundry-dashboard run production:deploy",
+    "deploy:production:backend-legacy": "pnpm i && pnpm run build-package && pnpm --filter data-service run production:deploy",
+    "deploy:production:backend-foundry": "pnpm i && pnpm --filter foundry-engine run deploy:production",
+    "ingest": "npx tsx scripts/ingest-knowledge.ts",
+    "foundry:dev-dashboard": "pnpm --filter foundry-dashboard run dev",
+    "foundry:dev-engine": "pnpm --filter foundry-engine run dev",
+    "foundry:dev": "pnpm run foundry:dev-dashboard & pnpm run foundry:dev-engine",
+    "foundry:deploy-dashboard": "pnpm i && pnpm --filter foundry-dashboard run deploy",
+    "foundry:deploy-engine": "pnpm i && pnpm --filter foundry-engine run deploy",
+    "foundry:deploy": "pnpm run foundry:deploy-dashboard && pnpm run foundry:deploy-engine",
+    "foundry:typecheck": "pnpm --filter foundry-dashboard --filter foundry-engine --filter @repo/foundry-core --filter @repo/agent-system run typecheck",
+    "foundry:typecheck:build": "pnpm --filter foundry-dashboard run typecheck:build && pnpm --filter @repo/foundry-core run typecheck",
+    "predeploy:validate": "npx tsx scripts/pre-deploy-validate.ts",
+    "predeploy:validate:stage": "npx tsx scripts/pre-deploy-validate.ts stage",
+    "predeploy:validate:production": "npx tsx scripts/pre-deploy-validate.ts production",
+    "foundry:deploy:stage": "pnpm run predeploy:validate:stage && pnpm i && pnpm --filter foundry-engine run deploy:stage && pnpm --filter foundry-dashboard run deploy:stage",
+    "foundry:deploy:production": "pnpm run predeploy:validate:production && pnpm i && pnpm --filter foundry-engine run deploy:production && pnpm --filter foundry-dashboard run deploy:production",
+    "test": "pnpm -r test"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +36,8 @@
   "devDependencies": {
     "@types/node": "^22.15.19",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.16",
+    "wrangler": "^4.56.0"
   }
 }

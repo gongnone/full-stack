@@ -1,0 +1,342 @@
+@import 'tailwindcss';
+
+/* Midnight Command Theme */
+html {
+  background-color: #0F1419;
+}
+
+:root {
+  /* Base colors - Midnight Command (locked visual identity) */
+  --bg-base: #0F1419;
+  --bg-elevated: #1A1F26;
+  --bg-surface: #151B22;  /* Distinct from --bg-elevated for input backgrounds */
+  --bg-hover: #242A33;
+  --text-primary: #E7E9EA;
+  --text-secondary: #8B98A5;
+  --text-muted: #9CA3AF; /* WCAG AA compliant: 5.3:1 contrast on --bg-base */
+
+  /* Action colors */
+  --approve: #00D26A;
+  --approve-glow: rgba(0, 210, 106, 0.15);
+  --kill: #F4212E;
+  --kill-glow: rgba(244, 33, 46, 0.15);
+  --edit: #1D9BF0;
+  --edit-glow: rgba(29, 155, 240, 0.15);
+  --warning: #FFAD1F;
+
+  /* Border colors */
+  --border-subtle: #2A3038;
+  --border-focus: #1D9BF0;
+
+  /* shadcn/ui CSS variables mapped to Midnight Command */
+  --background: 214 24% 8%;
+  --foreground: 200 12% 91%;
+  --card: 214 18% 13%;
+  --card-foreground: 200 12% 91%;
+  --popover: 214 18% 13%;
+  --popover-foreground: 200 12% 91%;
+  --primary: 205 86% 53%;
+  --primary-foreground: 214 24% 8%;
+  --secondary: 214 14% 16%;
+  --secondary-foreground: 200 12% 91%;
+  --muted: 214 14% 16%;
+  --muted-foreground: 200 7% 55%;
+  --accent: 214 14% 16%;
+  --accent-foreground: 200 12% 91%;
+  --destructive: 356 90% 54%;
+  --destructive-foreground: 200 12% 91%;
+  --border: 200 8% 20%;
+  --input: 200 8% 20%;
+  --ring: 205 86% 53%;
+  --radius: 0.5rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* SVG baseline sizing - fallback for sidebar icons */
+.sidebar-link svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+/* Focus indicators for accessibility (NFR-A4) */
+*:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* Approve button glow effect */
+.btn-approve:hover {
+  box-shadow: 0 0 20px var(--approve-glow);
+}
+
+/* Kill button glow effect */
+.btn-kill:hover {
+  box-shadow: 0 0 20px var(--kill-glow);
+}
+
+/* Edit button glow effect */
+.btn-edit:hover {
+  box-shadow: 0 0 20px var(--edit-glow);
+}
+
+/* Sidebar transitions */
+.sidebar-link {
+  transition: all 150ms ease;
+}
+
+.sidebar-link:hover {
+  background-color: var(--bg-hover);
+}
+
+.sidebar-link.active {
+  background-color: var(--bg-surface);
+  border-left: 2px solid var(--edit);
+}
+
+/* Command palette overlay */
+.command-palette-overlay {
+  backdrop-filter: blur(4px);
+  background-color: rgba(15, 20, 25, 0.8);
+}
+
+/* Story 2.5: Chip animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+/* Story 3.3: Toast slide-up animation */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+/* Story 3.5: Ingestion Progress Animations */
+
+/* Stage completion checkmark animation */
+@keyframes stageComplete {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-stage-complete {
+  animation: stageComplete 0.4s ease-out forwards;
+}
+
+/* Pillar discovery slide-in animation */
+@keyframes pillarSlideIn {
+  0% {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-pillar-slide-in {
+  animation: pillarSlideIn 0.3s ease-out forwards;
+}
+
+/* Current stage pulse animation */
+@keyframes stagePulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(29, 155, 240, 0.4);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 0 8px rgba(29, 155, 240, 0);
+  }
+}
+
+.animate-stage-pulse {
+  animation: stagePulse 1.5s ease-in-out infinite;
+}
+
+/* Success checkmark bounce animation */
+@keyframes successCheck {
+  0% {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.3) rotate(10deg);
+  }
+  70% {
+    transform: scale(0.9) rotate(-5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.animate-success-check {
+  animation: successCheck 0.6s ease-out forwards;
+}
+
+/* Progress bar fill animation */
+@keyframes progressFill {
+  from {
+    width: 0%;
+  }
+}
+
+.animate-progress-fill {
+  animation: progressFill 0.5s ease-out forwards;
+}
+
+/* Counter increment animation */
+@keyframes counterPop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-counter-pop {
+  animation: counterPop 0.3s ease-out;
+}
+
+/* Story 3.1/3.3: Pillar Pruning stagger animation */
+@keyframes pillarPrune {
+  0% {
+    transform: scale(1) translateX(0);
+    opacity: 1;
+    filter: blur(0);
+  }
+  30% {
+    transform: scale(0.95) translateX(10px);
+    opacity: 0.8;
+  }
+  60% {
+    transform: scale(0.9) translateX(30px);
+    opacity: 0.4;
+    filter: blur(2px);
+  }
+  100% {
+    transform: scale(0.8) translateX(60px);
+    opacity: 0;
+    filter: blur(4px);
+  }
+}
+
+.animate-pillar-prune {
+  animation: pillarPrune 0.4s ease-out forwards;
+}
+
+/* Staggered pillar entrance for Configure Pillars step */
+@keyframes pillarStaggerIn {
+  0% {
+    transform: translateY(20px) scale(0.95);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(-5px) scale(1.02);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-pillar-stagger-in {
+  animation: pillarStaggerIn 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+/* Stagger delays for pillar cards */
+.pillar-stagger-0 { animation-delay: 0ms; }
+.pillar-stagger-1 { animation-delay: 80ms; }
+.pillar-stagger-2 { animation-delay: 160ms; }
+.pillar-stagger-3 { animation-delay: 240ms; }
+.pillar-stagger-4 { animation-delay: 320ms; }
+.pillar-stagger-5 { animation-delay: 400ms; }
+.pillar-stagger-6 { animation-delay: 480ms; }
+.pillar-stagger-7 { animation-delay: 560ms; }
+
+/* Source selection card hover effects */
+.source-card {
+  transition: all 0.2s ease-out;
+}
+
+.source-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.source-card:active {
+  transform: translateY(0);
+}
+
+/* Pillar card glow on edit focus */
+.pillar-card-editing {
+  box-shadow: 0 0 0 2px var(--edit), 0 4px 20px var(--edit-glow);
+}
+
+/* Wizard step indicator animation */
+@keyframes stepComplete {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 var(--approve-glow);
+  }
+  50% {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 8px transparent;
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.animate-step-complete {
+  animation: stepComplete 0.5s ease-out;
+}

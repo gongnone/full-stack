@@ -29,6 +29,7 @@
 
   "env": {
     "stage": {
+      "keep_vars": true,
       "d1_databases": [
         {
           "binding": "DB",
@@ -129,6 +130,7 @@
       ]
     },
     "production": {
+      "keep_vars": true,
       "d1_databases": [
         {
           "binding": "DB",

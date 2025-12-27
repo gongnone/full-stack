@@ -48,6 +48,7 @@
   "env": {
     "stage": {
       "name": "foundry-dashboard-stage",
+      "keep_vars": true,
       "routes": [
         {
           "pattern": "foundry-stage.williamjshaw.ca",
@@ -89,6 +90,7 @@
     },
     "production": {
       "name": "foundry-dashboard-production",
+      "keep_vars": true,
       "routes": [
         {
           "pattern": "foundry.williamjshaw.ca",

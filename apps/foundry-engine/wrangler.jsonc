@@ -110,6 +110,7 @@
   "env": {
     "stage": {
       "name": "foundry-engine-stage",
+      "keep_vars": true,
       "vars": {
         "ENVIRONMENT": "stage"
       },
@@ -193,6 +194,7 @@
     },
     "production": {
       "name": "foundry-engine-production",
+      "keep_vars": true,
       "vars": {
         "ENVIRONMENT": "production"
       },

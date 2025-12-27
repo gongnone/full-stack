@@ -67,7 +67,7 @@ describe('PillarConfigurator', () => {
 
     // Trigger update on first pillar
     const updateButtons = screen.getAllByText('Simulate Update');
-    fireEvent.click(updateButtons[0]);
+    fireEvent.click(updateButtons[0]!);
     
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({

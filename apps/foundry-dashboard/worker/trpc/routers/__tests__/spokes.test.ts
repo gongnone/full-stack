@@ -3,6 +3,10 @@ import { spokesRouter } from '../spokes';
 import { createMockContext } from './utils';
 import { TRPCError } from '@trpc/server';
 
+const CLIENT_ID = '00000000-0000-0000-0000-000000000000';
+const HUB_ID = '00000000-0000-0000-0000-000000000001';
+const SPOKE_ID_1 = '00000000-0000-0000-0000-000000000002';
+
 describe('spokesRouter', () => {
   let mockCtx: ReturnType<typeof createMockContext>;
 
@@ -82,18 +86,44 @@ describe('spokesRouter', () => {
   });
 
   describe('edit', () => {
-    it('edits spoke content', async () => {
-      const { ctx } = mockCtx;
+    it('edits spoke content and calculates edit distance', async () => {
+      const { ctx, mockCallAgent } = mockCtx;
       const caller = spokesRouter.createCaller(ctx);
       const input = {
-        spokeId: '00000000-0000-0000-0000-000000000002',
-        content: 'Modified content',
+        clientId: CLIENT_ID,
+        spokeId: SPOKE_ID_1,
+        content: 'Modified content here',
       };
+
+      // Mock getSpoke to return original content
+      mockCallAgent.mockResolvedValueOnce({ content: 'Original content' });
+      // Mock updateSpoke
+      mockCallAgent.mockResolvedValueOnce({ success: true });
 
       const result = await caller.edit(input);
 
       expect(result.success).toBe(true);
-      expect(result.editDistance).toBeDefined();
+      expect(result.editDistance).toBeGreaterThan(0);
+      expect(result.editDistance).toBeLessThan(1);
+      expect(mockCallAgent).toHaveBeenCalledWith(CLIENT_ID, 'getSpoke', { spokeId: SPOKE_ID_1 });
+      expect(mockCallAgent).toHaveBeenCalledWith(CLIENT_ID, 'updateSpoke', {
+        spokeId: SPOKE_ID_1,
+        updates: { content: 'Modified content here' },
+      });
+    });
+
+    it('throws NOT_FOUND when spoke does not exist', async () => {
+      const { ctx, mockCallAgent } = mockCtx;
+      const caller = spokesRouter.createCaller(ctx);
+      const input = {
+        clientId: CLIENT_ID,
+        spokeId: SPOKE_ID_1,
+        content: 'New content',
+      };
+
+      mockCallAgent.mockResolvedValueOnce(null);
+
+      await expect(caller.edit(input)).rejects.toThrow('Spoke not found');
     });
   });
 

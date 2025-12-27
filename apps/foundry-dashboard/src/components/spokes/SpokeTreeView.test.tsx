@@ -36,8 +36,9 @@ describe('SpokeTreeView', () => {
 
   it('filters spokes by platform', () => {
     render(<SpokeTreeView {...defaultProps} platformFilter="linkedin" />);
-    // Header stat should update
-    expect(screen.getByText(/1 spokes/)).toBeInTheDocument();
+    // Header stat should update - match the full header pattern to avoid ambiguity
+    // with individual pillar counts
+    expect(screen.getByText(/1 pillars.*1 spokes/)).toBeInTheDocument();
   });
 
   it('toggles pillar expansion', () => {

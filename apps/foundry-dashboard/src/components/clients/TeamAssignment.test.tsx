@@ -61,7 +61,7 @@ describe('TeamAssignment - Story 7-2: RBAC and Team Assignment', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    global.confirm = vi.fn(() => true);
+    (globalThis as any).confirm = vi.fn(() => true);
   });
 
   describe('AC1: Add Team Member', () => {

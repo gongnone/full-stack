@@ -87,3 +87,13 @@ temp/
 
 # Claude Code
 .claude/audio/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# iCloud sync conflict files
+*\ 2.*
+*\ 2
+*\ 3.*
+*\ 3

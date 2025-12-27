@@ -261,7 +261,7 @@ describe('HubSettings', () => {
       expect(screen.getByText('Are you sure?')).toBeInTheDocument();
 
       const cancelButtons = screen.getAllByText('Cancel');
-      await user.click(cancelButtons[cancelButtons.length - 1]);
+      await user.click(cancelButtons[cancelButtons.length - 1]!);
 
       expect(screen.queryByText('Are you sure?')).not.toBeInTheDocument();
     });

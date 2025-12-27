@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { Context } from '../context';
+import type { Context } from '../../context';
 
 export const createMockContext = () => {
   const mockDb = {

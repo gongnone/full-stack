@@ -111,7 +111,7 @@ describe('StepUploadSource', () => {
 
       // Click the mocked upload button inside SourceDropZone
       const uploadButtons = screen.getAllByText('Upload PDF');
-      fireEvent.click(uploadButtons[uploadButtons.length - 1]); // The button inside the mock
+      fireEvent.click(uploadButtons[uploadButtons.length - 1]!); // The button inside the mock
 
       expect(defaultProps.onSourceSelected).toHaveBeenCalledWith('pdf-source-123', 'pdf');
     });

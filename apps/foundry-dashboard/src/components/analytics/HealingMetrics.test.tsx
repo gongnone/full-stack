@@ -27,7 +27,7 @@ vi.mock('@/lib/use-client-id', () => ({
 }));
 
 // ResizeObserver mock for recharts
-global.ResizeObserver = class ResizeObserver {
+(globalThis as any).ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}

@@ -44,7 +44,7 @@ describe('ContentCard', () => {
     // Approve is on the right, linked to '→' hint.
     const buttons = screen.getAllByRole('button');
     // Usually: [Kill, Edit, Approve]
-    fireEvent.click(buttons[2]); 
+    fireEvent.click(buttons[2]!);
     expect(onApprove).toHaveBeenCalled();
   });
 
@@ -53,7 +53,7 @@ describe('ContentCard', () => {
     render(<ContentCard spoke={mockSpoke} onKill={onKill} />);
     
     const buttons = screen.getAllByRole('button');
-    fireEvent.click(buttons[0]); 
+    fireEvent.click(buttons[0]!);
     expect(onKill).toHaveBeenCalled();
   });
 
@@ -62,7 +62,7 @@ describe('ContentCard', () => {
     render(<ContentCard spoke={mockSpoke} onEdit={onEdit} />);
     
     const buttons = screen.getAllByRole('button');
-    fireEvent.click(buttons[1]); 
+    fireEvent.click(buttons[1]!);
     expect(onEdit).toHaveBeenCalled();
   });
 

@@ -379,17 +379,35 @@ export const calibrationRouter = t.router({
   uploadContent: procedure
     .input(z.object({
       clientId: z.string().uuid(),
-      content: z.array(z.string()),
+      content: z.array(z.string()).min(1).max(50),
       contentType: z.enum(['posts', 'articles', 'transcripts']),
     }))
     .mutation(async ({ ctx, input }) => {
-      const analysisId = crypto.randomUUID();
+      // Trigger CalibrationWorkflow via CONTENT_ENGINE
+      const response = await ctx.env.CONTENT_ENGINE.fetch(
+        new Request('http://internal/api/calibration/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId: input.clientId,
+            contentType: input.contentType,
+            content: input.content.join('\n\n---\n\n'), // Join content samples
+          }),
+        })
+      );
 
-      // TODO: Trigger CalibrationWorkflow via CONTENT_ENGINE
+      if (!response.ok) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to start calibration workflow',
+        });
+      }
+
+      const result = await response.json() as { instanceId: string; status: string };
 
       return {
-        analysisId,
-        status: 'processing' as const,
+        analysisId: result.instanceId,
+        status: result.status as 'processing',
       };
     }),
 

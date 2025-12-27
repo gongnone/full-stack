@@ -161,7 +161,7 @@ describe('ClientManager - Story 7-1: Client Account Management', () => {
       render(<ClientManager />);
 
       // Click dropdown menu
-      const moreButton = screen.getAllByRole('button')[0];
+      const moreButton = screen.getAllByRole('button')[0]!;
       await user.click(moreButton);
 
       // Click edit option
@@ -196,7 +196,7 @@ describe('ClientManager - Story 7-1: Client Account Management', () => {
       render(<ClientManager />);
 
       // Open edit modal
-      const moreButton = screen.getAllByRole('button')[0];
+      const moreButton = screen.getAllByRole('button')[0]!;
       await user.click(moreButton);
       await user.click(screen.getByText('Edit Details'));
 
@@ -244,7 +244,7 @@ describe('ClientManager - Story 7-1: Client Account Management', () => {
       render(<ClientManager />);
 
       // Open edit modal
-      const moreButton = screen.getAllByRole('button')[0];
+      const moreButton = screen.getAllByRole('button')[0]!;
       await user.click(moreButton);
       await user.click(screen.getByText('Edit Details'));
 
@@ -285,7 +285,7 @@ describe('ClientManager - Story 7-1: Client Account Management', () => {
       render(<ClientManager />);
 
       // Open edit modal
-      const moreButton = screen.getAllByRole('button')[0];
+      const moreButton = screen.getAllByRole('button')[0]!;
       await user.click(moreButton);
       await user.click(screen.getByText('Edit Details'));
 
@@ -337,7 +337,7 @@ describe('ClientManager - Story 7-1: Client Account Management', () => {
       render(<ClientManager />);
 
       // Open dropdown
-      const moreButton = screen.getAllByRole('button')[0];
+      const moreButton = screen.getAllByRole('button')[0]!;
       await user.click(moreButton);
 
       expect(screen.getByText('Manage Team')).toBeInTheDocument();

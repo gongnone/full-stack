@@ -19,7 +19,7 @@ vi.mock('@/lib/use-client-id', () => ({
   useClientId: () => mockClientId,
 }));
 
-global.ResizeObserver = class ResizeObserver {
+(globalThis as any).ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}
@@ -48,7 +48,7 @@ describe('KillAnalytics', () => {
 
     // Make last week slightly better (fewer kills) to test 'improving'
     for(let i=7; i<14; i++) {
-        mockData[i].totalKills = 5;
+        mockData[i]!.totalKills = 5;
     }
 
     mockUseQuery.mockReturnValue({

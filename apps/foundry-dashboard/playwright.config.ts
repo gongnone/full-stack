@@ -45,24 +45,30 @@ export default defineConfig({
   },
 
   /* Configure projects for major browsers */
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-      // WebKit has known issues with cookie/session handling - add retries
-      retries: 1,
-    },
-  ],
+  /* On CI: Only run Chromium to stay within 30min timeout per shard */
+  /* Locally: Run all browsers for comprehensive testing */
+  projects: process.env.CI
+    ? [
+        {
+          name: 'chromium',
+          use: { ...devices['Desktop Chrome'] },
+        },
+      ]
+    : [
+        {
+          name: 'chromium',
+          use: { ...devices['Desktop Chrome'] },
+        },
+        {
+          name: 'firefox',
+          use: { ...devices['Desktop Firefox'] },
+        },
+        {
+          name: 'webkit',
+          use: { ...devices['Desktop Safari'] },
+          retries: 1,
+        },
+      ],
 
   /* Run your local dev server before starting the tests - skip for remote URLs */
   webServer: isRemote ? undefined : [

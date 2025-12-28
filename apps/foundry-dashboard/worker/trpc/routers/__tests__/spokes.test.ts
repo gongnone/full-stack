@@ -84,7 +84,7 @@ describe('spokesRouter', () => {
 
       // Verify response uses snake_case
       expect(result.items).toHaveLength(1);
-      const spoke = result.items[0];
+      const spoke = result.items[0]!;
 
       // Critical: pillar_id must be defined for SpokeTreeView grouping
       expect(spoke.pillar_id).toBe(PILLAR_ID_1);

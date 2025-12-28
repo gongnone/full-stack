@@ -133,7 +133,12 @@ jobs:
             # Run only the base accessibility tests (login/signup pages - no auth required)
             # Tests requiring auth fail on staging due to login timeouts
             # Full test suite requires local dev environment or manual trigger with test_filter
-            pnpm exec playwright test e2e/accessibility.spec.ts --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+            # Skip sharding for minimal test set (only 3 tests) - run on shard 1 only
+            if [ "${{ matrix.shardIndex }}" = "1" ]; then
+              pnpm exec playwright test e2e/accessibility.spec.ts
+            else
+              echo "Skipping shard ${{ matrix.shardIndex }} - minimal test set runs on shard 1 only"
+            fi
           fi
 
       - name: 📊 Upload Blob Report

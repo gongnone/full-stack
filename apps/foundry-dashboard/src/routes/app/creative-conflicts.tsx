@@ -271,7 +271,7 @@ function CreativeConflictsPage() {
 
   // Filter spokes based on platform and gate
   const filteredSpokes = useMemo(() => {
-    let spokes = (spokesData?.items || []) as Spoke[];
+    let spokes = (spokesData?.items || []) as unknown as Spoke[];
 
     // Platform filter
     if (platformFilter !== 'all') {

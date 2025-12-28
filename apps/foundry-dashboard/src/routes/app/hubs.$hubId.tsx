@@ -377,7 +377,7 @@ function HubDetailPage() {
       carousel: 0,
     };
 
-    const spokes = (spokesData?.items || []) as Spoke[];
+    const spokes = (spokesData?.items || []) as unknown as Spoke[];
     spokes.forEach((s) => {
       counts.all++;
       counts[s.platform]++;
@@ -421,7 +421,7 @@ function HubDetailPage() {
 
   const statusConfig = STATUS_CONFIG[hub.status as keyof typeof STATUS_CONFIG] ?? DEFAULT_STATUS_CONFIG;
   const totalEstimatedSpokes = hub.pillars.reduce((sum: number, p: Pillar) => sum + p.estimatedSpokeCount, 0);
-  const spokes = (spokesData?.items || []) as Spoke[];
+  const spokes = (spokesData?.items || []) as unknown as Spoke[];
   const hasSpokes = hub.spoke_count > 0 || spokes.length > 0;
 
   return (

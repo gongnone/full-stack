@@ -177,10 +177,14 @@ jobs:
           if [ -n "${{ github.event.inputs.test_filter }}" ]; then
             pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}"
           else
-            # Run a smaller set of critical tests to verify auth works
-            # Full P0 suite (73 tests) takes too long without sharding
-            # Using story-1.3 (dashboard shell) as auth-required smoke test
-            pnpm exec playwright test e2e/story-1.3-dashboard-shell.spec.ts e2e/accessibility.spec.ts
+            # Run only tests that don't require auth (accessibility + public pages)
+            # Authenticated tests require local run due to network latency from
+            # GitHub Actions to Cloudflare staging (login times out at 30s)
+            #
+            # Run authenticated tests locally:
+            #   BASE_URL=https://foundry-stage.williamjshaw.ca pnpm test:e2e
+            # Or trigger manually with: test_filter=@P0
+            pnpm exec playwright test e2e/accessibility.spec.ts
           fi
 
       - name: 📊 Upload Blob Report

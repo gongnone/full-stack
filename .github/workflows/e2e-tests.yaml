@@ -129,6 +129,10 @@ jobs:
           # Apply test filter if provided via workflow dispatch
           if [ -n "${{ github.event.inputs.test_filter }}" ]; then
             pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+          # Run P1 tests on pull requests targeting main branch
+          elif [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; then
+            echo "Running P1 tests for PR to main..."
+            pnpm exec playwright test --grep "@P1" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
           else
             # Run only the base accessibility tests (login/signup pages - no auth required)
             # Tests requiring auth fail on staging due to login timeouts

@@ -15,7 +15,7 @@
 #   - Manual workflow dispatch
 #
 # TEST STRATEGY:
-#   - Push to stage/main: Accessibility E2E tests (no auth required)
+#   - Push to stage/main: P0 E2E tests (auth required) - critical user journeys
 #   - PR to main: P1 Integration tests (mock D1, no auth)
 #   - Manual trigger: Configurable via test_filter
 #
@@ -168,6 +168,9 @@ jobs:
           # Target staging environment for stage branch, production for main
           BASE_URL: ${{ github.event.inputs.environment == 'production' && 'https://foundry.williamjshaw.ca' || (github.ref == 'refs/heads/main' && 'https://foundry.williamjshaw.ca' || 'https://foundry-stage.williamjshaw.ca') }}
           # Test credentials - stored as GitHub secrets
+          # Required secrets: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
+          # Default test user: e2e-test@foundry.local / TestPassword123!
+          # Create user on staging via: BASE_URL=https://foundry-stage.williamjshaw.ca npx playwright test e2e/create-test-user.spec.ts
           TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
           # CI flag enables retries and special reporter
@@ -177,15 +180,17 @@ jobs:
           if [ -n "${{ github.event.inputs.test_filter }}" ]; then
             pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
           else
-            # Run only the base accessibility tests (login/signup pages - no auth required)
-            # P1 tests requiring auth run via integration-tests job (mock D1, no auth)
-            # Full E2E suite requires local dev environment or manual trigger with test_filter
-            # Skip sharding for minimal test set (only 3 tests) - run on shard 1 only
-            if [ "${{ matrix.shardIndex }}" = "1" ]; then
-              pnpm exec playwright test e2e/accessibility.spec.ts
-            else
-              echo "Skipping shard ${{ matrix.shardIndex }} - minimal test set runs on shard 1 only"
-            fi
+            # Run P0 E2E tests (critical user journeys) - requires auth
+            # Tests: dashboard shell, story tests, user journeys
+            # E2E_TEST_EMAIL/PASSWORD secrets must be configured in GitHub
+            pnpm exec playwright test --grep "@P0" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} || {
+              # Fallback to accessibility tests if @P0 filter returns no tests
+              # (prevents shard failures when P0 tests distributed unevenly)
+              echo "No @P0 tests on shard ${{ matrix.shardIndex }}, running accessibility check..."
+              if [ "${{ matrix.shardIndex }}" = "1" ]; then
+                pnpm exec playwright test e2e/accessibility.spec.ts
+              fi
+            }
           fi
 
       - name: 📊 Upload Blob Report

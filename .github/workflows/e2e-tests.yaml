@@ -15,9 +15,9 @@
 #   - Manual workflow dispatch
 #
 # TEST STRATEGY:
-#   - Push to stage/main: P0 E2E tests (auth required) - critical user journeys
-#   - PR to main: P1 Integration tests (mock D1, no auth)
-#   - Manual trigger: Configurable via test_filter
+#   - All pushes/PRs: P1 Integration tests (173 tests, mock D1, fast)
+#   - All pushes/PRs: Accessibility E2E tests (no auth required)
+#   - Manual trigger: Full E2E suite via test_filter (e.g., @P0)
 #
 # CONFIGURATION:
 #   - Sharding: 4 parallel workers for faster execution
@@ -96,8 +96,7 @@ jobs:
     needs: typecheck
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # Run on PRs to main, or manual trigger
-    if: github.event_name == 'pull_request' && github.base_ref == 'main' || github.event_name == 'workflow_dispatch'
+    # Run on all pushes and PRs - build confidence on stage before production
 
     steps:
       - uses: actions/checkout@v4

@@ -36,6 +36,9 @@ function ExportsPage() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedExportId, setSelectedExportId] = useState<string | null>(null);
 
+  // tRPC Utils for imperative queries
+  const utils = trpc.useUtils();
+
   // tRPC Queries
   const exportsListQuery = trpc.exports.list.useQuery(
     { clientId: clientId!, limit: EXPORT_CONFIG.HISTORY_LIMIT },
@@ -67,17 +70,18 @@ function ExportsPage() {
     });
   };
 
-  const handleDownload = async (exportId: string, format: string) => {
+  const handleDownload = async (exportId: string, _format: string) => {
     if (!clientId) return;
 
     try {
-      const result = await trpc.exports.getDownloadUrl.useQuery({
+      // Use utils.fetch() to call query imperatively (not useQuery which is a hook)
+      const result = await utils.exports.getDownloadUrl.fetch({
         clientId,
         exportId,
       });
 
-      if (result.data?.url) {
-        window.open(result.data.url, '_blank');
+      if (result?.url) {
+        window.open(result.url, '_blank');
       } else {
         throw new Error('Download URL not available');
       }

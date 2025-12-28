@@ -23,15 +23,35 @@ function ClientSettingsPage() {
       setIsAddMemberModalOpen(false);
       setMemberEmail('');
     },
+    onError: (err) => {
+      alert(`Failed to add member: ${err.message}`);
+    },
+  });
+
+  const removeMemberMutation = trpc.clients.removeMember.useMutation({
+    onSuccess: () => {
+      utils.clients.listMembers.invalidate({ clientId });
+    },
+    onError: (err) => {
+      alert(`Failed to remove member: ${err.message}`);
+    },
   });
 
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!memberEmail.trim()) return;
-    
+    const trimmedEmail = memberEmail.trim();
+    if (!trimmedEmail) return;
+
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
     addMemberMutation.mutate({
       clientId,
-      email: memberEmail,
+      email: trimmedEmail,
       role: memberRole,
     });
   };
@@ -167,8 +187,17 @@ function ClientSettingsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <button className="text-xs font-medium hover:underline" style={{ color: 'var(--kill)' }}>
-                        Remove
+                      <button
+                        onClick={() => {
+                          if (confirm(`Remove ${member.name || member.email} from this client?`)) {
+                            removeMemberMutation.mutate({ clientId, memberId: member.id });
+                          }
+                        }}
+                        disabled={removeMemberMutation.isPending}
+                        className="text-xs font-medium hover:underline disabled:opacity-50"
+                        style={{ color: 'var(--kill)' }}
+                      >
+                        {removeMemberMutation.isPending ? 'Removing...' : 'Remove'}
                       </button>
                     </td>
                   </tr>

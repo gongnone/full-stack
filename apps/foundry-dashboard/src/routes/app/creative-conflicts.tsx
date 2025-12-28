@@ -267,6 +267,9 @@ function CreativeConflictsPage() {
       setTimeout(() => setSuccessMessage(null), 3000);
       refetch();
     },
+    onError: (err) => {
+      alert(`Failed to approve: ${err.message}`);
+    },
   });
 
   const rejectMutation = trpc.spokes.reject.useMutation({
@@ -274,6 +277,9 @@ function CreativeConflictsPage() {
       setSuccessMessage('Status updated successfully');
       setTimeout(() => setSuccessMessage(null), 3000);
       refetch();
+    },
+    onError: (err) => {
+      alert(`Failed to request rewrite: ${err.message}`);
     },
   });
 

@@ -173,6 +173,14 @@ export function ClientManager() {
                       </DropdownMenu.Item>
                       <DropdownMenu.Separator className="h-px bg-white/10 my-1" />
                       <DropdownMenu.Item
+                        onClick={() => {
+                          if (confirm(`Archive "${client.name}"? This will hide the client from your workspace.`)) {
+                            updateClientMutation.mutate({
+                              clientId: client.id,
+                              status: 'archived',
+                            });
+                          }
+                        }}
                         className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 transition-colors text-red-500"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -212,7 +220,15 @@ export function ClientManager() {
       )}
 
       {/* Edit Client Modal */}
-      <Dialog.Root open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+      <Dialog.Root
+        open={isEditModalOpen}
+        onOpenChange={(open) => {
+          setIsEditModalOpen(open);
+          if (!open) {
+            setSelectedClient(null);
+          }
+        }}
+      >
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in duration-200" />
           <Dialog.Content

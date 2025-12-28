@@ -124,7 +124,9 @@ export class ReviewPage extends BasePage {
    */
   async approveWithKeyboard(): Promise<void> {
     await this.page.keyboard.press('ArrowRight');
-    await this.page.waitForTimeout(250); // Wait for animation
+    // Wait for animation flash or content update
+    await this.greenFlash.waitFor({ state: 'visible', timeout: 500 }).catch(() => {});
+    await this.greenFlash.waitFor({ state: 'hidden', timeout: 500 }).catch(() => {});
   }
 
   /**
@@ -132,7 +134,9 @@ export class ReviewPage extends BasePage {
    */
   async killWithKeyboard(): Promise<void> {
     await this.page.keyboard.press('ArrowLeft');
-    await this.page.waitForTimeout(250);
+    // Wait for animation flash or content update
+    await this.redFlash.waitFor({ state: 'visible', timeout: 500 }).catch(() => {});
+    await this.redFlash.waitFor({ state: 'hidden', timeout: 500 }).catch(() => {});
   }
 
   /**
@@ -140,17 +144,21 @@ export class ReviewPage extends BasePage {
    */
   async skipWithKeyboard(): Promise<void> {
     await this.page.keyboard.press('Space');
-    await this.page.waitForTimeout(250);
+    // Wait for animation flash or content update
+    await this.yellowFlash.waitFor({ state: 'visible', timeout: 500 }).catch(() => {});
+    await this.yellowFlash.waitFor({ state: 'hidden', timeout: 500 }).catch(() => {});
   }
 
   /**
    * Trigger Hub Kill by holding H for 500ms
+   * Note: 550ms timeout is intentional - simulates user holding H key for required duration
    */
   async triggerHubKill(): Promise<void> {
     await this.page.keyboard.down('h');
+    // Intentional delay: H key must be held 500ms+ to trigger hub kill
     await this.page.waitForTimeout(550);
     await this.page.keyboard.up('h');
-    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
+    await this.page.waitForLoadState('domcontentloaded').catch(() => {});
   }
 
   /**
@@ -273,7 +281,7 @@ export class ReviewPage extends BasePage {
         break;
     }
 
-    // Wait for UI to update
+    // Minimal wait for UI to register the action (measurement method)
     await this.page.waitForTimeout(50);
 
     return Date.now() - startTime;

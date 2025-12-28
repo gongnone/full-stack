@@ -112,7 +112,7 @@ export async function runHaloResearchV2(
     // PHASE 3: CLASSIFICATION
     // ========================================
     console.log(`[HaloResearch V2] === PHASE 3: CLASSIFICATION ===`);
-    const classification = await runClassificationAgent(env, listening);
+    const classification = await runClassificationAgent(env, listening, context);
     console.log(`[HaloResearch V2] Classified ${classification.classifiedContent.length} items`);
 
     // ========================================

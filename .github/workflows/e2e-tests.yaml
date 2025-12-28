@@ -1,10 +1,11 @@
 # 🧪 E2E Test Pipeline
 #
-# Runs Playwright E2E tests against the Foundry dashboard with parallel sharding.
+# Runs Playwright E2E tests and Vitest integration tests against Foundry dashboard.
 #
 # ARCHITECTURE:
 #   - Foundry MVP: foundry-dashboard + foundry-engine
-#   - Tests run against staging environment (foundry-stage.williamjshaw.ca)
+#   - E2E tests run against staging environment (foundry-stage.williamjshaw.ca)
+#   - Integration tests run with mock D1 (no auth required)
 #   - Supports parallel test execution with sharding
 #   - Uploads artifacts (screenshots, traces, videos) on failure
 #
@@ -12,6 +13,11 @@
 #   - Push to stage/main branches
 #   - Pull requests targeting stage/main
 #   - Manual workflow dispatch
+#
+# TEST STRATEGY:
+#   - Push to stage/main: Accessibility E2E tests (no auth required)
+#   - PR to main: P1 Integration tests (mock D1, no auth)
+#   - Manual trigger: Configurable via test_filter
 #
 # CONFIGURATION:
 #   - Sharding: 4 parallel workers for faster execution
@@ -82,7 +88,48 @@ jobs:
         run: pnpm run foundry:typecheck:build
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # 2. E2E TESTS: Parallel execution with sharding
+  # 2. INTEGRATION TESTS: P1 tests with mock D1 (no auth required)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  integration-tests:
+    name: 🧪 P1 Integration Tests
+    needs: typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Run on PRs to main, or manual trigger
+    if: github.event_name == 'pull_request' && github.base_ref == 'main' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 🧪 Run P1 Integration Tests
+        working-directory: apps/foundry-dashboard
+        run: |
+          echo "Running P1 integration tests with mock D1..."
+          pnpm test:integration
+
+      - name: 📊 Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-coverage
+          path: apps/foundry-dashboard/coverage/
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 3. E2E TESTS: Parallel execution with sharding
   # ═══════════════════════════════════════════════════════════════════════════
 
   e2e-tests:
@@ -129,14 +176,10 @@ jobs:
           # Apply test filter if provided via workflow dispatch
           if [ -n "${{ github.event.inputs.test_filter }}" ]; then
             pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-          # Run P1 tests on pull requests targeting main branch
-          elif [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; then
-            echo "Running P1 tests for PR to main..."
-            pnpm exec playwright test --grep "@P1" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
           else
             # Run only the base accessibility tests (login/signup pages - no auth required)
-            # Tests requiring auth fail on staging due to login timeouts
-            # Full test suite requires local dev environment or manual trigger with test_filter
+            # P1 tests requiring auth run via integration-tests job (mock D1, no auth)
+            # Full E2E suite requires local dev environment or manual trigger with test_filter
             # Skip sharding for minimal test set (only 3 tests) - run on shard 1 only
             if [ "${{ matrix.shardIndex }}" = "1" ]; then
               pnpm exec playwright test e2e/accessibility.spec.ts
@@ -162,7 +205,7 @@ jobs:
           retention-days: 7
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # 3. MERGE REPORTS: Combine sharded test results
+  # 4. MERGE REPORTS: Combine sharded test results
   # ═══════════════════════════════════════════════════════════════════════════
 
   merge-reports:
@@ -208,28 +251,29 @@ jobs:
           retention-days: 14
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # 4. SUMMARY: Test results and next steps
+  # 5. SUMMARY: Test results and next steps
   # ═══════════════════════════════════════════════════════════════════════════
 
   test-summary:
     name: ✅ Test Summary
-    needs: [typecheck, e2e-tests, merge-reports]
+    needs: [typecheck, integration-tests, e2e-tests, merge-reports]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: 📊 Generate Summary
         run: |
           echo "═══════════════════════════════════════════════════════"
-          echo "  🧪 E2E TEST PIPELINE COMPLETE"
+          echo "  🧪 TEST PIPELINE COMPLETE"
           echo "═══════════════════════════════════════════════════════"
           echo ""
           echo "  Environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'stage') }}"
           echo "  Target URL:  ${{ github.event.inputs.environment == 'production' && 'https://foundry.williamjshaw.ca' || (github.ref == 'refs/heads/main' && 'https://foundry.williamjshaw.ca' || 'https://foundry-stage.williamjshaw.ca') }}"
           echo "  Shards:      4 parallel workers"
           echo ""
-          echo "  TypeCheck:   ${{ needs.typecheck.result }}"
-          echo "  E2E Tests:   ${{ needs.e2e-tests.result }}"
-          echo "  Reports:     ${{ needs.merge-reports.result }}"
+          echo "  TypeCheck:        ${{ needs.typecheck.result }}"
+          echo "  Integration (P1): ${{ needs.integration-tests.result }}"
+          echo "  E2E Tests:        ${{ needs.e2e-tests.result }}"
+          echo "  Reports:          ${{ needs.merge-reports.result }}"
           echo ""
           echo "  📊 View merged test report in artifacts"
           echo "  📸 Screenshots and traces available on test failures"
@@ -237,7 +281,7 @@ jobs:
           echo "═══════════════════════════════════════════════════════"
 
       - name: ❌ Fail if tests failed
-        if: needs.e2e-tests.result == 'failure'
+        if: needs.e2e-tests.result == 'failure' || needs.integration-tests.result == 'failure'
         run: |
-          echo "::error::E2E tests failed. Check test artifacts for details."
+          echo "::error::Tests failed. Check test artifacts for details."
           exit 1

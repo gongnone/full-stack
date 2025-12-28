@@ -25,7 +25,7 @@
     "test:settings": "NODE_OPTIONS='--max-old-space-size=8192' vitest run src/components/settings/",
     "test:analytics": "NODE_OPTIONS='--max-old-space-size=8192' vitest run src/components/analytics/",
     "test:batch": "pnpm test:ui && pnpm test:hub-wizard && pnpm test:hubs && pnpm test:clients && pnpm test:exports && pnpm test:review && pnpm test:brand-dna && pnpm test:layout && pnpm test:settings && pnpm test:analytics",
-    "test:integration": "NODE_OPTIONS='--max-old-space-size=8192' vitest run worker/**/*.integration.test.ts",
+    "test:integration": "NODE_OPTIONS='--max-old-space-size=8192' vitest run integration",
     "test:security": "NODE_OPTIONS='--max-old-space-size=8192' vitest run worker/**/security*.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:seeded": "playwright test --grep @seeded",

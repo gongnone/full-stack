@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatDate } from '@/lib/date-utils';
 
 type QualityBadge = 'excellent' | 'good' | 'fair' | 'needs_improvement' | 'pending';
 type SourceType = 'pdf' | 'pasted_text' | 'article' | 'transcript' | 'voice';
@@ -103,13 +104,7 @@ export function TrainingSamplesList({
     }
   };
 
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
+  // formatDate imported from date-utils handles both seconds and milliseconds
 
   const formatWordCount = (count: number) => {
     if (count >= 1000) {

@@ -12,6 +12,7 @@
  */
 
 import type { BrandDNAReport } from '@/../../worker/types';
+import { formatDateTime } from '@/lib/date-utils';
 import { VoiceMetricsProgress } from './VoiceMetricsProgress';
 import { SignaturePhrasesChips } from './SignaturePhrasesChips';
 import { TopicsToAvoid } from './TopicsToAvoid';
@@ -221,7 +222,7 @@ export function BrandDNACard({
         style={{ color: 'var(--text-muted)' }}
       >
         Last calibration:{' '}
-        {new Date(report.lastCalibration.timestamp * 1000).toLocaleString()} via{' '}
+        {formatDateTime(report.lastCalibration.timestamp)} via{' '}
         {report.lastCalibration.source.replace('_', ' ')}
       </p>
     </div>

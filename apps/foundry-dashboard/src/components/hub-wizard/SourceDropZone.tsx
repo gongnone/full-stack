@@ -68,6 +68,11 @@ export function SourceDropZone({ clientId, onSourceCreated, disabled }: SourceDr
         reject(new Error('Upload cancelled'));
       });
 
+      xhr.addEventListener('timeout', () => {
+        reject(new Error('Upload timeout - please try again'));
+      });
+
+      xhr.timeout = 120000; // 2 minute timeout for large PDFs
       xhr.open('POST', url);
       xhr.setRequestHeader('Content-Type', contentType);
       xhr.withCredentials = true; // Include auth cookies
@@ -167,7 +172,7 @@ export function SourceDropZone({ clientId, onSourceCreated, disabled }: SourceDr
         tabIndex={disabled ? -1 : 0}
         data-testid="source-dropzone"
         onClick={!disabled && !isUploading ? handleClick : undefined}
-        onKeyDown={(e) => e.key === 'Enter' && !disabled && !isUploading && handleClick()}
+        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && !disabled && !isUploading && (e.preventDefault(), handleClick())}
         onDrop={!disabled && !isUploading ? handleDrop : undefined}
         onDragOver={!disabled && !isUploading ? handleDragOver : undefined}
         onDragLeave={handleDragLeave}

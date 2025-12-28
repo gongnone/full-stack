@@ -4,6 +4,7 @@
  */
 
 import { Link } from '@tanstack/react-router';
+import { formatDate } from '@/lib/date-utils';
 import type { HubListItem } from '../../../worker/types';
 
 interface HubCardProps {
@@ -80,14 +81,7 @@ function StatusBadge({ status }: { status: HubListItem['status'] }) {
   );
 }
 
-function formatDate(timestamp: number): string {
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
+// formatDate imported from date-utils handles both seconds and milliseconds
 
 export function HubCard({ hub }: HubCardProps) {
   return (

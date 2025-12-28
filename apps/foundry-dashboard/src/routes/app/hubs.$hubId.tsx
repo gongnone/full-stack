@@ -7,6 +7,7 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { formatDate } from '@/lib/date-utils';
 import { SpokeTreeView, GenerationProgress, PlatformFilter } from '@/components/spokes';
 import type { Pillar, Spoke, SpokePlatform, SpokeGenerationProgress } from '../../../worker/types';
 
@@ -50,15 +51,7 @@ const ANGLE_COLORS: Record<string, string> = {
   Rebellion: '#BE185D',
 };
 
-function formatDate(timestamp: number): string {
-  const date = new Date(timestamp * 1000);
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
+// formatDate imported from date-utils handles both seconds and milliseconds
 
 function PillarCard({ pillar }: { pillar: Pillar }) {
   const angleColor = ANGLE_COLORS[pillar.psychologicalAngle] || 'var(--text-muted)';
@@ -454,7 +447,7 @@ function HubDetailPage() {
           <div className="flex items-center gap-4 text-sm" style={{ color: 'var(--text-muted)' }}>
             <span>{SOURCE_TYPE_LABELS[hub.source_type] || hub.source_type}</span>
             <span>•</span>
-            <span>{formatDate(hub.created_at)}</span>
+            <span>{formatDate(hub.created_at, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
           </div>
         </div>
 

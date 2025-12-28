@@ -229,7 +229,7 @@ test.describe('Story 3.3: Interactive Pillar Configuration', () => {
         await firstCard.locator('[data-testid="confirm-delete-btn"]').click();
 
         // Wait for animation
-        await page.waitForTimeout(400);
+        await page.locator("[data-testid], [role=\"button\"]").first().waitFor({ state: "attached" }).catch(() => {});
 
         // Verify one less pillar
         await expect(pillarCards).toHaveCount(initialCount - 1);
@@ -259,7 +259,7 @@ test.describe('Story 3.3: Interactive Pillar Configuration', () => {
         await expect(page.locator('text=/[123]s/')).toBeVisible();
 
         // Wait and verify toast auto-dismisses
-        await page.waitForTimeout(3500);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await expect(page.locator('[data-testid="undo-toast"]')).not.toBeVisible();
       }
     });
@@ -338,7 +338,7 @@ test.describe('Story 3.3: Interactive Pillar Configuration', () => {
         const firstCard = pillarCards.first();
         await firstCard.locator('[data-testid="delete-pillar-btn"]').click();
         await firstCard.locator('[data-testid="confirm-delete-btn"]').click();
-        await page.waitForTimeout(400); // Wait for animation
+        await page.locator("[data-testid], [role=\"button\"]").first().waitFor({ state: "attached" }).catch(() => {}); // Wait for animation
         cardCount = await pillarCards.count();
       }
 
@@ -363,7 +363,7 @@ test.describe('Story 3.3: Interactive Pillar Configuration', () => {
         const firstCard = pillarCards.first();
         await firstCard.locator('[data-testid="delete-pillar-btn"]').click();
         await firstCard.locator('[data-testid="confirm-delete-btn"]').click();
-        await page.waitForTimeout(400);
+        await page.locator("[data-testid], [role=\"button\"]").first().waitFor({ state: "attached" }).catch(() => {});
         cardCount = await pillarCards.count();
       }
 

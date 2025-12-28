@@ -161,7 +161,8 @@ test.describe('Hub and Spoke Integration', () => {
 
     // Click spokes tab if not already active
     await spokesTab.click();
-    await page.waitForTimeout(500);
+    // Wait for spoke content to load
+    await page.locator('[data-testid^="spoke-"], .spoke-item, .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
     console.log('P0-05: Generation progress tracking test passed');
   });
@@ -204,7 +205,8 @@ test.describe('Hub and Spoke Integration', () => {
     // Click Spokes tab
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     await spokesTab.click();
-    await page.waitForTimeout(1000);
+    // Wait for spoke content to render
+    await page.locator('[data-testid^="spoke-"], .spoke-item, .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
     // Look for TreeView structure (pillars with nested spokes)
     // The SpokeTreeView renders pillars as expandable sections
@@ -226,7 +228,8 @@ test.describe('Hub and Spoke Integration', () => {
 
       if (!isExpanded && await expandBtn.isVisible()) {
         await expandBtn.click();
-        await page.waitForTimeout(300);
+        // Wait for expansion animation to complete
+        await expandBtn.waitFor({ state: 'attached' });
       }
 
       // Count spokes within this pillar section
@@ -289,7 +292,9 @@ test.describe('Hub and Spoke Integration', () => {
     // Click Spokes tab to trigger spokes.list query
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     await spokesTab.click();
-    await page.waitForTimeout(2000);
+    // Wait for API response and content to render
+    await page.waitForResponse('**/trpc/spokes.list*').catch(() => {});
+    await page.locator('[data-testid^="spoke-"], .spoke-item, .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
     // Verify intercepted response
     if (spokeResponses.length === 0) {
@@ -356,13 +361,14 @@ test.describe('Hub and Spoke Integration', () => {
     const pillarTab = page.locator('[role="tab"]:has-text("Pillars")');
     if (await pillarTab.isVisible()) {
       await pillarTab.click();
-      await page.waitForTimeout(500);
+      await page.locator('[role="tabpanel"]').waitFor({ state: 'visible' }).catch(() => {});
     }
 
     // Switch to Spokes tab
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     await spokesTab.click();
-    await page.waitForTimeout(1500);
+    // Wait for the spokes list query to complete
+    await page.waitForResponse('**/trpc/spokes.list*').catch(() => {});
 
     // Verify a new query was made
     console.log(`spokes.list calls: ${initialCalls} -> ${spokesListCallCount}`);
@@ -412,7 +418,9 @@ test.describe('Spoke Generation Edge Cases', () => {
     // Trigger spokes load
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     await spokesTab.click();
-    await page.waitForTimeout(2000);
+    // Wait for API response
+    await page.waitForResponse('**/trpc/spokes.list*').catch(() => {});
+    await page.locator('[data-testid^="spoke-"], .spoke-item, .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
     if (twitterSpokes.length === 0) {
       console.log('No Twitter spokes found - skipping length check');
@@ -453,7 +461,8 @@ test.describe('Spoke Generation Edge Cases', () => {
     // Navigate to Spokes tab
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     await spokesTab.click();
-    await page.waitForTimeout(1000);
+    // Wait for spoke content to load
+    await page.locator('[data-testid^="spoke-"], .spoke-item, .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
     // Look for platform filter
     const platformFilter = page.locator('[data-testid="platform-filter"], select[name="platform"], button:has-text("Filter")');
@@ -468,7 +477,8 @@ test.describe('Spoke Generation Edge Cases', () => {
     await platformFilter.click();
     const twitterOption = page.locator('option:has-text("Twitter"), [role="option"]:has-text("Twitter")');
     await twitterOption.click();
-    await page.waitForTimeout(500);
+    // Wait for filter to apply
+    await page.waitForLoadState('networkidle').catch(() => {});
 
     // Verify only Twitter spokes are shown
     const visibleSpokes = page.locator('[data-testid^="spoke-"], .spoke-item');

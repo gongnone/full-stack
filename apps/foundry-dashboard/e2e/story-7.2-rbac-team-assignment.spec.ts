@@ -29,7 +29,7 @@ test.describe('Story 7.2: RBAC & Team Assignment', () => {
       await page.goto(`${BASE_URL}/app/clients`);
 
       // Wait for clients to load
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState('networkidle').catch(() => {});
 
       // If there are clients, try to navigate to settings
       const clientCard = page.locator('[class*="rounded-xl"][class*="cursor-pointer"]').first();
@@ -38,7 +38,7 @@ test.describe('Story 7.2: RBAC & Team Assignment', () => {
       if (hasClients) {
         // Click client card and navigate to settings
         await clientCard.click();
-        await page.waitForTimeout(500);
+        await page.waitForLoadState('networkidle').catch(() => {});
       }
 
       // Navigate to a client settings page (if client ID is known from URL or context)
@@ -67,7 +67,7 @@ test.describe('Story 7.2: RBAC & Team Assignment', () => {
 
       // Create a mock test by checking route existence
       await page.goto(`${BASE_URL}/app/clients`);
-      await page.waitForTimeout(500);
+      await page.waitForLoadState('networkidle').catch(() => {});
 
       // If there are clients, navigate to first one's settings
       const clientCards = page.locator('[class*="rounded-xl"][class*="cursor-pointer"]');
@@ -97,7 +97,8 @@ test.describe('Story 7.2: RBAC & Team Assignment', () => {
       await page.click('button:has-text("Create Client")');
 
       // Wait for modal to close and list to refresh
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState('networkidle').catch(() => {});
+      await page.locator('[class*="rounded-xl"][class*="cursor-pointer"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
       // The new client should appear in the list
       // And the creator should automatically be the agency_owner
@@ -113,7 +114,7 @@ test.describe('Story 7.2: RBAC & Team Assignment', () => {
       await page.goto(`${BASE_URL}/app/clients/non-existent-client-id/settings`);
 
       // Should either show error or redirect
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState('networkidle').catch(() => {});
 
       // Either error message, clients list (with heading), or redirect
       const hasError = await page.locator('text=/not found|error|access denied|unauthorized/i').isVisible().catch(() => false);

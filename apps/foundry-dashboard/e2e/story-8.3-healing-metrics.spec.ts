@@ -31,7 +31,7 @@ test.describe('Story 8-3: Self-Healing Efficiency Metrics', () => {
     test('displays self-healing efficiency title', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const chartTitle = page.locator('h3:has-text("Self-Healing Efficiency")');
       await expect(chartTitle).toBeVisible();
@@ -40,7 +40,7 @@ test.describe('Story 8-3: Self-Healing Efficiency Metrics', () => {
     test('section container is rendered', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Section container should be visible
       const section = page.locator('h3:has-text("Self-Healing Efficiency")').locator('..');
@@ -52,7 +52,7 @@ test.describe('Story 8-3: Self-Healing Efficiency Metrics', () => {
     test('displays self-healing efficiency metric card', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Use paragraph selector to target metric card label specifically (avoid heading match)
       await expect(page.locator('p:has-text("Self-Healing Efficiency")')).toBeVisible();
@@ -63,7 +63,7 @@ test.describe('Story 8-3: Self-Healing Efficiency Metrics', () => {
     test('shows section heading', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Section heading should be visible (it's always shown)
       await expect(page.locator('h3:has-text("Self-Healing Efficiency")')).toBeVisible();

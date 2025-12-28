@@ -322,7 +322,7 @@ test.describe('Walking Skeleton: Backend Wiring Validation', () => {
     if (hasLogout) {
       console.log('Found logout button, clicking...');
       await logoutBtn.first().click();
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Take screenshot
       await page.screenshot({ path: 'test-results/skeleton-08-logout.png' });

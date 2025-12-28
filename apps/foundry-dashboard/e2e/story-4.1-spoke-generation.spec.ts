@@ -168,11 +168,11 @@ test.describe('Story 4.1: Deterministic Spoke Fracturing', () => {
       if (hasExpand && hasCollapse) {
         // Test expand
         await expandAll.click();
-        await page.waitForTimeout(300);
+        await page.locator("[role=\"tabpanel\"], [data-testid]").first().waitFor({ state: "attached" }).catch(() => {});
 
         // Test collapse
         await collapseAll.click();
-        await page.waitForTimeout(300);
+        await page.locator("[role=\"tabpanel\"], [data-testid]").first().waitFor({ state: "attached" }).catch(() => {});
 
         await expect(expandAll).toBeVisible();
       }
@@ -217,7 +217,7 @@ test.describe('Story 4.1: Deterministic Spoke Fracturing', () => {
       const platformFilter = page.locator('button:has-text("All Platforms")');
       if (await platformFilter.isVisible()) {
         await platformFilter.click();
-        await page.waitForTimeout(300);
+        await page.locator("[role=\"tabpanel\"], [data-testid]").first().waitFor({ state: "attached" }).catch(() => {});
 
         // Verify platform options exist (AC2 platforms)
         const platforms = ['Twitter', 'LinkedIn', 'TikTok', 'Instagram', 'Newsletter', 'Thread', 'Carousel'];

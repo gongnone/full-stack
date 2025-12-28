@@ -18,8 +18,8 @@ export default defineConfig({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  /* No retries on CI - faster feedback, investigate failures instead of masking them */
+  retries: 0,
   /* Use single worker for remote URLs to avoid login conflicts with shared test account */
   workers: process.env.CI || isRemote ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
@@ -30,8 +30,8 @@ export default defineConfig({
         ['github'], // GitHub Actions annotations
       ]
     : 'html',
-  /* Global timeout for each test */
-  timeout: 60000,
+  /* Global timeout for each test - 30s on CI to fail fast, 60s locally */
+  timeout: process.env.CI ? 30000 : 60000,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */

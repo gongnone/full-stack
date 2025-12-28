@@ -131,6 +131,40 @@ Deployments are automated via **GitHub Actions** workflows:
 | `stage` | Stage | `.github/workflows/deploy-stage.yaml` |
 | `main` | Production | `.github/workflows/deploy-production.yaml` |
 
+### E2E Test Pipeline (IMPORTANT)
+
+**Workflow:** `.github/workflows/e2e-tests.yaml`
+
+The E2E Test Pipeline runs automatically on pushes to `stage`/`main` and can be monitored at:
+- **GitHub Actions URL:** https://github.com/gongnone/full-stack/actions/workflows/e2e-tests.yaml
+
+| Trigger | Tests Run |
+|---------|-----------|
+| Push to `stage`/`main` | `accessibility.spec.ts` (3 tests) |
+| Manual with `@P0` filter | All P0 priority tests |
+| Manual with no filter | Full test suite (all E2E) |
+
+**To manually trigger full E2E suite:**
+```bash
+gh workflow run "e2e-tests.yaml" --ref stage -f test_filter="@P0"
+gh workflow run "e2e-tests.yaml" --ref stage  # All tests
+```
+
+**Or via GitHub UI:**
+1. Go to Actions → "E2E Test Pipeline"
+2. Click "Run workflow"
+3. Set `test_filter` (optional): `@P0`, `@smoke`, or specific file name
+4. Click "Run workflow"
+
+**Check test results:**
+- View workflow run for pass/fail status
+- Download `playwright-merged-report` artifact for detailed HTML report
+- On failure, download `test-artifacts-shard-*` for screenshots and traces
+
+**GitHub Secrets for E2E:**
+- `E2E_TEST_EMAIL` - Test user email
+- `E2E_TEST_PASSWORD` - Test user password
+
 ### GitHub Secrets Required
 - `CLOUDFLARE_API_TOKEN` - Token with "Edit Cloudflare Workers" permissions
 - `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID

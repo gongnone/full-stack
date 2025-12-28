@@ -134,7 +134,7 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       await recordButton.click();
 
       // Wait a moment
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Stop recording
       const stopButton = page.locator('button:has-text("Stop")').or(
@@ -164,7 +164,7 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       const recordButton = getRecordButton(page);
       await expect(recordButton).toBeVisible();
       await recordButton.click();
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const stopButton = page.locator('button:has-text("Stop")').or(
         page.locator('[data-testid="stop-recording-btn"]')
@@ -173,7 +173,7 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
 
       // Wait for processing (this will timeout in test env without real Whisper)
       // In production, a TranscriptionReview component should appear
-      await page.waitForTimeout(5000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Check if transcription section exists (might not have real content in test)
       const hasTranscription = await page.locator('[data-testid="transcription-text"]').isVisible().catch(() => false);
@@ -193,7 +193,7 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       const recordButton = getRecordButton(page);
       await expect(recordButton).toBeVisible();
       await recordButton.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const stopButton = page.locator('button:has-text("Stop")').or(
         page.locator('[data-testid="stop-recording-btn"]')
@@ -349,7 +349,7 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
 
       // Should show error message or permission request
       // Exact behavior depends on implementation
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
     });
 
     test('handles transcription failures gracefully', async ({ page }) => {
@@ -402,7 +402,7 @@ test.describe('Story 2.2: Voice-to-Grounding Pipeline', () => {
       const recordButton = getRecordButton(page);
       await expect(recordButton).toBeVisible();
       await recordButton.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Stop recording
       const stopButton = page.locator('button:has-text("Stop")').first();

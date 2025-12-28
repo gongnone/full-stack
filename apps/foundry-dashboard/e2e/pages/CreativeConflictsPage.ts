@@ -186,7 +186,7 @@ export class CreativeConflictsPage extends BasePage {
     const card = this.conflictCards.nth(index);
     await card.locator('button:has-text("Force Approve")').click();
 
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
 
     if (await this.isVisible(this.forceApproveModal)) {
       if (reason) {
@@ -205,7 +205,7 @@ export class CreativeConflictsPage extends BasePage {
     const card = this.conflictCards.nth(index);
     await card.locator('button:has-text("Quick Edit")').click();
 
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
 
     if (await this.isVisible(this.quickEditModal)) {
       await this.editTextarea.fill(newContent);
@@ -222,7 +222,7 @@ export class CreativeConflictsPage extends BasePage {
     const card = this.conflictCards.nth(index);
     await card.locator('button:has-text("Voice Calibrate")').click();
 
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**
@@ -237,7 +237,7 @@ export class CreativeConflictsPage extends BasePage {
    */
   async startRecording(): Promise<void> {
     await this.recordButton.click();
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**
@@ -245,7 +245,7 @@ export class CreativeConflictsPage extends BasePage {
    */
   async stopRecording(): Promise<void> {
     await this.stopRecordingButton.click();
-    await this.page.waitForTimeout(500);
+    await this.page.waitForLoadState("networkidle").catch(() => {});
   }
 
   /**
@@ -263,7 +263,7 @@ export class CreativeConflictsPage extends BasePage {
     const card = this.conflictCards.nth(index);
     await card.locator('button:has-text("Kill"):not([data-testid="hub-kill"])').click();
 
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
 
     if (await this.isVisible(this.killConfirmModal)) {
       await this.confirmKillButton.click();

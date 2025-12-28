@@ -28,14 +28,14 @@ test.describe('Story 5.4: Kill Chain Cascade', () => {
     test('Kill modal appears after holding H', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         // Hold H key for 500ms
         await page.keyboard.down('H');
-        await page.waitForTimeout(600);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await page.keyboard.up('H');
 
         // Modal should appear
@@ -46,13 +46,13 @@ test.describe('Story 5.4: Kill Chain Cascade', () => {
     test('Modal has cancel button', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.down('H');
-        await page.waitForTimeout(600);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await page.keyboard.up('H');
 
         await expect(page.locator('button:has-text("Cancel")')).toBeVisible();
@@ -62,17 +62,17 @@ test.describe('Story 5.4: Kill Chain Cascade', () => {
     test('Cancel closes modal without action', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.down('H');
-        await page.waitForTimeout(600);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await page.keyboard.up('H');
 
         await page.click('button:has-text("Cancel")');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Modal should be closed
         await expect(page.locator('text=/Kill Hub|Kill Pillar/i')).not.toBeVisible();
@@ -84,13 +84,13 @@ test.describe('Story 5.4: Kill Chain Cascade', () => {
     test('Modal displays total spoke count', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.down('H');
-        await page.waitForTimeout(600);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await page.keyboard.up('H');
 
         await expect(page.locator('text="Total spokes"')).toBeVisible();
@@ -100,13 +100,13 @@ test.describe('Story 5.4: Kill Chain Cascade', () => {
     test('Modal shows discard count', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.down('H');
-        await page.waitForTimeout(600);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await page.keyboard.up('H');
 
         await expect(page.locator('text="Will be discarded"')).toBeVisible();
@@ -118,13 +118,13 @@ test.describe('Story 5.4: Kill Chain Cascade', () => {
     test('Edited spokes count shown if applicable', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.down('H');
-        await page.waitForTimeout(600);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await page.keyboard.up('H');
 
         // Protected count is conditional, so check for stats section
@@ -138,13 +138,13 @@ test.describe('Story 5.4: Kill Chain Cascade', () => {
     test('Modal shows undo timeframe', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.down('H');
-        await page.waitForTimeout(600);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await page.keyboard.up('H');
 
         await expect(page.locator('text=/30 seconds|undo/i')).toBeVisible();
@@ -154,13 +154,13 @@ test.describe('Story 5.4: Kill Chain Cascade', () => {
     test('Edited spokes survive note is visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.down('H');
-        await page.waitForTimeout(600);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await page.keyboard.up('H');
 
         await expect(page.locator('text=/Edited spokes will survive/i')).toBeVisible();
@@ -172,13 +172,13 @@ test.describe('Story 5.4: Kill Chain Cascade', () => {
     test('Confirm Kill button is visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.down('H');
-        await page.waitForTimeout(600);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await page.keyboard.up('H');
 
         await expect(page.locator('button:has-text("Confirm Kill")')).toBeVisible();
@@ -190,13 +190,13 @@ test.describe('Story 5.4: Kill Chain Cascade', () => {
     test('Modal has red/kill theme border', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.down('H');
-        await page.waitForTimeout(600);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await page.keyboard.up('H');
 
         // Modal should have kill color border
@@ -208,13 +208,13 @@ test.describe('Story 5.4: Kill Chain Cascade', () => {
     test('Warning icon is displayed', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.down('H');
-        await page.waitForTimeout(600);
+        await page.waitForLoadState("networkidle").catch(() => {});
         await page.keyboard.up('H');
 
         // Warning icon (triangle with exclamation)

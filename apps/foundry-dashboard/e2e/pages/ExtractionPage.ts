@@ -177,7 +177,7 @@ export class ExtractionPage extends BasePage {
     await titleInput.fill(newTitle);
     // Blur to trigger save
     await this.page.keyboard.press('Tab');
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**
@@ -190,7 +190,7 @@ export class ExtractionPage extends BasePage {
     await claimInput.click();
     await claimInput.fill(newClaim);
     await this.page.keyboard.press('Tab');
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**
@@ -215,7 +215,7 @@ export class ExtractionPage extends BasePage {
    */
   async addCustomPillar(data: { title: string; claim: string; angle?: string }): Promise<void> {
     await this.addPillarButton.click();
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
 
     // Fill the new pillar form (assumes it's the last one)
     const count = await this.getPillarCount();
@@ -235,7 +235,7 @@ export class ExtractionPage extends BasePage {
     }
 
     await this.page.keyboard.press('Tab');
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**

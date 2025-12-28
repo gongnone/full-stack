@@ -39,7 +39,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
 
       // Wait for loading spinner to disappear OR timeout
       await page.locator('.animate-spin').waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Should show progress (X / Y), empty state, or still loading (backend may be slow)
       const hasProgress = await page.locator('text=/\\d+ \\/ \\d+/').isVisible().catch(() => false);
@@ -57,7 +57,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
 
       // Wait for loading spinner to disappear OR timeout
       await page.locator('.animate-spin').waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasContent = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
       const isEmpty = await page.locator('text=/No Items Found|Sprint Complete/i').isVisible().catch(() => false);
@@ -71,7 +71,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasContent = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
@@ -91,7 +91,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
 
       // Wait for loading spinner to disappear OR timeout
       await page.locator('.animate-spin').waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Mode should be displayed in sprint view, empty state, or loading
       const hasMode = await page.locator('text=/Mode:/i').isVisible().catch(() => false);
@@ -108,7 +108,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
 
       // Wait for loading spinner to disappear OR timeout
       await page.locator('.animate-spin').waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Progress label should be visible in sprint view, empty state, or loading
       const hasProgress = await page.locator('text=/Progress/i').isVisible().catch(() => false);
@@ -150,7 +150,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
@@ -160,7 +160,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
 
         // Approve
         await page.keyboard.press('ArrowRight');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Check progress updated or completion shown
         const updated = await page.locator('text=/\\d+ \\/ \\d+|Sprint Complete/').first().isVisible();
@@ -175,7 +175,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
 
       // Wait for loading spinner to disappear OR timeout
       await page.locator('.animate-spin').waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Either shows spokes, completion/empty state, or still loading
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
@@ -191,7 +191,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
       // Go to review with empty filter to likely hit empty state
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete|No Items/i').isVisible().catch(() => false);
 
@@ -206,7 +206,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasContent = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
@@ -221,7 +221,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasContent = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
@@ -236,7 +236,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasContent = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
@@ -245,10 +245,10 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
         await page.keyboard.press('ArrowRight');
 
         // Animation class should be applied briefly
-        await page.waitForTimeout(100);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Content should transition
-        await page.waitForTimeout(200);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
       }
     });
   });

@@ -111,7 +111,7 @@ export class GenerationPage extends BasePage {
    */
   async startGeneration(): Promise<void> {
     await this.startGenerationButton.click();
-    await this.page.waitForTimeout(500);
+    await this.page.waitForLoadState("networkidle").catch(() => {});
   }
 
   /**

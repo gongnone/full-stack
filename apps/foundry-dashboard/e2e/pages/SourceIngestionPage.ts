@@ -87,7 +87,7 @@ export class SourceIngestionPage extends BasePage {
    */
   async selectUploadTab(): Promise<void> {
     await this.uploadTab.click();
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**
@@ -95,7 +95,7 @@ export class SourceIngestionPage extends BasePage {
    */
   async selectPasteTextTab(): Promise<void> {
     await this.pasteTextTab.click();
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**
@@ -103,7 +103,7 @@ export class SourceIngestionPage extends BasePage {
    */
   async selectUrlTab(): Promise<void> {
     await this.urlTab.click();
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**

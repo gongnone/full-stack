@@ -87,7 +87,7 @@ test.describe('Story 5.1: Production Queue Dashboard', () => {
       await page.goto(`${BASE_URL}/app/review`);
 
       await page.click('text="High Confidence"');
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       expect(page.url()).toContain('filter=high-confidence');
     });
@@ -97,7 +97,7 @@ test.describe('Story 5.1: Production Queue Dashboard', () => {
       await page.goto(`${BASE_URL}/app/review`);
 
       await page.click('text="Needs Review"');
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       expect(page.url()).toContain('filter=needs-review');
     });
@@ -107,7 +107,7 @@ test.describe('Story 5.1: Production Queue Dashboard', () => {
       await page.goto(`${BASE_URL}/app/review`);
 
       await page.click('text="Creative Conflicts"');
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       expect(page.url()).toContain('filter=conflicts');
     });

@@ -136,7 +136,7 @@ export class HubPage extends BasePage {
    */
   async pasteSourceText(content: string): Promise<void> {
     await this.pasteTextTab.click();
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
     await this.sourceTextInput.fill(content);
     await this.nextButton.click();
     await this.waitForLoad();

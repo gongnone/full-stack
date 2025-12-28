@@ -28,7 +28,7 @@ test.describe('Story 7.5: Active Context Indicator', () => {
       await page.goto(`${BASE_URL}/app`);
 
       // Wait for data to load
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Header/sidebar should show client context
       const headerArea = page.locator('header, nav, aside').first();
@@ -40,7 +40,7 @@ test.describe('Story 7.5: Active Context Indicator', () => {
       await page.goto(`${BASE_URL}/app`);
 
       // Wait for load
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Look for Building2 icon in client selector
       const buildingIcon = page.locator('[class*="lucide-building"], svg').filter({ has: page.locator('path') }).first();
@@ -55,7 +55,7 @@ test.describe('Story 7.5: Active Context Indicator', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Find client selector icon container
       const iconContainer = page.locator('button div[class*="rounded"]').first();
@@ -82,7 +82,7 @@ test.describe('Story 7.5: Active Context Indicator', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Check that some UI elements use brand-related colors
       // Default brand color is #1D9BF0 (Foundry Blue)
@@ -119,7 +119,7 @@ test.describe('Story 7.5: Active Context Indicator', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/clients`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Page should load without errors
       await expect(page.locator('h1:has-text("Clients")')).toBeVisible();
@@ -158,7 +158,7 @@ test.describe('Story 7.5: Active Context Indicator', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Find client selector
       const selector = page.locator('button').filter({ has: page.locator('svg') }).first();
@@ -166,7 +166,7 @@ test.describe('Story 7.5: Active Context Indicator', () => {
       if (await selector.isVisible()) {
         // Open dropdown
         await selector.click();
-        await page.waitForTimeout(200);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Check for menu items
         const menuItems = page.locator('[role="menuitem"]');

@@ -220,7 +220,7 @@ export class QualityGatesPage extends BasePage {
     const badge = spoke.locator(`[data-gate="${gate}"]`);
 
     await badge.hover();
-    await this.page.waitForTimeout(500);
+    await this.page.waitForLoadState("networkidle").catch(() => {});
 
     const tooltip = this.gateTooltip;
     if (await tooltip.isVisible().catch(() => false)) {
@@ -304,7 +304,7 @@ export class QualityGatesPage extends BasePage {
     const overrideBtn = spoke.locator('button:has-text("Override"), button:has-text("Force")');
 
     await overrideBtn.click();
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
 
     if (await this.isVisible(this.overrideModal)) {
       if (reason) {

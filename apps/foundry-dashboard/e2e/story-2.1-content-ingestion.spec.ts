@@ -134,7 +134,7 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       // but the component should show it
 
       // Wait for upload to complete
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Clean up test file
       fs.unlinkSync(testPDF);
@@ -158,7 +158,7 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       });
 
       // Wait for completion
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       fs.unlinkSync(testPDF);
     });
@@ -175,7 +175,7 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       await fileInput.setInputFiles(testPDF);
 
       // Wait for upload and processing
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Check that Training Samples section contains the file
       // The samples are in a sibling container of the header, so look for the text on the page
@@ -197,7 +197,7 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
       // Wait for samples to load
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // If there are samples, check for source icons (PDF icon)
       const sampleItems = page.locator('[data-testid="sample-item"]');
@@ -214,7 +214,7 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const sampleItems = page.locator('[data-testid="sample-item"]');
       const count = await sampleItems.count();
@@ -236,7 +236,7 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const sampleItems = page.locator('[data-testid="sample-item"]');
       const count = await sampleItems.count();
@@ -350,7 +350,7 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
       // Wait for samples to load
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const sampleItems = page.locator('[data-testid="sample-item"]');
       const initialCount = await sampleItems.count();
@@ -361,7 +361,7 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
         await firstSample.click();
 
         // Wait for expansion animation
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Click delete button
         const deleteButton = firstSample.locator('[data-testid="delete-sample-btn"]');
@@ -369,7 +369,7 @@ test.describe('Story 2.1: Multi-Source Content Ingestion', () => {
         await deleteButton.click();
 
         // Wait for deletion to complete
-        await page.waitForTimeout(1000);
+        await page.waitForLoadState("networkidle").catch(() => {});
 
         // Sample should be removed from list
         const newCount = await sampleItems.count();

@@ -44,7 +44,7 @@ test.describe('Story 5.3: Keyboard-First Approval Flow', () => {
 
       for (const key of keysToTest) {
         await page.keyboard.press(key);
-        await page.waitForTimeout(100);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Page should not crash or show errors
         const bodyVisible = await page.locator('body').isVisible();
@@ -62,7 +62,7 @@ test.describe('Story 5.3: Keyboard-First Approval Flow', () => {
 
       // Press ArrowRight
       await page.keyboard.press('ArrowRight');
-      await page.waitForTimeout(300);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       // REMEDIATION: Validate outcome based on data state
       if (hasItems) {
@@ -84,7 +84,7 @@ test.describe('Story 5.3: Keyboard-First Approval Flow', () => {
 
       // Press ArrowLeft
       await page.keyboard.press('ArrowLeft');
-      await page.waitForTimeout(300);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       if (hasItems) {
         const progressOrComplete = page.locator('text=/\\d+ \\/ \\d+|Sprint Complete|All Done|No Items/');
@@ -104,7 +104,7 @@ test.describe('Story 5.3: Keyboard-First Approval Flow', () => {
       const hasItems = await hasReviewItems(page);
 
       await page.keyboard.press('Enter');
-      await page.waitForTimeout(300);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       if (hasItems) {
         const progressOrComplete = page.locator('text=/\\d+ \\/ \\d+|Sprint Complete|All Done|No Items/');
@@ -121,7 +121,7 @@ test.describe('Story 5.3: Keyboard-First Approval Flow', () => {
       const hasItems = await hasReviewItems(page);
 
       await page.keyboard.press('Backspace');
-      await page.waitForTimeout(300);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       if (hasItems) {
         const progressOrComplete = page.locator('text=/\\d+ \\/ \\d+|Sprint Complete|All Done|No Items/');
@@ -314,9 +314,9 @@ test.describe('Story 5.3: Keyboard-First Approval Flow', () => {
 
       // Tab should move focus without errors
       await page.keyboard.press('Tab');
-      await page.waitForTimeout(100);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
       await page.keyboard.press('Tab');
-      await page.waitForTimeout(100);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       // Page should remain functional
       expect(await page.locator('body').isVisible()).toBe(true);
@@ -336,9 +336,9 @@ test.describe('Story 5.3: Keyboard-First Approval Flow', () => {
 
       // Perform keyboard actions
       await page.keyboard.press('ArrowRight');
-      await page.waitForTimeout(100);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
       await page.keyboard.press('ArrowLeft');
-      await page.waitForTimeout(100);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       // Filter out known benign errors (network failures, etc)
       const realErrors = consoleErrors.filter(e =>

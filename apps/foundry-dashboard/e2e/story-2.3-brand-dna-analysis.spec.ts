@@ -99,7 +99,7 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       const strengthScore = page.locator('[data-testid="dna-strength-score"]');
 
       // Wait for potential query to complete
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       if (await strengthScore.isVisible()) {
         const scoreText = await strengthScore.textContent();
@@ -118,7 +118,7 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
       // Wait for data to load
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // If report exists, progress bars should be visible
       const toneMatch = page.locator('[data-testid="progress-tone-match"]');
@@ -143,7 +143,7 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const toneMatch = page.locator('[data-testid="progress-tone-match"]');
 
@@ -159,7 +159,7 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const strengthScore = page.locator('[data-testid="dna-strength-score"]');
 
@@ -182,7 +182,7 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const recommendationsSection = page.locator(
         '[data-testid="recommendations-section"]'
@@ -210,7 +210,7 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const strengthScore = page.locator('[data-testid="dna-strength-score"]');
 
@@ -231,7 +231,7 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const strengthScore = page.locator('[data-testid="dna-strength-score"]');
 
@@ -262,7 +262,7 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const primaryToneCard = page.locator('text=/Primary Tone/i');
 
@@ -276,7 +276,7 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const writingStyleCard = page.locator('text=/Writing Style/i');
 
@@ -289,7 +289,7 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const targetAudienceCard = page.locator('text=/Target Audience/i');
 
@@ -306,7 +306,7 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Check for either the section header or the empty state message
       if (await page.locator('[data-testid="dna-strength-score"]').isVisible()) {

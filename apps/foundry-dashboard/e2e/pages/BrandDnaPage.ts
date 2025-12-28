@@ -84,7 +84,7 @@ export class BrandDnaPage extends BasePage {
    */
   async switchToPasteText(): Promise<void> {
     await this.pasteTextTab.click();
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**
@@ -132,7 +132,7 @@ export class BrandDnaPage extends BasePage {
    */
   async openVoiceMarkersEditor(): Promise<void> {
     await this.editVoiceMarkersButton.click();
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**

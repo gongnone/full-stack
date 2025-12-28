@@ -122,7 +122,7 @@ test.describe('Hub Creation Flow', () => {
     // Step 1 auto-advances after client selection
     // Wait for step 2 to become active (auto-advance after ~500ms)
     console.log('Waiting for client auto-selection...');
-    await page.waitForTimeout(1500); // Allow auto-advance
+    await page.waitForLoadState("networkidle").catch(() => {}); // Allow auto-advance
 
     await page.screenshot({ path: 'test-results/hub-creation-02-step2.png' });
     console.log('✅ Client auto-selected, now on Step 2');
@@ -132,7 +132,7 @@ test.describe('Hub Creation Flow', () => {
     // Click "Paste Text" tab
     const pasteTab = page.getByRole('button', { name: /Paste Text/i });
     await pasteTab.click();
-    await page.waitForTimeout(300);
+    await page.waitForLoadState("domcontentloaded").catch(() => {});
 
     // Fill title
     const titleInput = page.locator('[data-testid="text-title"]');
@@ -227,7 +227,7 @@ test.describe('Hub Creation Flow', () => {
     await continueBtn.click();
     console.log('✅ Clicked "Continue to Generate"');
 
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle").catch(() => {});
     await page.screenshot({ path: 'test-results/hub-creation-06-step4.png' });
 
     console.log('\n=== STEP 5: Finalize Hub ===');
@@ -251,7 +251,7 @@ test.describe('Hub Creation Flow', () => {
     console.log('\n=== STEP 6: Verify Success ===');
 
     // Wait for mutation to complete
-    await page.waitForTimeout(3000);
+    await page.waitForLoadState("networkidle").catch(() => {});
 
     // Quick check for success or error
     const hasSuccess = await page.getByText(/successfully/i).isVisible().catch(() => false);
@@ -310,7 +310,7 @@ test.describe('Hub Creation Edge Cases', () => {
   test('Minimum content validation', async ({ page }) => {
     await login(page);
     await page.goto(`${config.baseUrl}/app/hubs/new`);
-    await page.waitForTimeout(1500); // Wait for auto-advance
+    await page.waitForLoadState("networkidle").catch(() => {}); // Wait for auto-advance
 
     // Click paste tab
     const pasteTab = page.getByRole('button', { name: /Paste Text/i });
@@ -335,7 +335,7 @@ test.describe('Hub Creation Edge Cases', () => {
   test('Cancel button returns to hubs list', async ({ page }) => {
     await login(page);
     await page.goto(`${config.baseUrl}/app/hubs/new`);
-    await page.waitForTimeout(500);
+    await page.waitForLoadState("networkidle").catch(() => {});
 
     // Click cancel
     const cancelBtn = page.getByRole('button', { name: /Cancel/i });

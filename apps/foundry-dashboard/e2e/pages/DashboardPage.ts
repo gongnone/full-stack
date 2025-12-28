@@ -75,7 +75,7 @@ export class DashboardPage extends BasePage {
    */
   async openCommandPalette(): Promise<void> {
     await this.page.keyboard.press('Meta+k');
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**
@@ -83,7 +83,7 @@ export class DashboardPage extends BasePage {
    */
   async closeCommandPalette(): Promise<void> {
     await this.page.keyboard.press('Escape');
-    await this.page.waitForTimeout(200);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**

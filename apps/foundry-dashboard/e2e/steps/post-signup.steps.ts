@@ -67,7 +67,7 @@ test.describe('Phase 1: Dashboard Onboarding', () => {
 
     // Then I should see the command palette open
     // Note: Command palette implementation may vary
-    await dashboardPage.page.waitForTimeout(500);
+    await dashboardPage.page.waitForLoadState("networkidle").catch(() => {});
 
     // Close it
     await dashboardPage.closeCommandPalette();

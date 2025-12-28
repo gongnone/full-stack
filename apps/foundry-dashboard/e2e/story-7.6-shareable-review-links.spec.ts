@@ -71,7 +71,7 @@ test.describe('Story 7.6: Shareable Review Links', () => {
       await page.click('button:has-text("Access Review")');
 
       // Should either show content or error (depending on token validity)
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasError = await page.locator('text=/Access Denied|Invalid|expired/i').isVisible().catch(() => false);
       const hasContent = await page.locator('text=/Review:|pieces ready/i').isVisible().catch(() => false);
@@ -115,7 +115,7 @@ test.describe('Story 7.6: Shareable Review Links', () => {
       await page.click('button:has-text("Access Review")');
 
       // Wait for API response
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Should show error for invalid token
       const hasError = await page.locator('text=/Invalid|expired|not found|Access Denied/i').isVisible().catch(() => false);
@@ -128,7 +128,7 @@ test.describe('Story 7.6: Shareable Review Links', () => {
       await page.fill('input[type="email"]', 'test@example.com');
       await page.click('button:has-text("Access Review")');
 
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Should indicate link is invalid/expired or show Access Denied
       const hasExpiredMessage = await page.locator('text=/expired|invalid|not found|Access Denied|denied/i').isVisible().catch(() => false);
@@ -225,7 +225,7 @@ test.describe('Story 7.6: Shareable Review Links', () => {
       await page.fill('input[type="email"]', 'test@example.com');
       await page.click('button:has-text("Access Review")');
 
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Error should be visible and readable
       const errorMessage = page.locator('text=/Invalid|expired|Access Denied/i');

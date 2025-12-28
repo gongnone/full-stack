@@ -76,7 +76,7 @@ test.describe('@P0 Phase 1: Dashboard Onboarding', () => {
     await dashboardPage.openCommandPalette();
 
     // Allow time for animation
-    await dashboardPage.page.waitForTimeout(300);
+    await dashboardPage.page.waitForLoadState("domcontentloaded").catch(() => {});
 
     // Cleanup
     await dashboardPage.closeCommandPalette();
@@ -291,7 +291,7 @@ test.describe('Error Recovery', () => {
     await page.goto('/app/hubs');
 
     // Should redirect to login
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle").catch(() => {});
     const url = page.url();
 
     // Either redirects to login or shows unauthorized

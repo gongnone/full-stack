@@ -33,7 +33,7 @@ test.describe('Story 8-6: Time-to-DNA and Drift Detection', () => {
     test('displays drift detector title', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const title = page.locator('h3:has-text("DNA Strength & Drift Detection")');
       await expect(title).toBeVisible();
@@ -42,7 +42,7 @@ test.describe('Story 8-6: Time-to-DNA and Drift Detection', () => {
     test('section is rendered properly', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Section container should be visible
       const section = page.locator('h3:has-text("DNA Strength & Drift Detection")').locator('..');
@@ -54,7 +54,7 @@ test.describe('Story 8-6: Time-to-DNA and Drift Detection', () => {
     test('all section headings are visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // All 6 section headings should be visible
       await expect(page.locator('h3:has-text("Zero-Edit Rate Trend")')).toBeVisible();

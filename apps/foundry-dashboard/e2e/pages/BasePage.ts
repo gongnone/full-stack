@@ -58,7 +58,7 @@ export abstract class BasePage {
         errors.push(msg.text());
       }
     });
-    await this.page.waitForTimeout(500);
+    await this.page.waitForLoadState("networkidle").catch(() => {});
     return errors.length === 0;
   }
 }

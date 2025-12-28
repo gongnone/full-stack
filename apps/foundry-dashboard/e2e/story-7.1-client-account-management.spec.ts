@@ -47,7 +47,7 @@ test.describe('Story 7.1: Client Account Management', () => {
       await page.goto(`${BASE_URL}/app/clients`);
 
       // Wait for data to load
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Either shows client cards or empty state
       const hasClients = await page.locator('[class*="rounded-xl"]').filter({ hasText: /No industry|Technology|Retail/i }).first().isVisible().catch(() => false);
@@ -61,7 +61,7 @@ test.describe('Story 7.1: Client Account Management', () => {
       await page.goto(`${BASE_URL}/app/clients`);
 
       // Wait for data load
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // If clients exist, they should show name and industry info
       const clientCards = page.locator('[class*="rounded-xl"]').filter({ has: page.locator('p:has-text("No industry")') });
@@ -161,7 +161,7 @@ test.describe('Story 7.1: Client Account Management', () => {
       await page.goto(`${BASE_URL}/app/clients`);
 
       // Wait for data
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Client cards should have pointer cursor
       const clientCard = page.locator('[class*="rounded-xl"][class*="cursor-pointer"]').first();

@@ -64,7 +64,7 @@ async function login(page: Page): Promise<boolean> {
 async function findFirstHub(page: Page): Promise<string | null> {
   await page.goto(`${config.baseUrl}/app/hubs`);
   await page.waitForLoadState('networkidle').catch(() => {});
-  await page.waitForTimeout(1000);
+  await page.waitForLoadState("networkidle").catch(() => {});
 
   const hubLinks = page.locator('a[href*="/app/hubs/"]');
   const count = await hubLinks.count();
@@ -106,7 +106,7 @@ test.describe('@P1 Stage 1: Authentication - Error Handling', () => {
     const hasError = await errorMessage.isVisible({ timeout: 5000 }).catch(() => false);
 
     // Should NOT redirect to app
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle").catch(() => {});
     const currentUrl = page.url();
     expect(currentUrl).toContain('/login');
 
@@ -130,7 +130,7 @@ test.describe('@P1 Stage 1: Authentication - Error Handling', () => {
 
     if (await logoutBtn.isVisible().catch(() => false)) {
       await logoutBtn.click();
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Should redirect to login or home
       const url = page.url();
@@ -144,11 +144,11 @@ test.describe('@P1 Stage 1: Authentication - Error Handling', () => {
       const userMenu = page.locator('[data-testid="user-menu"], button:has-text("Account")');
       if (await userMenu.isVisible()) {
         await userMenu.click();
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
         const logoutInMenu = page.locator('text=/logout|sign out/i');
         if (await logoutInMenu.isVisible()) {
           await logoutInMenu.click();
-          await page.waitForTimeout(2000);
+          await page.waitForLoadState("networkidle").catch(() => {});
           expect(page.url()).not.toContain('/app');
         }
       }
@@ -172,7 +172,7 @@ test.describe('@P1 Stage 1: Authentication - Error Handling', () => {
     await passwordInput.fill(config.testPassword);
 
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState("networkidle").catch(() => {});
 
     // Should show error (not crash) - check app still renders properly
     const hasError = await page.locator('text=/error|network|connection|failed/i').isVisible().catch(() => false);
@@ -210,7 +210,7 @@ test.describe('@P1 Stage 2: Client - Edge Cases', () => {
 
       // Navigate to different page
       await page.goto(`${config.baseUrl}/app/hubs`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Check if client context persisted
       const url2 = page.url();
@@ -283,7 +283,7 @@ test.describe('@P1 Stage 3: Source Upload - Error Handling', () => {
     const urlTab = page.locator('[data-testid="tab-url"], button:has-text("URL")');
     if (await urlTab.isVisible()) {
       await urlTab.click();
-      await page.waitForTimeout(300);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       const urlInput = page.locator('input[type="url"], [data-testid="url-input"]');
       if (await urlInput.isVisible()) {
@@ -292,7 +292,7 @@ test.describe('@P1 Stage 3: Source Upload - Error Handling', () => {
         const continueBtn = page.locator('button:has-text("Continue"), button:has-text("Fetch")');
         if (await continueBtn.isVisible()) {
           await continueBtn.click();
-          await page.waitForTimeout(1000);
+          await page.waitForLoadState("networkidle").catch(() => {});
 
           // Should show validation error
           const hasError = await page.locator('text=/invalid|valid url|url format/i').isVisible().catch(() => false);
@@ -315,7 +315,7 @@ test.describe('@P1 Stage 3: Source Upload - Error Handling', () => {
     const textTab = page.locator('[data-testid="tab-text"], button:has-text("Paste Text")');
     if (await textTab.isVisible()) {
       await textTab.click();
-      await page.waitForTimeout(300);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
     }
 
     const textArea = page.locator('textarea, [data-testid="source-text-input"]');
@@ -410,7 +410,7 @@ test.describe('@P1 Stage 5: Spoke Generation - Error Handling', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const errorBadges = page.locator('[data-status="failed"], [data-status="error"], text=/failed|error/i');
       const errorCount = await errorBadges.count();
@@ -444,7 +444,7 @@ test.describe('@P1 Stage 5: Spoke Generation - Error Handling', () => {
       await page.goto(`${config.baseUrl}/app/hubs/${hubId}`);
       await page.waitForLoadState('networkidle').catch(() => {});
 
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       if (twitterSpokes.length > 0) {
         twitterSpokes.forEach((spoke, i) => {
@@ -481,7 +481,7 @@ test.describe('@P1 Stage 6: TreeView - Filters & Edge Cases', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Look for platform filter
       const platformFilter = page.locator('[data-testid="platform-filter"], select:has-text("Platform")');
@@ -511,7 +511,7 @@ test.describe('@P1 Stage 6: TreeView - Filters & Edge Cases', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const statusFilter = page.locator('[data-testid="status-filter"], select:has-text("Status")');
       if (await statusFilter.isVisible()) {
@@ -539,7 +539,7 @@ test.describe('@P1 Stage 6: TreeView - Filters & Edge Cases', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const spokeCards = page.locator('[data-testid^="spoke-"], .spoke-card');
       const count = await spokeCards.count();
@@ -580,13 +580,13 @@ test.describe('@P1 Stage 7: Approval - Bulk & Keyboard', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const spokeCard = page.locator('[data-testid^="spoke-"], .spoke-card').first();
       if (await spokeCard.isVisible()) {
         await spokeCard.click();
         await page.keyboard.press('a');
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("networkidle").catch(() => {});
 
         console.log('APPROVE-P1-03: Keyboard shortcut A pressed');
         // Note: Full verification would check status changed to approved
@@ -613,7 +613,7 @@ test.describe('@P1 Stage 7: Approval - Bulk & Keyboard', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const spokeCard = page.locator('[data-testid^="spoke-"], .spoke-card').first();
       if (await spokeCard.isVisible()) {
@@ -643,7 +643,7 @@ test.describe('@P1 Stage 7: Approval - Bulk & Keyboard', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const bulkApproveBtn = page.locator('button:has-text("Approve All"), button:has-text("Bulk Approve")');
       const hasBulkApprove = await bulkApproveBtn.isVisible().catch(() => false);
@@ -671,7 +671,7 @@ test.describe('@P1 Stage 7: Approval - Bulk & Keyboard', () => {
     const pillarsTab = page.locator('[role="tab"]:has-text("Pillars")');
     if (await pillarsTab.isVisible()) {
       await pillarsTab.click();
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const pillarKillBtn = page.locator('button:has-text("Kill"), button:has-text("Delete"), [data-action="kill-pillar"]');
       const hasPillarKill = await pillarKillBtn.isVisible().catch(() => false);
@@ -705,7 +705,7 @@ test.describe('@P1 Stage 8: Export - Formats & Filtering', () => {
     const exportBtn = page.locator('button:has-text("Export"), [data-testid="export-btn"]');
     if (await exportBtn.isVisible()) {
       await exportBtn.click();
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const jsonOption = page.locator('button:has-text("JSON"), [data-format="json"]');
       const hasJson = await jsonOption.isVisible().catch(() => false);
@@ -734,7 +734,7 @@ test.describe('@P1 Stage 8: Export - Formats & Filtering', () => {
     const exportBtn = page.locator('button:has-text("Export")');
     if (await exportBtn.isVisible()) {
       await exportBtn.click();
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Look for platform filter in export dialog
       const platformSelect = page.locator('select:has-text("Platform"), [data-testid="export-platform-filter"]');
@@ -786,7 +786,7 @@ test.describe('@P1 Stage 8: Export - Formats & Filtering', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const copyBtn = page.locator('button:has-text("Copy"), [data-action="copy"]').first();
       const hasCopy = await copyBtn.isVisible().catch(() => false);
@@ -835,14 +835,14 @@ test.describe('@P1 Accessibility - Extended Coverage', () => {
 
     // Tab through form elements
     await page.keyboard.press('Tab');
-    await page.waitForTimeout(100);
+    await page.waitForLoadState("domcontentloaded").catch(() => {});
 
     let focusedElement = await page.evaluate(() => document.activeElement?.tagName);
     console.log(`A11Y-P1-02: First focus: ${focusedElement}`);
 
     // Should be able to navigate with Tab
     await page.keyboard.press('Tab');
-    await page.waitForTimeout(100);
+    await page.waitForLoadState("domcontentloaded").catch(() => {});
 
     focusedElement = await page.evaluate(() => document.activeElement?.tagName);
     console.log(`A11Y-P1-02: Second focus: ${focusedElement}`);
@@ -870,7 +870,7 @@ test.describe('@P1 Accessibility - Extended Coverage', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Check for aria-labels on action buttons
       const actionButtons = page.locator('button[aria-label]');
@@ -935,7 +935,7 @@ test.describe('@P2 Performance NFR Tests', () => {
     if (await spokesTab.isVisible()) {
       const startTime = Date.now();
       await spokesTab.click();
-      await page.waitForTimeout(100);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       const responseTime = Date.now() - startTime;
       console.log(`NFR-P4: Tab switch response time: ${responseTime}ms`);
@@ -1086,7 +1086,7 @@ test.describe('@P2 Edge Cases & Boundary Conditions', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const spokeCards = page.locator('[data-testid^="spoke-"], .spoke-card');
       const count = await spokeCards.count();

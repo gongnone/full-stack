@@ -150,7 +150,7 @@ export class ReviewPage extends BasePage {
     await this.page.keyboard.down('h');
     await this.page.waitForTimeout(550);
     await this.page.keyboard.up('h');
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**
@@ -166,7 +166,7 @@ export class ReviewPage extends BasePage {
    */
   async cancelHubKill(): Promise<void> {
     await this.cancelKillButton.click();
-    await this.page.waitForTimeout(300);
+    await this.page.waitForLoadState("domcontentloaded").catch(() => {});
   }
 
   /**

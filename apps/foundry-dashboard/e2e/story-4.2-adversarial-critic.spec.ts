@@ -130,7 +130,7 @@ test.describe('Story 4.2: Adversarial Critic Service', () => {
       const expandBtn = page.locator('button:has-text("Expand All")');
       if (await expandBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await expandBtn.click();
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("networkidle").catch(() => {});
       }
 
       // Check for color-coded badges
@@ -161,7 +161,7 @@ test.describe('Story 4.2: Adversarial Critic Service', () => {
       const expandBtn = page.locator('button:has-text("Expand All")');
       if (await expandBtn.isVisible().catch(() => false)) {
         await expandBtn.click();
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("networkidle").catch(() => {});
       }
 
       const g2Badge = page.locator('text=G2').first();
@@ -170,7 +170,7 @@ test.describe('Story 4.2: Adversarial Critic Service', () => {
       if (hasG2) {
         await g2Badge.hover();
         // Wait for 300ms tooltip delay + render time
-        await page.waitForTimeout(400);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         const tooltip = page.locator('text=Hook Strength');
         const hasTooltip = await tooltip.isVisible({ timeout: 2000 }).catch(() => false);
@@ -197,7 +197,7 @@ test.describe('Story 4.2: Adversarial Critic Service', () => {
       const expandBtn = page.locator('button:has-text("Expand All")');
       if (await expandBtn.isVisible().catch(() => false)) {
         await expandBtn.click();
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("networkidle").catch(() => {});
       }
 
       const g4Badge = page.locator('text=G4').first();
@@ -205,7 +205,7 @@ test.describe('Story 4.2: Adversarial Critic Service', () => {
 
       if (hasG4) {
         await g4Badge.hover();
-        await page.waitForTimeout(400);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         const tooltip = page.locator('text=Voice Alignment');
         const hasTooltip = await tooltip.isVisible({ timeout: 2000 }).catch(() => false);
@@ -232,7 +232,7 @@ test.describe('Story 4.2: Adversarial Critic Service', () => {
       const expandBtn = page.locator('button:has-text("Expand All")');
       if (await expandBtn.isVisible().catch(() => false)) {
         await expandBtn.click();
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("networkidle").catch(() => {});
       }
 
       const g5Badge = page.locator('text=G5').first();
@@ -240,7 +240,7 @@ test.describe('Story 4.2: Adversarial Critic Service', () => {
 
       if (hasG5) {
         await g5Badge.hover();
-        await page.waitForTimeout(400);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         const tooltip = page.locator('text=Platform Compliance');
         const hasTooltip = await tooltip.isVisible({ timeout: 2000 }).catch(() => false);

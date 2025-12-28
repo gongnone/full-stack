@@ -133,7 +133,7 @@ test.describe('Story 4.3: The Self-Healing Loop', () => {
 
         // Approve with keyboard shortcut
         await page.keyboard.press('ArrowRight');
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("networkidle").catch(() => {});
 
         // Progress should update or show complete
         const progressAfter = page.locator('text=/\\d+ \\/ \\d+|Sprint Complete|All Done/');
@@ -141,7 +141,7 @@ test.describe('Story 4.3: The Self-Healing Loop', () => {
       } else {
         // REMEDIATION: Empty state - verify page handles keyboard without error
         await page.keyboard.press('ArrowRight');
-        await page.waitForTimeout(200);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
         // Page should not crash
         expect(await page.locator('body').isVisible()).toBe(true);
       }
@@ -156,7 +156,7 @@ test.describe('Story 4.3: The Self-Healing Loop', () => {
       if (hasItems) {
         // Kill with keyboard shortcut
         await page.keyboard.press('ArrowLeft');
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("networkidle").catch(() => {});
 
         // Should transition to next or complete
         const transitioned = page.locator('text=/\\d+ \\/ \\d+|Sprint Complete|No Items|All Done/');
@@ -164,7 +164,7 @@ test.describe('Story 4.3: The Self-Healing Loop', () => {
       } else {
         // REMEDIATION: Empty state - verify page handles keyboard without error
         await page.keyboard.press('ArrowLeft');
-        await page.waitForTimeout(200);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
         expect(await page.locator('body').isVisible()).toBe(true);
       }
     });
@@ -178,7 +178,7 @@ test.describe('Story 4.3: The Self-Healing Loop', () => {
       // REMEDIATION: Test keyboard handler exists, not data-dependent
       // Pressing ArrowRight should not cause errors
       await page.keyboard.press('ArrowRight');
-      await page.waitForTimeout(300);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       // Page should still be functional
       const bodyVisible = await page.locator('body').isVisible();
@@ -190,7 +190,7 @@ test.describe('Story 4.3: The Self-Healing Loop', () => {
       await waitForPageLoad(page);
 
       await page.keyboard.press('ArrowLeft');
-      await page.waitForTimeout(300);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       const bodyVisible = await page.locator('body').isVisible();
       expect(bodyVisible).toBe(true);
@@ -201,7 +201,7 @@ test.describe('Story 4.3: The Self-Healing Loop', () => {
       await waitForPageLoad(page);
 
       await page.keyboard.press('Enter');
-      await page.waitForTimeout(300);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       const bodyVisible = await page.locator('body').isVisible();
       expect(bodyVisible).toBe(true);

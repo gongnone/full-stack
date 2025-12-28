@@ -200,7 +200,7 @@ test.describe('Story 1.2: Better Auth Integration with OAuth', () => {
       await page.click('button[type="submit"]');
 
       // Wait for error to appear
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Should still be on login page
       expect(page.url()).toContain('/login');
@@ -265,7 +265,7 @@ test.describe('Story 1.2: Better Auth Integration with OAuth', () => {
       await googleButton.click();
 
       // Wait briefly for any state change
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // The button should still be visible (OAuth redirect happens after)
       // or page should start navigating to OAuth provider

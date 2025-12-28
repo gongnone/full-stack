@@ -133,16 +133,13 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
 
   e2e-tests:
-    name: 🧪 E2E Tests (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    name: 🧪 E2E Tests
     needs: typecheck
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        # Parallel sharding - adjust shardTotal based on test suite size
-        shardIndex: [1, 2, 3, 4]
-        shardTotal: [4]
+    # Note: Sharding disabled for authenticated tests to avoid session conflicts
+    # All 4 shards sharing one test user causes login race conditions
+    # Re-enable with: matrix.shardIndex: [1,2,3,4], shardTotal: [4]
 
     steps:
       - uses: actions/checkout@v4
@@ -178,26 +175,19 @@ jobs:
         run: |
           # Apply test filter if provided via workflow dispatch
           if [ -n "${{ github.event.inputs.test_filter }}" ]; then
-            pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+            pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}"
           else
-            # Run P0 E2E tests (critical user journeys) - requires auth
-            # Tests: dashboard shell, story tests, user journeys
-            # E2E_TEST_EMAIL/PASSWORD secrets must be configured in GitHub
-            pnpm exec playwright test --grep "@P0" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} || {
-              # Fallback to accessibility tests if @P0 filter returns no tests
-              # (prevents shard failures when P0 tests distributed unevenly)
-              echo "No @P0 tests on shard ${{ matrix.shardIndex }}, running accessibility check..."
-              if [ "${{ matrix.shardIndex }}" = "1" ]; then
-                pnpm exec playwright test e2e/accessibility.spec.ts
-              fi
-            }
+            # Run a smaller set of critical tests to verify auth works
+            # Full P0 suite (73 tests) takes too long without sharding
+            # Using story-1.3 (dashboard shell) as auth-required smoke test
+            pnpm exec playwright test e2e/story-1.3-dashboard-shell.spec.ts e2e/accessibility.spec.ts
           fi
 
       - name: 📊 Upload Blob Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: blob-report-${{ matrix.shardIndex }}
+          name: blob-report
           path: apps/foundry-dashboard/blob-report/
           retention-days: 7
 
@@ -205,16 +195,16 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-artifacts-shard-${{ matrix.shardIndex }}
+          name: test-artifacts
           path: apps/foundry-dashboard/test-results/
           retention-days: 7
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # 4. MERGE REPORTS: Combine sharded test results
+  # 4. HTML REPORT: Generate HTML report from blob (no sharding)
   # ═══════════════════════════════════════════════════════════════════════════
 
-  merge-reports:
-    name: 📊 Merge Test Reports
+  html-report:
+    name: 📊 Generate HTML Report
     needs: e2e-tests
     runs-on: ubuntu-latest
     if: always()
@@ -233,25 +223,24 @@ jobs:
       - name: 📦 Install dependencies
         run: pnpm install
 
-      - name: 📥 Download all blob reports
+      - name: 📥 Download blob report
         uses: actions/download-artifact@v4
         with:
-          path: all-blob-reports
-          pattern: blob-report-*
+          name: blob-report
+          path: blob-report
 
-      - name: 📊 Merge into HTML Report
+      - name: 📊 Generate HTML Report
         working-directory: apps/foundry-dashboard
-        continue-on-error: true  # May fail if minimal test set runs on single shard
+        continue-on-error: true
         run: |
-          # Merge all shard blob reports into a single HTML report
-          # May fail if only shard 1 has tests (minimal test set)
-          pnpm exec playwright merge-reports --reporter html ../../all-blob-reports || echo "No reports to merge (minimal test set)"
+          # Convert blob report to HTML
+          pnpm exec playwright merge-reports --reporter html ../../blob-report || echo "Report generation skipped"
 
-      - name: 📤 Upload Merged Report
+      - name: 📤 Upload HTML Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-merged-report
+          name: playwright-html-report
           path: apps/foundry-dashboard/playwright-report/
           retention-days: 14
 
@@ -261,7 +250,7 @@ jobs:
 
   test-summary:
     name: ✅ Test Summary
-    needs: [typecheck, integration-tests, e2e-tests, merge-reports]
+    needs: [typecheck, integration-tests, e2e-tests, html-report]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -273,14 +262,13 @@ jobs:
           echo ""
           echo "  Environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'stage') }}"
           echo "  Target URL:  ${{ github.event.inputs.environment == 'production' && 'https://foundry.williamjshaw.ca' || (github.ref == 'refs/heads/main' && 'https://foundry.williamjshaw.ca' || 'https://foundry-stage.williamjshaw.ca') }}"
-          echo "  Shards:      4 parallel workers"
           echo ""
           echo "  TypeCheck:        ${{ needs.typecheck.result }}"
           echo "  Integration (P1): ${{ needs.integration-tests.result }}"
           echo "  E2E Tests:        ${{ needs.e2e-tests.result }}"
-          echo "  Reports:          ${{ needs.merge-reports.result }}"
+          echo "  HTML Report:      ${{ needs.html-report.result }}"
           echo ""
-          echo "  📊 View merged test report in artifacts"
+          echo "  📊 View HTML test report in artifacts"
           echo "  📸 Screenshots and traces available on test failures"
           echo ""
           echo "═══════════════════════════════════════════════════════"

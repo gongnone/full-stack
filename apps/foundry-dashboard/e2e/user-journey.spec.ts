@@ -62,7 +62,8 @@ async function login(page: Page): Promise<boolean> {
 async function findFirstHub(page: Page): Promise<string | null> {
   await page.goto(`${config.baseUrl}/app/hubs`);
   await page.waitForLoadState('networkidle').catch(() => {});
-  await page.waitForTimeout(1000); // Extra wait for client-side rendering
+  // Wait for hub list to render (either hub links or empty state)
+  await page.locator('a[href*="/app/hubs/"], [data-testid="empty-state"], h1').first().waitFor({ timeout: 5000 }).catch(() => {});
 
   const hubLinks = page.locator('a[href*="/app/hubs/"]');
   const count = await hubLinks.count();
@@ -228,7 +229,8 @@ test.describe('@P0 Stage 2: Client Onboarding', () => {
     }
 
     await createBtn.click();
-    await page.waitForTimeout(500);
+    // Wait for form/modal to appear
+    await page.locator('input[name="name"], input[placeholder*="name"], [role="dialog"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
     // Fill form
     const nameInput = page.locator('input[name="name"], input[placeholder*="name"]');
@@ -239,7 +241,8 @@ test.describe('@P0 Stage 2: Client Onboarding', () => {
       const saveBtn = page.locator('button:has-text("Save"), button:has-text("Create"), button[type="submit"]');
       await saveBtn.click();
 
-      await page.waitForTimeout(2000);
+      // Wait for success indicator or client to appear
+      await expect(page.locator(`text="${clientName}", text=/created|success/i`).first()).toBeVisible({ timeout: 10000 }).catch(() => {});
 
       // Verify client appears in list or success message
       const created =
@@ -267,7 +270,8 @@ test.describe('@P0 Stage 2: Client Onboarding', () => {
 
     if (await selector.isVisible()) {
       await selector.click();
-      await page.waitForTimeout(500);
+      // Wait for dropdown options to appear
+      await page.locator('[role="option"], [data-testid="client-option"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
       // Should show at least one client option
       const options = page.locator('[role="option"], [data-testid="client-option"]');
@@ -292,7 +296,9 @@ test.describe('@P0 Stage 2: Client Onboarding', () => {
     const fakeHubId = 'deadbeef-1234-5678-9abc-def012345678';
     await page.goto(`${config.baseUrl}/app/hubs/${fakeHubId}`);
 
-    await page.waitForTimeout(2000);
+    // Wait for error message, redirect, or page to settle
+    await page.waitForLoadState('networkidle').catch(() => {});
+    await page.locator('text=/not found|error|forbidden|unauthorized|no hub/i, h1').first().waitFor({ timeout: 5000 }).catch(() => {});
 
     // Should see error, redirect, or empty state (no hub data displayed)
     const hasError = await page.locator('text=/not found|error|forbidden|unauthorized/i').isVisible().catch(() => false);
@@ -392,7 +398,8 @@ test.describe('@P0 Stage 3: Source Upload', () => {
     const textTab = page.locator('[data-testid="tab-text"], button:has-text("Paste Text")');
     if (await textTab.isVisible()) {
       await textTab.click();
-      await page.waitForTimeout(300);
+      // Wait for textarea to be ready
+      await page.locator('textarea, [data-testid="source-text-input"]').first().waitFor({ timeout: 5000 }).catch(() => {});
     }
 
     const textArea = page.locator('textarea, [data-testid="source-text-input"]');
@@ -407,7 +414,8 @@ test.describe('@P0 Stage 3: Source Upload', () => {
 
       if (await continueBtn.isVisible()) {
         await continueBtn.click();
-        await page.waitForTimeout(2000);
+        // Wait for navigation or processing indicator
+        await page.locator('text=/extract|pillar|processing/i').first().waitFor({ timeout: 10000 }).catch(() => {});
 
         // Should progress to next step or show processing
         const progressed =
@@ -452,7 +460,8 @@ test.describe('@P0 Stage 4: Pillar Extraction', () => {
     const pillarsTab = page.locator('[role="tab"]:has-text("Pillars")');
     if (await pillarsTab.isVisible()) {
       await pillarsTab.click();
-      await page.waitForTimeout(500);
+      // Wait for pillar content to load
+      await page.locator('[data-testid^="pillar-"], .pillar-card, text=/Authority|Curiosity|Transformation|Aspiration/').first().waitFor({ timeout: 5000 }).catch(() => {});
     }
 
     // Match pillar cards by their visible content (Estimated Spokes text or pillar type badges)
@@ -503,8 +512,8 @@ test.describe('@P0 Stage 4: Pillar Extraction', () => {
     await page.goto(`${config.baseUrl}/app/hubs/${hubId}`);
     await page.waitForLoadState('networkidle').catch(() => {});
 
-    // Wait for data
-    await page.waitForTimeout(2000);
+    // Wait for hub content to load
+    await page.locator('h1, [data-testid="hub-title"], [role="tab"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
     if (pillarsData.length > 0) {
       pillarsData.forEach((pillar, index) => {
@@ -535,12 +544,13 @@ test.describe('@P0 Stage 4: Pillar Extraction', () => {
 
     // Get pillar count before reload
     const pillarsTab = page.locator('[role="tab"]:has-text("Pillars")');
+    const pillarCards = page.locator('[data-testid^="pillar-"], .pillar-card');
+
     if (await pillarsTab.isVisible()) {
       await pillarsTab.click();
-      await page.waitForTimeout(500);
+      await pillarCards.first().waitFor({ timeout: 5000 }).catch(() => {});
     }
 
-    const pillarCards = page.locator('[data-testid^="pillar-"], .pillar-card');
     const countBefore = await pillarCards.count();
 
     // Reload page
@@ -550,7 +560,7 @@ test.describe('@P0 Stage 4: Pillar Extraction', () => {
     // Re-click pillars tab
     if (await pillarsTab.isVisible()) {
       await pillarsTab.click();
-      await page.waitForTimeout(500);
+      await pillarCards.first().waitFor({ timeout: 5000 }).catch(() => {});
     }
 
     const countAfter = await pillarCards.count();
@@ -645,7 +655,8 @@ test.describe('@P0 Stage 5: Spoke Generation', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(2000);
+      // Wait for spoke content to load
+      await page.locator('[data-testid^="spoke-"], .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
     }
 
     if (spokesWithScores.length > 0) {
@@ -690,7 +701,7 @@ test.describe('@P0 Stage 5: Spoke Generation', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(2000);
+      await page.locator('[data-testid^="spoke-"], .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
     }
 
     if (spokes.length > 0) {
@@ -728,7 +739,7 @@ test.describe('@P0 Stage 6: TreeView Display', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.locator('[data-testid^="spoke-"], .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
     }
 
     // Look for tree structure with pillar headers
@@ -767,7 +778,7 @@ test.describe('@P0 Stage 6: TreeView Display', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.locator('[data-testid^="spoke-"], .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
     }
 
     // Look for score badges - use separate locators to avoid CSS syntax errors
@@ -809,7 +820,7 @@ test.describe('@P0 Stage 7: Approval Workflow', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.locator('[data-testid^="spoke-"], .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
     }
 
     // Find first spoke card with approve button
@@ -818,7 +829,8 @@ test.describe('@P0 Stage 7: Approval Workflow', () => {
 
     if (await approveBtn.isVisible().catch(() => false)) {
       await approveBtn.click();
-      await page.waitForTimeout(1000);
+      // Wait for status change
+      await page.locator('[data-status="approved"], text=/approved/i').first().waitFor({ timeout: 5000 }).catch(() => {});
 
       // Verify status changed
       const statusBadge = spokeCard.locator('[data-status="approved"], text=/approved/i');
@@ -850,7 +862,7 @@ test.describe('@P0 Stage 7: Approval Workflow', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.locator('[data-testid^="spoke-"], .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
     }
 
     // Find reject button
@@ -909,14 +921,14 @@ test.describe('@P0 Stage 7: Approval Workflow', () => {
     const spokesTab = page.locator('[role="tab"]:has-text("Spokes")');
     if (await spokesTab.isVisible()) {
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.locator('[data-testid^="spoke-"], .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
       // Reload and verify still works
       await page.reload();
       await page.waitForLoadState('networkidle').catch(() => {});
 
       await spokesTab.click();
-      await page.waitForTimeout(1000);
+      await page.locator('[data-testid^="spoke-"], .spoke-card, [role="tabpanel"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
       console.log('APPROVE-13: Data persistence infrastructure verified');
     }
@@ -952,7 +964,8 @@ test.describe('@P0 Stage 8: Export', () => {
 
         if (hasExportUI) {
           await exportBtn.click();
-          await page.waitForTimeout(500);
+          // Wait for export menu/dialog
+          await page.locator('button:has-text("CSV"), [data-format="csv"], [role="menu"], [role="dialog"]').first().waitFor({ timeout: 5000 }).catch(() => {});
 
           // Look for CSV option
           const csvOption = page.locator('button:has-text("CSV"), [data-format="csv"]');

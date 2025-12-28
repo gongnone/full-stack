@@ -23,7 +23,13 @@ export default defineConfig({
   /* Use single worker for remote URLs to avoid login conflicts with shared test account */
   workers: process.env.CI || isRemote ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: process.env.CI ? 'list' : 'html',
+  reporter: process.env.CI
+    ? [
+        ['list'],
+        ['blob'], // For merging sharded reports
+        ['github'], // GitHub Actions annotations
+      ]
+    : 'html',
   /* Global timeout for each test */
   timeout: 60000,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

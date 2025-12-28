@@ -1,0 +1,229 @@
+# 🧪 E2E Test Pipeline
+#
+# Runs Playwright E2E tests against the Foundry dashboard with parallel sharding.
+#
+# ARCHITECTURE:
+#   - Foundry MVP: foundry-dashboard + foundry-engine
+#   - Tests run against staging environment (foundry-stage.williamjshaw.ca)
+#   - Supports parallel test execution with sharding
+#   - Uploads artifacts (screenshots, traces, videos) on failure
+#
+# TRIGGERS:
+#   - Push to stage/main branches
+#   - Pull requests targeting stage/main
+#   - Manual workflow dispatch
+#
+# CONFIGURATION:
+#   - Sharding: 4 parallel workers for faster execution
+#   - Timeout: 60s per test, 30min per job
+#   - Retries: 2 on CI (configured in playwright.config.ts)
+#   - Browsers: Chromium, Firefox, WebKit
+
+name: 🧪 E2E Test Pipeline
+
+on:
+  push:
+    branches: ["stage", "main"]
+    paths:
+      - 'apps/foundry-dashboard/**'
+      - 'apps/foundry-engine/**'
+      - 'packages/foundry-core/**'
+      - '.github/workflows/e2e-tests.yaml'
+  pull_request:
+    branches: ["stage", "main"]
+    paths:
+      - 'apps/foundry-dashboard/**'
+      - 'apps/foundry-engine/**'
+      - 'packages/foundry-core/**'
+      - '.github/workflows/e2e-tests.yaml'
+  workflow_dispatch: # Manual trigger button in GitHub UI
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'stage'
+        type: choice
+        options:
+          - stage
+          - production
+      test_filter:
+        description: 'Test filter (e.g., @P0, @smoke, or test file name)'
+        required: false
+        type: string
+
+env:
+  NODE_VERSION: 20
+  PNPM_VERSION: 9
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 1. TYPE CHECK: Ensure code compiles before running tests
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  typecheck:
+    name: 🛡️ TypeScript Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 🛡️ Type Check (Foundry - excludes test files)
+        run: pnpm run foundry:typecheck:build
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 2. E2E TESTS: Parallel execution with sharding
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  e2e-tests:
+    name: 🧪 E2E Tests (Shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
+    needs: typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Parallel sharding - adjust shardTotal based on test suite size
+        shardIndex: [1, 2, 3, 4]
+        shardTotal: [4]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 📦 Install Playwright Browsers
+        run: pnpm --filter foundry-dashboard exec playwright install --with-deps
+
+      - name: 🧪 Run Playwright tests
+        working-directory: apps/foundry-dashboard
+        env:
+          # Target staging environment for stage branch, production for main
+          BASE_URL: ${{ github.event.inputs.environment == 'production' && 'https://foundry.williamjshaw.ca' || (github.ref == 'refs/heads/main' && 'https://foundry.williamjshaw.ca' || 'https://foundry-stage.williamjshaw.ca') }}
+          # Test credentials - stored as GitHub secrets
+          TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          # CI flag enables retries and special reporter
+          CI: true
+        run: |
+          # Apply test filter if provided via workflow dispatch
+          if [ -n "${{ github.event.inputs.test_filter }}" ]; then
+            pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+          else
+            pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+          fi
+
+      - name: 📊 Upload Blob Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: blob-report-${{ matrix.shardIndex }}
+          path: apps/foundry-dashboard/blob-report/
+          retention-days: 7
+
+      - name: 📸 Upload Test Artifacts (Screenshots, Traces, Videos)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-artifacts-shard-${{ matrix.shardIndex }}
+          path: apps/foundry-dashboard/test-results/
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 3. MERGE REPORTS: Combine sharded test results
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  merge-reports:
+    name: 📊 Merge Test Reports
+    needs: e2e-tests
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 📥 Download all blob reports
+        uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+          pattern: blob-report-*
+
+      - name: 📊 Merge into HTML Report
+        working-directory: apps/foundry-dashboard
+        run: |
+          # Merge all shard blob reports into a single HTML report
+          pnpm exec playwright merge-reports --reporter html ../../all-blob-reports
+
+      - name: 📤 Upload Merged Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-merged-report
+          path: apps/foundry-dashboard/playwright-report/
+          retention-days: 14
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 4. SUMMARY: Test results and next steps
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  test-summary:
+    name: ✅ Test Summary
+    needs: [typecheck, e2e-tests, merge-reports]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: 📊 Generate Summary
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🧪 E2E TEST PIPELINE COMPLETE"
+          echo "═══════════════════════════════════════════════════════"
+          echo ""
+          echo "  Environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'stage') }}"
+          echo "  Target URL:  ${{ github.event.inputs.environment == 'production' && 'https://foundry.williamjshaw.ca' || (github.ref == 'refs/heads/main' && 'https://foundry.williamjshaw.ca' || 'https://foundry-stage.williamjshaw.ca') }}"
+          echo "  Shards:      4 parallel workers"
+          echo ""
+          echo "  TypeCheck:   ${{ needs.typecheck.result }}"
+          echo "  E2E Tests:   ${{ needs.e2e-tests.result }}"
+          echo "  Reports:     ${{ needs.merge-reports.result }}"
+          echo ""
+          echo "  📊 View merged test report in artifacts"
+          echo "  📸 Screenshots and traces available on test failures"
+          echo ""
+          echo "═══════════════════════════════════════════════════════"
+
+      - name: ❌ Fail if tests failed
+        if: needs.e2e-tests.result == 'failure'
+        run: |
+          echo "::error::E2E tests failed. Check test artifacts for details."
+          exit 1

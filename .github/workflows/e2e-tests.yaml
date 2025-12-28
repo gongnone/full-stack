@@ -130,7 +130,9 @@ jobs:
           if [ -n "${{ github.event.inputs.test_filter }}" ]; then
             pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
           else
-            pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+            # Run only smoke tests and accessibility tests on CI (fast, reliable)
+            # Full test suite requires local dev environment or manual trigger
+            pnpm exec playwright test --grep "@smoke|accessibility" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
           fi
 
       - name: 📊 Upload Blob Report

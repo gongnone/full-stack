@@ -24,6 +24,8 @@ function ReviewPage() {
   const [isComplete, setIsComplete] = useState(false);
   const [showKillModal, setShowKillModal] = useState(false);
   const [showCloneModal, setShowCloneModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editedContent, setEditedContent] = useState('');
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sprint stats tracking
@@ -48,6 +50,17 @@ function ReviewPage() {
   const swipeMutation = trpc.review.swipeAction.useMutation();
   const bulkApproveMutation = trpc.review.bulkApprove.useMutation();
   const killHubMutation = trpc.review.killHub.useMutation();
+  const editSpokeMutation = trpc.spokes.edit.useMutation({
+    onSuccess: () => {
+      setShowEditModal(false);
+      setEditedContent('');
+      queueQuery.refetch();
+      setStats(prev => ({ ...prev, edited: prev.edited + 1 }));
+    },
+    onError: (err) => {
+      alert(`Failed to save edit: ${err.message}`);
+    },
+  });
 
   const spokes = useMemo(() => queueQuery.data?.items || [], [queueQuery.data]);
   const currentSpoke = spokes[currentIndex];
@@ -122,6 +135,12 @@ function ReviewPage() {
         // C for clone (high confidence only)
         if ((e.key === 'c' || e.key === 'C') && (currentSpoke.qualityScores?.g7_engagement || 0) >= 9.0) {
           setShowCloneModal(true);
+        }
+
+        // E for edit
+        if (e.key === 'e' || e.key === 'E') {
+          setEditedContent(currentSpoke.content);
+          setShowEditModal(true);
         }
       }
 
@@ -405,7 +424,16 @@ function ReviewPage() {
         <div className="h-10 w-[1px] bg-[var(--border-subtle)]" />
 
         <div className="flex flex-col items-center gap-1">
-          <ActionButton variant="ghost" size="md">
+          <ActionButton
+            variant="ghost"
+            size="md"
+            onClick={() => {
+              if (currentSpoke) {
+                setEditedContent(currentSpoke.content);
+                setShowEditModal(true);
+              }
+            }}
+          >
             Edit Spoke
           </ActionButton>
           <KeyboardHint keys={['E']} action="Edit" size="sm" />
@@ -456,6 +484,73 @@ function ReviewPage() {
         spokeContent={currentSpoke?.content || ''}
         spokeScore={currentSpoke?.qualityScores?.g7_engagement || 0}
       />
+
+      {/* Edit Spoke Modal */}
+      {showEditModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          role="presentation"
+          onClick={() => setShowEditModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="edit-spoke-title"
+            className="w-full max-w-2xl p-6 rounded-xl shadow-2xl"
+            style={{ backgroundColor: 'var(--bg-elevated)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              id="edit-spoke-title"
+              className="text-lg font-semibold text-[var(--text-primary)] mb-4"
+            >
+              Edit Spoke
+            </h3>
+            <textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className="w-full h-48 p-4 rounded-lg text-sm resize-none"
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                border: '1px solid var(--border-subtle)',
+              }}
+              placeholder="Edit spoke content..."
+            />
+            <p className="text-xs text-[var(--text-muted)] mt-2">
+              Edited spokes are marked as mutated and survive Kill Chain actions.
+            </p>
+            <div className="flex justify-end gap-3 mt-4">
+              <ActionButton
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditedContent('');
+                }}
+              >
+                Cancel
+              </ActionButton>
+              <ActionButton
+                variant="approve"
+                size="sm"
+                onClick={() => {
+                  if (clientId && currentSpoke && editedContent.trim()) {
+                    editSpokeMutation.mutate({
+                      clientId,
+                      spokeId: currentSpoke.id,
+                      content: editedContent.trim(),
+                    });
+                  }
+                }}
+                disabled={editSpokeMutation.isPending || !editedContent.trim()}
+              >
+                {editSpokeMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </ActionButton>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

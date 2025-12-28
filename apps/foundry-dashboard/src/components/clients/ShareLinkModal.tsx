@@ -24,6 +24,9 @@ export function ShareLinkModal({ isOpen, onClose, client }: ShareLinkModalProps)
       const fullUrl = `${window.location.origin}${data.url}`;
       setGeneratedLink(fullUrl);
     },
+    onError: (err) => {
+      alert(`Failed to generate link: ${err.message}`);
+    },
   });
 
   const handleGenerate = (e: React.FormEvent) => {

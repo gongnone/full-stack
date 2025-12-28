@@ -344,4 +344,133 @@ describe('ClientManager - Story 7-1: Client Account Management', () => {
       expect(screen.getByText('Share Review Link')).toBeInTheDocument();
     });
   });
+
+  describe('Bug Regression: Archive Client Button', () => {
+    it('archive button triggers confirmation and calls mutation', async () => {
+      const user = userEvent.setup();
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      mockClientsQuery.mockReturnValue({
+        data: {
+          items: [
+            {
+              id: 'client-1',
+              name: 'Acme Corp',
+              status: 'active',
+              industry: 'Technology',
+            },
+          ],
+        },
+        isLoading: false,
+      });
+
+      render(<ClientManager />);
+
+      // Open dropdown
+      const moreButton = screen.getAllByRole('button')[0]!;
+      await user.click(moreButton);
+
+      // Click archive option
+      const archiveButton = screen.getByText('Archive Client');
+      await user.click(archiveButton);
+
+      // Verify confirmation was called
+      expect(confirmSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Archive')
+      );
+
+      // Verify mutation was called with archived status
+      expect(mockUpdateMutation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          clientId: 'client-1',
+          status: 'archived',
+        })
+      );
+
+      confirmSpy.mockRestore();
+    });
+
+    it('archive button does not call mutation when cancelled', async () => {
+      const user = userEvent.setup();
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+      mockClientsQuery.mockReturnValue({
+        data: {
+          items: [
+            {
+              id: 'client-1',
+              name: 'Acme Corp',
+              status: 'active',
+            },
+          ],
+        },
+        isLoading: false,
+      });
+
+      render(<ClientManager />);
+
+      // Open dropdown and click archive
+      const moreButton = screen.getAllByRole('button')[0]!;
+      await user.click(moreButton);
+      await user.click(screen.getByText('Archive Client'));
+
+      // Mutation should NOT be called when user cancels
+      expect(mockUpdateMutation).not.toHaveBeenCalled();
+
+      confirmSpy.mockRestore();
+    });
+  });
+
+  describe('Bug Regression: Dialog State Reset', () => {
+    it('resets selectedClient when edit dialog closes', async () => {
+      const user = userEvent.setup();
+      mockClientsQuery.mockReturnValue({
+        data: {
+          items: [
+            {
+              id: 'client-1',
+              name: 'Acme Corp',
+              status: 'active',
+              industry: 'Technology',
+            },
+            {
+              id: 'client-2',
+              name: 'Beta Inc',
+              status: 'active',
+              industry: 'Finance',
+            },
+          ],
+        },
+        isLoading: false,
+      });
+
+      render(<ClientManager />);
+
+      // Open edit modal for first client
+      const moreButtons = screen.getAllByRole('button');
+      await user.click(moreButtons[0]!);
+      await user.click(screen.getByText('Edit Details'));
+
+      // Verify modal shows first client data
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Acme Corp')).toBeInTheDocument();
+      });
+
+      // Close modal via Cancel button
+      await user.click(screen.getByText('Cancel'));
+
+      // Modal should close
+      await waitFor(() => {
+        expect(screen.queryByText('Edit Client')).not.toBeInTheDocument();
+      });
+
+      // Open edit modal for second client - should show Beta Inc data, not stale Acme data
+      await user.click(moreButtons[1]!);
+      await user.click(screen.getByText('Edit Details'));
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Beta Inc')).toBeInTheDocument();
+      });
+    });
+  });
 });

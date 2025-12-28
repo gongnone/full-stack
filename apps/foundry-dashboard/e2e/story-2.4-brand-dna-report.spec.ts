@@ -37,7 +37,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Check if report exists by looking for DNA score
       const strengthScore = page.locator('[data-testid="dna-strength-score"]');
@@ -68,7 +68,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Training Samples list should be separate from BrandDNACard
       const trainingSamplesHeader = page.locator('h2:has-text("Training Samples")');
@@ -88,7 +88,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const strengthScore = page.locator('[data-testid="dna-strength-score"]');
 
@@ -108,7 +108,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const signaturesSection = page.locator('h3:has-text("Signature Phrases")');
 
@@ -128,7 +128,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Look for any signature phrase with data-testid
       const phraseWithTestId = page.locator('[data-testid^="signature-phrase-"]').first();
@@ -145,7 +145,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Find first signature phrase chip
       const firstPhrase = page.locator('[data-testid^="signature-phrase-"]').first();
@@ -176,7 +176,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const phrases = page.locator('[data-testid^="signature-phrase-"]');
       const count = await phrases.count();
@@ -205,7 +205,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const toneMatch = page.locator('[data-testid="progress-tone-match"]');
 
@@ -246,7 +246,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const toneMatch = page.locator('[data-testid="progress-tone-match"]');
 
@@ -273,7 +273,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Look for Topics to Avoid section
       const topicsSection = page.locator('[data-testid="topics-to-avoid-section"]');
@@ -293,7 +293,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const topicsSection = page.locator('[data-testid="topics-to-avoid-section"]');
 
@@ -331,7 +331,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const topicsSection = page.locator('[data-testid="topics-to-avoid-section"]');
 
@@ -353,7 +353,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const topicsSection = page.locator('[data-testid="topics-to-avoid-section"]');
 
@@ -384,7 +384,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const topicsSection = page.locator('[data-testid="topics-to-avoid-section"]');
 
@@ -404,7 +404,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // If no topics exist, section should not be in DOM
       const topicsSection = page.locator('[data-testid="topics-to-avoid-section"]');
@@ -420,7 +420,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const signaturesSection = page.locator('h3:has-text("Signature Phrases")');
       const topicsSection = page.locator('[data-testid="topics-to-avoid-section"]');
@@ -440,7 +440,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const strengthScore = page.locator('[data-testid="dna-strength-score"]');
 
@@ -472,7 +472,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const firstPhrase = page.locator('[data-testid^="signature-phrase-"]').first();
 
@@ -487,7 +487,7 @@ test.describe('Story 2.4: Brand DNA Report Dashboard', () => {
       await login(page);
       await page.goto(`${BASE_URL}/app/brand-dna`);
 
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const topicsSection = page.locator('[data-testid="topics-to-avoid-section"]');
 

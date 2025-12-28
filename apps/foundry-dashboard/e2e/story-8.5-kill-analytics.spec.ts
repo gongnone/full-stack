@@ -31,7 +31,7 @@ test.describe('Story 8-5: Kill Chain Analytics', () => {
     test('displays kill chain analytics title', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const title = page.locator('h3:has-text("Kill Chain Analytics")');
       await expect(title).toBeVisible();
@@ -40,7 +40,7 @@ test.describe('Story 8-5: Kill Chain Analytics', () => {
     test('section container is rendered', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Section container should be visible
       const section = page.locator('h3:has-text("Kill Chain Analytics")').locator('..');
@@ -52,7 +52,7 @@ test.describe('Story 8-5: Kill Chain Analytics', () => {
     test('shows section heading', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Section heading should be visible (it's always shown)
       await expect(page.locator('h3:has-text("Kill Chain Analytics")')).toBeVisible();
@@ -63,7 +63,7 @@ test.describe('Story 8-5: Kill Chain Analytics', () => {
     test('kill chain section exists', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Kill Chain Analytics section should be visible
       await expect(page.locator('h3:has-text("Kill Chain Analytics")')).toBeVisible();

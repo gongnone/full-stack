@@ -67,7 +67,7 @@ test.describe('Story 1.1: Project Foundation for User Access', () => {
       await page.click('button[type="submit"]');
 
       // Wait for response
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Page should still be functional (not crashed)
       const body = page.locator('body');
@@ -83,7 +83,7 @@ test.describe('Story 1.1: Project Foundation for User Access', () => {
       await page.click('button[type="submit"]');
 
       // Wait for response
-      await page.waitForTimeout(3000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Either redirected to app or showing error - both prove auth works
       const currentUrl = page.url();
@@ -102,7 +102,7 @@ test.describe('Story 1.1: Project Foundation for User Access', () => {
       await newPage.goto(`${BASE_URL}/app`);
 
       // Wait for redirect
-      await newPage.waitForTimeout(2000);
+      await newPage.waitForLoadState("networkidle").catch(() => {});
 
       // Should redirect to login OR show login required message
       const currentUrl = newPage.url();

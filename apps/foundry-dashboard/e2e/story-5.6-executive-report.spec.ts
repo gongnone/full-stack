@@ -29,7 +29,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('SprintComplete component renders after completion', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Check for either empty state or completion
       const isComplete = await page.locator('text=/Sprint Complete|No Items/i').isVisible().catch(() => false);
@@ -42,7 +42,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Celebration has checkmark icon', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -56,7 +56,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Celebration icon has pulse animation', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -71,7 +71,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Hours saved section is visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -83,7 +83,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Hours number is animated', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -98,7 +98,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Dollar value is shown', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -112,7 +112,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Zero-edit rate section visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -124,7 +124,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Target indicator shows 60%', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -136,7 +136,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Progress bar is visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -149,7 +149,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Shows above/below target status', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -164,7 +164,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Performance metrics section visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -176,7 +176,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Reviewed count is shown', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -188,7 +188,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Approved count with percentage', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -200,7 +200,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Killed count with percentage', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -212,7 +212,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Average decision time shown', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -226,7 +226,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Back to Dashboard button visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete|No Items/i').isVisible().catch(() => false);
 
@@ -238,7 +238,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Review Conflicts button visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -250,7 +250,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Share Summary button visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -262,13 +262,13 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Back to Dashboard navigates correctly', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete|No Items/i').isVisible().catch(() => false);
 
       if (isComplete) {
         await page.click('text="Back to Dashboard"');
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("networkidle").catch(() => {});
 
         // Should navigate to review without filter
         expect(page.url()).not.toContain('filter=');
@@ -291,7 +291,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Approve color for positive metrics', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete/i').isVisible().catch(() => false);
 
@@ -304,7 +304,7 @@ test.describe('Story 5.6: Executive Producer Report', () => {
     test('Content has fade-in animation', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const isComplete = await page.locator('text=/Sprint Complete|No Items/i').isVisible().catch(() => false);
 

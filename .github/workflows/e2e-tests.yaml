@@ -1,0 +1,283 @@
+# 🧪 E2E Test Pipeline
+#
+# Runs Playwright E2E tests and Vitest integration tests against Foundry dashboard.
+#
+# ARCHITECTURE:
+#   - Foundry MVP: foundry-dashboard + foundry-engine
+#   - E2E tests run against staging environment (foundry-stage.williamjshaw.ca)
+#   - Integration tests run with mock D1 (no auth required)
+#   - Supports parallel test execution with sharding
+#   - Uploads artifacts (screenshots, traces, videos) on failure
+#
+# TRIGGERS:
+#   - Push to stage/main branches
+#   - Pull requests targeting stage/main
+#   - Manual workflow dispatch
+#
+# TEST STRATEGY:
+#   - All pushes/PRs: P1 Integration tests (173 tests, mock D1, fast)
+#   - All pushes/PRs: Accessibility E2E tests (no auth required)
+#   - Manual trigger: Full E2E suite via test_filter (e.g., @P0)
+#
+# CONFIGURATION:
+#   - Sharding: 4 parallel workers for faster execution
+#   - Timeout: 60s per test, 30min per job
+#   - Retries: 2 on CI (configured in playwright.config.ts)
+#   - Browsers: Chromium, Firefox, WebKit
+
+name: 🧪 E2E Test Pipeline
+
+on:
+  push:
+    branches: ["stage", "main"]
+    paths:
+      - 'apps/foundry-dashboard/**'
+      - 'apps/foundry-engine/**'
+      - 'packages/foundry-core/**'
+      - '.github/workflows/e2e-tests.yaml'
+  pull_request:
+    branches: ["stage", "main"]
+    paths:
+      - 'apps/foundry-dashboard/**'
+      - 'apps/foundry-engine/**'
+      - 'packages/foundry-core/**'
+      - '.github/workflows/e2e-tests.yaml'
+  workflow_dispatch: # Manual trigger button in GitHub UI
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'stage'
+        type: choice
+        options:
+          - stage
+          - production
+      test_filter:
+        description: 'Test filter (e.g., @P0, @smoke, or test file name)'
+        required: false
+        type: string
+
+env:
+  NODE_VERSION: 20
+  PNPM_VERSION: 9
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 1. TYPE CHECK: Ensure code compiles before running tests
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  typecheck:
+    name: 🛡️ TypeScript Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 🛡️ Type Check (Foundry - excludes test files)
+        run: pnpm run foundry:typecheck:build
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 2. INTEGRATION TESTS: P1 tests with mock D1 (no auth required)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  integration-tests:
+    name: 🧪 P1 Integration Tests
+    needs: typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Run on all pushes and PRs - build confidence on stage before production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 🧪 Run P1 Integration Tests
+        working-directory: apps/foundry-dashboard
+        run: |
+          echo "Running P1 integration tests with mock D1..."
+          pnpm test:integration
+
+      - name: 📊 Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-coverage
+          path: apps/foundry-dashboard/coverage/
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 3. E2E TESTS: Parallel execution with sharding
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  e2e-tests:
+    name: 🧪 E2E Tests
+    needs: typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Note: Sharding disabled for authenticated tests to avoid session conflicts
+    # All 4 shards sharing one test user causes login race conditions
+    # Re-enable with: matrix.shardIndex: [1,2,3,4], shardTotal: [4]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 📦 Install Playwright Browsers
+        run: pnpm --filter foundry-dashboard exec playwright install --with-deps
+
+      - name: 🧪 Run Playwright tests
+        working-directory: apps/foundry-dashboard
+        env:
+          # Target staging environment for stage branch, production for main
+          BASE_URL: ${{ github.event.inputs.environment == 'production' && 'https://foundry.williamjshaw.ca' || (github.ref == 'refs/heads/main' && 'https://foundry.williamjshaw.ca' || 'https://foundry-stage.williamjshaw.ca') }}
+          # Test credentials - stored as GitHub secrets
+          # Required secrets: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
+          # Default test user: e2e-test@foundry.local / TestPassword123!
+          # Create user on staging via: BASE_URL=https://foundry-stage.williamjshaw.ca npx playwright test e2e/create-test-user.spec.ts
+          TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
+          TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          # CI flag enables retries and special reporter
+          CI: true
+        run: |
+          # Apply test filter if provided via workflow dispatch
+          if [ -n "${{ github.event.inputs.test_filter }}" ]; then
+            pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}"
+          else
+            # Run only tests that don't require auth (accessibility + public pages)
+            # Authenticated tests require local run due to network latency from
+            # GitHub Actions to Cloudflare staging (login times out at 30s)
+            #
+            # Run authenticated tests locally:
+            #   BASE_URL=https://foundry-stage.williamjshaw.ca pnpm test:e2e
+            # Or trigger manually with: test_filter=@P0
+            pnpm exec playwright test e2e/accessibility.spec.ts
+          fi
+
+      - name: 📊 Upload Blob Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: blob-report
+          path: apps/foundry-dashboard/blob-report/
+          retention-days: 7
+
+      - name: 📸 Upload Test Artifacts (Screenshots, Traces, Videos)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-artifacts
+          path: apps/foundry-dashboard/test-results/
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 4. HTML REPORT: Generate HTML report from blob (no sharding)
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  html-report:
+    name: 📊 Generate HTML Report
+    needs: e2e-tests
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: 📦 Install dependencies
+        run: pnpm install
+
+      - name: 📥 Download blob report
+        uses: actions/download-artifact@v4
+        with:
+          name: blob-report
+          path: blob-report
+
+      - name: 📊 Generate HTML Report
+        working-directory: apps/foundry-dashboard
+        continue-on-error: true
+        run: |
+          # Convert blob report to HTML
+          pnpm exec playwright merge-reports --reporter html ../../blob-report || echo "Report generation skipped"
+
+      - name: 📤 Upload HTML Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-html-report
+          path: apps/foundry-dashboard/playwright-report/
+          retention-days: 14
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 5. SUMMARY: Test results and next steps
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  test-summary:
+    name: ✅ Test Summary
+    needs: [typecheck, integration-tests, e2e-tests, html-report]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: 📊 Generate Summary
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  🧪 TEST PIPELINE COMPLETE"
+          echo "═══════════════════════════════════════════════════════"
+          echo ""
+          echo "  Environment: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'stage') }}"
+          echo "  Target URL:  ${{ github.event.inputs.environment == 'production' && 'https://foundry.williamjshaw.ca' || (github.ref == 'refs/heads/main' && 'https://foundry.williamjshaw.ca' || 'https://foundry-stage.williamjshaw.ca') }}"
+          echo ""
+          echo "  TypeCheck:        ${{ needs.typecheck.result }}"
+          echo "  Integration (P1): ${{ needs.integration-tests.result }}"
+          echo "  E2E Tests:        ${{ needs.e2e-tests.result }}"
+          echo "  HTML Report:      ${{ needs.html-report.result }}"
+          echo ""
+          echo "  📊 View HTML test report in artifacts"
+          echo "  📸 Screenshots and traces available on test failures"
+          echo ""
+          echo "═══════════════════════════════════════════════════════"
+
+      - name: ❌ Fail if tests failed
+        if: needs.e2e-tests.result == 'failure' || needs.integration-tests.result == 'failure'
+        run: |
+          echo "::error::Tests failed. Check test artifacts for details."
+          exit 1

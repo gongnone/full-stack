@@ -44,6 +44,12 @@
     "binding": "AI"
   },
 
+  // Local development vars
+  "vars": {
+    "ENVIRONMENT": "local",
+    "BETTER_AUTH_URL": "http://localhost:5173"
+  },
+
   // Stage environment
   "env": {
     "stage": {

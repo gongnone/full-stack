@@ -31,7 +31,7 @@ test.describe('Story 8-4: Content Volume and Review Velocity', () => {
     test('displays velocity dashboard title', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const title = page.locator('h3:has-text("Content Volume & Review Velocity")');
       await expect(title).toBeVisible();
@@ -40,7 +40,7 @@ test.describe('Story 8-4: Content Volume and Review Velocity', () => {
     test('section is rendered properly', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Section container should be visible
       const section = page.locator('h3:has-text("Content Volume & Review Velocity")').locator('..');
@@ -52,7 +52,7 @@ test.describe('Story 8-4: Content Volume and Review Velocity', () => {
     test('analytics dashboard is functional', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Main dashboard heading should be visible
       await expect(page.locator('h1:has-text("Analytics Dashboard")')).toBeVisible();

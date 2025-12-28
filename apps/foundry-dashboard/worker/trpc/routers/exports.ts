@@ -19,7 +19,7 @@ export const exportsRouter = t.router({
   // Create a content export (Story 6.1, 6.2, 6.3, 6.4)
   create: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       hubIds: z.array(z.string().uuid()).optional(),
       platforms: z.array(platformEnum).optional(),
       format: z.enum(['csv', 'json']),
@@ -46,7 +46,7 @@ export const exportsRouter = t.router({
   // Get signed download URL for completed export
   getDownloadUrl: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       exportId: z.string().uuid(),
     }))
     .query(async ({ ctx, input }) => {
@@ -69,7 +69,7 @@ export const exportsRouter = t.router({
   // List recent exports
   list: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       limit: z.number().min(1).max(50).default(10),
     }))
     .query(async ({ ctx, input }) => {
@@ -85,7 +85,7 @@ export const exportsRouter = t.router({
   // Copy spoke content to clipboard (Story 6.5)
   copyToClipboard: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       spokeIds: z.array(z.string().uuid()),
       format: z.enum(['plain', 'markdown', 'json']).default('plain'),
     }))
@@ -114,7 +114,7 @@ export const exportsRouter = t.router({
   // Get export metadata (Story 6.3 - scheduling info)
   getExportMetadata: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       exportId: z.string().uuid(),
     }))
     .query(async ({ ctx, input }) => {

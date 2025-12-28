@@ -18,14 +18,20 @@ export default defineConfig({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  /* No retries on CI - faster feedback, investigate failures instead of masking them */
+  retries: 0,
   /* Use single worker for remote URLs to avoid login conflicts with shared test account */
   workers: process.env.CI || isRemote ? 1 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: process.env.CI ? 'list' : 'html',
-  /* Global timeout for each test */
-  timeout: 60000,
+  reporter: process.env.CI
+    ? [
+        ['list'],
+        ['blob'], // For merging sharded reports
+        ['github'], // GitHub Actions annotations
+      ]
+    : 'html',
+  /* Global timeout for each test - 30s on CI to fail fast, 60s locally */
+  timeout: process.env.CI ? 30000 : 60000,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -39,22 +45,30 @@ export default defineConfig({
   },
 
   /* Configure projects for major browsers */
-  projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-  ],
+  /* On CI: Only run Chromium to stay within 30min timeout per shard */
+  /* Locally: Run all browsers for comprehensive testing */
+  projects: process.env.CI
+    ? [
+        {
+          name: 'chromium',
+          use: { ...devices['Desktop Chrome'] },
+        },
+      ]
+    : [
+        {
+          name: 'chromium',
+          use: { ...devices['Desktop Chrome'] },
+        },
+        {
+          name: 'firefox',
+          use: { ...devices['Desktop Firefox'] },
+        },
+        {
+          name: 'webkit',
+          use: { ...devices['Desktop Safari'] },
+          retries: 1,
+        },
+      ],
 
   /* Run your local dev server before starting the tests - skip for remote URLs */
   webServer: isRemote ? undefined : [

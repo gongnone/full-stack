@@ -9,7 +9,7 @@ export const analyticsRouter = t.router({
   // Get Zero-Edit Rate metrics
   getZeroEditRate: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(7),
     }))
     .query(async ({ ctx, input }) => {
@@ -21,7 +21,7 @@ export const analyticsRouter = t.router({
   // Get quality gate pass rates
   getCriticPassRate: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(7),
     }))
     .query(async ({ ctx, input }) => {
@@ -44,7 +44,7 @@ export const analyticsRouter = t.router({
   // Get review speed metrics
   getReviewVelocity: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(7),
     }))
     .query(async ({ ctx, input }) => {
@@ -63,7 +63,7 @@ export const analyticsRouter = t.router({
   // Get self-healing loop metrics
   getSelfHealingEfficiency: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(7),
     }))
     .query(async ({ ctx, input }) => {
@@ -85,7 +85,7 @@ export const analyticsRouter = t.router({
   // Get content volume metrics
   getVolumeMetrics: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
@@ -113,7 +113,7 @@ export const analyticsRouter = t.router({
   // Get Kill Chain usage analytics
   getKillChainAnalytics: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
@@ -135,7 +135,7 @@ export const analyticsRouter = t.router({
   // Get learning velocity (Story 8.6)
   getTimeToDNA: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
       const dnaReport = await ctx.callAgent(input.clientId, 'getDNAReport', {});
@@ -152,7 +152,7 @@ export const analyticsRouter = t.router({
   // Story 8-1: Zero-Edit Rate Time Series
   getZeroEditTrend: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
@@ -184,7 +184,7 @@ export const analyticsRouter = t.router({
   // Story 8-2: Critic Pass Rate Trends
   getCriticPassTrend: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
@@ -212,7 +212,7 @@ export const analyticsRouter = t.router({
   // Story 8-3: Self-Healing Efficiency Metrics
   getHealingMetrics: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
@@ -250,7 +250,7 @@ export const analyticsRouter = t.router({
   // Story 8-4: Content Volume and Review Velocity
   getVelocityTrend: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
@@ -283,7 +283,7 @@ export const analyticsRouter = t.router({
   // Story 8-5: Kill Chain Analytics
   getKillChainTrend: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
@@ -323,7 +323,7 @@ export const analyticsRouter = t.router({
   // Story 8-6: Drift Detection Data
   getDriftHistory: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {

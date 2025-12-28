@@ -28,7 +28,7 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Clone button visible for high scoring spokes', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
@@ -44,13 +44,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Pressing C opens clone modal', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text="Clone Best"')).toBeVisible();
       }
@@ -59,13 +59,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Clicking Clone button opens modal', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.click('button:has-text("Clone")');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text="Clone Best"')).toBeVisible();
       }
@@ -74,13 +74,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Modal shows original spoke preview', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text="Original Spoke"')).toBeVisible();
       }
@@ -89,13 +89,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Modal shows G7 score badge', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text=/G7:/i')).toBeVisible();
       }
@@ -106,13 +106,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Variation count buttons are visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text="Number of Variations"')).toBeVisible();
       }
@@ -121,13 +121,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Can select variation counts 1-5', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Check all 5 buttons exist
         for (let i = 1; i <= 5; i++) {
@@ -139,13 +139,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Default variation count is 3', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Button 3 should be selected (has edit color)
         const selectedButton = page.locator('button.bg-\\[var\\(--edit\\)\\]:has-text("3")');
@@ -158,13 +158,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Platform selection section is visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text="Target Platforms"')).toBeVisible();
       }
@@ -173,13 +173,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('LinkedIn platform option visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text="LinkedIn"')).toBeVisible();
       }
@@ -188,13 +188,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('X/Twitter platform option visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text=/X \\/ Twitter|Twitter/i')).toBeVisible();
       }
@@ -203,13 +203,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Threads platform option visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text="Threads"')).toBeVisible();
       }
@@ -220,13 +220,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Vary angle checkbox is visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text="Vary Psychological Angle"')).toBeVisible();
       }
@@ -235,13 +235,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Vary angle description is visible', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text=/variations in hook and angle/i')).toBeVisible();
       }
@@ -252,16 +252,16 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Cancel button closes modal', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await page.click('button:has-text("Cancel")');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         await expect(page.locator('text="Clone Best"')).not.toBeVisible();
       }
@@ -270,13 +270,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Clone button shows variation count', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Default is 3 variations
         await expect(page.locator('button:has-text("Clone 3 Variations")')).toBeVisible();
@@ -286,17 +286,17 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Clone button disabled without platform', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Deselect default platform
         await page.click('button:has-text("LinkedIn")');
-        await page.waitForTimeout(100);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Clone button should be disabled
         const cloneButton = page.locator('button:has-text("Clone"):not(:has-text("Clone Best"))');
@@ -309,13 +309,13 @@ test.describe('Story 5.5: Clone Best & Variations', () => {
     test('Modal has approve glow for G7 badge', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/review?filter=high-confidence`);
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const hasSpokes = await page.locator('.whitespace-pre-wrap').first().isVisible().catch(() => false);
 
       if (hasSpokes) {
         await page.keyboard.press('C');
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         const badge = page.locator('.bg-\\[var\\(--approve-glow\\)\\]');
         await expect(badge).toBeVisible();

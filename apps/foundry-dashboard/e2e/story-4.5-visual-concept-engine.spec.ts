@@ -91,7 +91,7 @@ test.describe('Story 4.5: Multimodal Visual Concept Engine', () => {
       const expandBtn = page.locator('button:has-text("Expand All")');
       if (await expandBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await expandBtn.click();
-        await page.waitForTimeout(500);
+        await page.waitForLoadState("networkidle").catch(() => {});
       }
 
       // Look for visual concept indicators

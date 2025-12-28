@@ -31,7 +31,7 @@ test.describe('Story 8-1: Zero-Edit Rate Dashboard', () => {
     test('displays zero-edit rate section with chart or empty state', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Chart section title should be visible
       const chartTitle = page.locator('h3:has-text("Zero-Edit Rate Trend")');
@@ -45,7 +45,7 @@ test.describe('Story 8-1: Zero-Edit Rate Dashboard', () => {
     test('section container is rendered', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Section container should be visible
       const section = page.locator('h3:has-text("Zero-Edit Rate Trend")').locator('..');
@@ -57,7 +57,7 @@ test.describe('Story 8-1: Zero-Edit Rate Dashboard', () => {
     test('displays zero-edit rate metric card', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Zero-Edit Rate metric card should always show (even with 0%)
       // Use .first() to avoid strict mode when multiple elements match
@@ -72,7 +72,7 @@ test.describe('Story 8-1: Zero-Edit Rate Dashboard', () => {
     test('shows trend indicator when data exists', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Trend indicator only shows when there's data with trend
       const hasTrend = await page.locator('text=/vs last week/i').isVisible().catch(() => false);
@@ -87,7 +87,7 @@ test.describe('Story 8-1: Zero-Edit Rate Dashboard', () => {
     test('displays analytics page with metric cards', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Analytics Dashboard heading should be visible
       await expect(page.locator('h1:has-text("Analytics Dashboard")')).toBeVisible();
@@ -96,7 +96,7 @@ test.describe('Story 8-1: Zero-Edit Rate Dashboard', () => {
     test('displays metric cards in top section', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Use paragraph selector to target metric card labels specifically
       await expect(page.locator('p:has-text("Zero-Edit Rate")')).toBeVisible();
@@ -108,7 +108,7 @@ test.describe('Story 8-1: Zero-Edit Rate Dashboard', () => {
     test('period selector is functional', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Period selector should be visible
       const periodSelector = page.locator('select');
@@ -116,7 +116,7 @@ test.describe('Story 8-1: Zero-Edit Rate Dashboard', () => {
 
       // Change to 7 days
       await periodSelector.selectOption('7');
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Page should still be functional (section headers visible)
       await expect(page.locator('h3:has-text("Zero-Edit Rate Trend")')).toBeVisible();

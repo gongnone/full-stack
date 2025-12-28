@@ -27,7 +27,7 @@ test.describe('Story 2.5: Voice Marker and Banned Word Management', () => {
 
     // Navigate to Brand DNA page
     await page.goto(`${BASE_URL}/app/brand-dna`);
-    await page.waitForTimeout(1000);
+    await page.waitForLoadState("networkidle").catch(() => {});
   });
 
   test.describe('Page Navigation', () => {
@@ -135,7 +135,7 @@ test.describe('Story 2.5: Voice Marker and Banned Word Management', () => {
       const testMarker = `delete-me-${Date.now()}`;
       await input.fill(testMarker);
       await page.keyboard.press('Enter');
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const chip = page.locator(`[data-testid="chip-${testMarker}"]`);
       const removeBtn = chip.locator('button');
@@ -190,7 +190,7 @@ test.describe('Story 2.5: Voice Marker and Banned Word Management', () => {
       const testWord = `delete-ban-${Date.now()}`;
       await input.fill(testWord);
       await page.keyboard.press('Enter');
-      await page.waitForTimeout(500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const chip = page.locator(`[data-testid="chip-${testWord}"]`);
       const removeBtn = chip.locator('button');

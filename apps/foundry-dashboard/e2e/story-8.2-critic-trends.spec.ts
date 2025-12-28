@@ -31,7 +31,7 @@ test.describe('Story 8-2: Critic Pass Rate Trends', () => {
     test('displays critic pass rate trends section', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const chartTitle = page.locator('h3:has-text("Critic Pass Rate Trends")');
       await expect(chartTitle).toBeVisible();
@@ -40,7 +40,7 @@ test.describe('Story 8-2: Critic Pass Rate Trends', () => {
     test('section is rendered properly', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Section container should be visible (contains heading)
       const section = page.locator('h3:has-text("Critic Pass Rate Trends")').locator('..');
@@ -52,7 +52,7 @@ test.describe('Story 8-2: Critic Pass Rate Trends', () => {
     test('analytics page has gate section', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // The Critic Pass Rate Trends section should be visible
       await expect(page.locator('h3:has-text("Critic Pass Rate Trends")')).toBeVisible();
@@ -63,7 +63,7 @@ test.describe('Story 8-2: Critic Pass Rate Trends', () => {
     test('displays critic pass rate metric card', async ({ page }) => {
       await login(page);
       await page.goto(`${BASE_URL}/app/analytics`);
-      await page.waitForTimeout(1500);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Top metric cards always show
       await expect(page.locator('text="Critic Pass Rate"')).toBeVisible();

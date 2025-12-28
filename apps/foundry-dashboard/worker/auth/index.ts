@@ -171,16 +171,17 @@ export function createAuth(env: Env) {
         generateId: () => crypto.randomUUID(),
       },
       // Use default 'better-auth' prefix to match existing session cookies
-      // Always use secure cookies - required for cross-site OAuth flows on custom domains
-      useSecureCookies: true,
+      // Use secure cookies only in production - localhost HTTP needs non-secure for WebKit
+      useSecureCookies: env.ENVIRONMENT === 'production',
       crossSubDomainCookies: {
         enabled: false,
       },
       // sameSite: 'lax' is correct for same-origin (frontend + API on same domain)
       // 'none' was causing issues - it's for cross-origin only
+      // secure: false for local dev to support WebKit E2E tests on localhost HTTP
       defaultCookieAttributes: {
         sameSite: 'lax',
-        secure: true,
+        secure: env.ENVIRONMENT === 'production',
         httpOnly: true,
       },
     },

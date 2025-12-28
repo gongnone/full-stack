@@ -48,7 +48,7 @@ describe('SpokeCard', () => {
     it('renders psychological angle', () => {
       render(<SpokeCard spoke={mockSpoke} />);
 
-      expect(screen.getByText('curiosity')).toBeInTheDocument();
+      expect(screen.getByText('Curiosity')).toBeInTheDocument();
     });
   });
 

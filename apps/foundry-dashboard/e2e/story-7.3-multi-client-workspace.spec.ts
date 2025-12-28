@@ -43,7 +43,7 @@ test.describe('Story 7.3: Multi-Client Workspace Access', () => {
       await page.goto(`${BASE_URL}/app`);
 
       // Wait for data to load
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Check for client name in header area
       const header = page.locator('header, nav, aside').first();
@@ -59,7 +59,7 @@ test.describe('Story 7.3: Multi-Client Workspace Access', () => {
 
       if (await clientSelector.isVisible()) {
         await clientSelector.click();
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // Dropdown should appear
         const dropdown = page.locator('[role="menu"], [class*="dropdown"]');
@@ -77,14 +77,14 @@ test.describe('Story 7.3: Multi-Client Workspace Access', () => {
       await page.goto(`${BASE_URL}/app`);
 
       // Wait for initial load
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Find client selector
       const clientSelector = page.locator('button').filter({ has: page.locator('[class*="Building"]') }).first();
 
       if (await clientSelector.isVisible()) {
         await clientSelector.click();
-        await page.waitForTimeout(300);
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
 
         // If multiple clients exist, clicking one should trigger switch
         const clientOptions = page.locator('[role="menuitem"]');
@@ -95,7 +95,7 @@ test.describe('Story 7.3: Multi-Client Workspace Access', () => {
           await clientOptions.nth(1).click();
 
           // Wait for switch to complete
-          await page.waitForTimeout(500);
+          await page.waitForLoadState("networkidle").catch(() => {});
 
           // Page should refresh or update
         }
@@ -107,7 +107,7 @@ test.describe('Story 7.3: Multi-Client Workspace Access', () => {
       await page.goto(`${BASE_URL}/app/hubs`);
 
       // Wait for initial load
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // Hubs should be scoped to current client
       await expect(page.locator('h1:has-text("Content Hubs")')).toBeVisible();
@@ -121,7 +121,7 @@ test.describe('Story 7.3: Multi-Client Workspace Access', () => {
 
       // User should only see clients they are member of
       // This is enforced by the API, we test the UI renders correctly
-      await page.waitForTimeout(1000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       // No error messages about unauthorized access
       const hasError = await page.locator('text=/unauthorized|access denied|forbidden/i').isVisible().catch(() => false);
@@ -178,7 +178,7 @@ test.describe('Story 7.3: Multi-Client Workspace Access', () => {
 
       // Press Enter/Space to open
       await page.keyboard.press('Enter');
-      await page.waitForTimeout(300);
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
 
       // Press Escape to close
       await page.keyboard.press('Escape');

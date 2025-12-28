@@ -120,10 +120,20 @@ function NewHubWizard() {
     setCurrentStep(3);
 
     // Auto-start extraction for supported source types
-    if (SUPPORTED_SOURCE_TYPES.includes(sourceType as typeof SUPPORTED_SOURCE_TYPES[number])) {
+    if (SUPPORTED_SOURCE_TYPES.includes(sourceType as typeof SUPPORTED_SOURCE_TYPES[number]) && selectedClientId) {
       setIsExtracting(true);
+      // Actually trigger the extraction workflow
+      extractMutation.mutate(
+        { sourceId, clientId: selectedClientId },
+        {
+          onError: (error) => {
+            setIsExtracting(false);
+            setExtractionError(error.message || 'Failed to start extraction');
+          },
+        }
+      );
     }
-  }, []);
+  }, [selectedClientId, extractMutation]);
 
   const handleExtractionComplete = useCallback((pillars: Pillar[]) => {
     setExtractedPillars(pillars);

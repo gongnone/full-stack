@@ -89,7 +89,7 @@ export const calibrationRouter = t.router({
   // List training samples for a client
   listSamples: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       limit: z.number().min(1).max(100).default(50),
       offset: z.number().min(0).default(0),
     }))
@@ -126,7 +126,7 @@ export const calibrationRouter = t.router({
   getSample: procedure
     .input(z.object({
       sampleId: z.string().uuid(),
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
       const sample = await ctx.db
@@ -150,7 +150,7 @@ export const calibrationRouter = t.router({
   // Create training sample from pasted text
   createTextSample: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       title: z.string().min(1).max(255),
       content: z.string().min(10).max(100000), // 10 chars to 100k chars
     }))
@@ -203,7 +203,7 @@ export const calibrationRouter = t.router({
   // Get presigned URL for file upload to R2
   getUploadUrl: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       filename: z.string().min(1).max(255),
       contentType: z.string().default('application/pdf'),
     }))
@@ -227,7 +227,7 @@ export const calibrationRouter = t.router({
   // Register file after upload to R2
   registerFileSample: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       title: z.string().min(1).max(255),
       r2Key: z.string().min(1),
       sourceType: z.enum(['pdf', 'article', 'transcript']),
@@ -291,7 +291,7 @@ export const calibrationRouter = t.router({
   deleteSample: procedure
     .input(z.object({
       sampleId: z.string().uuid(),
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
       // Get sample to check ownership and get r2Key
@@ -329,7 +329,7 @@ export const calibrationRouter = t.router({
   // Get aggregate stats for Brand DNA
   getSampleStats: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
       const stats = await ctx.db
@@ -378,7 +378,7 @@ export const calibrationRouter = t.router({
   // Upload existing content for Brand DNA analysis
   uploadContent: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       content: z.array(z.string()).min(1).max(50),
       contentType: z.enum(['posts', 'articles', 'transcripts']),
     }))
@@ -414,7 +414,7 @@ export const calibrationRouter = t.router({
   // Submit voice note for calibration (Story 2.2)
   recordVoice: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       audioR2Key: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -668,7 +668,7 @@ Return ONLY valid JSON with no markdown formatting:
   // Get current voice entities for editing (FR35)
   getVoiceEntities: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
       // Rule 1: Isolation Above All - always filter by clientId
@@ -704,7 +704,7 @@ Return ONLY valid JSON with no markdown formatting:
   // Add a banned word (FR35)
   addBannedWord: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       word: z.string().min(1).max(100),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -762,7 +762,7 @@ Return ONLY valid JSON with no markdown formatting:
   // Remove a banned word (FR35)
   removeBannedWord: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       word: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -802,7 +802,7 @@ Return ONLY valid JSON with no markdown formatting:
   // Add a voice marker phrase (FR35)
   addVoiceMarker: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       phrase: z.string().min(1).max(200),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -859,7 +859,7 @@ Return ONLY valid JSON with no markdown formatting:
   // Remove a voice marker phrase (FR35)
   removeVoiceMarker: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       phrase: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -899,7 +899,7 @@ Return ONLY valid JSON with no markdown formatting:
   // Get current drift status and calibration recommendation
   getDriftStatus: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
       // TODO: Calculate drift from Durable Object
@@ -915,7 +915,7 @@ Return ONLY valid JSON with no markdown formatting:
   // Get upload URL for voice recording (Story 2.2)
   getVoiceUploadUrl: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
       filename: z.string().min(1).max(255),
     }))
     .mutation(async ({ ctx, input }) => {
@@ -934,7 +934,7 @@ Return ONLY valid JSON with no markdown formatting:
   // Get Brand DNA for a client (basic stats - legacy endpoint)
   getBrandDNA: procedure
     .input(z.object({
-      clientId: z.string().uuid(),
+      clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
       // Get all analyzed training samples to compute DNA
@@ -984,7 +984,7 @@ Return ONLY valid JSON with no markdown formatting:
   analyzeDNA: procedure
     .input(
       z.object({
-        clientId: z.string().uuid(),
+        clientId: z.string().min(1),
       })
     )
     .mutation(async ({ ctx, input }): Promise<BrandDNAAnalysisResult> => {
@@ -1207,7 +1207,7 @@ Return ONLY valid JSON (no markdown, no explanation):
   getBrandDNAReport: procedure
     .input(
       z.object({
-        clientId: z.string().uuid(),
+        clientId: z.string().min(1),
       })
     )
     .query(async ({ ctx, input }): Promise<BrandDNAReport | null> => {

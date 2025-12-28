@@ -88,7 +88,7 @@ test.describe('Story 3.2: Thematic Extraction Engine', () => {
       await page.goto(`${BASE_URL}/app/hubs`);
 
       // Find an existing hub or wait for pillars
-      await page.waitForTimeout(2000);
+      await page.waitForLoadState("networkidle").catch(() => {});
 
       const pillarCard = page.locator('[data-testid^="editable-pillar-card-"]').first();
 

@@ -5,6 +5,7 @@
 
 import { createFileRoute, Link, Outlet, useMatch } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
+import { useClientId } from '@/lib/use-client-id';
 import { HubCard } from '@/components/hubs';
 import type { HubListItem } from '../../../worker/types';
 
@@ -90,9 +91,8 @@ function EmptyState() {
 }
 
 function HubsPage() {
-  // Get client ID (for MVP, this is the user ID)
-  const { data: userData } = trpc.auth.me.useQuery();
-  const clientId = userData?.user?.id || '';
+  // Get client ID using shared hook for consistency with hub creation wizard
+  const clientId = useClientId() || '';
 
   // Fetch Hubs list
   const {

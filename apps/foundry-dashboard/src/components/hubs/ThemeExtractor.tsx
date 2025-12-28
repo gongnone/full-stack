@@ -67,10 +67,9 @@ export function ThemeExtractor({
       { sourceId, clientId },
       {
         onSuccess: (result) => {
-          if (result.success && result.pillars) {
-            onComplete?.(result.pillars);
-          } else if (result.error) {
-            onError?.(result.error);
+          // Retry triggers the workflow - pillars come from polling
+          if (result.success) {
+            // Extraction restarted, progress polling will pick up the new pillars
           }
         },
         onError: (error) => {
@@ -78,7 +77,7 @@ export function ThemeExtractor({
         },
       }
     );
-  }, [sourceId, clientId, retryMutation, onComplete, onError]);
+  }, [sourceId, clientId, retryMutation, onError]);
 
   const handleComplete = useCallback((completedPillars: Pillar[]) => {
     onComplete?.(completedPillars);

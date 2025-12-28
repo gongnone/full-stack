@@ -4,6 +4,7 @@
  */
 
 import { trpc } from '@/lib/trpc-client';
+import { formatTimeAgo } from '@/lib/date-utils';
 
 type SourceType = 'pdf' | 'text' | 'url';
 
@@ -65,15 +66,7 @@ function formatWordCount(count: number): string {
   return `${count} words`;
 }
 
-function formatTimeAgo(timestamp: number): string {
-  const seconds = Math.floor((Date.now() - timestamp * 1000) / 1000);
-
-  if (seconds < 60) return 'Just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return new Date(timestamp * 1000).toLocaleDateString();
-}
+// formatTimeAgo imported from date-utils handles both seconds and milliseconds
 
 export function RecentSourcesList({ clientId, onSourceSelected, disabled }: RecentSourcesListProps) {
   const { data: recentSources, isLoading } = trpc.hubs.getRecentSources.useQuery(

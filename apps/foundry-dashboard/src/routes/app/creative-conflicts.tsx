@@ -188,12 +188,20 @@ function ConflictCard({ spoke, hubTitle, onApprove, onRewrite }: ConflictCardPro
 
       {/* Feedback Modal */}
       {showFeedbackModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          role="presentation"
+          onClick={() => setShowFeedbackModal(false)}
+        >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="feedback-modal-title"
             className="w-full max-w-md p-6 rounded-xl shadow-2xl space-y-4"
             style={{ backgroundColor: 'var(--bg-elevated)' }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+            <h3 id="feedback-modal-title" className="text-lg font-semibold text-[var(--text-primary)]">
               Request Manual Rewrite
             </h3>
             <p className="text-sm text-[var(--text-muted)]">

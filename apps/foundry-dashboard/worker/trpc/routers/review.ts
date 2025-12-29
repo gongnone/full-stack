@@ -9,7 +9,7 @@ const procedure = t.procedure;
 
 /**
  * Review queue spoke representation from Durable Object
- * Uses camelCase to match DO storage format
+ * Uses camelCase for consistency with frontend
  */
 interface ReviewQueueSpoke {
   id: string;
@@ -24,8 +24,8 @@ interface ReviewQueueSpoke {
     g5_platform?: boolean;
     g7_engagement?: number;
   };
-  parent_spoke_id?: string | null;
-  cloned_from?: string | null;
+  parentSpokeId?: string | null;
+  clonedFrom?: string | null;
   createdAt: string;
 }
 
@@ -36,18 +36,34 @@ export const reviewRouter = t.router({
       clientId: z.string().min(1),
       filter: z.enum(['all', 'top10', 'flagged', 'needs-review']).default('all'),
       limit: z.number().min(1).max(100).default(50),
+      cursor: z.number().optional(), // offset-based pagination
     }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
       const items = await ctx.callAgent(input.clientId, 'getReviewQueue', {
         filter: input.filter,
-        limit: input.limit,
-      }) as ReviewQueueSpoke[];
+        limit: input.limit + 1, // Fetch one extra to determine next cursor
+        offset: input.cursor,
+      }) as any[]; // Type as any first to handle mapping
+
+      let nextCursor: number | undefined = undefined;
+      if (items.length > input.limit) {
+        items.pop(); // Remove the extra item
+        nextCursor = (input.cursor || 0) + input.limit;
+      }
+
+      // Map snake_case from DO to consistent camelCase
+      const mappedItems: ReviewQueueSpoke[] = items.map(item => ({
+        ...item,
+        parentSpokeId: item.parentSpokeId || item.parent_spoke_id,
+        clonedFrom: item.clonedFrom || item.cloned_from,
+      }));
 
       return {
-        items,
-        totalCount: items.length,
-        estimatedReviewTime: `${Math.ceil(items.length * 6 / 60)} minutes`, // Based on 6 sec/decision promise
+        items: mappedItems,
+        nextCursor,
+        totalCount: items.length, // Approximation for current page
+        estimatedReviewTime: `${Math.ceil(items.length * 6 / 60)} minutes`,
       };
     }),
 

@@ -1224,27 +1224,37 @@ export class ClientAgent extends DurableObject<Env> {
     return { rejected: spokeIds.length }
   }
 
-  private async getReviewQueue(params: { filter?: string; limit?: number }): Promise<Spoke[]> {
+// Constants for Quality Gates and Statuses
+const G7_HIGH_THRESHOLD = 90
+const G7_LOW_THRESHOLD = 50
+const STATUS_READY = 'ready_for_review'
+const STATUS_REVIEWING = 'reviewing' // Legacy status for backward compatibility
+const STATUS_FAILED = 'failed_qa'
+const STATUS_CONFLICT = 'creative_conflict'
+
+export class ClientAgent extends DurableObject<Env> {
+  // ... existing code ...
+
+  private async getReviewQueue(params: { filter?: string; limit?: number; offset?: number }): Promise<Spoke[]> {
     let query = `SELECT * FROM spokes`
     const conditions: string[] = []
     const sqlParams: any[] = []
 
     // Filter logic aligned with Epic 5 definitions
-    // G7 scale is 0-100
     if (params.filter === 'top10') {
       // High Confidence: Ready for review + High Score
-      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
-      conditions.push(`g7_engagement > 90`)
+      conditions.push(`(status = '${STATUS_READY}' OR status = '${STATUS_REVIEWING}')`)
+      conditions.push(`g7_engagement > ${G7_HIGH_THRESHOLD}`)
     } else if (params.filter === 'needs-review') {
       // Needs Review: Ready for review + Mid Score
-      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
-      conditions.push(`g7_engagement >= 50 AND g7_engagement <= 90`)
+      conditions.push(`(status = '${STATUS_READY}' OR status = '${STATUS_REVIEWING}')`)
+      conditions.push(`g7_engagement >= ${G7_LOW_THRESHOLD} AND g7_engagement <= ${G7_HIGH_THRESHOLD}`)
     } else if (params.filter === 'flagged') {
       // Creative Conflicts: Failed QA
-      conditions.push(`(status = 'failed_qa' OR status = 'creative_conflict')`)
+      conditions.push(`(status = '${STATUS_FAILED}' OR status = '${STATUS_CONFLICT}')`)
     } else {
       // All pending review items
-      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
+      conditions.push(`(status = '${STATUS_READY}' OR status = '${STATUS_REVIEWING}')`)
     }
 
     if (conditions.length > 0) {
@@ -1257,30 +1267,41 @@ export class ClientAgent extends DurableObject<Env> {
       query += ` LIMIT ?`
       sqlParams.push(params.limit)
     }
+    
+    if (params.offset) {
+      query += ` OFFSET ?`
+      sqlParams.push(params.offset)
+    }
 
-    return this.sql.exec(query, ...sqlParams).toArray().map(row => ({
-      id: row.id as string,
-      hubId: row.hub_id as string,
-      pillarId: row.pillar_id as string,
-      platform: row.platform as string,
-      content: row.content as string,
-      status: row.status as Spoke['status'],
-      qualityScores: {
-        g2_hook: row.g2_hook as number | undefined,
-        g4_voice: row.g4_voice ? true : false,
-        g4_similarity: row.g4_similarity as number | undefined,
-        g5_platform: row.g5_platform ? true : false,
-        g6_visual: row.g6_visual as number | undefined,
-        g7_engagement: row.g7_engagement as number | undefined,
-      },
-      visualArchetype: row.visual_archetype as string | undefined,
-      imagePrompt: row.image_prompt as string | undefined,
-      thumbnailConcept: row.thumbnail_concept as string | undefined,
-      regenerationCount: row.regeneration_count as number,
-      mutatedAt: row.mutated_at as string | null,
-      parentSpokeId: row.parent_spoke_id as string | null,
-      createdAt: row.created_at as string,
-    }))
+    try {
+      return this.sql.exec(query, ...sqlParams).toArray().map(row => ({
+        id: row.id as string,
+        hubId: row.hub_id as string,
+        pillarId: row.pillar_id as string,
+        platform: row.platform as string,
+        content: row.content as string,
+        status: row.status as Spoke['status'],
+        qualityScores: {
+          g2_hook: row.g2_hook as number | undefined,
+          g4_voice: row.g4_voice ? true : false,
+          g4_similarity: row.g4_similarity as number | undefined,
+          g5_platform: row.g5_platform ? true : false,
+          g6_visual: row.g6_visual as number | undefined,
+          g7_engagement: row.g7_engagement as number | undefined,
+        },
+        visualArchetype: row.visual_archetype as string | undefined,
+        imagePrompt: row.image_prompt as string | undefined,
+        thumbnailConcept: row.thumbnail_concept as string | undefined,
+        regenerationCount: row.regeneration_count as number,
+        mutatedAt: row.mutated_at as string | null,
+        parentSpokeId: row.parent_spoke_id as string | null,
+        createdAt: row.created_at as string,
+      }))
+    } catch (error) {
+      console.error('getReviewQueue query failed:', error)
+      // Fail gracefully with empty array rather than crashing the request
+      return []
+    }
   }
 
   // Feedback Methods (Self-Healing Loop)

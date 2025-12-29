@@ -39,11 +39,25 @@ function ReviewPage() {
   });
   const decisionStartRef = useRef<number>(Date.now());
 
-  // tRPC Queries
+  // tRPC Queries - Bucket counts for tiles
+  const highConfidenceCountQuery = trpc.review.getQueue.useQuery(
+    { clientId: clientId!, filter: 'top10', limit: 100 },
+    { enabled: !!clientId && !rawFilter }
+  );
+  const needsReviewCountQuery = trpc.review.getQueue.useQuery(
+    { clientId: clientId!, filter: 'needs-review', limit: 100 },
+    { enabled: !!clientId && !rawFilter }
+  );
+  const conflictsCountQuery = trpc.review.getQueue.useQuery(
+    { clientId: clientId!, filter: 'flagged', limit: 100 },
+    { enabled: !!clientId && !rawFilter }
+  );
+
+  // Active sprint queue query
   const queueQuery = trpc.review.getQueue.useQuery(
     {
       clientId: clientId!,
-      filter: rawFilter === 'high-confidence' ? 'top10' : rawFilter === 'conflicts' ? 'flagged' : 'all'
+      filter: rawFilter === 'high-confidence' ? 'top10' : rawFilter === 'conflicts' ? 'flagged' : rawFilter === 'needs-review' ? 'needs-review' : 'all'
     },
     { enabled: !!clientId && !!rawFilter }
   );
@@ -207,21 +221,21 @@ function ReviewPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <BucketCard
             title="High Confidence"
-            count={0}
+            count={highConfidenceCountQuery.data?.totalCount ?? 0}
             description="G7 > 9.0 - Ready for auto-approval"
             filter="high-confidence"
             variant="green"
           />
           <BucketCard
             title="Needs Review"
-            count={0}
+            count={needsReviewCountQuery.data?.totalCount ?? 0}
             description="G7 5.0-9.0 - Human judgment needed"
             filter="needs-review"
             variant="yellow"
           />
           <BucketCard
             title="Creative Conflicts"
-            count={0}
+            count={conflictsCountQuery.data?.totalCount ?? 0}
             description="Failed 3x healing - Requires intervention"
             filter="conflicts"
             variant="red"

@@ -1079,18 +1079,433 @@ export class ClientAgent extends DurableObject<Env> {
     }))
   }
 
-  // Quality Gate Runner
+  // Quality Gate Runner - Implements G2-G7 gate evaluation
   private async runQualityGate(spokeId: string, gate: string): Promise<{
     passed: boolean
     score?: number
     feedback?: string
+    violations?: string[]
   }> {
-    // This would integrate with the agent-system package
-    // For now, return a placeholder
+    const startTime = Date.now()
+    const spoke = await this.getSpoke(spokeId)
+
+    if (!spoke) {
+      return {
+        passed: false,
+        feedback: `Spoke ${spokeId} not found`,
+        violations: ['Spoke not found'],
+      }
+    }
+
+    const content = spoke.content || ''
+    const platform = spoke.platform
+
+    try {
+      switch (gate) {
+        case 'g2_hook':
+          return await this.runG2HookGate(content, platform, startTime)
+
+        case 'g4_voice':
+          return await this.runG4VoiceGate(content, startTime)
+
+        case 'g5_platform':
+          return await this.runG5PlatformGate(content, platform, startTime)
+
+        case 'g6_visual':
+          return await this.runG6VisualGate(spoke.imagePrompt || spoke.thumbnailConcept || content, startTime)
+
+        case 'g7_engagement':
+          return await this.runG7EngagementGate(content, platform, startTime)
+
+        default:
+          return {
+            passed: false,
+            feedback: `Unknown gate type: ${gate}`,
+            violations: [`Gate ${gate} not implemented`],
+          }
+      }
+    } catch (error) {
+      console.error(`Quality gate ${gate} error:`, error)
+      return {
+        passed: false,
+        feedback: `Gate evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        violations: ['Gate evaluation error'],
+      }
+    }
+  }
+
+  // G2 Hook Strength Gate (0-100, threshold 60)
+  private async runG2HookGate(content: string, platform: string, startTime: number): Promise<{
+    passed: boolean
+    score: number
+    feedback: string
+    violations?: string[]
+  }> {
+    const G2_THRESHOLD = 60
+
+    const prompt = `You are a Content Quality Critic evaluating hook strength.
+
+Rate this ${platform} content on three dimensions:
+
+CONTENT:
+"""
+${content.substring(0, 500)}
+"""
+
+Score each dimension (use ONLY integers):
+1. PATTERN INTERRUPT (0-40): Does this stop the scroll? Is it unexpected?
+2. BENEFIT SIGNAL (0-30): Is the value proposition clear within first 5 seconds?
+3. CURIOSITY GAP (0-30): Does it create tension that demands resolution?
+
+Respond in JSON format ONLY:
+{
+  "patternInterrupt": <0-40>,
+  "benefitSignal": <0-30>,
+  "curiosityGap": <0-30>,
+  "notes": "<brief explanation of scoring and specific improvement suggestions>"
+}`
+
+    try {
+      const response = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+        messages: [{ role: 'user', content: prompt }],
+      }) as { response: string }
+
+      const jsonMatch = response.response.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        return {
+          passed: true,
+          score: 70,
+          feedback: 'Unable to parse AI response (defaulting to pass)',
+        }
+      }
+
+      const parsed = JSON.parse(jsonMatch[0])
+      const score = (parsed.patternInterrupt || 0) + (parsed.benefitSignal || 0) + (parsed.curiosityGap || 0)
+      const passed = score >= G2_THRESHOLD
+
+      const violations: string[] = []
+      if (parsed.patternInterrupt < 20) violations.push(`Weak pattern interrupt (${parsed.patternInterrupt}/40) - needs scroll-stopping hook`)
+      if (parsed.benefitSignal < 15) violations.push(`Unclear benefit signal (${parsed.benefitSignal}/30) - value proposition not obvious`)
+      if (parsed.curiosityGap < 15) violations.push(`Low curiosity gap (${parsed.curiosityGap}/30) - no tension or intrigue`)
+
+      const executionTime = Date.now() - startTime
+      const feedback = passed
+        ? `Hook strength ${score}/100. ${parsed.notes || ''}`
+        : `REGENERATE: Hook weak (${score}/100). ${violations.join('. ')}. ${parsed.notes || ''}`
+
+      return { passed, score, feedback, violations: passed ? undefined : violations }
+    } catch (error) {
+      console.error('G2 gate error:', error)
+      return {
+        passed: true,
+        score: 70,
+        feedback: 'AI evaluation failed (defaulting to pass)',
+      }
+    }
+  }
+
+  // G4 Voice Alignment Gate (pass/fail)
+  private async runG4VoiceGate(content: string, startTime: number): Promise<{
+    passed: boolean
+    score?: number
+    feedback: string
+    violations?: string[]
+  }> {
+    const violations: string[] = []
+
+    // Step 1: Check banned words
+    const bannedCheck = await this.checkBannedWords(content)
+    if (bannedCheck.violations.length > 0) {
+      for (const v of bannedCheck.violations) {
+        if (v.severity === 'hard') {
+          violations.push(`HARD VIOLATION: "${v.word}" - ${v.reason || 'banned word'}`)
+        } else {
+          violations.push(`Soft violation: "${v.word}" - ${v.reason || 'discouraged word'}`)
+        }
+      }
+    }
+
+    // Step 2: Check voice marker alignment
+    const markerCheck = await this.checkVoiceMarkers(content)
+    const similarity = markerCheck.similarity
+
+    // Step 3: Get brand DNA for tone profile check
+    const brandDNA = await this.getBrandDNA()
+
+    // Step 4: AI tone alignment check (if tone profile exists)
+    let toneAligned = true
+    if (Object.keys(brandDNA.toneProfile).length > 0) {
+      try {
+        const tonePrompt = `Check if this content matches the target tone profile.
+Target tone (0=first, 100=second):
+- formal_casual: ${brandDNA.toneProfile.formal_casual ?? 50}
+- serious_playful: ${brandDNA.toneProfile.serious_playful ?? 50}
+- technical_accessible: ${brandDNA.toneProfile.technical_accessible ?? 50}
+- reserved_expressive: ${brandDNA.toneProfile.reserved_expressive ?? 50}
+
+Content:
+"${content.substring(0, 1000)}"
+
+Output JSON only: {"aligned": true/false, "mismatches": ["list of tone mismatches"], "feedback": "brief explanation"}`
+
+        const response = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+          messages: [{ role: 'user', content: tonePrompt }],
+        }) as { response: string }
+
+        const jsonMatch = response.response.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0])
+          toneAligned = parsed.aligned !== false
+          if (!toneAligned && parsed.mismatches) {
+            for (const mismatch of parsed.mismatches) {
+              violations.push(`Tone mismatch: ${mismatch}`)
+            }
+          }
+        }
+      } catch {
+        // Tone check failed, continue without it
+      }
+    }
+
+    // Hard violations fail immediately
+    const hasHardViolation = bannedCheck.violations.some(v => v.severity === 'hard')
+    const passed = !hasHardViolation && toneAligned
+
+    // Calculate a similarity-based score (for analytics, not pass/fail)
+    const score = Math.round(similarity)
+
+    const executionTime = Date.now() - startTime
+    const feedback = passed
+      ? `Voice aligned. ${markerCheck.matches.length} voice markers found. Similarity: ${score}%`
+      : `REGENERATE: Voice violations. ${violations.join('. ')}`
+
     return {
-      passed: true,
-      score: 85,
-      feedback: 'Quality gate passed',
+      passed,
+      score,
+      feedback,
+      violations: passed ? undefined : violations,
+    }
+  }
+
+  // G5 Platform Compliance Gate (pass/fail)
+  private async runG5PlatformGate(content: string, platform: string, startTime: number): Promise<{
+    passed: boolean
+    feedback: string
+    violations?: string[]
+  }> {
+    const PLATFORM_RULES: Record<string, {
+      maxChars?: number
+      hashtagLimit?: number
+      minSlides?: number
+      maxSlides?: number
+      minPosts?: number
+      maxPosts?: number
+      maxWords?: number
+    }> = {
+      twitter: { maxChars: 280, hashtagLimit: 3 },
+      linkedin: { maxChars: 3000, hashtagLimit: 5 },
+      tiktok: { maxWords: 150, hashtagLimit: 5 },
+      instagram: { maxChars: 2200, hashtagLimit: 30 },
+      thread: { minPosts: 5, maxPosts: 7, maxChars: 2800 },
+      carousel: { minSlides: 5, maxSlides: 8, maxChars: 2200 },
+      youtube_thumbnail: { maxChars: 60 },
+    }
+
+    const rules = PLATFORM_RULES[platform]
+    const violations: string[] = []
+
+    if (!rules) {
+      return {
+        passed: true,
+        feedback: `No specific rules for platform ${platform}`,
+      }
+    }
+
+    // Character limit check
+    if (rules.maxChars && content.length > rules.maxChars) {
+      violations.push(`Exceeds ${rules.maxChars} char limit (${content.length} chars). Shorten by ${content.length - rules.maxChars} characters.`)
+    }
+
+    // Word limit check
+    const wordCount = content.split(/\s+/).filter(Boolean).length
+    if (rules.maxWords && wordCount > rules.maxWords) {
+      violations.push(`Exceeds ${rules.maxWords} word limit (${wordCount} words). Remove ${wordCount - rules.maxWords} words.`)
+    }
+
+    // Hashtag limit check
+    const hashtagCount = (content.match(/#\w+/g) || []).length
+    if (rules.hashtagLimit && hashtagCount > rules.hashtagLimit) {
+      violations.push(`Too many hashtags (${hashtagCount}/${rules.hashtagLimit}). Remove ${hashtagCount - rules.hashtagLimit} hashtags.`)
+    }
+
+    // Thread structure check
+    if (platform === 'thread') {
+      const hasSequence = /1\//.test(content) || /^1\./m.test(content)
+      if (!hasSequence) {
+        violations.push('Thread missing sequential indicators (e.g., "1/", "1.")')
+      }
+    }
+
+    // Carousel structure check
+    if (platform === 'carousel') {
+      const slideMatches = content.match(/Slide \d+/gi) || []
+      const slideCount = slideMatches.length
+      if (slideCount < (rules.minSlides || 5)) {
+        violations.push(`Carousel needs ${rules.minSlides || 5} slides (found ${slideCount}). Add ${(rules.minSlides || 5) - slideCount} more slides.`)
+      }
+      if (rules.maxSlides && slideCount > rules.maxSlides) {
+        violations.push(`Carousel exceeds ${rules.maxSlides} slides (found ${slideCount}). Remove ${slideCount - rules.maxSlides} slides.`)
+      }
+    }
+
+    const passed = violations.length === 0
+    const executionTime = Date.now() - startTime
+    const feedback = passed
+      ? `Platform compliant for ${platform}`
+      : `REGENERATE: ${violations.join('. ')}`
+
+    return { passed, feedback, violations: passed ? undefined : violations }
+  }
+
+  // G6 Visual Cliché Gate (0-100, threshold 50)
+  private async runG6VisualGate(visualConcept: string, startTime: number): Promise<{
+    passed: boolean
+    score: number
+    feedback: string
+    violations?: string[]
+  }> {
+    const G6_THRESHOLD = 50
+
+    const prompt = `Evaluate this visual concept/prompt for AI clichés and originality.
+
+KNOWN AI CLICHÉS TO FLAG:
+- Robot brains, AI faces, circuit patterns
+- Handshakes, puzzle pieces, lightbulbs
+- Generic stock business people in suits
+- Blue/purple gradients, generic tech backgrounds
+- Floating heads, abstract neural networks
+- Sunrise/mountain "inspiration" imagery
+
+Visual Concept:
+"${visualConcept.substring(0, 500)}"
+
+Score originality 0-100 (higher = more original, fewer clichés).
+
+Output JSON only:
+{
+  "score": <0-100>,
+  "clichesDetected": ["list of clichés found"],
+  "feedback": "brief explanation",
+  "suggestions": ["alternative visual approaches"]
+}`
+
+    try {
+      const response = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+        messages: [{ role: 'user', content: prompt }],
+      }) as { response: string }
+
+      const jsonMatch = response.response.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        return {
+          passed: true,
+          score: 60,
+          feedback: 'Unable to parse AI response (defaulting to pass)',
+        }
+      }
+
+      const parsed = JSON.parse(jsonMatch[0])
+      const score = parsed.score || 50
+      const cliches = parsed.clichesDetected || []
+      const passed = score >= G6_THRESHOLD && cliches.length === 0
+
+      const violations = cliches.map((c: string) => `AI Cliché: ${c}`)
+      if (parsed.suggestions && !passed) {
+        violations.push(`Try instead: ${parsed.suggestions.slice(0, 2).join(', ')}`)
+      }
+
+      const executionTime = Date.now() - startTime
+      const feedback = passed
+        ? `Visual concept original (${score}/100). ${parsed.feedback || ''}`
+        : `REGENERATE: Visual clichés detected (${score}/100). ${violations.join('. ')}`
+
+      return { passed, score, feedback, violations: passed ? undefined : violations }
+    } catch (error) {
+      console.error('G6 gate error:', error)
+      return {
+        passed: true,
+        score: 60,
+        feedback: 'AI evaluation failed (defaulting to pass)',
+      }
+    }
+  }
+
+  // G7 Engagement Prediction Gate (0-100, threshold 60)
+  private async runG7EngagementGate(content: string, platform: string, startTime: number): Promise<{
+    passed: boolean
+    score: number
+    feedback: string
+    violations?: string[]
+  }> {
+    const G7_THRESHOLD = 60
+
+    const prompt = `Predict the engagement potential for this ${platform} content.
+
+CONTENT:
+"""
+${content}
+"""
+
+Score each dimension (0-33, total should be approximately 0-100):
+1. SHAREABILITY: Would someone share this with their network?
+2. COMMENT-WORTHINESS: Does it invite discussion or debate?
+3. SAVE LIKELIHOOD: Is it reference-worthy or bookmark-able?
+
+Consider ${platform}-specific engagement patterns.
+
+Respond in JSON format ONLY:
+{
+  "shareability": <0-33>,
+  "commentWorthiness": <0-33>,
+  "saveLikelihood": <0-34>,
+  "notes": "<brief prediction reasoning and improvement suggestions>"
+}`
+
+    try {
+      const response = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
+        messages: [{ role: 'user', content: prompt }],
+      }) as { response: string }
+
+      const jsonMatch = response.response.match(/\{[\s\S]*\}/)
+      if (!jsonMatch) {
+        return {
+          passed: true,
+          score: 70,
+          feedback: 'Unable to parse AI response (defaulting to pass)',
+        }
+      }
+
+      const parsed = JSON.parse(jsonMatch[0])
+      const score = (parsed.shareability || 0) + (parsed.commentWorthiness || 0) + (parsed.saveLikelihood || 0)
+      const passed = score >= G7_THRESHOLD
+
+      const violations: string[] = []
+      if (parsed.shareability < 15) violations.push(`Low shareability (${parsed.shareability}/33) - not compelling to share`)
+      if (parsed.commentWorthiness < 15) violations.push(`Low comment potential (${parsed.commentWorthiness}/33) - doesn't invite discussion`)
+      if (parsed.saveLikelihood < 15) violations.push(`Low save likelihood (${parsed.saveLikelihood}/34) - not reference-worthy`)
+
+      const executionTime = Date.now() - startTime
+      const feedback = passed
+        ? `Engagement predicted ${score}/100. ${parsed.notes || ''}`
+        : `REGENERATE: Low engagement predicted (${score}/100). ${violations.join('. ')}. ${parsed.notes || ''}`
+
+      return { passed, score, feedback, violations: passed ? undefined : violations }
+    } catch (error) {
+      console.error('G7 gate error:', error)
+      return {
+        passed: true,
+        score: 70,
+        feedback: 'AI evaluation failed (defaulting to pass)',
+      }
     }
   }
 

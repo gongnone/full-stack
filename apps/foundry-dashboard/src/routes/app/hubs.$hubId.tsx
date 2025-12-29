@@ -158,15 +158,6 @@ function HubDetailPage() {
     { enabled: !!clientId && !!hubId && activeTab === 'spokes' }
   );
 
-  // Debug: Log spokes data
-  useEffect(() => {
-    console.log('[Spokes Debug] clientId:', clientId, 'hubId:', hubId, 'activeTab:', activeTab);
-    console.log('[Spokes Debug] spokesData:', spokesData);
-    console.log('[Spokes Debug] spokesError:', spokesError);
-    if (spokesData?.items) {
-      console.log('[Spokes Debug] items count:', spokesData.items.length);
-    }
-  }, [spokesData, spokesError, clientId, hubId, activeTab]);
 
   // Utility to get workflow status
   const trpcUtils = trpc.useUtils();
@@ -194,14 +185,9 @@ function HubDetailPage() {
 
     const checkStatus = async () => {
       pollCount++;
-      // Only log every 10th poll to reduce spam
-      if (pollCount % 10 === 1) {
-        console.log('[Spoke Gen] Poll #' + pollCount + ' checking', instances.length, 'instances');
-      }
 
       // Timeout after MAX_POLLS
       if (pollCount > MAX_POLLS) {
-        console.warn('[Spoke Gen] Polling timeout after', MAX_POLLS, 'polls');
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
@@ -242,11 +228,6 @@ function HubDetailPage() {
           await trpcUtils.spokes.getWorkflowStatus.invalidate({ clientId, instanceId: inst.instanceId });
           const status = await trpcUtils.spokes.getWorkflowStatus.fetch({ clientId, instanceId: inst.instanceId });
           if (status.status === 'complete') {
-            console.log('[Spoke Gen] Instance', inst.instanceId.slice(0, 8), '✓ complete');
-          } else if (status.status !== 'running') {
-            console.log('[Spoke Gen] Instance', inst.instanceId.slice(0, 8), 'status:', status.status);
-          }
-          if (status.status === 'complete') {
             instanceStatus[inst.instanceId] = 'complete';
             completedSpokes++;
             pillarProgress[inst.pillarId]!.completed++;
@@ -260,10 +241,6 @@ function HubDetailPage() {
         } catch (err) {
           console.error('[Spoke Gen] Error fetching status for', inst.instanceId.slice(0, 8), err);
         }
-      }
-      // Only log progress summary when there's a change or every 10th poll
-      if (pollCount % 10 === 0 || completedSpokes + failedSpokes === totalSpokes) {
-        console.log('[Spoke Gen] Progress:', completedSpokes, '/', totalSpokes, 'completed,', failedSpokes, 'failed');
       }
 
       // Find current pillar name
@@ -315,11 +292,9 @@ function HubDetailPage() {
   // Generate spokes mutation
   const generateMutation = trpc.spokes.generate.useMutation({
     onSuccess: (data) => {
-      console.log('[Spoke Gen] Generate success! Instances:', data.instances?.length || 0, data);
       setIsGenerating(true);
       // Start real workflow polling with actual instance IDs
       if (data.instances && data.instances.length > 0) {
-        console.log('[Spoke Gen] Starting polling for', data.instances.length, 'instances');
         pollWorkflowStatus(data.instances);
       } else {
         // Edge case: no spokes queued (empty pillars?)
@@ -583,9 +558,8 @@ function HubDetailPage() {
             pillars={hub.pillars}
             spokes={spokes}
             platformFilter={platformFilter}
-            onSpokeClick={(spoke) => {
-              // Could open a modal or navigate to spoke detail
-              console.log('Clicked spoke:', spoke.id);
+            onSpokeClick={(_spoke) => {
+              // TODO: Open modal or navigate to spoke detail
             }}
           />
         </div>

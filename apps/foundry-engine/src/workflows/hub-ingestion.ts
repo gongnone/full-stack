@@ -100,13 +100,11 @@ export class HubIngestionWorkflow extends WorkflowEntrypoint<Env, HubIngestionPa
         }));
 
         if (!response.ok) {
-          console.log('Brand DNA not available, using defaults');
           return { voiceMarkers: [], signaturePatterns: [] };
         }
 
         return response.json();
-      } catch (error) {
-        console.log('Failed to get Brand DNA:', error);
+      } catch {
         return { voiceMarkers: [], signaturePatterns: [] };
       }
     });
@@ -174,8 +172,6 @@ Example output format:
 
       // Get the response text
       const responseText = (result as any).response || '';
-      console.log('AI Response length:', responseText.length);
-      console.log('AI Response preview:', responseText.slice(0, 500));
 
       try {
         // Try multiple parsing strategies
@@ -226,14 +222,11 @@ Example output format:
             }));
 
           if (validPillars.length >= 1) {
-            console.log(`Successfully extracted ${validPillars.length} pillars`);
             return validPillars;
           }
         }
-
-        console.log('JSON parsing failed, attempting text extraction...');
-      } catch (e) {
-        console.error('Failed to parse AI response:', e);
+      } catch {
+        // JSON parsing failed, continue to fallback extraction
       }
 
       // Fallback Strategy 3: Extract themes from text if JSON parsing completely failed
@@ -292,7 +285,6 @@ Example output format:
         });
       }
 
-      console.log(`Generated ${themes.length} fallback pillars from content analysis`);
       return themes;
     });
     logMetric('extract-pillars', Date.now() - extractStart, { pillarCount: pillars.length });

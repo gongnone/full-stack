@@ -477,8 +477,8 @@ function ReviewPage() {
       <CloneSpokeModal
         isOpen={showCloneModal}
         onClose={() => setShowCloneModal(false)}
-        onConfirm={(options) => {
-          console.log('Clone options:', options);
+        onConfirm={(_options) => {
+          // TODO: Implement clone with options (Story 9-6)
           setShowCloneModal(false);
         }}
         spokeContent={currentSpoke?.content || ''}

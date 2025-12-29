@@ -4,6 +4,25 @@
   "main": "src/index.ts",
   "compatibility_date": "2024-12-01",
   "compatibility_flags": ["nodejs_compat"],
+
+  "ai": {
+    "binding": "AI"
+  },
+
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "foundry-media-test"
+    }
+  ],
+
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "foundry-embeddings-test"
+    }
+  ],
+
   "durable_objects": {
     "bindings": [
       {
@@ -12,23 +31,8 @@
       }
     ]
   },
-  "r2_buckets": [
-    {
-      "binding": "MEDIA_BUCKET",
-      "bucket_name": "foundry-media"
-    }
-  ],
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "foundry-global",
-      "database_id": "bd287f3f-8147-49b5-9cae-466c60a975c6"
-    }
-  ],
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["ClientAgent"]
-    }
-  ]
+
+  "vars": {
+    "ENVIRONMENT": "test"
+  }
 }

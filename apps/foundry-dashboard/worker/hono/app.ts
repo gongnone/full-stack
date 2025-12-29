@@ -103,19 +103,7 @@ app.on(['GET', 'POST'], '/api/auth/**', async (c) => {
   const auth = createAuth(c.env);
 
   try {
-    // Debug: Log sign-in attempts
-    if (c.req.path.includes('/sign-in/')) {
-      console.log('Sign-in attempt:', { path: c.req.path, method: c.req.method });
-    }
-
     const response = await auth.handler(c.req.raw);
-
-    // Debug: Log non-OK responses from auth handler
-    if (!response.ok && c.req.path.includes('/sign-in/')) {
-      const clonedResponse = response.clone();
-      const body = await clonedResponse.text();
-      console.log('Sign-in response:', { status: response.status, body: body.substring(0, 500) });
-    }
 
     // Fix: Better Auth 1.4+ forces SameSite=None which Chrome blocks
     // Rewrite cookies to use SameSite=Lax for same-origin deployment
@@ -128,15 +116,6 @@ app.on(['GET', 'POST'], '/api/auth/**', async (c) => {
         // Replace SameSite=None with SameSite=Lax
         const fixedCookie = cookie.replace(/SameSite=None/gi, 'SameSite=Lax');
         newHeaders.append('Set-Cookie', fixedCookie);
-      }
-
-      // Debug: Log callback details
-      if (c.req.path.includes('/callback/')) {
-        console.log('OAuth callback response:', {
-          status: response.status,
-          location: response.headers.get('location'),
-          cookies: newHeaders.getSetCookie().map(c => c.substring(0, 80) + '...'),
-        });
       }
 
       return new Response(response.body, {
@@ -172,8 +151,6 @@ const authMiddleware = async (c: any, next: any) => {
     );
 
     if (!sessionResponse.ok) {
-      const cookies = c.req.header('cookie');
-      console.log('Auth middleware: Session check failed. Status:', sessionResponse.status, 'Cookies:', !!cookies);
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
@@ -404,8 +381,6 @@ app.post('/api/upload/:path{.+}', async (c) => {
   const r2Key = rawPath ? decodeURIComponent(rawPath) : '';
   const userId = c.get('userId');
 
-  console.log('Upload request:', { rawPath, r2Key, userId });
-
   if (!r2Key) {
     return c.json({ error: 'Missing file path' }, 400);
   }
@@ -449,13 +424,11 @@ app.post('/api/upload/:path{.+}', async (c) => {
     }
 
     // Upload to R2
-    console.log('Uploading to R2:', { r2Key, size: body.byteLength });
     await c.env.MEDIA.put(r2Key, body, {
       httpMetadata: {
         contentType: c.req.header('Content-Type') || 'application/octet-stream',
       },
     });
-    console.log('R2 upload success:', { r2Key });
 
     return c.json({
       success: true,

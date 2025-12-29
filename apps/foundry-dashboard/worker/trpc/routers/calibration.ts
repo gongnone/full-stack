@@ -15,6 +15,126 @@ import { assertClientAccess } from '../middleware/client-access';
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
 
+// ===== Story 9.2: Drift Detection Types =====
+interface DriftState {
+  voiceMarkers: string[];
+  bannedWords: string[];
+  stances: Array<{ topic: string; position: string }>;
+  primaryTone: string | null;
+}
+
+interface DriftResult {
+  driftScore: number;
+  needsCalibration: boolean;
+  trigger: string | undefined;
+  suggestion: string | undefined;
+  components: {
+    voiceMarkerDrift: number;
+    bannedWordDrift: number;
+    stanceDrift: number;
+    toneDrift: number;
+  };
+}
+
+// Story 9.2: Pure function for calculating brand voice drift (AC1)
+// Exported for unit testing
+export function calculateDrift(
+  baseline: DriftState,
+  current: DriftState,
+  threshold: number = 25
+): DriftResult {
+  // Calculate voice marker drift (30% weight)
+  const baselineMarkers = new Set(baseline.voiceMarkers || []);
+  const currentMarkers = new Set(current.voiceMarkers || []);
+  const totalMarkers = Math.max(baselineMarkers.size, currentMarkers.size, 1);
+  const markerChanges = [...baselineMarkers].filter(m => !currentMarkers.has(m)).length +
+                        [...currentMarkers].filter(m => !baselineMarkers.has(m)).length;
+  const voiceMarkerDrift = (markerChanges / totalMarkers) * 100;
+
+  // Calculate banned word drift (20% weight)
+  const baselineBanned = new Set(baseline.bannedWords || []);
+  const currentBanned = new Set(current.bannedWords || []);
+  const totalBanned = Math.max(baselineBanned.size, currentBanned.size, 1);
+  const bannedChanges = [...baselineBanned].filter(w => !currentBanned.has(w)).length +
+                        [...currentBanned].filter(w => !baselineBanned.has(w)).length;
+  const bannedWordDrift = baselineBanned.size > 0 || currentBanned.size > 0
+    ? (bannedChanges / totalBanned) * 100
+    : 0;
+
+  // Calculate stance drift (30% weight)
+  const baselineStances = baseline.stances || [];
+  const currentStances = current.stances || [];
+  let stanceChanges = 0;
+  const totalStances = Math.max(baselineStances.length, currentStances.length, 1);
+
+  for (const bs of baselineStances) {
+    const match = currentStances.find(cs => cs.topic === bs.topic);
+    if (!match) {
+      stanceChanges++; // Topic removed
+    } else if (match.position !== bs.position) {
+      stanceChanges++; // Position changed
+    }
+  }
+  // Count new topics added
+  for (const cs of currentStances) {
+    if (!baselineStances.find(bs => bs.topic === cs.topic)) {
+      stanceChanges++;
+    }
+  }
+  const stanceDrift = baselineStances.length > 0 || currentStances.length > 0
+    ? (stanceChanges / totalStances) * 100
+    : 0;
+
+  // Calculate tone drift (20% weight)
+  const toneDrift = baseline.primaryTone && current.primaryTone &&
+                    baseline.primaryTone !== current.primaryTone ? 100 : 0;
+
+  // Calculate weighted drift score
+  const driftScore = Math.round(
+    voiceMarkerDrift * 0.3 +
+    bannedWordDrift * 0.2 +
+    stanceDrift * 0.3 +
+    toneDrift * 0.2
+  );
+
+  const needsCalibration = driftScore > threshold;
+
+  // Generate trigger and suggestion based on highest drift component
+  let trigger: string | undefined;
+  let suggestion: string | undefined;
+
+  if (driftScore > 0) {
+    const maxComponent = Math.max(voiceMarkerDrift, bannedWordDrift, stanceDrift, toneDrift);
+
+    if (maxComponent === voiceMarkerDrift && voiceMarkerDrift > 0) {
+      trigger = 'Voice markers have significantly changed';
+      suggestion = 'Your signature voice markers have diverged from baseline. Consider recording a new voice note to recalibrate your brand voice.';
+    } else if (maxComponent === stanceDrift && stanceDrift > 0) {
+      trigger = 'Brand stances have shifted';
+      suggestion = 'Your positions on key topics have changed. Review your brand stances to ensure they reflect your current values.';
+    } else if (maxComponent === toneDrift && toneDrift > 0) {
+      trigger = 'Writing tone has changed';
+      suggestion = 'Your primary tone has shifted from baseline. Consider whether this reflects an intentional brand evolution.';
+    } else if (maxComponent === bannedWordDrift && bannedWordDrift > 0) {
+      trigger = 'Banned word list has changed';
+      suggestion = 'Your list of words to avoid has changed. Review your banned words to ensure consistency.';
+    }
+  }
+
+  return {
+    driftScore,
+    needsCalibration,
+    trigger,
+    suggestion,
+    components: {
+      voiceMarkerDrift: Math.round(voiceMarkerDrift),
+      bannedWordDrift: Math.round(bannedWordDrift),
+      stanceDrift: Math.round(stanceDrift),
+      toneDrift,
+    },
+  };
+}
+
 // Helper to calculate quality badge from score
 function getQualityBadge(sample: TrainingSample): TrainingSampleWithQuality['qualityBadge'] {
   if (sample.status === 'pending' || sample.status === 'processing') {
@@ -240,11 +360,9 @@ export const calibrationRouter = t.router({
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      console.log('registerFileSample called:', { clientId: input.clientId, r2Key: input.r2Key, title: input.title });
 
       // Verify the file exists in R2
       const object = await ctx.env.MEDIA.head(input.r2Key);
-      console.log('R2 head check result:', { r2Key: input.r2Key, found: !!object });
 
       if (!object) {
         throw new TRPCError({
@@ -911,20 +1029,163 @@ Return ONLY valid JSON with no markdown formatting:
       return { success: true, voiceMarkers: entities.voiceMarkers };
     }),
 
-  // Get current drift status and calibration recommendation
+  // Story 9.2: Get current drift status and calibration recommendation (AC1-AC5)
   getDriftStatus: procedure
     .input(z.object({
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      // TODO: Calculate drift from Durable Object
+
+      // Get the most recent baseline snapshot (AC4)
+      const baselineSnapshot = await ctx.db
+        .prepare(`
+          SELECT voice_markers, banned_words, stances, primary_tone
+          FROM brand_dna_snapshots
+          WHERE client_id = ?
+          ORDER BY created_at DESC
+          LIMIT 1
+        `)
+        .bind(input.clientId)
+        .first<{
+          voice_markers: string;
+          banned_words: string;
+          stances: string;
+          primary_tone: string | null;
+        }>();
+
+      // Get current Brand DNA state
+      const currentDNA = await ctx.db
+        .prepare(`
+          SELECT voice_entities, primary_tone
+          FROM brand_dna
+          WHERE client_id = ?
+        `)
+        .bind(input.clientId)
+        .first<{
+          voice_entities: string | null;
+          primary_tone: string | null;
+        }>();
+
+      // Get client's drift threshold (AC2)
+      const clientSettings = await ctx.db
+        .prepare('SELECT drift_threshold FROM clients WHERE id = ?')
+        .bind(input.clientId)
+        .first<{ drift_threshold: number | null }>();
+
+      const threshold = clientSettings?.drift_threshold ?? 25;
+
+      // If no baseline snapshot exists, return 0 drift
+      if (!baselineSnapshot) {
+        return {
+          driftScore: 0,
+          needsCalibration: false,
+          trigger: undefined as string | undefined,
+          suggestion: undefined as string | undefined,
+        };
+      }
+
+      // Parse baseline state
+      const baseline: DriftState = {
+        voiceMarkers: JSON.parse(baselineSnapshot.voice_markers || '[]'),
+        bannedWords: JSON.parse(baselineSnapshot.banned_words || '[]'),
+        stances: JSON.parse(baselineSnapshot.stances || '[]'),
+        primaryTone: baselineSnapshot.primary_tone,
+      };
+
+      // Parse current state from voice_entities
+      let voiceEntities = { voiceMarkers: [] as string[], bannedWords: [] as string[], stances: [] as Array<{ topic: string; position: string }> };
+      if (currentDNA?.voice_entities) {
+        try {
+          voiceEntities = JSON.parse(currentDNA.voice_entities);
+        } catch { /* ignore parse errors */ }
+      }
+
+      const current: DriftState = {
+        voiceMarkers: voiceEntities.voiceMarkers || [],
+        bannedWords: voiceEntities.bannedWords || [],
+        stances: voiceEntities.stances || [],
+        primaryTone: currentDNA?.primary_tone || null,
+      };
+
+      // Calculate drift (AC1, AC5: should complete < 500ms as it's just comparisons)
+      const result = calculateDrift(baseline, current, threshold);
 
       return {
-        driftScore: 0,
-        needsCalibration: false,
-        trigger: undefined as string | undefined,
-        suggestion: undefined as string | undefined,
+        driftScore: result.driftScore,
+        needsCalibration: result.needsCalibration,
+        trigger: result.trigger,
+        suggestion: result.suggestion,
+      };
+    }),
+
+  // Story 9.2: Create a snapshot of current Brand DNA (for historical tracking)
+  createDNASnapshot: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      reason: z.enum(['scheduled', 'manual', 'significant_change']).default('manual'),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // Get current Brand DNA state
+      const currentDNA = await ctx.db
+        .prepare(`
+          SELECT voice_entities, primary_tone, writing_style, target_audience, strength_score
+          FROM brand_dna
+          WHERE client_id = ?
+        `)
+        .bind(input.clientId)
+        .first<{
+          voice_entities: string | null;
+          primary_tone: string | null;
+          writing_style: string | null;
+          target_audience: string | null;
+          strength_score: number;
+        }>();
+
+      if (!currentDNA) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'No Brand DNA found for this client. Analyze content first.',
+        });
+      }
+
+      // Parse voice entities
+      let voiceEntities = { voiceMarkers: [] as string[], bannedWords: [] as string[], stances: [] as Array<{ topic: string; position: string }> };
+      if (currentDNA.voice_entities) {
+        try {
+          voiceEntities = JSON.parse(currentDNA.voice_entities);
+        } catch { /* ignore parse errors */ }
+      }
+
+      const snapshotId = crypto.randomUUID();
+
+      // Insert snapshot (AC4)
+      await ctx.db
+        .prepare(`
+          INSERT INTO brand_dna_snapshots (
+            id, client_id, strength_score, voice_markers, banned_words, stances,
+            primary_tone, writing_style, target_audience, snapshot_reason
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        .bind(
+          snapshotId,
+          input.clientId,
+          currentDNA.strength_score || 0,
+          JSON.stringify(voiceEntities.voiceMarkers || []),
+          JSON.stringify(voiceEntities.bannedWords || []),
+          JSON.stringify(voiceEntities.stances || []),
+          currentDNA.primary_tone,
+          currentDNA.writing_style,
+          currentDNA.target_audience,
+          input.reason
+        )
+        .run();
+
+      return {
+        success: true,
+        snapshotId,
       };
     }),
 

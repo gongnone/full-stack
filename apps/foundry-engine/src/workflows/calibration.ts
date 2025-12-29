@@ -8,6 +8,7 @@ interface Env {
   CLIENT_AGENT: DurableObjectNamespace;
   AI: Ai;
   VECTORIZE: VectorizeIndex;
+  MEDIA_BUCKET: R2Bucket;
 }
 
 interface CalibrationParams {
@@ -50,11 +51,35 @@ export class CalibrationWorkflow extends WorkflowEntrypoint<Env, CalibrationPara
     let processedContent: string = '';
 
     if (contentType === 'voice' && (audioR2Key || r2Key)) {
-      // Voice-to-Grounding Pipeline: Transcribe audio
+      // Voice-to-Grounding Pipeline: Transcribe audio via Workers AI Whisper
+      const audioKey = audioR2Key || r2Key;
       processedContent = await step.do('transcribe-voice', async () => {
-        // In production, fetch from R2 and use Whisper
-        // For now, if content is provided use it, otherwise placeholder
-        return (content && content[0]) || 'Voice transcription placeholder';
+        // Fetch audio file from R2
+        const audioObject = await this.env.MEDIA_BUCKET.get(audioKey!);
+        if (!audioObject) {
+          throw new Error(`Audio file not found in R2: ${audioKey}`);
+        }
+
+        // Validate audio file size (max 10MB for 60s at 128kbps)
+        const maxFileSize = 10 * 1024 * 1024;
+        if (audioObject.size > maxFileSize) {
+          throw new Error('Audio file too large. Maximum supported size is 10MB (~60 seconds).');
+        }
+
+        // Convert to ArrayBuffer for Whisper
+        const audioData = await audioObject.arrayBuffer();
+
+        // Call Workers AI Whisper model
+        const whisperResult = await this.env.AI.run('@cf/openai/whisper', {
+          audio: [...new Uint8Array(audioData)],
+        });
+
+        const transcript = (whisperResult as { text?: string })?.text || '';
+        if (!transcript || transcript.trim().length === 0) {
+          throw new Error('Whisper returned empty transcription. Audio may be silent or corrupted.');
+        }
+
+        return transcript;
       });
     } else if (contentType === 'pdf' && r2Key) {
       // PDF Extraction Step

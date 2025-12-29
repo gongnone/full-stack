@@ -84,8 +84,8 @@ describe('hubsRouter', () => {
   });
 
   describe('extract', () => {
-    it('calls agent to start extraction', async () => {
-      const { ctx, mockDb, mockCallAgent } = mockCtx;
+    it('calls CONTENT_ENGINE to start extraction', async () => {
+      const { ctx, mockDb, mockFetch } = mockCtx;
       const caller = hubsRouter.createCaller(ctx);
       const input = {
         sourceId: '00000000-0000-0000-0000-000000000000',
@@ -93,41 +93,43 @@ describe('hubsRouter', () => {
         content: 'This is sample content for testing the hub extraction process. It needs to be at least 100 characters long to pass validation, so here is some extra text.',
       };
 
-      mockCallAgent.mockResolvedValue({ success: true });
+      // Mock DB run for extraction_progress insert
+      mockDb.run.mockResolvedValue({ success: true });
+      // Mock CONTENT_ENGINE.fetch response
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ instanceId: 'wf-1', status: 'started' }),
+      });
 
-      await caller.extract(input);
+      const result = await caller.extract(input);
 
-      expect(mockCallAgent).toHaveBeenCalledWith(
-        input.clientId,
-        'createHub',
-        expect.objectContaining({
-          id: input.sourceId,
-          sourceContent: input.content,
-        })
-      );
+      expect(mockFetch).toHaveBeenCalled();
+      expect(result.workflowInstanceId).toBe('wf-1');
     });
 
     it('fetches content from DB if not provided', async () => {
-      const { ctx, mockDb, mockCallAgent } = mockCtx;
+      const { ctx, mockDb, mockFetch } = mockCtx;
       const caller = hubsRouter.createCaller(ctx);
       const input = {
         sourceId: '00000000-0000-0000-0000-000000000000',
         clientId: '00000000-0000-0000-0000-000000000000',
       };
 
-      mockDb.first.mockResolvedValue({ raw_content: 'DB Content' });
-      mockCallAgent.mockResolvedValue({ success: true });
+      // Mock getting raw content from DB
+      mockDb.first.mockResolvedValueOnce({ raw_content: 'This is the raw content from the database that is at least 100 characters long for validation purposes.' });
+      // Mock DB run for extraction_progress insert
+      mockDb.run.mockResolvedValue({ success: true });
+      // Mock CONTENT_ENGINE.fetch response
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ instanceId: 'wf-2', status: 'started' }),
+      });
 
-      await caller.extract(input);
+      const result = await caller.extract(input);
 
       expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT raw_content'));
-      expect(mockCallAgent).toHaveBeenCalledWith(
-        input.clientId,
-        'createHub',
-        expect.objectContaining({
-          sourceContent: 'DB Content',
-        })
-      );
+      expect(mockFetch).toHaveBeenCalled();
+      expect(result.workflowInstanceId).toBe('wf-2');
     });
 
     it('throws error if content is missing', async () => {

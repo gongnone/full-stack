@@ -24,7 +24,7 @@ describe('clientsRouter', () => {
 
       const result = await caller.list({});
 
-      expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT id, name'));
+      expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('SELECT c.id, c.name'));
       expect(result.items).toHaveLength(1);
       expect(result.items[0]!.name).toBe('Client 1');
     });
@@ -74,7 +74,7 @@ describe('clientsRouter', () => {
     });
 
     it('throws forbidden if user is not an owner', async () => {
-      const { ctx, mockDb } = mockCtx;
+      const { ctx, setMembershipRole } = mockCtx;
       const caller = clientsRouter.createCaller(ctx);
       const input = {
         clientId: '00000000-0000-0000-0000-000000000000',
@@ -82,7 +82,8 @@ describe('clientsRouter', () => {
         role: 'creator' as const,
       };
 
-      mockDb.first.mockResolvedValueOnce({ role: 'creator' });
+      // Set the membership role to 'creator' - only agency_owner/account_manager can add members
+      setMembershipRole('creator');
 
       await expect(caller.addMember(input)).rejects.toThrow(TRPCError);
     });

@@ -77,6 +77,7 @@ function createMockD1(): any {
     users: [],
     sessions: [],
     clients: [],
+    client_members: [],
     hubs: [],
     spokes: [],
   };
@@ -451,6 +452,16 @@ export async function setupTestDatabase(db: D1Database): Promise<void> {
       updated_at TEXT
     );
 
+    -- Client Members (User-Client access control)
+    CREATE TABLE IF NOT EXISTS client_members (
+      id TEXT PRIMARY KEY,
+      client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL DEFAULT 'editor',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(client_id, user_id)
+    );
+
     -- Hubs
     CREATE TABLE IF NOT EXISTS hubs (
       id TEXT PRIMARY KEY,
@@ -480,6 +491,8 @@ export async function setupTestDatabase(db: D1Database): Promise<void> {
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_users_account ON users(account_id);
     CREATE INDEX IF NOT EXISTS idx_clients_account ON clients(account_id);
+    CREATE INDEX IF NOT EXISTS idx_client_members_client ON client_members(client_id);
+    CREATE INDEX IF NOT EXISTS idx_client_members_user ON client_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_hubs_account ON hubs(account_id);
     CREATE INDEX IF NOT EXISTS idx_hubs_client ON hubs(client_id);
     CREATE INDEX IF NOT EXISTS idx_spokes_account ON spokes(account_id);
@@ -516,6 +529,12 @@ export async function seedTestAccounts(
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).bind(client1Id, ctx.testAccountId, 'Client 1', 'do-1', 'ns-1', 'r2/1', 'active').run();
 
+  // Add user1 as agency_owner of client1 (grants full access)
+  await db.prepare(`
+    INSERT INTO client_members (id, client_id, user_id, role)
+    VALUES (?, ?, ?, ?)
+  `).bind(randomUUID(), client1Id, ctx.testUserId, 'agency_owner').run();
+
   // Create second account (for cross-tenant testing)
   await db.prepare(`
     INSERT INTO accounts (id, name, plan) VALUES (?, ?, ?)
@@ -530,6 +549,12 @@ export async function seedTestAccounts(
     INSERT INTO clients (id, account_id, name, durable_object_id, vectorize_namespace, r2_path_prefix, status)
     VALUES (?, ?, ?, ?, ?, ?, ?)
   `).bind(client2Id, ctx.secondAccountId, 'Client 2', 'do-2', 'ns-2', 'r2/2', 'active').run();
+
+  // Add user2 as agency_owner of client2 (grants full access)
+  await db.prepare(`
+    INSERT INTO client_members (id, client_id, user_id, role)
+    VALUES (?, ?, ?, ?)
+  `).bind(randomUUID(), client2Id, ctx.secondUserId, 'agency_owner').run();
 
   return {
     account1: { id: ctx.testAccountId, userId: ctx.testUserId, clientId: client1Id },

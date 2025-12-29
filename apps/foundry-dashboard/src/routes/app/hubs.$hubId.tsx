@@ -8,8 +8,8 @@ import { createFileRoute, Link } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { formatDate } from '@/lib/date-utils';
-import { SpokeTreeView, GenerationProgress, PlatformFilter } from '@/components/spokes';
-import type { Pillar, Spoke, SpokePlatform, SpokeGenerationProgress } from '../../../worker/types';
+import { SpokeTreeView, GenerationProgress, PlatformFilter, SpokeDetailModal } from '@/components/spokes';
+import type { Pillar, Spoke, SpokePlatform, SpokeGenerationProgress } from '@worker/types';
 
 // Types for workflow polling
 interface WorkflowInstance {
@@ -140,6 +140,7 @@ function HubDetailPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState<SpokeGenerationProgress | null>(null);
   const [activeTab, setActiveTab] = useState<'pillars' | 'spokes'>('pillars');
+  const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const workflowStartTimeRef = useRef<number>(0);
 
@@ -393,6 +394,18 @@ function HubDetailPage() {
   const spokes = (spokesData?.items || []) as unknown as Spoke[];
   const hasSpokes = hub.spoke_count > 0 || spokes.length > 0;
 
+  // Memoize filtered spokes for navigation
+  const filteredSpokes = useMemo(() => {
+    return platformFilter === 'all'
+      ? spokes
+      : spokes.filter((s) => s.platform === platformFilter);
+  }, [spokes, platformFilter]);
+
+  const selectedSpokeIndex = useMemo(() => {
+    if (!selectedSpokeId) return -1;
+    return filteredSpokes.findIndex((s) => s.id === selectedSpokeId);
+  }, [filteredSpokes, selectedSpokeId]);
+
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
@@ -559,12 +572,28 @@ function HubDetailPage() {
             pillars={hub.pillars}
             spokes={spokes}
             platformFilter={platformFilter}
-            onSpokeClick={(_spoke) => {
-              // TODO: Open modal or navigate to spoke detail
+            onSpokeClick={(spoke) => {
+              setSelectedSpokeId(spoke.id);
             }}
           />
         </div>
       )}
+
+      {/* Spoke Detail Modal (Story R-5) */}
+      <SpokeDetailModal
+        spoke={selectedSpokeIndex !== -1 ? filteredSpokes[selectedSpokeIndex] : null}
+        isOpen={!!selectedSpokeId}
+        onClose={() => setSelectedSpokeId(null)}
+        onNavigate={(direction) => {
+          if (selectedSpokeIndex === -1) return;
+          const nextIndex = direction === 'next'
+            ? Math.min(selectedSpokeIndex + 1, filteredSpokes.length - 1)
+            : Math.max(selectedSpokeIndex - 1, 0);
+          setSelectedSpokeId(filteredSpokes[nextIndex].id);
+        }}
+        hasNext={selectedSpokeIndex < filteredSpokes.length - 1}
+        hasPrev={selectedSpokeIndex > 0}
+      />
     </div>
   );
 }

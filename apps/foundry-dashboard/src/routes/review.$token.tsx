@@ -4,6 +4,20 @@ import { Card } from '@/components/ui/card';
 import { ActionButton } from '@/components/ui/action-button';
 import { ImageIcon, Eye, Palette, Lightbulb, Check, X } from 'lucide-react';
 
+interface ReviewSpoke {
+  id: string;
+  content: string;
+  platform?: string;
+  createdAt?: string;
+  qualityScores?: {
+    g2_hook?: number;
+    g7_engagement?: number;
+  };
+  visualArchetype?: string;
+  thumbnailConcept?: string;
+  imagePrompt?: string;
+}
+
 interface ReviewData {
   client: {
     id: string;
@@ -11,7 +25,7 @@ interface ReviewData {
     brandColor: string;
   };
   permissions: 'view' | 'approve' | 'comment';
-  spokes: any[];
+  spokes: ReviewSpoke[];
 }
 
 export const Route = createFileRoute('/review/$token')({
@@ -84,7 +98,7 @@ function ShareableReviewPage() {
       // Remove the spoke from the list after action
       setData(prev => prev ? {
         ...prev,
-        spokes: prev.spokes.filter((s: any) => s.id !== spokeId),
+        spokes: prev.spokes.filter((s) => s.id !== spokeId),
       } : null);
     } catch (err) {
       alert('Network error. Please try again.');
@@ -176,7 +190,7 @@ function ShareableReviewPage() {
       // Update local state
       setData(prev => prev ? {
         ...prev,
-        spokes: prev.spokes.map((s: any) =>
+        spokes: prev.spokes.map((s) =>
           s.id === spokeId ? { ...s, content: newContent } : s
         ),
       } : null);
@@ -220,7 +234,7 @@ function ShareableReviewPage() {
             <p>No content pending review.</p>
           </div>
         ) : (
-          spokes.map((spoke: any) => (
+          spokes.map((spoke) => (
             <SharedReviewCard
               key={spoke.id}
               spoke={spoke}
@@ -246,7 +260,7 @@ function SharedReviewCard({
   onReject,
   onEdit
 }: {
-  spoke: any;
+  spoke: ReviewSpoke;
   canApprove: boolean;
   canEdit: boolean;
   onApprove: () => void;

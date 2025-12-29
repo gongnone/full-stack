@@ -34,8 +34,8 @@ export function ShareLinkModal({ isOpen, onClose, client }: ShareLinkModalProps)
 
     const emailList = allowedEmails
       .split(',')
-      .map(e => e.trim())
-      .filter(e => e.length > 0);
+      .map(e => e.trim().toLowerCase())
+      .filter(e => e.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
 
     generateLinkMutation.mutate({
       clientId: client.id,

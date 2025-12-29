@@ -280,7 +280,7 @@ export const clientsRouter = t.router({
           token,
           expiresAt,
           input.permissions,
-          input.allowedEmails ? JSON.stringify(input.allowedEmails) : null
+          input.allowedEmails ? JSON.stringify(input.allowedEmails.map(e => e.toLowerCase())) : null
         )
         .run();
 
@@ -292,6 +292,8 @@ export const clientsRouter = t.router({
     }),
 
   // Validate a shareable link and return content
+  // NOTE: This authenticated procedure is for internal/admin use.
+  // The public /api/review/validate endpoint in app.ts is used for anonymous access.
   validateShareableLink: procedure
     .input(z.object({
       token: z.string(),
@@ -325,10 +327,10 @@ export const clientsRouter = t.router({
         });
       }
 
-      // Check allowed emails if restricted
+      // Check allowed emails if restricted (case-insensitive comparison)
       if (link.allowed_emails) {
         const allowed = JSON.parse(link.allowed_emails) as string[];
-        if (!allowed.includes(input.email)) {
+        if (!allowed.includes(input.email.toLowerCase())) {
           throw new TRPCError({
             code: 'FORBIDDEN',
             message: 'You do not have permission to view this review.',

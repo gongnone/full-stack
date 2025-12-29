@@ -154,7 +154,7 @@ function ShareableReviewPage() {
   }
 
   const { client, spokes, permissions } = data;
-  const canApprove = permissions === 'approve';
+  const canApprove = permissions === 'approve' || permissions === 'comment';
 
   return (
     <div className="min-h-screen p-6 md:p-12" style={{ backgroundColor: 'var(--bg-base)' }}>

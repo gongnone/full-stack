@@ -299,8 +299,8 @@ app.post('/api/review/action', async (c) => {
     return c.json({ error: 'Link has expired' }, 403);
   }
 
-  // Check permissions - must have 'approve' permission for actions
-  if (link.permissions !== 'approve') {
+  // Check permissions - must have 'approve' or 'comment' permission for actions
+  if (link.permissions !== 'approve' && link.permissions !== 'comment') {
     return c.json({ error: 'This link does not have approval permissions' }, 403);
   }
 

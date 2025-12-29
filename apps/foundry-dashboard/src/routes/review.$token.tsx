@@ -1,7 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createFileRoute, useParams } from '@tanstack/react-router';
-import { trpc } from '@/lib/trpc-client';
 import { ContentCard } from '@/components/review/ContentCard';
+
+interface ReviewData {
+  client: {
+    id: string;
+    name: string;
+    brandColor: string;
+  };
+  permissions: 'view' | 'approve' | 'comment';
+  spokes: any[];
+}
 
 export const Route = createFileRoute('/review/$token')({
   component: ShareableReviewPage,
@@ -11,18 +20,72 @@ function ShareableReviewPage() {
   const { token } = useParams({ from: '/review/$token' });
   const [email, setEmail] = useState('');
   const [isVerified, setIsVerified] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<ReviewData | null>(null);
 
-  // Validate token and email
-  // In a real app, this would send an OTP to the email
-  const validateQuery = trpc.clients.validateShareableLink.useQuery(
-    { token, email },
-    { enabled: isVerified }
-  );
+  // Validate token and email via public API
+  useEffect(() => {
+    if (!isVerified || !email) return;
+
+    const validate = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/review/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, email }),
+        });
+
+        const result = await response.json() as ReviewData | { error: string };
+
+        if (!response.ok) {
+          setError((result as { error: string }).error || 'Failed to validate link');
+          return;
+        }
+
+        setData(result as ReviewData);
+      } catch (err) {
+        setError('Network error. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    validate();
+  }, [isVerified, email, token]);
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
     if (email.trim()) {
       setIsVerified(true);
+    }
+  };
+
+  // Handle approve/reject actions
+  const handleAction = async (spokeId: string, action: 'approve' | 'reject', reason?: string) => {
+    try {
+      const response = await fetch('/api/review/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, email, spokeId, action, reason }),
+      });
+
+      const result = await response.json() as { error?: string; success?: boolean };
+
+      if (!response.ok) {
+        alert(result.error || `Failed to ${action} content`);
+        return;
+      }
+
+      // Remove the spoke from the list after action
+      setData(prev => prev ? {
+        ...prev,
+        spokes: prev.spokes.filter((s: any) => s.id !== spokeId),
+      } : null);
+    } catch (err) {
+      alert('Network error. Please try again.');
     }
   };
 
@@ -57,7 +120,7 @@ function ShareableReviewPage() {
     );
   }
 
-  if (validateQuery.isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg-base)' }}>
         <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--edit)' }} />
@@ -65,23 +128,31 @@ function ShareableReviewPage() {
     );
   }
 
-  if (validateQuery.isError) {
+  if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg-base)' }}>
         <div className="text-center">
           <h1 className="text-xl font-bold text-red-500 mb-2">Access Denied</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>{validateQuery.error.message}</p>
+          <p style={{ color: 'var(--text-secondary)' }}>{error}</p>
+          <button
+            onClick={() => { setIsVerified(false); setError(null); }}
+            className="mt-4 px-4 py-2 rounded-lg"
+            style={{ backgroundColor: 'var(--bg-elevated)', color: 'var(--text-primary)' }}
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
   }
 
   // Guard against undefined data
-  if (!validateQuery.data) {
+  if (!data) {
     return null;
   }
 
-  const { client, spokes } = validateQuery.data;
+  const { client, spokes, permissions } = data;
+  const canApprove = permissions === 'approve';
 
   return (
     <div className="min-h-screen p-6 md:p-12" style={{ backgroundColor: 'var(--bg-base)' }}>
@@ -102,16 +173,30 @@ function ShareableReviewPage() {
         </div>
       </header>
 
+      {!canApprove && (
+        <div className="max-w-4xl mx-auto mb-6 p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)', border: '1px solid' }}>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            You have <strong>view-only</strong> access. Contact the agency to request approval permissions.
+          </p>
+        </div>
+      )}
+
       <div className="max-w-4xl mx-auto space-y-8">
-        {spokes.map((spoke: any) => (
-          <ContentCard
-            key={spoke.id}
-            spoke={spoke}
-            isActive={true}
-            onApprove={() => console.log('Approved', spoke.id)}
-            onKill={() => console.log('Rejected', spoke.id)}
-          />
-        ))}
+        {spokes.length === 0 ? (
+          <div className="text-center py-12" style={{ color: 'var(--text-secondary)' }}>
+            <p>No content pending review.</p>
+          </div>
+        ) : (
+          spokes.map((spoke: any) => (
+            <ContentCard
+              key={spoke.id}
+              spoke={spoke}
+              isActive={true}
+              onApprove={canApprove ? () => handleAction(spoke.id, 'approve') : undefined}
+              onKill={canApprove ? () => handleAction(spoke.id, 'reject') : undefined}
+            />
+          ))
+        )}
       </div>
     </div>
   );

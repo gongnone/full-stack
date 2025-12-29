@@ -195,6 +195,141 @@ const authMiddleware = async (c: any, next: any) => {
   }
 };
 
+// PUBLIC: Shareable review link validation (no auth required)
+// This endpoint allows external reviewers to access shared content via token + email
+app.post('/api/review/validate', async (c) => {
+  const { token, email } = await c.req.json() as { token: string; email: string };
+
+  if (!token || !email) {
+    return c.json({ error: 'Token and email are required' }, 400);
+  }
+
+  // Find link by token
+  const link = await c.env.DB.prepare('SELECT * FROM shareable_links WHERE token = ?')
+    .bind(token)
+    .first<{
+      id: string;
+      client_id: string;
+      expires_at: number;
+      permissions: string;
+      allowed_emails: string | null;
+    }>();
+
+  if (!link) {
+    return c.json({ error: 'Invalid or expired link' }, 404);
+  }
+
+  // Check expiration
+  if (link.expires_at < Math.floor(Date.now() / 1000)) {
+    return c.json({ error: 'Link has expired' }, 403);
+  }
+
+  // Check allowed emails if restricted
+  if (link.allowed_emails) {
+    const allowed = JSON.parse(link.allowed_emails) as string[];
+    if (!allowed.includes(email.toLowerCase())) {
+      return c.json({ error: 'You do not have permission to view this review' }, 403);
+    }
+  }
+
+  // Get client info
+  const client = await c.env.DB.prepare('SELECT id, name, brand_color FROM clients WHERE id = ?')
+    .bind(link.client_id)
+    .first<{ id: string; name: string; brand_color: string }>();
+
+  if (!client) {
+    return c.json({ error: 'Client not found' }, 404);
+  }
+
+  // Fetch spokes for review from Durable Object via service binding
+  const doResponse = await c.env.CONTENT_ENGINE.fetch(
+    new Request(`http://internal/api/client/${link.client_id}/rpc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        method: 'getReviewQueue',
+        params: { limit: 50 },
+      }),
+    })
+  );
+
+  const spokes = await doResponse.json();
+
+  return c.json({
+    client: {
+      id: client.id,
+      name: client.name,
+      brandColor: client.brand_color,
+    },
+    permissions: link.permissions,
+    spokes,
+  });
+});
+
+// PUBLIC: Shareable review actions (approve/reject via token)
+app.post('/api/review/action', async (c) => {
+  const { token, email, spokeId, action, reason } = await c.req.json() as {
+    token: string;
+    email: string;
+    spokeId: string;
+    action: 'approve' | 'reject';
+    reason?: string;
+  };
+
+  if (!token || !email || !spokeId || !action) {
+    return c.json({ error: 'Missing required fields' }, 400);
+  }
+
+  // Validate link and permissions
+  const link = await c.env.DB.prepare('SELECT * FROM shareable_links WHERE token = ?')
+    .bind(token)
+    .first<{
+      id: string;
+      client_id: string;
+      expires_at: number;
+      permissions: string;
+      allowed_emails: string | null;
+    }>();
+
+  if (!link) {
+    return c.json({ error: 'Invalid or expired link' }, 404);
+  }
+
+  if (link.expires_at < Math.floor(Date.now() / 1000)) {
+    return c.json({ error: 'Link has expired' }, 403);
+  }
+
+  // Check permissions - must have 'approve' permission for actions
+  if (link.permissions !== 'approve') {
+    return c.json({ error: 'This link does not have approval permissions' }, 403);
+  }
+
+  // Check allowed emails
+  if (link.allowed_emails) {
+    const allowed = JSON.parse(link.allowed_emails) as string[];
+    if (!allowed.includes(email.toLowerCase())) {
+      return c.json({ error: 'You do not have permission' }, 403);
+    }
+  }
+
+  // Execute action via Durable Object
+  const method = action === 'approve' ? 'approveSpoke' : 'rejectSpoke';
+  const params = action === 'approve'
+    ? { spokeId }
+    : { spokeId, reason: reason || 'Rejected via shared review' };
+
+  const doResponse = await c.env.CONTENT_ENGINE.fetch(
+    new Request(`http://internal/api/client/${link.client_id}/rpc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method, params }),
+    })
+  );
+
+  const result = await doResponse.json() as Record<string, unknown>;
+  return c.json(result);
+});
+
 // Apply auth middleware to tRPC routes
 app.use('/trpc/*', authMiddleware);
 

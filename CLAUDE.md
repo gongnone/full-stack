@@ -90,6 +90,8 @@ Replace `stage` with `production` for prod deploys.
 - `BETTER_AUTH_SECRET` - Session encryption
 - `GOOGLE_CLIENT_ID` - OAuth
 - `GOOGLE_CLIENT_SECRET` - OAuth
+- `AWS_ACCESS_KEY_ID` - AWS SES email sending
+- `AWS_SECRET_ACCESS_KEY` - AWS SES email sending
 
 ### Legacy Stage (user-application-stage)
 - `BETTER_AUTH_SECRET` - Session encryption
@@ -190,6 +192,29 @@ Set in Workers & Pages → foundry-dashboard-stage/production → Settings → V
 ### OAuth Callback URLs
 - Stage: `https://foundry-stage.williamjshaw.ca/api/auth/callback/google`
 - Production: `https://foundry.williamjshaw.ca/api/auth/callback/google`
+
+### Email Configuration (AWS SES)
+
+Email verification and password reset use AWS SES. Configuration:
+
+**Environment Variables (set in wrangler.jsonc):**
+- `AWS_REGION` - AWS region (default: `us-east-1`)
+- `EMAIL_FROM` - Sender address (default: `noreply@foundry.williamjshaw.ca`)
+
+**Secrets (set via `wrangler secret put`):**
+```bash
+wrangler secret put AWS_ACCESS_KEY_ID --env stage
+wrangler secret put AWS_SECRET_ACCESS_KEY --env stage
+```
+
+**AWS SES Setup Required:**
+1. Verify the sender domain (`foundry.williamjshaw.ca`) in AWS SES
+2. Create IAM user with `ses:SendEmail` permission
+3. If in SES sandbox, verify recipient emails or request production access
+
+**Development Mode:**
+- When `AWS_ACCESS_KEY_ID` is not set, emails log to console instead of sending
+- Verification is only required in production (`ENVIRONMENT === 'production'`)
 
 ### Known Issues
 - **Queue Consumer Conflict**: If `foundry-engine` deploy fails with "queue already has consumer" (code 11004), delete consumers in Cloudflare Dashboard → Queues → [queue] → Consumers → Delete, then redeploy.

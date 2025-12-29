@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { Kysely, KyselyPlugin, PluginTransformQueryArgs, PluginTransformResultArgs, QueryResult, RootOperationNode, UnknownRow } from 'kysely';
 import { D1Dialect } from 'kysely-d1';
 import type { Env } from '../index';
+import { sendVerificationEmail as sendVerificationEmailViaService, sendPasswordResetEmail as sendPasswordResetEmailViaService } from '../email';
 
 /**
  * Kysely plugin to convert Date objects to Unix timestamps for D1/SQLite
@@ -65,9 +66,20 @@ export function createAuth(env: Env) {
       minPasswordLength: 12,
       maxPasswordLength: 128,
       // Password must contain: uppercase, lowercase, number, special char
-      async sendVerificationEmail(user: any, url: string) {
-        // TODO: Implement email sending in Epic 1.2
-        console.log('Verification email:', user.email, url);
+      async sendVerificationEmail({ user, url }: { user: { email: string; name: string }; url: string }) {
+        const result = await sendVerificationEmailViaService(env, { email: user.email, name: user.name }, url);
+        if (!result.success) {
+          console.error('Failed to send verification email:', result.error);
+          // Don't throw - Better Auth will still create the user
+          // They can request a new verification email later
+        }
+      },
+      async sendResetPassword({ user, url }: { user: { email: string; name: string }; url: string }) {
+        const result = await sendPasswordResetEmailViaService(env, { email: user.email, name: user.name }, url);
+        if (!result.success) {
+          console.error('Failed to send password reset email:', result.error);
+          throw new Error('Failed to send password reset email. Please try again.');
+        }
       },
     },
 

@@ -47,7 +47,11 @@
   // Local development vars
   "vars": {
     "ENVIRONMENT": "local",
-    "BETTER_AUTH_URL": "http://localhost:5173"
+    "BETTER_AUTH_URL": "http://localhost:5173",
+    // AWS SES email config - set via `wrangler secret put` for production
+    // AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY set as secrets
+    "AWS_REGION": "us-east-1",
+    "EMAIL_FROM": "noreply@foundry.williamjshaw.ca"
   },
 
   // Stage environment
@@ -63,7 +67,9 @@
       ],
       "vars": {
         "ENVIRONMENT": "stage",
-        "BETTER_AUTH_URL": "https://foundry-stage.williamjshaw.ca"
+        "BETTER_AUTH_URL": "https://foundry-stage.williamjshaw.ca",
+        "AWS_REGION": "us-east-1",
+        "EMAIL_FROM": "noreply@foundry.williamjshaw.ca"
       },
       "d1_databases": [
         {
@@ -105,7 +111,9 @@
       ],
       "vars": {
         "ENVIRONMENT": "production",
-        "BETTER_AUTH_URL": "https://foundry.williamjshaw.ca"
+        "BETTER_AUTH_URL": "https://foundry.williamjshaw.ca",
+        "AWS_REGION": "us-east-1",
+        "EMAIL_FROM": "noreply@foundry.williamjshaw.ca"
       },
       "d1_databases": [
         {

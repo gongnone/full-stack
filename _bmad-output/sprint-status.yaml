@@ -103,7 +103,7 @@ verification_summary:
     - "Epic 3 Story 3.1: Updated tests to use auto-advance model instead of Next button"
     - "Epic 4: Skipped tests are intentional - data-dependent tests for hubs/spokes"
     - "Epic 6.1 and 8.1: UI text is correct in code - re-test after staging deployment"
-  overall_result: DEPLOYMENT BLOCKED - REMEDIATION REQUIRED
+  overall_result: DEPLOYMENT UNBLOCKED - All remediation complete (2025-12-29)
 
 # Remediation Backlog (Generated 2025-12-29)
 # Source: Manual Codebase Audit + Deployment Failure
@@ -179,13 +179,70 @@ remediation_backlog:
 
 remediation_summary:
   total_stories: 7
-  critical_blockers: 1
+  critical_blockers: 0
+  completed: 7
   estimated_effort: "12-16 hours"
+  actual_completion: "2025-12-29"
   recommended_order:
-    - R-7 (CRITICAL - unblocks deployment)
-    - R-3 (15 min quick win)
-    - R-6 (30 min security)
-    - R-5 (1 hr UX)
-    - R-4 (1-2 hrs feature)
-    - R-2 (2-3 hrs data)
-    - R-1 (4-6 hrs code quality)
+    - R-7 (CRITICAL - unblocks deployment) ✅
+    - R-3 (15 min quick win) ✅
+    - R-6 (30 min security) ✅
+    - R-5 (1 hr UX) ✅
+    - R-4 (1-2 hrs feature) ✅
+    - R-2 (2-3 hrs data) ✅
+    - R-1 (4-6 hrs code quality) ✅
+
+# Technical Debt Backlog (Post-MVP)
+# Source: Epic 9 Retrospective (2025-12-29)
+technical_debt_backlog:
+  # CI/CD Infrastructure
+  TD-1-vitest-pool-workers-migration:
+    status: Ready for Dev
+    priority: HIGH
+    effort: 2-4 hours
+    issue: "Integration tests fail in GitHub Actions due to Miniflare D1 proxy initialization"
+    root_cause: "Miniflare's D1 proxy doesn't work in Ubuntu CI environment"
+    solution: "Migrate from custom Miniflare harness to @cloudflare/vitest-pool-workers"
+    benefits:
+      - "Green CI pipeline (currently failing on P1 Integration Tests)"
+      - "Real D1/R2/DO testing in actual Workers runtime"
+      - "Official Cloudflare testing solution with long-term support"
+      - "Automatic migration support via readD1Migrations()/applyD1Migrations()"
+    files_to_modify:
+      - apps/foundry-dashboard/vitest.config.ts
+      - apps/foundry-dashboard/worker/trpc/routers/__tests__/integration-harness.ts
+      - apps/foundry-dashboard/package.json
+    files_to_create:
+      - apps/foundry-dashboard/test/setup.ts
+    documentation:
+      - https://developers.cloudflare.com/workers/testing/vitest-integration/
+      - https://developers.cloudflare.com/workers/testing/vitest-integration/recipes/
+
+  TD-2-code-review-any-type-detection:
+    status: Ready for Dev
+    priority: MEDIUM
+    effort: 1 hour
+    issue: "No automated detection of 'any' types during code review"
+    solution: "Add ESLint rule @typescript-eslint/no-explicit-any with error level"
+    benefits:
+      - "Prevents accumulation of type safety debt"
+      - "Catches any types before PR merge"
+    files_to_modify:
+      - apps/foundry-dashboard/.eslintrc.cjs
+      - apps/foundry-engine/.eslintrc.cjs
+
+  TD-3-integration-test-assertion-quality:
+    status: Ready for Dev
+    priority: MEDIUM
+    effort: 30 minutes
+    issue: "Placeholder integration tests (expect(true).toBe(true)) slip through"
+    solution: "Add ESLint rule to flag trivial assertions in test files"
+    benefits:
+      - "Ensures tests actually test something"
+      - "Prevents false confidence in test coverage"
+
+technical_debt_summary:
+  total_items: 3
+  high_priority: 1
+  medium_priority: 2
+  estimated_total_effort: "3.5-5.5 hours"

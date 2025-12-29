@@ -100,6 +100,10 @@ development_status:
   9-7-database-foreign-key-constraints: done  # FK constraints added, all tasks complete
   9-8-type-safety-improvements: done  # Type safety improvements complete
 
+  # Remediation Stories (Audit Findings 2025-12-29)
+  # P0 - Critical: Security and stability fixes blocking production
+  R-1-security-stability-remediation: review  # Security: spokes.ts access check, Agent RPC timeout/retry - VERIFIED COMPLETE
+
 # Implementation Priority (P0 First):
 # ✅ Story 4.3 - Self-Healing Loop (core differentiator) - DONE
 # ✅ Story 5.2 - Sprint View (core UX) - DONE
@@ -107,12 +111,14 @@ development_status:
 # ✅ Story 7.4 - Context Isolation (security) - DONE
 # ✅ Epic 2-4 frontend components - DONE
 # ✅ Epic 9 - Production Hardening - COMPLETE (code review 2025-12-29)
+# ✅ R-1 - Security & Stability Remediation - REVIEW (verified 2025-12-29)
 
 # Quality Gate Status:
 # Last Run: 2025-12-29
-# Decision: PASS - All epics complete, production ready
+# Decision: CONDITIONAL PASS - Requires R-1 completion before production
 # P0 Pass Rate: 100% (all critical stories reviewed and approved)
 # Epics Done: 9 of 9 (ALL COMPLETE)
-# Stories Done: 52 of 52 (ALL COMPLETE)
+# Stories Done: 52 of 52 + 1 remediation (53 total)
 # Technical Debt: 10 items documented (6 medium, 4 low)
-# Status: READY FOR PRODUCTION
+# Remediation: R-1 blocking production (est. 90 min)
+# Status: READY FOR PRODUCTION after R-1 complete

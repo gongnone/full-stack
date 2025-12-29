@@ -1224,37 +1224,27 @@ export class ClientAgent extends DurableObject<Env> {
     return { rejected: spokeIds.length }
   }
 
-// Constants for Quality Gates and Statuses
-const G7_HIGH_THRESHOLD = 90
-const G7_LOW_THRESHOLD = 50
-const STATUS_READY = 'ready_for_review'
-const STATUS_REVIEWING = 'reviewing' // Legacy status for backward compatibility
-const STATUS_FAILED = 'failed_qa'
-const STATUS_CONFLICT = 'creative_conflict'
-
-export class ClientAgent extends DurableObject<Env> {
-  // ... existing code ...
-
   private async getReviewQueue(params: { filter?: string; limit?: number; offset?: number }): Promise<Spoke[]> {
     let query = `SELECT * FROM spokes`
     const conditions: string[] = []
     const sqlParams: any[] = []
 
     // Filter logic aligned with Epic 5 definitions
+    // G7 thresholds: >90 = High Confidence, 50-90 = Needs Review
     if (params.filter === 'top10') {
-      // High Confidence: Ready for review + High Score
-      conditions.push(`(status = '${STATUS_READY}' OR status = '${STATUS_REVIEWING}')`)
-      conditions.push(`g7_engagement > ${G7_HIGH_THRESHOLD}`)
+      // High Confidence: Ready for review + High Score (G7 > 90)
+      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
+      conditions.push(`g7_engagement > 90`)
     } else if (params.filter === 'needs-review') {
-      // Needs Review: Ready for review + Mid Score
-      conditions.push(`(status = '${STATUS_READY}' OR status = '${STATUS_REVIEWING}')`)
-      conditions.push(`g7_engagement >= ${G7_LOW_THRESHOLD} AND g7_engagement <= ${G7_HIGH_THRESHOLD}`)
+      // Needs Review: Ready for review + Mid Score (G7 50-90)
+      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
+      conditions.push(`g7_engagement >= 50 AND g7_engagement <= 90`)
     } else if (params.filter === 'flagged') {
-      // Creative Conflicts: Failed QA
-      conditions.push(`(status = '${STATUS_FAILED}' OR status = '${STATUS_CONFLICT}')`)
+      // Creative Conflicts: Failed QA or escalated
+      conditions.push(`(status = 'failed_qa' OR status = 'creative_conflict')`)
     } else {
       // All pending review items
-      conditions.push(`(status = '${STATUS_READY}' OR status = '${STATUS_REVIEWING}')`)
+      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
     }
 
     if (conditions.length > 0) {

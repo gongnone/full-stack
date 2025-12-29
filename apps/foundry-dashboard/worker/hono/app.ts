@@ -91,86 +91,12 @@ app.get('/api/health/db', async (c) => {
   }
 });
 
-// Test cookie setting
-app.get('/api/debug/set-cookie', (c) => {
-  const testValue = `test-${Date.now()}`;
-  c.header('Set-Cookie', `__Secure-test.session=${testValue}; Path=/; Secure; HttpOnly; SameSite=None`);
-  return c.json({ message: 'Cookie set', value: testValue });
-});
-
-// Test session creation directly
-app.get('/api/debug/test-session', async (c) => {
-  const auth = createAuth(c.env);
-
-  try {
-    // Get the existing user
-    const user = await c.env.DB.prepare('SELECT * FROM user LIMIT 1').first();
-    if (!user) {
-      return c.json({ error: 'No user found' });
-    }
-
-    // Try to create a session via the sign-in endpoint
-    const signInResponse = await auth.api.signInEmail({
-      body: {
-        email: user.email as string,
-        password: 'test-password-will-fail',
-      },
-    });
-
-    return c.json({
-      message: 'Sign-in attempt result',
-      response: signInResponse,
-    });
-  } catch (error: any) {
-    return c.json({
-      error: error.message,
-      stack: error.stack,
-    });
-  }
-});
-
-// Debug endpoint to check cookies and session
-app.get('/api/debug/session', async (c) => {
-  const auth = createAuth(c.env);
-  const cookies = c.req.header('cookie');
-
-  // Parse the session token from cookies (handles __Secure- prefix)
-  const sessionTokenMatch = cookies?.match(/__Secure-better-auth\.session_token=([^;]+)/);
-  const sessionToken = sessionTokenMatch?.[1] ? decodeURIComponent(sessionTokenMatch[1]) : null;
-
-  // Try to get session using the handler (same as /api/auth/get-session)
-  const sessionResponse = await auth.handler(
-    new Request(new URL('/api/auth/get-session', c.req.url), {
-      method: 'GET',
-      headers: c.req.raw.headers,
-    })
-  );
-
-  const sessionData = await sessionResponse.json();
-
-  // Also check DB directly
-  let dbSession = null;
-  let dbError = null;
-  if (sessionToken) {
-    try {
-      dbSession = await c.env.DB.prepare('SELECT id, token, user_id, expires_at FROM session WHERE token = ? LIMIT 1')
-        .bind(sessionToken)
-        .first();
-    } catch (e: any) {
-      dbError = e.message;
-    }
-  }
-
-  return c.json({
-    hasCookies: !!cookies,
-    cookieNames: cookies ? cookies.split(';').map(c => c.trim().split('=')[0]) : [],
-    sessionTokenFromCookie: sessionToken ? `${sessionToken.substring(0, 8)}...` : null,
-    sessionResponseStatus: sessionResponse.status,
-    sessionData,
-    dbSession: dbSession ? { id: dbSession.id, hasToken: !!dbSession.token, userId: dbSession.user_id } : null,
-    dbError,
-  });
-});
+// DEBUG ENDPOINTS REMOVED FOR SECURITY
+// The following debug endpoints were removed to prevent information disclosure:
+// - /api/debug/set-cookie - test cookie setting
+// - /api/debug/test-session - session creation testing (exposed user emails!)
+// - /api/debug/session - session state debugging (exposed session tokens!)
+// If debugging is needed, use wrangler tail or local development instead.
 
 // Better Auth routes - handles all /api/auth/* endpoints
 app.on(['GET', 'POST'], '/api/auth/**', async (c) => {

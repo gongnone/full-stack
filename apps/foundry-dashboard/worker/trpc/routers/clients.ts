@@ -1,26 +1,33 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
+import { assertClientAccess } from '../middleware/client-access';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
 
 export const clientsRouter = t.router({
-  // List all clients for an account
+  // List all clients for an account (only clients the user is a member of)
   list: procedure
     .input(z.object({
       status: z.enum(['active', 'paused', 'archived']).optional(),
     }))
     .query(async ({ ctx, input }) => {
-      let query = 'SELECT id, name, status, industry, contact_email, logo_url, brand_color, created_at FROM clients';
-      const params: any[] = [];
+      // Join with client_members to only return clients the user has access to
+      let query = `
+        SELECT c.id, c.name, c.status, c.industry, c.contact_email, c.logo_url, c.brand_color, c.created_at
+        FROM clients c
+        INNER JOIN client_members cm ON c.id = cm.client_id
+        WHERE cm.user_id = ?
+      `;
+      const params: any[] = [ctx.userId];
 
       if (input.status) {
-        query += ' WHERE status = ?';
+        query += ' AND c.status = ?';
         params.push(input.status);
       }
 
-      query += ' ORDER BY created_at DESC';
+      query += ' ORDER BY c.created_at DESC';
 
       const result = await ctx.db.prepare(query).bind(...params).all();
 
@@ -216,6 +223,7 @@ export const clientsRouter = t.router({
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const dna = await ctx.callAgent(input.clientId, 'getBrandDNA', {});
 
       // Calculate a basic strength score based on available data

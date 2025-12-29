@@ -4,6 +4,12 @@
   "main": "src/index.ts",
   "compatibility_date": "2024-12-01",
   "compatibility_flags": ["nodejs_compat"],
+
+  // SECURITY: Disable public workers.dev subdomain
+  // This worker is ONLY accessed via service binding from foundry-dashboard
+  // All public access is blocked to prevent authorization bypass
+  "workers_dev": false,
+
   "observability": {
     "enabled": true
   },
@@ -110,6 +116,7 @@
   "env": {
     "stage": {
       "name": "foundry-engine-stage",
+      "workers_dev": false,
       "keep_vars": true,
       "vars": {
         "ENVIRONMENT": "stage"
@@ -194,6 +201,7 @@
     },
     "production": {
       "name": "foundry-engine-production",
+      "workers_dev": false,
       "keep_vars": true,
       "vars": {
         "ENVIRONMENT": "production"

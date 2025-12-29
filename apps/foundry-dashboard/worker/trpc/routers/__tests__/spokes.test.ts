@@ -285,6 +285,7 @@ describe('spokesRouter', () => {
       const { ctx } = mockCtx;
       const caller = spokesRouter.createCaller(ctx);
       const input = {
+        clientId: CLIENT_ID,
         spokeId: '00000000-0000-0000-0000-000000000002',
         count: 3,
       };

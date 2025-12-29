@@ -1,6 +1,7 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
+import { assertClientAccess } from '../middleware/client-access';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
@@ -73,6 +74,7 @@ export const spokesRouter = t.router({
       cursor: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Proxy to Durable Object
       const spokes = await ctx.callAgent(input.clientId, 'listSpokes', {
         hubId: input.hubId,
@@ -105,6 +107,7 @@ export const spokesRouter = t.router({
       spokeId: z.string().uuid(),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       return await ctx.callAgent(input.clientId, 'getSpoke', {
         spokeId: input.spokeId,
       });
@@ -117,6 +120,7 @@ export const spokesRouter = t.router({
       spokeId: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       return await ctx.callAgent(input.clientId, 'approveSpoke', {
         spokeId: input.spokeId,
       });
@@ -130,6 +134,7 @@ export const spokesRouter = t.router({
       reason: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       return await ctx.callAgent(input.clientId, 'rejectSpoke', {
         spokeId: input.spokeId,
         reason: input.reason,
@@ -145,6 +150,7 @@ export const spokesRouter = t.router({
       platforms: z.array(platformEnum).default(['twitter', 'linkedin']),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Fetch hub and pillars from D1 (source of truth)
       const hub = await ctx.db.prepare(`
         SELECT h.id, h.title, hs.raw_content as source_content
@@ -236,9 +242,11 @@ export const spokesRouter = t.router({
   // Get workflow status for a spoke generation instance
   getWorkflowStatus: procedure
     .input(z.object({
+      clientId: z.string().min(1),
       instanceId: z.string(),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const response = await ctx.env.CONTENT_ENGINE.fetch(
         new Request(`http://internal/api/workflows/${input.instanceId}?type=spoke`, {
           method: 'GET',
@@ -268,6 +276,7 @@ export const spokesRouter = t.router({
       content: z.string().min(1).max(5000),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Get original spoke to calculate edit distance
       const original = await ctx.callAgent(input.clientId, 'getSpoke', {
         spokeId: input.spokeId,
@@ -300,10 +309,12 @@ export const spokesRouter = t.router({
   // Clone a high-performing spoke to generate variations
   clone: procedure
     .input(z.object({
+      clientId: z.string().min(1),
       spokeId: z.string().uuid(),
       count: z.number().min(1).max(10).default(5),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // TODO: Trigger variation generation via CONTENT_ENGINE
 
       return {

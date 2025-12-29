@@ -124,6 +124,14 @@ remediation_backlog:
       - worker/db/schema.ts
       - worker/db/queries/brand.ts
 
+  R-8-fix-review-queue-sync:
+    status: done
+    priority: HIGH
+    effort: 2-3 hours
+    issue: "Review queue counts in Foundry Dashboard drift from D1 source of truth"
+    solution: "Implement queue sync/refresh logic in ClientAgent Durable Object"
+    completed: 2025-12-29
+
   # HIGH Priority
   R-1-security-stability-remediation:
     status: done

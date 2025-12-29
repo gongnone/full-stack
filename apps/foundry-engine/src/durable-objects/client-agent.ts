@@ -1225,17 +1225,33 @@ export class ClientAgent extends DurableObject<Env> {
   }
 
   private async getReviewQueue(params: { filter?: string; limit?: number }): Promise<Spoke[]> {
-    let query = `SELECT * FROM spokes WHERE status = 'reviewing'`
+    let query = `SELECT * FROM spokes`
+    const conditions: string[] = []
     const sqlParams: any[] = []
 
+    // Filter logic aligned with Epic 5 definitions
+    // G7 scale is 0-100
     if (params.filter === 'top10') {
-      query += ` ORDER BY g7_engagement DESC`
+      // High Confidence: Ready for review + High Score
+      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
+      conditions.push(`g7_engagement > 90`)
+    } else if (params.filter === 'needs-review') {
+      // Needs Review: Ready for review + Mid Score
+      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
+      conditions.push(`g7_engagement >= 50 AND g7_engagement <= 90`)
     } else if (params.filter === 'flagged') {
-      query += ` AND (g2_hook < 50 OR g4_voice = 0 OR g5_platform = 0)`
-      query += ` ORDER BY created_at DESC`
+      // Creative Conflicts: Failed QA
+      conditions.push(`(status = 'failed_qa' OR status = 'creative_conflict')`)
     } else {
-      query += ` ORDER BY created_at DESC`
+      // All pending review items
+      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
     }
+
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(' AND ')}`
+    }
+
+    query += ` ORDER BY created_at DESC`
 
     if (params.limit) {
       query += ` LIMIT ?`

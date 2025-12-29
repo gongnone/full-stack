@@ -330,6 +330,67 @@ app.post('/api/review/action', async (c) => {
   return c.json(result);
 });
 
+// PUBLIC: Edit spoke content via shareable link (requires 'comment' permission)
+app.post('/api/review/edit', async (c) => {
+  const { token, email, spokeId, content } = await c.req.json() as {
+    token: string;
+    email: string;
+    spokeId: string;
+    content: string;
+  };
+
+  if (!token || !email || !spokeId || !content) {
+    return c.json({ error: 'Missing required fields' }, 400);
+  }
+
+  // Validate link and permissions
+  const link = await c.env.DB.prepare('SELECT * FROM shareable_links WHERE token = ?')
+    .bind(token)
+    .first<{
+      id: string;
+      client_id: string;
+      expires_at: number;
+      permissions: string;
+      allowed_emails: string | null;
+    }>();
+
+  if (!link) {
+    return c.json({ error: 'Invalid or expired link' }, 404);
+  }
+
+  if (link.expires_at < Math.floor(Date.now() / 1000)) {
+    return c.json({ error: 'Link has expired' }, 403);
+  }
+
+  // Check permissions - must have 'comment' permission to edit
+  if (link.permissions !== 'comment') {
+    return c.json({ error: 'This link does not have edit permissions' }, 403);
+  }
+
+  // Check allowed emails
+  if (link.allowed_emails) {
+    const allowed = JSON.parse(link.allowed_emails) as string[];
+    if (!allowed.includes(email.toLowerCase())) {
+      return c.json({ error: 'You do not have permission' }, 403);
+    }
+  }
+
+  // Update spoke content via Durable Object
+  const doResponse = await c.env.CONTENT_ENGINE.fetch(
+    new Request(`http://internal/api/client/${link.client_id}/rpc`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        method: 'updateSpoke',
+        params: { spokeId, updates: { content } },
+      }),
+    })
+  );
+
+  const result = await doResponse.json() as Record<string, unknown>;
+  return c.json({ success: true, ...result });
+});
+
 // Apply auth middleware to tRPC routes
 app.use('/trpc/*', authMiddleware);
 

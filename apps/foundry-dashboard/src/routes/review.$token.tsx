@@ -155,6 +155,37 @@ function ShareableReviewPage() {
 
   const { client, spokes, permissions } = data;
   const canApprove = permissions === 'approve' || permissions === 'comment';
+  const canEdit = permissions === 'comment';
+
+  // Handle edit action
+  const handleEdit = async (spokeId: string, newContent: string) => {
+    try {
+      const response = await fetch('/api/review/edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, email, spokeId, content: newContent }),
+      });
+
+      const result = await response.json() as { error?: string; success?: boolean };
+
+      if (!response.ok) {
+        alert(result.error || 'Failed to save edit');
+        return false;
+      }
+
+      // Update local state
+      setData(prev => prev ? {
+        ...prev,
+        spokes: prev.spokes.map((s: any) =>
+          s.id === spokeId ? { ...s, content: newContent } : s
+        ),
+      } : null);
+      return true;
+    } catch (err) {
+      alert('Network error. Please try again.');
+      return false;
+    }
+  };
 
   return (
     <div className="min-h-screen p-6 md:p-12" style={{ backgroundColor: 'var(--bg-base)' }}>
@@ -194,8 +225,10 @@ function ShareableReviewPage() {
               key={spoke.id}
               spoke={spoke}
               canApprove={canApprove}
+              canEdit={canEdit}
               onApprove={() => handleAction(spoke.id, 'approve')}
               onReject={() => handleAction(spoke.id, 'reject')}
+              onEdit={(newContent) => handleEdit(spoke.id, newContent)}
             />
           ))
         )}
@@ -208,15 +241,22 @@ function ShareableReviewPage() {
 function SharedReviewCard({
   spoke,
   canApprove,
+  canEdit,
   onApprove,
-  onReject
+  onReject,
+  onEdit
 }: {
   spoke: any;
   canApprove: boolean;
+  canEdit: boolean;
   onApprove: () => void;
   onReject: () => void;
+  onEdit: (content: string) => Promise<boolean>;
 }) {
   const [actionTaken, setActionTaken] = useState<'approved' | 'rejected' | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(spoke.content);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleApprove = async () => {
     setActionTaken('approved');
@@ -226,6 +266,24 @@ function SharedReviewCard({
   const handleReject = async () => {
     setActionTaken('rejected');
     await onReject();
+  };
+
+  const handleSaveEdit = async () => {
+    if (editedContent === spoke.content) {
+      setIsEditing(false);
+      return;
+    }
+    setIsSaving(true);
+    const success = await onEdit(editedContent);
+    setIsSaving(false);
+    if (success) {
+      setIsEditing(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedContent(spoke.content);
+    setIsEditing(false);
   };
 
   if (actionTaken) {
@@ -283,9 +341,53 @@ function SharedReviewCard({
 
       {/* Content */}
       <div className="p-8">
-        <p className="text-lg leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
-          {spoke.content}
-        </p>
+        {isEditing ? (
+          <div className="space-y-4">
+            <textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className="w-full h-48 p-4 rounded-lg text-lg leading-relaxed resize-none"
+              style={{
+                backgroundColor: 'var(--bg-base)',
+                color: 'var(--text-primary)',
+                border: '2px solid var(--edit)',
+              }}
+              autoFocus
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={handleCancelEdit}
+                className="px-4 py-2 rounded-lg text-sm"
+                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-secondary)' }}
+              >
+                Cancel
+              </button>
+              <ActionButton
+                variant="edit"
+                onClick={handleSaveEdit}
+                isLoading={isSaving}
+                size="sm"
+              >
+                Save Changes
+              </ActionButton>
+            </div>
+          </div>
+        ) : (
+          <div className="relative group">
+            <p className="text-lg leading-relaxed whitespace-pre-wrap" style={{ color: 'var(--text-primary)' }}>
+              {spoke.content}
+            </p>
+            {canEdit && (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="absolute top-0 right-0 px-3 py-1.5 rounded-lg text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ backgroundColor: 'var(--edit)', color: '#fff' }}
+              >
+                Edit
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Visual Concept */}
         {(spoke.visualArchetype || spoke.thumbnailConcept) && (

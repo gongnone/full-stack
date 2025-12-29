@@ -32,53 +32,15 @@ These tRPC router tests use `createMockContext()` which mocks:
 
 #### TASK-001: Refactor `spokes.test.ts` to Real D1 Integration
 
-**File:** `worker/trpc/routers/__tests__/spokes.test.ts`
+**File:** `worker/trpc/routers/__tests__/spokes.integration.test.ts`
 
-**Current Problem:**
-```typescript
-mockCallAgent.mockResolvedValue({ success: true });
-await caller.approve(input);
-expect(mockCallAgent).toHaveBeenCalledWith(/* ... */);
-```
-
-**Remediation:**
-```typescript
-// spokes.integration.test.ts
-import { createIntegrationContext } from './integration-harness';
-
-describe('spokesRouter - Integration', () => {
-  let ctx: ReturnType<typeof createIntegrationContext>;
-
-  beforeAll(async () => {
-    ctx = await createIntegrationContext({
-      d1: true,  // Use local D1
-      durableObjects: true,  // Use miniflare DO
-    });
-  });
-
-  it('approve mutation writes to D1 and updates DO state', async () => {
-    const caller = spokesRouter.createCaller(ctx);
-
-    // Seed real data
-    await ctx.db.exec(`INSERT INTO spokes (id, client_id, status) VALUES (?, ?, 'pending')`, [spokeId, clientId]);
-
-    // Call real endpoint
-    const result = await caller.approve({ clientId, spokeId });
-
-    // Verify D1 state changed
-    const row = await ctx.db.first('SELECT status FROM spokes WHERE id = ?', [spokeId]);
-    expect(row.status).toBe('approved');
-  });
-});
-```
+**Remediation:** Done. Created `spokes.integration.test.ts` using real D1 operations.
 
 **Acceptance Criteria:**
 - [x] Test must write to actual local D1 database
 - [x] Test must read the record back and verify state change
-- [ ] Test must not use `mockCallAgent` or `mockDb`
-- [ ] Test must run in CI with `wrangler d1 execute --local`
-
-**Estimated Effort:** 2-3 hours
+- [x] Test must not use `mockCallAgent` or `mockDb`
+- [x] Test must run in CI with `wrangler d1 execute --local`
 
 ---
 
@@ -86,51 +48,13 @@ describe('spokesRouter - Integration', () => {
 
 **File:** `worker/trpc/routers/__tests__/integration-harness.ts`
 
-**Current State:** Exists but only has mock setup
-
-**Remediation:**
-```typescript
-import { unstable_dev } from 'wrangler';
-import { Miniflare } from 'miniflare';
-
-export async function createIntegrationContext(options: {
-  d1?: boolean;
-  durableObjects?: boolean;
-  contentEngine?: boolean;
-}) {
-  // Spin up local D1
-  const mf = new Miniflare({
-    modules: true,
-    script: '',
-    d1Databases: ['DB'],
-    durableObjects: {
-      CLIENT_AGENT: 'ClientAgent',
-    },
-  });
-
-  const db = await mf.getD1Database('DB');
-
-  // Apply migrations
-  await db.exec(fs.readFileSync('migrations/0001_initial_schema.sql', 'utf-8'));
-
-  return {
-    env: { DB: db },
-    db,
-    userId: 'integration-test-user',
-    accountId: 'integration-test-account',
-    userRole: 'admin',
-    callAgent: createRealAgentCaller(mf),
-  };
-}
-```
+**Remediation:** Done. Refactored to use Miniflare for real D1 instance.
 
 **Acceptance Criteria:**
-- [ ] Harness creates real local D1 database
-- [ ] Harness applies migration files
-- [ ] Harness can spawn Durable Objects via Miniflare
-- [ ] Teardown cleans up resources
-
-**Estimated Effort:** 4-6 hours
+- [x] Harness creates real local D1 database
+- [x] Harness applies migration files
+- [x] Harness can spawn Durable Objects via Miniflare
+- [x] Teardown cleans up resources
 
 ---
 

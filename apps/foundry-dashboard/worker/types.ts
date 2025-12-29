@@ -289,9 +289,21 @@ export interface FinalizeHubResult {
 }
 
 // Story 4.1: Deterministic Spoke Fracturing types
-export type SpokePlatform = 'twitter' | 'linkedin' | 'tiktok' | 'instagram' | 'newsletter' | 'thread' | 'carousel';
+export type SpokePlatform = 'twitter' | 'linkedin' | 'tiktok' | 'instagram' | 'newsletter' | 'thread' | 'carousel' | 'youtube_thumbnail';
 export type SpokeStatus = 'pending' | 'generating' | 'ready' | 'approved' | 'rejected' | 'killed' | 'failed';
 export type SpokeGenerationStatus = 'pending' | 'generating' | 'completed' | 'failed';
+
+/** Quality gate scores from the adversarial critic (Story 4.2) */
+export interface QualityScores {
+  g2_hook?: number;      // G2: Hook strength 0-100
+  g3_voice?: number;     // G3: Voice alignment 0-100
+  g4_platform?: number;  // G4: Platform compliance 0-100
+  g5_banned?: boolean;   // G5: Contains banned words
+  g6_accuracy?: number;  // G6: Factual accuracy 0-100
+  g7_overall?: number;   // G7: Overall quality gate 0-100
+  feedback?: string;     // Critic feedback text
+  [key: string]: number | boolean | string | undefined; // Allow extension
+}
 
 export interface Spoke {
   id: string;
@@ -306,7 +318,14 @@ export interface Spoke {
   g2_score: number | null; // Hook strength 0-100 (Story 4.2)
   g4_status: string | null; // Voice alignment (Story 4.2)
   g5_status: string | null; // Platform compliance (Story 4.2)
+  quality_scores?: QualityScores; // Aggregated quality scores from Durable Object
+  visual_archetype?: string; // Visual style for thumbnails
+  image_prompt?: string; // AI image generation prompt
+  thumbnail_concept?: string; // Thumbnail design concept
+  regeneration_count?: number; // Number of regeneration attempts
   is_mutated: number; // 0 = no, 1 = user-edited (survives Kill Chain)
+  mutated_at?: number | null; // Timestamp when content was mutated
+  parent_spoke_id: string | null; // Story 9-6: Links variations to parent spoke
   created_at: number;
   updated_at: number;
 }
@@ -348,6 +367,7 @@ export const PLATFORM_CONFIGS: Record<SpokePlatform, PlatformConfig> = {
   newsletter: { maxWords: 500, format: 'long-form', tone: 'value-dense' },
   thread: { minPosts: 5, maxPosts: 7, format: 'sequential', tone: 'storytelling' },
   carousel: { minSlides: 5, maxSlides: 8, format: 'visual-slides', tone: 'educational' },
+  youtube_thumbnail: { format: 'thumbnail-image', tone: 'attention-grabbing' },
 } as const;
 
 // API types for spoke generation

@@ -2,9 +2,28 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
 import { assertClientAccess } from '../middleware/client-access';
+import type { Spoke, SpokePlatform, SpokeStatus, QualityScores } from '../../types';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
+
+// Interface for Durable Object spoke representation
+interface DOSpoke {
+  id: string;
+  hubId: string;
+  pillarId: string;
+  platform: SpokePlatform;
+  content: string;
+  status: string;
+  qualityScores: QualityScores;
+  visualArchetype?: string;
+  imagePrompt?: string;
+  thumbnailConcept?: string;
+  regenerationCount: number;
+  mutatedAt: string | null;
+  parentSpokeId: string | null;
+  createdAt: string;
+}
 
 const platformEnum = z.enum([
   'twitter',
@@ -80,22 +99,24 @@ export const spokesRouter = t.router({
         hubId: input.hubId,
         status: input.status,
         limit: input.limit,
-      }) as any[];
+      }) as DOSpoke[];
+
       // Transform camelCase (DO) to snake_case (frontend types)
-      const items = spokes.map((s) => ({
+      const items: Partial<Spoke>[] = spokes.map((s) => ({
         id: s.id,
         hub_id: s.hubId,
         pillar_id: s.pillarId,
         platform: s.platform,
         content: s.content,
-        status: s.status,
+        status: s.status as SpokeStatus,
         quality_scores: s.qualityScores,
         visual_archetype: s.visualArchetype,
         image_prompt: s.imagePrompt,
         thumbnail_concept: s.thumbnailConcept,
         regeneration_count: s.regenerationCount,
-        mutated_at: s.mutatedAt,
-        created_at: s.createdAt,
+        mutated_at: s.mutatedAt ? new Date(s.mutatedAt).getTime() / 1000 : null,
+        parent_spoke_id: s.parentSpokeId,
+        created_at: new Date(s.createdAt).getTime() / 1000,
       }));
       return { items };
     }),
@@ -183,13 +204,23 @@ export const spokesRouter = t.router({
         supporting_points: string | null;
       }>();
 
-      const pillars = pillarsResult.results.map(p => ({
-        pillarId: p.id,
-        title: p.title,
-        // Use supporting_points as hooks (they serve same purpose)
-        hooks: p.supporting_points ? JSON.parse(p.supporting_points) : [],
-        summary: p.core_claim || '',
-      }));
+      const pillars = pillarsResult.results.map(p => {
+        let hooks: string[] = [];
+        if (p.supporting_points) {
+          try {
+            hooks = JSON.parse(p.supporting_points);
+          } catch (e) {
+            console.error('Failed to parse supporting_points JSON:', e);
+            hooks = [];
+          }
+        }
+        return {
+          pillarId: p.id,
+          title: p.title,
+          hooks,
+          summary: p.core_claim || '',
+        };
+      });
 
       if (pillars.length === 0) {
         throw new TRPCError({
@@ -311,15 +342,90 @@ export const spokesRouter = t.router({
     .input(z.object({
       clientId: z.string().min(1),
       spokeId: z.string().uuid(),
-      count: z.number().min(1).max(10).default(5),
+      count: z.number().min(1).max(5).default(1),
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      // TODO: Trigger variation generation via CONTENT_ENGINE
+
+      // Call CONTENT_ENGINE variation generation endpoint
+      const response = await ctx.env.CONTENT_ENGINE.fetch(
+        new Request('http://internal/api/spokes/variations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId: input.clientId,
+            parentSpokeId: input.spokeId,
+            count: input.count,
+          }),
+        })
+      );
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new TRPCError({
+          code: response.status === 404 ? 'NOT_FOUND' :
+                response.status === 400 ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+          message: (error as any).error || 'Failed to generate variations',
+        });
+      }
+
+      const result = await response.json() as {
+        status: string;
+        parentSpokeId: string;
+        variationsQueued: number;
+        instances: Array<{
+          instanceId: string;
+          spokeId: string;
+          platform: string;
+        }>;
+      };
 
       return {
-        newSpokeIds: [] as string[],
+        newSpokeIds: result.instances.map(i => i.spokeId),
         status: 'processing' as const,
+        variationsQueued: result.variationsQueued,
+        instances: result.instances,
       };
+    }),
+
+  // Get variations for a spoke
+  getVariations: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      spokeId: z.string().uuid(),
+    }))
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+      const variations = await ctx.callAgent(input.clientId, 'listVariations', {
+        parentSpokeId: input.spokeId,
+      }) as DOSpoke[];
+
+      return {
+        items: variations.map((s) => ({
+          id: s.id,
+          hub_id: s.hubId,
+          pillar_id: s.pillarId,
+          platform: s.platform,
+          content: s.content,
+          status: s.status as SpokeStatus,
+          quality_scores: s.qualityScores,
+          parent_spoke_id: s.parentSpokeId,
+          created_at: new Date(s.createdAt).getTime() / 1000,
+        })),
+        count: variations.length,
+      };
+    }),
+
+  // Count variations for a spoke
+  countVariations: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      spokeId: z.string().uuid(),
+    }))
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+      return await ctx.callAgent(input.clientId, 'countVariations', {
+        parentSpokeId: input.spokeId,
+      }) as { count: number };
     }),
 });

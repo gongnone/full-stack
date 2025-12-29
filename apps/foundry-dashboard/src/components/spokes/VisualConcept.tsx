@@ -75,6 +75,11 @@ const PLATFORM_VISUAL_TYPES: Record<
     description: 'Educational slide sequence',
     icon: '📑',
   },
+  youtube_thumbnail: {
+    type: 'YouTube Thumbnail',
+    description: 'Eye-catching 16:9 thumbnail for video',
+    icon: '▶️',
+  },
 };
 
 export function VisualConcept({

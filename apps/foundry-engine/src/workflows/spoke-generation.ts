@@ -19,6 +19,8 @@ interface SpokeGenerationParams {
   pillarTitle: string;
   hooks: string[];
   sourceContent: string;
+  parentSpokeId?: string;
+  isVariation?: boolean;
 }
 
 const PLATFORM_SPECS: Record<string, {
@@ -66,6 +68,8 @@ export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenera
       pillarTitle,
       hooks,
       sourceContent,
+      parentSpokeId,
+      isVariation,
     } = event.payload;
 
     // Step 1: Get Brand DNA and platform specs
@@ -106,6 +110,7 @@ export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenera
             qualityScores: {},
             regenerationCount: 0,
             mutatedAt: null,
+            parentSpokeId: parentSpokeId || null,
           },
         }),
       }));
@@ -115,7 +120,38 @@ export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenera
     let generatedContent = await step.do('creator-generate', async () => {
       const { brandDNA, platformSpec } = context;
 
-      const creatorPrompt = `You are a CREATOR agent - a divergent thinker who generates engaging content.
+      // Different prompt for variations vs original content
+      const creatorPrompt = isVariation
+        ? `You are a CREATOR agent - a divergent thinker who generates VARIATIONS of existing content.
+
+ORIGINAL CONTENT TO VARY:
+"""
+${sourceContent}
+"""
+
+BRAND VOICE:
+- Voice Markers: ${(brandDNA as any).voiceMarkers?.join(', ') || 'Authentic, engaging'}
+- Banned Words: ${(brandDNA as any).bannedWords?.map((b: any) => b.word).join(', ') || 'None'}
+- Signature Patterns: ${(brandDNA as any).signaturePatterns?.join(', ') || 'None'}
+
+PLATFORM REQUIREMENTS (${platform.toUpperCase()}):
+- Max Length: ${platformSpec.maxLength} characters
+- Format: ${platformSpec.format}
+- Style: ${platformSpec.style}
+
+VARIATION REQUIREMENTS:
+Create an ALTERNATIVE version that:
+1. MAINTAINS the same core message and value proposition
+2. Uses a COMPLETELY DIFFERENT hook/opening approach
+3. Varies sentence structure and rhythm
+4. Explores a different angle or perspective
+5. Keeps the same brand voice and platform constraints
+6. Ends with a different engagement driver
+
+DO NOT just rephrase - create a genuinely fresh take on the same idea.
+
+Output ONLY the new variation, no meta-commentary.`
+        : `You are a CREATOR agent - a divergent thinker who generates engaging content.
 
 BRAND VOICE:
 - Voice Markers: ${(brandDNA as any).voiceMarkers?.join(', ') || 'Authentic, engaging'}

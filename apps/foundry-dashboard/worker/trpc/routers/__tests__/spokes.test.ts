@@ -282,7 +282,7 @@ describe('spokesRouter', () => {
 
   describe('clone', () => {
     it('clones a spoke for variations', async () => {
-      const { ctx } = mockCtx;
+      const { ctx, mockFetch } = mockCtx;
       const caller = spokesRouter.createCaller(ctx);
       const input = {
         clientId: CLIENT_ID,
@@ -290,10 +290,65 @@ describe('spokesRouter', () => {
         count: 3,
       };
 
+      // Mock CONTENT_ENGINE.fetch response for variation generation
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          status: 'started',
+          parentSpokeId: input.spokeId,
+          variationsQueued: 3,
+          instances: [
+            { instanceId: 'inst-1', spokeId: 'new-spoke-1', platform: 'twitter' },
+            { instanceId: 'inst-2', spokeId: 'new-spoke-2', platform: 'twitter' },
+            { instanceId: 'inst-3', spokeId: 'new-spoke-3', platform: 'twitter' },
+          ],
+        }),
+      });
+
       const result = await caller.clone(input);
 
       expect(result.status).toBe('processing');
       expect(Array.isArray(result.newSpokeIds)).toBe(true);
+      expect(result.newSpokeIds).toHaveLength(3);
+      expect(result.variationsQueued).toBe(3);
+    });
+
+    it('returns error when parent spoke not found', async () => {
+      const { ctx, mockFetch } = mockCtx;
+      const caller = spokesRouter.createCaller(ctx);
+      const input = {
+        clientId: CLIENT_ID,
+        spokeId: '00000000-0000-0000-0000-000000000099',
+        count: 1,
+      };
+
+      // Mock CONTENT_ENGINE.fetch 404 response
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 404,
+        json: async () => ({ error: 'Parent spoke not found' }),
+      });
+
+      await expect(caller.clone(input)).rejects.toThrow(TRPCError);
+    });
+
+    it('returns error when max variations reached', async () => {
+      const { ctx, mockFetch } = mockCtx;
+      const caller = spokesRouter.createCaller(ctx);
+      const input = {
+        clientId: CLIENT_ID,
+        spokeId: '00000000-0000-0000-0000-000000000002',
+        count: 1,
+      };
+
+      // Mock CONTENT_ENGINE.fetch 400 response (max variations)
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ error: 'Maximum 5 variations per spoke reached' }),
+      });
+
+      await expect(caller.clone(input)).rejects.toThrow(TRPCError);
     });
   });
 

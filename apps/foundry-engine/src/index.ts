@@ -125,6 +125,101 @@ app.post('/api/spokes/generate', async (c) => {
   });
 });
 
+// Trigger Spoke Variation Generation (Clone Feature)
+// Creates variations of an existing spoke with different content
+app.post('/api/spokes/variations', async (c) => {
+  const { clientId, parentSpokeId, count } = await c.req.json();
+
+  if (!clientId || !parentSpokeId) {
+    return c.json({ error: 'clientId and parentSpokeId are required' }, 400);
+  }
+
+  const variationCount = Math.min(count || 1, 5);
+
+  // Get parent spoke data from DO
+  const doId = c.env.CLIENT_AGENT.idFromName(clientId);
+  const agent = c.env.CLIENT_AGENT.get(doId);
+
+  const parentResponse = await agent.fetch(new Request('http://internal/rpc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      method: 'getSpoke',
+      params: { spokeId: parentSpokeId },
+    }),
+  }));
+
+  const parentSpoke = await parentResponse.json() as {
+    id: string;
+    hubId: string;
+    pillarId: string;
+    platform: string;
+    content: string;
+    qualityScores: Record<string, unknown>;
+  } | null;
+
+  if (!parentSpoke) {
+    return c.json({ error: 'Parent spoke not found' }, 404);
+  }
+
+  // Check variation limit
+  const countResponse = await agent.fetch(new Request('http://internal/rpc', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      method: 'countVariations',
+      params: { parentSpokeId },
+    }),
+  }));
+
+  const { count: existingCount } = await countResponse.json() as { count: number };
+
+  if (existingCount >= 5) {
+    return c.json({ error: 'Maximum 5 variations per spoke reached' }, 400);
+  }
+
+  const allowedVariations = Math.min(variationCount, 5 - existingCount);
+
+  // Create workflow instances for each variation
+  const workflowInstances: Array<{
+    instanceId: string;
+    spokeId: string;
+    platform: string;
+  }> = [];
+
+  for (let i = 0; i < allowedVariations; i++) {
+    const spokeId = crypto.randomUUID();
+
+    const instance = await c.env.SPOKE_GENERATION.create({
+      params: {
+        clientId,
+        hubId: parentSpoke.hubId,
+        spokeId,
+        platform: parentSpoke.platform,
+        pillarId: parentSpoke.pillarId,
+        pillarTitle: 'Variation',
+        hooks: [],
+        sourceContent: parentSpoke.content, // Use parent content as seed
+        parentSpokeId, // Pass parent reference for tracking
+        isVariation: true, // Flag to enable variation-specific prompting
+      },
+    });
+
+    workflowInstances.push({
+      instanceId: instance.id,
+      spokeId,
+      platform: parentSpoke.platform,
+    });
+  }
+
+  return c.json({
+    status: 'started',
+    parentSpokeId,
+    variationsQueued: workflowInstances.length,
+    instances: workflowInstances,
+  });
+});
+
 // Trigger Calibration Workflow
 app.post('/api/calibration/start', async (c) => {
   const { clientId, contentType, content } = await c.req.json();

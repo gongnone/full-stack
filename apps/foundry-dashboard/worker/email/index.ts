@@ -160,6 +160,7 @@ export async function sendVerificationEmail(
 ): Promise<{ success: boolean; error?: string }> {
   // Skip sending in non-production if SES is not configured
   if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+    console.log('SES not configured, skipping email send', { to: user.email });
     return { success: true }; // Return success for dev mode
   }
 
@@ -225,6 +226,7 @@ export async function sendPasswordResetEmail(
 ): Promise<{ success: boolean; error?: string }> {
   // Skip sending in non-production if SES is not configured
   if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+    console.log('SES not configured, skipping email send', { to: user.email });
     return { success: true }; // Return success for dev mode
   }
 

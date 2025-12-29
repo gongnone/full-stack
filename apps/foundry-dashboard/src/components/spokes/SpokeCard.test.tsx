@@ -21,6 +21,7 @@ describe('SpokeCard', () => {
     g4_status: 'pass',
     g5_status: 'pass',
     is_mutated: 0,
+    parent_spoke_id: null,
     generation_attempt: 1,
     created_at: Date.now(),
     updated_at: Date.now(),
@@ -182,6 +183,28 @@ describe('SpokeCard', () => {
 
       const content = container.querySelector('.line-clamp-3');
       expect(content).not.toBeInTheDocument();
+    });
+  });
+
+  // Story 9-6: Variation indicator tests
+  describe('Variation Indicator', () => {
+    it('does not show variation badge when parent_spoke_id is null', () => {
+      render(<SpokeCard spoke={mockSpoke} />);
+
+      expect(screen.queryByText('Variation')).not.toBeInTheDocument();
+    });
+
+    it('shows variation badge when parent_spoke_id is set', () => {
+      render(<SpokeCard spoke={{ ...mockSpoke, parent_spoke_id: 'parent-spoke-uuid-1234' }} />);
+
+      expect(screen.getByText('Variation')).toBeInTheDocument();
+    });
+
+    it('has tooltip with parent spoke ID', () => {
+      render(<SpokeCard spoke={{ ...mockSpoke, parent_spoke_id: 'parent-spoke-uuid-1234' }} />);
+
+      const badge = screen.getByText('Variation').closest('span');
+      expect(badge).toHaveAttribute('title', 'Variation of parent-s...');
     });
   });
 });

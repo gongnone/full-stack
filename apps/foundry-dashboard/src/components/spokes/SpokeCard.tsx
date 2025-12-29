@@ -72,6 +72,15 @@ const PLATFORM_CONFIG: Record<SpokePlatform, { label: string; color: string; ico
       </svg>
     ),
   },
+  youtube_thumbnail: {
+    label: 'YouTube',
+    color: '#FF0000',
+    icon: (
+      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+      </svg>
+    ),
+  },
 };
 
 // Status config
@@ -167,7 +176,22 @@ export function SpokeCard({ spoke, onClick, isExpanded = false }: SpokeCardProps
 
       {/* Metadata */}
       <div className="flex items-center justify-between mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-        <span className="capitalize">{spoke.psychological_angle}</span>
+        <div className="flex items-center gap-2">
+          <span className="capitalize">{spoke.psychological_angle}</span>
+          {/* Story 9-6: Variation indicator */}
+          {spoke.parent_spoke_id && (
+            <span
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+              style={{ backgroundColor: 'var(--edit-glow)', color: 'var(--edit)' }}
+              title={`Variation of ${spoke.parent_spoke_id.slice(0, 8)}...`}
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              Variation
+            </span>
+          )}
+        </div>
         {spoke.generation_attempt > 1 && (
           <span className="px-1.5 py-0.5 rounded bg-[var(--warning)]20 text-[var(--warning)]">
             Attempt #{spoke.generation_attempt}

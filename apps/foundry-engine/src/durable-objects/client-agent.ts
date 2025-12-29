@@ -66,6 +66,7 @@ interface Spoke {
   thumbnailConcept?: string
   regenerationCount: number
   mutatedAt: string | null
+  parentSpokeId: string | null
   createdAt: string
 }
 
@@ -161,19 +162,12 @@ export class ClientAgent extends DurableObject<Env> {
     `)
 
     // Migration: Remove FK constraint from existing spokes tables
-    // The old schema had FOREIGN KEY (hub_id) REFERENCES hubs(id) which fails
-    // because hubs are in D1, not in this DO's SQLite.
-    // This migration recreates the table without the FK.
     try {
-      // Check if table exists with old schema by trying to insert a test row
-      // If FK constraint exists and hubs table is empty, it will fail
       const tableInfo = this.sql.exec(`PRAGMA table_info(spokes)`).toArray()
       if (tableInfo.length > 0) {
-        // Table exists - check for FK by looking at foreign_key_list
         const fkList = this.sql.exec(`PRAGMA foreign_key_list(spokes)`).toArray()
         if (fkList.length > 0) {
-          // Old table has FK - recreate without it
-          this.sql.exec(`DROP TABLE IF EXISTS feedback`) // depends on spokes
+          this.sql.exec(`DROP TABLE IF EXISTS feedback`)
           this.sql.exec(`DROP TABLE IF EXISTS spokes`)
         }
       }
@@ -182,7 +176,6 @@ export class ClientAgent extends DurableObject<Env> {
     }
 
     // Spokes table
-    // Note: No FK constraint on hub_id - hubs are in D1, spokes in DO SQLite
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS spokes (
         id TEXT PRIMARY KEY,
@@ -202,12 +195,22 @@ export class ClientAgent extends DurableObject<Env> {
         thumbnail_concept TEXT,
         regeneration_count INTEGER DEFAULT 0,
         mutated_at TEXT,
+        parent_spoke_id TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `)
 
+    try {
+      const columns = this.sql.exec(`PRAGMA table_info(spokes)`).toArray()
+      const hasParentSpokeId = columns.some(c => c.name === 'parent_spoke_id')
+      if (!hasParentSpokeId) {
+        this.sql.exec(`ALTER TABLE spokes ADD COLUMN parent_spoke_id TEXT`)
+      }
+    } catch {
+      // Column already exists or table doesn't exist yet
+    }
+
     // Feedback storage for self-healing loop
-    // Note: No FK to spokes - we handle referential integrity in application code
     this.sql.exec(`
       CREATE TABLE IF NOT EXISTS feedback (
         id TEXT PRIMARY KEY,
@@ -245,6 +248,7 @@ export class ClientAgent extends DurableObject<Env> {
     // Create indexes
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_spokes_hub ON spokes(hub_id)`)
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_spokes_status ON spokes(status)`)
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_spokes_parent ON spokes(parent_spoke_id)`)
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_spoke ON feedback(spoke_id)`)
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_analytics_type ON analytics(metric_type)`)
   }
@@ -295,6 +299,12 @@ export class ClientAgent extends DurableObject<Env> {
       case 'rejectSpoke':
         return Response.json(await this.rejectSpoke(params.spokeId, params.reason))
 
+      case 'countVariations':
+        return Response.json(await this.countVariations(params.parentSpokeId))
+
+      case 'listVariations':
+        return Response.json(await this.listVariations(params.parentSpokeId))
+
       case 'bulkApprove':
         return Response.json(await this.bulkApprove(params.spokeIds))
 
@@ -340,7 +350,6 @@ export class ClientAgent extends DurableObject<Env> {
       case 'transcribeAudio':
         return Response.json(await this.transcribeAudio(params))
 
-      // Voice Markers CRUD (Story 2.5)
       case 'listVoiceMarkers':
         return Response.json(await this.listVoiceMarkers())
 
@@ -353,7 +362,6 @@ export class ClientAgent extends DurableObject<Env> {
       case 'updateVoiceMarker':
         return Response.json(await this.updateVoiceMarker(params))
 
-      // Banned Words CRUD (Story 2.5)
       case 'listBannedWords':
         return Response.json(await this.listBannedWords())
 
@@ -366,7 +374,6 @@ export class ClientAgent extends DurableObject<Env> {
       case 'updateBannedWord':
         return Response.json(await this.updateBannedWord(params))
 
-      // Brand Stances CRUD
       case 'listBrandStances':
         return Response.json(await this.listBrandStances())
 
@@ -376,14 +383,12 @@ export class ClientAgent extends DurableObject<Env> {
       case 'removeBrandStance':
         return Response.json(await this.removeBrandStance(params.stanceId))
 
-      // G4 Voice Alignment Gate methods
       case 'checkBannedWords':
         return Response.json(await this.checkBannedWords(params.content))
 
       case 'checkVoiceMarkers':
         return Response.json(await this.checkVoiceMarkers(params.content))
 
-      // Story 2.3: Brand DNA Analysis & Scoring
       case 'analyzeBrandDNA':
         return Response.json(await this.analyzeBrandDNA(params))
 
@@ -441,11 +446,13 @@ export class ClientAgent extends DurableObject<Env> {
     
     // Calculate Zero-Edit Rate (ZER) per hub
     const hubStats = hubs.map(hub => {
-      const spokes = this.sql.exec(`
+      // Use parameterized query
+      const spokes = this.sql.exec(
+        `
         SELECT status, mutated_at 
         FROM spokes 
-        WHERE hub_id = '${hub.id}' AND status = 'approved'
-      `).toArray()
+        WHERE hub_id = ? AND status = 'approved'
+      `, hub.id).toArray()
       
       const totalApproved = spokes.length
       const zeroEditApproved = spokes.filter(s => !s.mutated_at).length
@@ -459,7 +466,8 @@ export class ClientAgent extends DurableObject<Env> {
       : 0
 
     // Voice Drift Detection
-    const last50Spokes = this.sql.exec(`
+    const last50Spokes = this.sql.exec(
+      `
       SELECT g4_similarity 
       FROM spokes 
       WHERE g4_similarity IS NOT NULL 
@@ -481,7 +489,8 @@ export class ClientAgent extends DurableObject<Env> {
 
     // Auto-establish baseline if not set and we have 3 hubs >= 60% ZER
     if (!dna.voiceBaseline && hubStats.filter(h => h.zer >= 0.6).length >= 3) {
-      const baselineSimilarity = this.sql.exec(`
+      const baselineSimilarity = this.sql.exec(
+        `
         SELECT AVG(g4_similarity) as avg_sim 
         FROM spokes 
         WHERE g4_similarity IS NOT NULL
@@ -513,11 +522,12 @@ export class ClientAgent extends DurableObject<Env> {
     
     for (const hub of hubs) {
       hubCount++
-      const spokes = this.sql.exec(`
+      const spokes = this.sql.exec(
+        `
         SELECT status, mutated_at 
         FROM spokes 
-        WHERE hub_id = '${hub.id}' AND status = 'approved'
-      `).toArray()
+        WHERE hub_id = ? AND status = 'approved'
+      `, hub.id as string).toArray()
       
       const totalApproved = spokes.length
       if (totalApproved === 0) continue
@@ -536,22 +546,102 @@ export class ClientAgent extends DurableObject<Env> {
 
   private async updateBrandDNA(updates: Partial<BrandDNA & { voiceBaseline?: number, timeToDNA?: number, lastCalibration?: string }>): Promise<{ success: boolean }> {
     const sets: string[] = []
+    const params: any[] = []
 
     // Metadata fields stored in brand_dna table
-    if (updates.signaturePatterns) sets.push(`signature_patterns = '${JSON.stringify(updates.signaturePatterns)}'`)
-    if (updates.toneProfile) sets.push(`tone_profile = '${JSON.stringify(updates.toneProfile)}'`)
-    if (updates.voiceBaseline !== undefined) sets.push(`voice_baseline = ${updates.voiceBaseline}`)
-    if (updates.timeToDNA !== undefined) sets.push(`time_to_dna = ${updates.timeToDNA}`)
-    if (updates.lastCalibration !== undefined) sets.push(`last_calibration = '${updates.lastCalibration}'`)
+    if (updates.signaturePatterns) {
+      sets.push(`signature_patterns = ?`)
+      params.push(JSON.stringify(updates.signaturePatterns))
+    }
+    if (updates.toneProfile) {
+      sets.push(`tone_profile = ?`)
+      params.push(JSON.stringify(updates.toneProfile))
+    }
+    if (updates.voiceBaseline !== undefined) {
+      sets.push(`voice_baseline = ?`)
+      params.push(updates.voiceBaseline)
+    }
+    if (updates.timeToDNA !== undefined) {
+      sets.push(`time_to_dna = ?`)
+      params.push(updates.timeToDNA)
+    }
+    if (updates.lastCalibration !== undefined) {
+      sets.push(`last_calibration = ?`)
+      params.push(updates.lastCalibration)
+    }
 
     if (sets.length > 0) {
-      this.sql.exec(`UPDATE brand_dna SET ${sets.join(', ')} WHERE id = 1`)
+      this.sql.exec(`UPDATE brand_dna SET ${sets.join(', ')} WHERE id = 1`, ...params)
+    }
+
+    // Persist Voice Markers
+    // Handle both string[] (from Workflow) and VoiceMarker[] (internal)
+    if (updates.voiceMarkers) {
+      for (const marker of updates.voiceMarkers) {
+        const phrase = typeof marker === 'string' ? marker : marker.phrase
+        if (!phrase) continue
+        
+        // Upsert by checking existence first
+        // Simple strategy: Insert if not exists
+        try {
+          this.sql.exec(
+            `
+            INSERT INTO voice_markers (id, phrase, source, confidence)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(phrase) DO UPDATE SET created_at = CURRENT_TIMESTAMP
+          `, crypto.randomUUID(), phrase.toLowerCase().trim(), 'analysis', 1.0)
+        } catch (e) {
+          // Ignore unique constraint if ON CONFLICT fails (shouldn't with correct syntax)
+        }
+      }
+    }
+
+    // Persist Banned Words
+    if (updates.bannedWords) {
+      for (const bw of updates.bannedWords) {
+        // Normalize: bw might be partial or full object
+        // Workflow returns { word, severity, reason }
+        const word = typeof bw === 'string' ? bw : bw.word
+        if (!word) continue
+        
+        const severity = (bw as any).severity || 'hard'
+        const reason = (bw as any).reason || null
+        
+        try {
+          this.sql.exec(
+            `
+            INSERT INTO banned_words (id, word, severity, reason, source)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(word) DO UPDATE SET severity = excluded.severity, reason = excluded.reason
+          `, crypto.randomUUID(), word.toLowerCase().trim(), severity, reason, 'analysis')
+        } catch (e) {
+          // Ignore
+        }
+      }
+    }
+
+    // Persist Brand Stances
+    if (updates.stances) {
+      for (const stance of updates.stances) {
+        if (!stance.topic || !stance.position) continue
+        
+        try {
+          this.sql.exec(
+            `
+            INSERT INTO brand_stances (id, topic, position, source)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(topic, position) DO UPDATE SET created_at = CURRENT_TIMESTAMP
+          `, crypto.randomUUID(), stance.topic, stance.position, 'analysis')
+        } catch (e) {
+          // Ignore
+        }
+      }
     }
 
     return { success: true }
   }
 
-  // Voice Markers CRUD Methods (Story 2.5)
+  // Voice Markers CRUD Methods
   private async listVoiceMarkers(): Promise<VoiceMarker[]> {
     return this.sql.exec(`SELECT * FROM voice_markers ORDER BY created_at DESC`).toArray().map(r => ({
       id: r.id as string,
@@ -573,12 +663,12 @@ export class ClientAgent extends DurableObject<Env> {
     const confidence = params.confidence ?? 1.0
 
     try {
-      this.sql.exec(`
+      this.sql.exec(
+        `
         INSERT INTO voice_markers (id, phrase, source, confidence)
-        VALUES ('${id}', '${normalizedPhrase.replace(/'/g, "''")}', '${source}', ${confidence})
-      `)
+        VALUES (?, ?, ?, ?)
+      `, id, normalizedPhrase, source, confidence)
 
-      // Update last calibration
       this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
 
       return {
@@ -589,9 +679,8 @@ export class ClientAgent extends DurableObject<Env> {
         createdAt: new Date().toISOString(),
       }
     } catch (error) {
-      // Handle unique constraint violation (phrase already exists)
       if (String(error).includes('UNIQUE constraint')) {
-        const existing = this.sql.exec(`SELECT * FROM voice_markers WHERE phrase = '${normalizedPhrase.replace(/'/g, "''")}'`).one()
+        const existing = this.sql.exec(`SELECT * FROM voice_markers WHERE phrase = ?`, normalizedPhrase).one()
         return {
           id: existing.id as string,
           phrase: existing.phrase as string,
@@ -605,7 +694,7 @@ export class ClientAgent extends DurableObject<Env> {
   }
 
   private async removeVoiceMarker(markerId: string): Promise<{ success: boolean }> {
-    this.sql.exec(`DELETE FROM voice_markers WHERE id = '${markerId}'`)
+    this.sql.exec(`DELETE FROM voice_markers WHERE id = ?`, markerId)
     this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
     return { success: true }
   }
@@ -616,15 +705,24 @@ export class ClientAgent extends DurableObject<Env> {
     confidence?: number
   }): Promise<VoiceMarker> {
     const sets: string[] = []
-    if (params.phrase) sets.push(`phrase = '${params.phrase.toLowerCase().trim().replace(/'/g, "''")}'`)
-    if (params.confidence !== undefined) sets.push(`confidence = ${params.confidence}`)
+    const sqlParams: any[] = []
+
+    if (params.phrase) {
+      sets.push(`phrase = ?`)
+      sqlParams.push(params.phrase.toLowerCase().trim())
+    }
+    if (params.confidence !== undefined) {
+      sets.push(`confidence = ?`)
+      sqlParams.push(params.confidence)
+    }
 
     if (sets.length > 0) {
-      this.sql.exec(`UPDATE voice_markers SET ${sets.join(', ')} WHERE id = '${params.markerId}'`)
+      sqlParams.push(params.markerId)
+      this.sql.exec(`UPDATE voice_markers SET ${sets.join(', ')} WHERE id = ?`, ...sqlParams)
       this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
     }
 
-    const row = this.sql.exec(`SELECT * FROM voice_markers WHERE id = '${params.markerId}'`).one()
+    const row = this.sql.exec(`SELECT * FROM voice_markers WHERE id = ?`, params.markerId).one()
     return {
       id: row.id as string,
       phrase: row.phrase as string,
@@ -634,7 +732,7 @@ export class ClientAgent extends DurableObject<Env> {
     }
   }
 
-  // Banned Words CRUD Methods (Story 2.5)
+  // Banned Words CRUD Methods
   private async listBannedWords(): Promise<BannedWord[]> {
     return this.sql.exec(`SELECT * FROM banned_words ORDER BY created_at DESC`).toArray().map(r => ({
       id: r.id as string,
@@ -656,15 +754,15 @@ export class ClientAgent extends DurableObject<Env> {
     const normalizedWord = params.word.toLowerCase().trim()
     const severity = params.severity || 'hard'
     const source = params.source || 'manual'
-    const reasonSql = params.reason ? `'${params.reason.replace(/'/g, "''")}'` : 'NULL'
+    const reason = params.reason || null
 
     try {
-      this.sql.exec(`
+      this.sql.exec(
+        `
         INSERT INTO banned_words (id, word, severity, reason, source)
-        VALUES ('${id}', '${normalizedWord.replace(/'/g, "''")}', '${severity}', ${reasonSql}, '${source}')
-      `)
+        VALUES (?, ?, ?, ?, ?)
+      `, id, normalizedWord, severity, reason, source)
 
-      // Update last calibration
       this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
 
       return {
@@ -676,9 +774,8 @@ export class ClientAgent extends DurableObject<Env> {
         createdAt: new Date().toISOString(),
       }
     } catch (error) {
-      // Handle unique constraint violation (word already exists)
       if (String(error).includes('UNIQUE constraint')) {
-        const existing = this.sql.exec(`SELECT * FROM banned_words WHERE word = '${normalizedWord.replace(/'/g, "''")}'`).one()
+        const existing = this.sql.exec(`SELECT * FROM banned_words WHERE word = ?`, normalizedWord).one()
         return {
           id: existing.id as string,
           word: existing.word as string,
@@ -693,7 +790,7 @@ export class ClientAgent extends DurableObject<Env> {
   }
 
   private async removeBannedWord(wordId: string): Promise<{ success: boolean }> {
-    this.sql.exec(`DELETE FROM banned_words WHERE id = '${wordId}'`)
+    this.sql.exec(`DELETE FROM banned_words WHERE id = ?`, wordId)
     this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
     return { success: true }
   }
@@ -705,16 +802,28 @@ export class ClientAgent extends DurableObject<Env> {
     reason?: string
   }): Promise<BannedWord> {
     const sets: string[] = []
-    if (params.word) sets.push(`word = '${params.word.toLowerCase().trim().replace(/'/g, "''")}'`)
-    if (params.severity) sets.push(`severity = '${params.severity}'`)
-    if (params.reason !== undefined) sets.push(`reason = '${params.reason.replace(/'/g, "''")}'`)
+    const sqlParams: any[] = []
+
+    if (params.word) {
+      sets.push(`word = ?`)
+      sqlParams.push(params.word.toLowerCase().trim())
+    }
+    if (params.severity) {
+      sets.push(`severity = ?`)
+      sqlParams.push(params.severity)
+    }
+    if (params.reason !== undefined) {
+      sets.push(`reason = ?`)
+      sqlParams.push(params.reason)
+    }
 
     if (sets.length > 0) {
-      this.sql.exec(`UPDATE banned_words SET ${sets.join(', ')} WHERE id = '${params.wordId}'`)
+      sqlParams.push(params.wordId)
+      this.sql.exec(`UPDATE banned_words SET ${sets.join(', ')} WHERE id = ?`, ...sqlParams)
       this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
     }
 
-    const row = this.sql.exec(`SELECT * FROM banned_words WHERE id = '${params.wordId}'`).one()
+    const row = this.sql.exec(`SELECT * FROM banned_words WHERE id = ?`, params.wordId).one()
     return {
       id: row.id as string,
       word: row.word as string,
@@ -745,12 +854,12 @@ export class ClientAgent extends DurableObject<Env> {
     const source = params.source || 'manual'
 
     try {
-      this.sql.exec(`
+      this.sql.exec(
+        `
         INSERT INTO brand_stances (id, topic, position, source)
-        VALUES ('${id}', '${params.topic.replace(/'/g, "''")}', '${params.position.replace(/'/g, "''")}', '${source}')
-      `)
+        VALUES (?, ?, ?, ?)
+      `, id, params.topic, params.position, source)
 
-      // Update last calibration
       this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
 
       return {
@@ -761,12 +870,12 @@ export class ClientAgent extends DurableObject<Env> {
         createdAt: new Date().toISOString(),
       }
     } catch (error) {
-      // Handle unique constraint violation
       if (String(error).includes('UNIQUE constraint')) {
-        const existing = this.sql.exec(`
+        const existing = this.sql.exec(
+          `
           SELECT * FROM brand_stances
-          WHERE topic = '${params.topic.replace(/'/g, "''")}' AND position = '${params.position.replace(/'/g, "''")}'
-        `).one()
+          WHERE topic = ? AND position = ?
+        `, params.topic, params.position).one()
         return {
           id: existing.id as string,
           topic: existing.topic as string,
@@ -780,23 +889,24 @@ export class ClientAgent extends DurableObject<Env> {
   }
 
   private async removeBrandStance(stanceId: string): Promise<{ success: boolean }> {
-    this.sql.exec(`DELETE FROM brand_stances WHERE id = '${stanceId}'`)
+    this.sql.exec(`DELETE FROM brand_stances WHERE id = ?`, stanceId)
     this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
     return { success: true }
   }
 
   // Hub Methods
   private async createHub(hub: Omit<Hub, 'createdAt'>): Promise<Hub> {
-    this.sql.exec(`
+    this.sql.exec(
+      `
       INSERT INTO hubs (id, source_content, platform, angle, status, pillars)
-      VALUES ('${hub.id}', '${hub.sourceContent.replace(/'/g, "''")}', '${hub.platform}', '${hub.angle}', '${hub.status}', '${JSON.stringify(hub.pillars)}')
-    `)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, hub.id, hub.sourceContent, hub.platform, hub.angle, hub.status, JSON.stringify(hub.pillars))
 
     return this.getHub(hub.id) as Promise<Hub>
   }
 
   private async getHub(hubId: string): Promise<Hub | null> {
-    const row = this.sql.exec(`SELECT * FROM hubs WHERE id = '${hubId}'`).one()
+    const row = this.sql.exec(`SELECT * FROM hubs WHERE id = ?`, hubId).one()
     if (!row) return null
 
     return {
@@ -812,12 +922,25 @@ export class ClientAgent extends DurableObject<Env> {
 
   private async listHubs(params: { status?: string; limit?: number; offset?: number }): Promise<Hub[]> {
     let query = `SELECT * FROM hubs`
-    if (params.status) query += ` WHERE status = '${params.status}'`
+    const sqlParams: any[] = []
+    
+    if (params.status) {
+      query += ` WHERE status = ?`
+      sqlParams.push(params.status)
+    }
+    
     query += ` ORDER BY created_at DESC`
-    if (params.limit) query += ` LIMIT ${params.limit}`
-    if (params.offset) query += ` OFFSET ${params.offset}`
+    
+    if (params.limit) {
+      query += ` LIMIT ?`
+      sqlParams.push(params.limit)
+    }
+    if (params.offset) {
+      query += ` OFFSET ?`
+      sqlParams.push(params.offset)
+    }
 
-    return this.sql.exec(query).toArray().map(row => ({
+    return this.sql.exec(query, ...sqlParams).toArray().map(row => ({
       id: row.id as string,
       sourceContent: row.source_content as string,
       platform: row.platform as string,
@@ -829,23 +952,22 @@ export class ClientAgent extends DurableObject<Env> {
   }
 
   private async killHub(hubId: string, reason?: string): Promise<{ killed: number; survived: number }> {
-    // Kill the hub
-    this.sql.exec(`UPDATE hubs SET status = 'killed' WHERE id = '${hubId}'`)
+    this.sql.exec(`UPDATE hubs SET status = 'killed' WHERE id = ?`, hubId)
 
-    // Kill all non-mutated spokes (Mutation Rule: preserve manually-edited spokes)
-    const result = this.sql.exec(`
+    const result = this.sql.exec(
+      `
       UPDATE spokes
       SET status = 'killed'
-      WHERE hub_id = '${hubId}' AND mutated_at IS NULL
-    `)
+      WHERE hub_id = ? AND mutated_at IS NULL
+    `, hubId)
 
     const killed = result.rowsWritten
-    const survived = this.sql.exec(`
+    const survived = this.sql.exec(
+      `
       SELECT COUNT(*) as count FROM spokes
-      WHERE hub_id = '${hubId}' AND mutated_at IS NOT NULL
-    `).one().count as number
+      WHERE hub_id = ? AND mutated_at IS NOT NULL
+    `, hubId).one().count as number
 
-    // Record metric
     await this.recordMetric({
       metricType: 'hub_kill',
       value: killed,
@@ -857,16 +979,27 @@ export class ClientAgent extends DurableObject<Env> {
 
   // Spoke Methods
   private async createSpoke(spoke: Omit<Spoke, 'createdAt'>): Promise<Spoke> {
-    this.sql.exec(`
-      INSERT INTO spokes (id, hub_id, pillar_id, platform, content, status, regeneration_count)
-      VALUES ('${spoke.id}', '${spoke.hubId}', '${spoke.pillarId || ''}', '${spoke.platform}', '${(spoke.content || '').replace(/'/g, "''")}', '${spoke.status}', ${spoke.regenerationCount})
-    `)
+    // parentSpokeId is handled as null in params if undefined
+    this.sql.exec(
+      `
+      INSERT INTO spokes (id, hub_id, pillar_id, platform, content, status, regeneration_count, parent_spoke_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, 
+      spoke.id, 
+      spoke.hubId, 
+      spoke.pillarId || '', 
+      spoke.platform, 
+      spoke.content || '', 
+      spoke.status, 
+      spoke.regenerationCount, 
+      spoke.parentSpokeId || null
+    )
 
     return this.getSpoke(spoke.id) as Promise<Spoke>
   }
 
   private async getSpoke(spokeId: string): Promise<Spoke | null> {
-    const row = this.sql.exec(`SELECT * FROM spokes WHERE id = '${spokeId}'`).one()
+    const row = this.sql.exec(`SELECT * FROM spokes WHERE id = ?`, spokeId).one()
     if (!row) return null
 
     return {
@@ -889,6 +1022,7 @@ export class ClientAgent extends DurableObject<Env> {
       thumbnailConcept: row.thumbnail_concept as string | undefined,
       regenerationCount: row.regeneration_count as number,
       mutatedAt: row.mutated_at as string | null,
+      parentSpokeId: row.parent_spoke_id as string | null,
       createdAt: row.created_at as string,
     }
   }
@@ -896,27 +1030,63 @@ export class ClientAgent extends DurableObject<Env> {
   private async updateSpoke(params: { spokeId: string; updates: Partial<Spoke> }): Promise<Spoke> {
     const { spokeId, updates } = params
     const sets: string[] = []
+    const sqlParams: any[] = []
 
     if (updates.content !== undefined) {
-      sets.push(`content = '${updates.content.replace(/'/g, "''")}'`)
+      sets.push(`content = ?`)
+      sqlParams.push(updates.content)
       sets.push(`mutated_at = CURRENT_TIMESTAMP`)
     }
-    if (updates.status) sets.push(`status = '${updates.status}'`)
-    if (updates.qualityScores) {
-      if (updates.qualityScores.g2_hook !== undefined) sets.push(`g2_hook = ${updates.qualityScores.g2_hook}`)
-      if (updates.qualityScores.g4_voice !== undefined) sets.push(`g4_voice = ${updates.qualityScores.g4_voice ? 1 : 0}`)
-      if (updates.qualityScores.g4_similarity !== undefined) sets.push(`g4_similarity = ${updates.qualityScores.g4_similarity}`)
-      if (updates.qualityScores.g5_platform !== undefined) sets.push(`g5_platform = ${updates.qualityScores.g5_platform ? 1 : 0}`)
-      if (updates.qualityScores.g6_visual !== undefined) sets.push(`g6_visual = ${updates.qualityScores.g6_visual}`)
-      if (updates.qualityScores.g7_engagement !== undefined) sets.push(`g7_engagement = ${updates.qualityScores.g7_engagement}`)
+    if (updates.status) {
+      sets.push(`status = ?`)
+      sqlParams.push(updates.status)
     }
-    if (updates.visualArchetype !== undefined) sets.push(`visual_archetype = '${updates.visualArchetype.replace(/'/g, "''")}'`)
-    if (updates.imagePrompt !== undefined) sets.push(`image_prompt = '${updates.imagePrompt.replace(/'/g, "''")}'`)
-    if (updates.thumbnailConcept !== undefined) sets.push(`thumbnail_concept = '${updates.thumbnailConcept.replace(/'/g, "''")}'`)
-    if (updates.regenerationCount !== undefined) sets.push(`regeneration_count = ${updates.regenerationCount}`)
+    if (updates.qualityScores) {
+      if (updates.qualityScores.g2_hook !== undefined) {
+        sets.push(`g2_hook = ?`)
+        sqlParams.push(updates.qualityScores.g2_hook)
+      }
+      if (updates.qualityScores.g4_voice !== undefined) {
+        sets.push(`g4_voice = ?`)
+        sqlParams.push(updates.qualityScores.g4_voice ? 1 : 0)
+      }
+      if (updates.qualityScores.g4_similarity !== undefined) {
+        sets.push(`g4_similarity = ?`)
+        sqlParams.push(updates.qualityScores.g4_similarity)
+      }
+      if (updates.qualityScores.g5_platform !== undefined) {
+        sets.push(`g5_platform = ?`)
+        sqlParams.push(updates.qualityScores.g5_platform ? 1 : 0)
+      }
+      if (updates.qualityScores.g6_visual !== undefined) {
+        sets.push(`g6_visual = ?`)
+        sqlParams.push(updates.qualityScores.g6_visual)
+      }
+      if (updates.qualityScores.g7_engagement !== undefined) {
+        sets.push(`g7_engagement = ?`)
+        sqlParams.push(updates.qualityScores.g7_engagement)
+      }
+    }
+    if (updates.visualArchetype !== undefined) {
+      sets.push(`visual_archetype = ?`)
+      sqlParams.push(updates.visualArchetype)
+    }
+    if (updates.imagePrompt !== undefined) {
+      sets.push(`image_prompt = ?`)
+      sqlParams.push(updates.imagePrompt)
+    }
+    if (updates.thumbnailConcept !== undefined) {
+      sets.push(`thumbnail_concept = ?`)
+      sqlParams.push(updates.thumbnailConcept)
+    }
+    if (updates.regenerationCount !== undefined) {
+      sets.push(`regeneration_count = ?`)
+      sqlParams.push(updates.regenerationCount)
+    }
 
     if (sets.length > 0) {
-      this.sql.exec(`UPDATE spokes SET ${sets.join(', ')} WHERE id = '${spokeId}'`)
+      sqlParams.push(spokeId)
+      this.sql.exec(`UPDATE spokes SET ${sets.join(', ')} WHERE id = ?`, ...sqlParams)
     }
 
     return this.getSpoke(spokeId) as Promise<Spoke>
@@ -924,12 +1094,23 @@ export class ClientAgent extends DurableObject<Env> {
 
   private async listSpokes(params: { hubId?: string; status?: string; limit?: number }): Promise<Spoke[]> {
     let query = `SELECT * FROM spokes WHERE 1=1`
-    if (params.hubId) query += ` AND hub_id = '${params.hubId}'`
-    if (params.status) query += ` AND status = '${params.status}'`
-    query += ` ORDER BY created_at DESC`
-    if (params.limit) query += ` LIMIT ${params.limit}`
+    const sqlParams: any[] = []
 
-    return this.sql.exec(query).toArray().map(row => ({
+    if (params.hubId) {
+      query += ` AND hub_id = ?`
+      sqlParams.push(params.hubId)
+    }
+    if (params.status) {
+      query += ` AND status = ?`
+      sqlParams.push(params.status)
+    }
+    query += ` ORDER BY created_at DESC`
+    if (params.limit) {
+      query += ` LIMIT ?`
+      sqlParams.push(params.limit)
+    }
+
+    return this.sql.exec(query, ...sqlParams).toArray().map(row => ({
       id: row.id as string,
       hubId: row.hub_id as string,
       pillarId: row.pillar_id as string,
@@ -949,12 +1130,50 @@ export class ClientAgent extends DurableObject<Env> {
       thumbnailConcept: row.thumbnail_concept as string | undefined,
       regenerationCount: row.regeneration_count as number,
       mutatedAt: row.mutated_at as string | null,
+      parentSpokeId: row.parent_spoke_id as string | null,
+      createdAt: row.created_at as string,
+    }))
+  }
+
+  // Count variations of a parent spoke
+  private async countVariations(parentSpokeId: string): Promise<{ count: number }> {
+    const result = this.sql.exec(`
+      SELECT COUNT(*) as count FROM spokes WHERE parent_spoke_id = ?
+    `, parentSpokeId).one()
+    return { count: (result.count as number) || 0 }
+  }
+
+  // List all variations of a parent spoke
+  private async listVariations(parentSpokeId: string): Promise<Spoke[]> {
+    return this.sql.exec(`
+      SELECT * FROM spokes WHERE parent_spoke_id = ? ORDER BY created_at DESC
+    `, parentSpokeId).toArray().map(row => ({
+      id: row.id as string,
+      hubId: row.hub_id as string,
+      pillarId: row.pillar_id as string,
+      platform: row.platform as string,
+      content: row.content as string,
+      status: row.status as Spoke['status'],
+      qualityScores: {
+        g2_hook: row.g2_hook as number | undefined,
+        g4_voice: row.g4_voice ? true : false,
+        g4_similarity: row.g4_similarity as number | undefined,
+        g5_platform: row.g5_platform ? true : false,
+        g6_visual: row.g6_visual as number | undefined,
+        g7_engagement: row.g7_engagement as number | undefined,
+      },
+      visualArchetype: row.visual_archetype as string | undefined,
+      imagePrompt: row.image_prompt as string | undefined,
+      thumbnailConcept: row.thumbnail_concept as string | undefined,
+      regenerationCount: row.regeneration_count as number,
+      mutatedAt: row.mutated_at as string | null,
+      parentSpokeId: row.parent_spoke_id as string | null,
       createdAt: row.created_at as string,
     }))
   }
 
   private async approveSpoke(spokeId: string): Promise<{ success: boolean }> {
-    this.sql.exec(`UPDATE spokes SET status = 'approved' WHERE id = '${spokeId}'`)
+    this.sql.exec(`UPDATE spokes SET status = 'approved' WHERE id = ?`, spokeId)
 
     // Record total approval
     await this.recordMetric({
@@ -980,7 +1199,7 @@ export class ClientAgent extends DurableObject<Env> {
   }
 
   private async rejectSpoke(spokeId: string, reason?: string): Promise<{ success: boolean }> {
-    this.sql.exec(`UPDATE spokes SET status = 'rejected' WHERE id = '${spokeId}'`)
+    this.sql.exec(`UPDATE spokes SET status = 'rejected' WHERE id = ?`, spokeId)
 
     await this.recordMetric({
       metricType: 'spoke_rejection',
@@ -1007,21 +1226,23 @@ export class ClientAgent extends DurableObject<Env> {
 
   private async getReviewQueue(params: { filter?: string; limit?: number }): Promise<Spoke[]> {
     let query = `SELECT * FROM spokes WHERE status = 'reviewing'`
-    let hasOrderBy = false
+    const sqlParams: any[] = []
 
     if (params.filter === 'top10') {
       query += ` ORDER BY g7_engagement DESC`
-      hasOrderBy = true
     } else if (params.filter === 'flagged') {
       query += ` AND (g2_hook < 50 OR g4_voice = 0 OR g5_platform = 0)`
-    }
-
-    if (!hasOrderBy) {
+      query += ` ORDER BY created_at DESC`
+    } else {
       query += ` ORDER BY created_at DESC`
     }
-    if (params.limit) query += ` LIMIT ${params.limit}`
 
-    return this.sql.exec(query).toArray().map(row => ({
+    if (params.limit) {
+      query += ` LIMIT ?`
+      sqlParams.push(params.limit)
+    }
+
+    return this.sql.exec(query, ...sqlParams).toArray().map(row => ({
       id: row.id as string,
       hubId: row.hub_id as string,
       pillarId: row.pillar_id as string,
@@ -1041,6 +1262,7 @@ export class ClientAgent extends DurableObject<Env> {
       thumbnailConcept: row.thumbnail_concept as string | undefined,
       regenerationCount: row.regeneration_count as number,
       mutatedAt: row.mutated_at as string | null,
+      parentSpokeId: row.parent_spoke_id as string | null,
       createdAt: row.created_at as string,
     }))
   }
@@ -1053,25 +1275,27 @@ export class ClientAgent extends DurableObject<Env> {
     iteration: number
   }): Promise<{ success: boolean }> {
     const feedbackId = crypto.randomUUID()
-    this.sql.exec(`
+    this.sql.exec(
+      `
       INSERT INTO feedback (id, spoke_id, gate, critic_output, iteration)
-      VALUES ('${feedbackId}', '${params.spokeId}', '${params.gate}', '${params.criticOutput.replace(/'/g, "''")}', ${params.iteration})
-    `)
+      VALUES (?, ?, ?, ?, ?)
+    `, feedbackId, params.spokeId, params.gate, params.criticOutput, params.iteration)
     return { success: true }
   }
 
-  private async getFeedback(spokeId: string): Promise<Array<{
+  private async getFeedback(spokeId: string): Promise<Array<{ 
     gate: string
     criticOutput: string
     iteration: number
     createdAt: string
   }>> {
-    return this.sql.exec(`
+    return this.sql.exec(
+      `
       SELECT gate, critic_output, iteration, created_at
       FROM feedback
-      WHERE spoke_id = '${spokeId}'
+      WHERE spoke_id = ?
       ORDER BY iteration ASC
-    `).toArray().map(row => ({
+    `, spokeId).toArray().map(row => ({
       gate: row.gate as string,
       criticOutput: row.critic_output as string,
       iteration: row.iteration as number,
@@ -1197,9 +1421,10 @@ Respond in JSON format ONLY:
     } catch (error) {
       console.error('G2 gate error:', error)
       return {
-        passed: true,
-        score: 70,
-        feedback: 'AI evaluation failed (defaulting to pass)',
+        passed: false,
+        score: 0,
+        feedback: 'AI evaluation failed: Service unavailable or response invalid. Please retry.',
+        violations: ['AI Service Failure'],
       }
     }
   }
@@ -1432,9 +1657,10 @@ Output JSON only:
     } catch (error) {
       console.error('G6 gate error:', error)
       return {
-        passed: true,
-        score: 60,
-        feedback: 'AI evaluation failed (defaulting to pass)',
+        passed: false,
+        score: 0,
+        feedback: 'AI evaluation failed: Service unavailable or response invalid. Please retry.',
+        violations: ['AI Service Failure'],
       }
     }
   }
@@ -1502,9 +1728,10 @@ Respond in JSON format ONLY:
     } catch (error) {
       console.error('G7 gate error:', error)
       return {
-        passed: true,
-        score: 70,
-        feedback: 'AI evaluation failed (defaulting to pass)',
+        passed: false,
+        score: 0,
+        feedback: 'AI evaluation failed: Service unavailable or response invalid. Please retry.',
+        violations: ['AI Service Failure'],
       }
     }
   }
@@ -1521,11 +1748,11 @@ Respond in JSON format ONLY:
         SUM(value) as total,
         COUNT(*) as count
       FROM analytics
-      WHERE metric_type = '${params.metricType}'
-        AND created_at >= datetime('now', '-${days} days')
+      WHERE metric_type = ?
+        AND created_at >= datetime('now', '-' || ? || ' days')
     `
 
-    return this.sql.exec(query).one()
+    return this.sql.exec(query, params.metricType, days).one()
   }
 
   private async getZeroEditRate(params: { periodDays?: number }): Promise<{ rate: number, zeroEditCount: number, totalApprovals: number }> {
@@ -1536,10 +1763,10 @@ Respond in JSON format ONLY:
         SUM(CASE WHEN metric_type = 'spoke_approval' THEN 1 ELSE 0 END) as total_approvals
       FROM analytics
       WHERE metric_type IN ('zero_edit_approval', 'spoke_approval')
-        AND created_at >= datetime('now', '-${days} days')
+        AND created_at >= datetime('now', '-' || ? || ' days')
     `
 
-    const result = this.sql.exec(query).one()
+    const result = this.sql.exec(query, days).one()
     const zeroEditCount = (result.zero_edit_count as number) || 0
     const totalApprovals = (result.total_approvals as number) || 0
 
@@ -1555,10 +1782,11 @@ Respond in JSON format ONLY:
     value: number
     metadata?: Record<string, any>
   }): Promise<{ success: boolean }> {
-    this.sql.exec(`
+    this.sql.exec(
+      `
       INSERT INTO analytics (metric_type, value, metadata)
-      VALUES ('${params.metricType}', ${params.value}, '${JSON.stringify(params.metadata || {})}')
-    `)
+      VALUES (?, ?, ?)
+    `, params.metricType, params.value, JSON.stringify(params.metadata || {}))
     return { success: true }
   }
 
@@ -1570,12 +1798,12 @@ Respond in JSON format ONLY:
     const query = `
       SELECT value, metadata, created_at
       FROM analytics
-      WHERE metric_type = '${params.metricType}'
-        AND created_at >= datetime('now', '-${days} days')
+      WHERE metric_type = ?
+        AND created_at >= datetime('now', '-' || ? || ' days')
       ORDER BY created_at ASC
     `
 
-    const results = this.sql.exec(query).toArray()
+    const results = this.sql.exec(query, params.metricType, days).toArray()
     const values = results.map(r => ({
       value: r.value as number,
       metadata: JSON.parse(r.metadata as string),
@@ -1602,10 +1830,11 @@ Respond in JSON format ONLY:
     const exportId = crypto.randomUUID()
 
     // Store initial job status
-    this.sql.exec(`
+    this.sql.exec(
+      `
       INSERT INTO exports (id, format, status)
-      VALUES ('${exportId}', '${params.format}', 'processing')
-    `)
+      VALUES (?, ?, 'processing')
+    `, exportId, params.format)
 
     // Fetch approved spokes
     let query = `
@@ -1614,17 +1843,25 @@ Respond in JSON format ONLY:
       JOIN hubs h ON s.hub_id = h.id
       WHERE s.status = 'approved'
     `
+    const sqlParams: any[] = []
+
     if (params.hubIds && params.hubIds.length > 0) {
-      query += ` AND s.hub_id IN (${params.hubIds.map(id => `'${id}'`).join(',')})`
+      // NOTE: Parameterized IN clause is tricky in basic SQLite unless you generate placeholders
+      // Safe dynamic generation for IDs
+      const placeholders = params.hubIds.map(() => '?').join(',')
+      query += ` AND s.hub_id IN (${placeholders})`
+      sqlParams.push(...params.hubIds)
     }
     if (params.platforms && params.platforms.length > 0) {
-      query += ` AND s.platform IN (${params.platforms.map(p => `'${p}'`).join(',')})`
+      const placeholders = params.platforms.map(() => '?').join(',')
+      query += ` AND s.platform IN (${placeholders})`
+      sqlParams.push(...params.platforms)
     }
 
-    const spokes = this.sql.exec(query).toArray()
+    const spokes = this.sql.exec(query, ...sqlParams).toArray()
 
     if (spokes.length === 0) {
-      this.sql.exec(`UPDATE exports SET status = 'failed', metadata = '{"error": "No approved spokes found"}' WHERE id = '${exportId}'`)
+      this.sql.exec(`UPDATE exports SET status = 'failed', metadata = '{"error": "No approved spokes found"}' WHERE id = ?`, exportId)
       return { exportId, status: 'failed' }
     }
 
@@ -1647,20 +1884,22 @@ Respond in JSON format ONLY:
         httpMetadata: { contentType },
       })
 
-      this.sql.exec(`
+      this.sql.exec(
+        `
         UPDATE exports
-        SET status = 'completed', r2_key = '${r2Key}'
-        WHERE id = '${exportId}'
-      `)
+        SET status = 'completed', r2_key = ?
+        WHERE id = ?
+      `, r2Key, exportId)
 
       return { exportId, status: 'completed' }
     } catch (error) {
       console.error('Export upload failed:', error)
-      this.sql.exec(`
+      this.sql.exec(
+        `
         UPDATE exports
-        SET status = 'failed', metadata = '${JSON.stringify({ error: String(error) })}'
-        WHERE id = '${exportId}'
-      `)
+        SET status = 'failed', metadata = ?
+        WHERE id = ?
+      `, JSON.stringify({ error: String(error) }), exportId)
       return { exportId, status: 'failed' }
     }
   }
@@ -1671,7 +1910,7 @@ Respond in JSON format ONLY:
       s.id,
       s.hub_id,
       s.platform,
-      `"${(s.content || '').replace(/"/g, '""')}"`,
+      `"${(s.content || '').replace(/"/g, '""')}"`, // Escape double quotes within content
       s.created_at,
       s.hub_angle
     ])
@@ -1680,7 +1919,7 @@ Respond in JSON format ONLY:
   }
 
   private async getExport(exportId: string): Promise<any> {
-    const row = this.sql.exec(`SELECT * FROM exports WHERE id = '${exportId}'`).one()
+    const row = this.sql.exec(`SELECT * FROM exports WHERE id = ?`, exportId).one()
     if (!row) return null
 
     let downloadUrl = null
@@ -1702,7 +1941,7 @@ Respond in JSON format ONLY:
 
   private async listExports(params: { limit?: number }): Promise<any[]> {
     const limit = params.limit || 10
-    return this.sql.exec(`SELECT * FROM exports ORDER BY created_at DESC LIMIT ${limit}`).toArray()
+    return this.sql.exec(`SELECT * FROM exports ORDER BY created_at DESC LIMIT ?`, limit).toArray()
   }
 
   // Voice-to-Grounding Pipeline Methods (Story 2.2)
@@ -1818,8 +2057,8 @@ Return JSON format:
       }) as { data: number[][] }
 
       if (embeddingsResponse.data && embeddingsResponse.data[0]) {
-        // Store in Vectorize with client metadata for isolation filtering
-        await this.env.VECTORIZE.insert([{
+        // Store in Vectorize with client namespace for physical isolation
+        await this.env.VECTORIZE.upsert([{
           id: `voice-${this.clientId}-${Date.now()}`,
           values: embeddingsResponse.data[0],
           metadata: {
@@ -1828,6 +2067,7 @@ Return JSON format:
             transcription: params.transcription,
             timestamp: new Date().toISOString(),
           },
+          namespace: this.clientId,
         }])
       }
 
@@ -2002,13 +2242,14 @@ Return JSON format:
             id: `brand-dna-${this.clientId}`,
             values: embeddingResult.data[0],
             metadata: {
-              clientId: this.clientId,
+              client_id: this.clientId,
               type: 'brand_dna',
               voiceMarkersCount: voiceMarkers.length,
               stancesCount: brandStances.length,
               strengthScore,
               timestamp: new Date().toISOString(),
             },
+            namespace: this.clientId,
           }])
 
           // Store individual stance embeddings for semantic search
@@ -2023,12 +2264,13 @@ Return JSON format:
                 id: `stance-${this.clientId}-${stance.id}`,
                 values: stanceEmbedding.data[0],
                 metadata: {
-                  clientId: this.clientId,
+                  client_id: this.clientId,
                   type: 'brand_stance',
                   topic: stance.topic,
                   position: stance.position,
                   stanceId: stance.id,
                 },
+                namespace: this.clientId,
               }])
             }
           }
@@ -2042,12 +2284,13 @@ Return JSON format:
     }
 
     // Step 6: Update brand_dna table with latest scores
-    this.sql.exec(`
+    this.sql.exec(
+      `
       UPDATE brand_dna SET
-        voice_baseline = ${strengthScore},
-        last_calibration = '${new Date().toISOString()}'
+        voice_baseline = ?,
+        last_calibration = ?
       WHERE id = 1
-    `)
+    `, strengthScore, new Date().toISOString())
 
     // Record metric for analytics
     await this.recordMetric({

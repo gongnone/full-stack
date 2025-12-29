@@ -16,11 +16,19 @@ interface TeamAssignmentProps {
   };
 }
 
+interface Member {
+  id: string;
+  userId: string;
+  name?: string;
+  email: string;
+  role: string;
+}
+
 export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps) {
   const { addToast } = useToast();
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isRBACEditorOpen, setIsRBACEditorOpen] = useState(false);
-  const [selectedMember, setSelectedMember] = useState<any>(null);
+  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [newMemberEmail, setNewMemberEmail] = useState('');
   const [newMemberRole, setNewMemberRole] = useState<ClientRole>('creator');
 
@@ -60,7 +68,7 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
     addMemberMutation.mutate({
       clientId: client.id,
       email: newMemberEmail,
-      role: newMemberRole as any,
+      role: newMemberRole,
     });
   };
 
@@ -73,7 +81,7 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
     });
   };
 
-  const handleEditRole = (member: any) => {
+  const handleEditRole = (member: Member) => {
     setSelectedMember(member);
     setIsRBACEditorOpen(true);
   };
@@ -191,7 +199,7 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: 'var(--edit)' }} />
                   </div>
                 ) : membersQuery.data && membersQuery.data.length > 0 ? (
-                  membersQuery.data.map((member: any) => (
+                  (membersQuery.data as unknown as Member[]).map((member) => (
                     <div
                       key={member.id}
                       className="flex items-center justify-between p-3 rounded-lg border"

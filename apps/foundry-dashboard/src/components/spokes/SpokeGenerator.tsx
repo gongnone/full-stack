@@ -39,6 +39,7 @@ const PLATFORM_ICONS: Record<SpokePlatform, string> = {
   newsletter: '✉',
   thread: '🧵',
   carousel: '⊞',
+  youtube_thumbnail: '▶',
 };
 
 export function SpokeGenerator({

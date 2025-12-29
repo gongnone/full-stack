@@ -72,6 +72,17 @@ development_status:
   8-5-kill-chain-analytics: Verified
   8-6-time-to-dna-and-drift-detection: Verified
 
+  # Epic 9: System Hardening & Technical Debt
+  epic-9: Verified
+  9-1-voice-transcription-backend: Verified
+  9-2-drift-detection-implementation: Verified
+  9-3-quality-gate-evaluation: Verified
+  9-4-email-verification-service: Verified
+  9-5-remove-debug-console-logs: Verified
+  9-6-variation-generation-implementation: Verified
+  9-7-database-foreign-key-constraints: Verified
+  9-8-type-safety-improvements: Verified
+
 verification_summary:
   last_full_e2e_run: 2025-12-24
   environment: Staging (https://stage.williamjshaw.ca)

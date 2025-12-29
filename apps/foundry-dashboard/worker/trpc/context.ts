@@ -1,12 +1,15 @@
 import type { Env } from '../index';
+import { initDatabase } from '@repo/data-ops/database';
+import { DrizzleD1Database } from 'drizzle-orm/d1';
 
 export interface Context {
   env: Env;
   db: D1Database;
+  drizzle: DrizzleD1Database<any>;
   userId: string;
   accountId: string;
   userRole: string;
-  callAgent: <T = any>(clientId: string, method: string, params: any) => Promise<T>;
+  callAgent: <T = unknown>(clientId: string, method: string, params: Record<string, unknown>) => Promise<T>;
   [key: string]: unknown;
 }
 
@@ -18,13 +21,16 @@ export interface CreateContextOptions {
 }
 
 export function createContext(opts: CreateContextOptions): Context {
+  const drizzle = initDatabase(opts.env.DB);
+  
   return {
     env: opts.env,
     db: opts.env.DB,
+    drizzle,
     userId: opts.userId,
     accountId: opts.accountId,
     userRole: opts.userRole,
-    callAgent: async (clientId, method, params) => {
+    callAgent: async <T>(clientId: string, method: string, params: Record<string, unknown>): Promise<T> => {
       const response = await opts.env.CONTENT_ENGINE.fetch(
         new Request(`http://internal/api/client/${clientId}/rpc`, {
           method: 'POST',
@@ -35,7 +41,7 @@ export function createContext(opts: CreateContextOptions): Context {
       if (!response.ok) {
         throw new Error(`Agent RPC failed: ${response.statusText}`);
       }
-      return await response.json() as any;
+      return await response.json() as T;
     }
   };
 }

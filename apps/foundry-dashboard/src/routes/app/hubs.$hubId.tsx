@@ -343,6 +343,7 @@ function HubDetailPage() {
       newsletter: 0,
       thread: 0,
       carousel: 0,
+      youtube_thumbnail: 0,
     };
 
     const spokes = (spokesData?.items || []) as unknown as Spoke[];

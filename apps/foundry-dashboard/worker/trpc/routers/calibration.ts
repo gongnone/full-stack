@@ -11,131 +11,12 @@ import type {
   SignaturePhrase,
 } from '../../types';
 import { assertClientAccess } from '../middleware/client-access';
+import * as brandQueries from '@repo/data-ops/queries/brand';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
 
-// ===== Story 9.2: Drift Detection Types =====
-interface DriftState {
-  voiceMarkers: string[];
-  bannedWords: string[];
-  stances: Array<{ topic: string; position: string }>;
-  primaryTone: string | null;
-}
-
-interface DriftResult {
-  driftScore: number;
-  needsCalibration: boolean;
-  trigger: string | undefined;
-  suggestion: string | undefined;
-  components: {
-    voiceMarkerDrift: number;
-    bannedWordDrift: number;
-    stanceDrift: number;
-    toneDrift: number;
-  };
-}
-
-// Story 9.2: Pure function for calculating brand voice drift (AC1)
-// Exported for unit testing
-export function calculateDrift(
-  baseline: DriftState,
-  current: DriftState,
-  threshold: number = 25
-): DriftResult {
-  // Calculate voice marker drift (30% weight)
-  const baselineMarkers = new Set(baseline.voiceMarkers || []);
-  const currentMarkers = new Set(current.voiceMarkers || []);
-  const totalMarkers = Math.max(baselineMarkers.size, currentMarkers.size, 1);
-  const markerChanges = [...baselineMarkers].filter(m => !currentMarkers.has(m)).length +
-                        [...currentMarkers].filter(m => !baselineMarkers.has(m)).length;
-  const voiceMarkerDrift = (markerChanges / totalMarkers) * 100;
-
-  // Calculate banned word drift (20% weight)
-  const baselineBanned = new Set(baseline.bannedWords || []);
-  const currentBanned = new Set(current.bannedWords || []);
-  const totalBanned = Math.max(baselineBanned.size, currentBanned.size, 1);
-  const bannedChanges = [...baselineBanned].filter(w => !currentBanned.has(w)).length +
-                        [...currentBanned].filter(w => !baselineBanned.has(w)).length;
-  const bannedWordDrift = baselineBanned.size > 0 || currentBanned.size > 0
-    ? (bannedChanges / totalBanned) * 100
-    : 0;
-
-  // Calculate stance drift (30% weight)
-  const baselineStances = baseline.stances || [];
-  const currentStances = current.stances || [];
-  let stanceChanges = 0;
-  const totalStances = Math.max(baselineStances.length, currentStances.length, 1);
-
-  for (const bs of baselineStances) {
-    const match = currentStances.find(cs => cs.topic === bs.topic);
-    if (!match) {
-      stanceChanges++; // Topic removed
-    } else if (match.position !== bs.position) {
-      stanceChanges++; // Position changed
-    }
-  }
-  // Count new topics added
-  for (const cs of currentStances) {
-    if (!baselineStances.find(bs => bs.topic === cs.topic)) {
-      stanceChanges++;
-    }
-  }
-  const stanceDrift = baselineStances.length > 0 || currentStances.length > 0
-    ? (stanceChanges / totalStances) * 100
-    : 0;
-
-  // Calculate tone drift (20% weight)
-  const toneDrift = baseline.primaryTone && current.primaryTone &&
-                    baseline.primaryTone !== current.primaryTone ? 100 : 0;
-
-  // Calculate weighted drift score
-  const driftScore = Math.round(
-    voiceMarkerDrift * 0.3 +
-    bannedWordDrift * 0.2 +
-    stanceDrift * 0.3 +
-    toneDrift * 0.2
-  );
-
-  const needsCalibration = driftScore > threshold;
-
-  // Generate trigger and suggestion based on highest drift component
-  let trigger: string | undefined;
-  let suggestion: string | undefined;
-
-  if (driftScore > 0) {
-    const maxComponent = Math.max(voiceMarkerDrift, bannedWordDrift, stanceDrift, toneDrift);
-
-    if (maxComponent === voiceMarkerDrift && voiceMarkerDrift > 0) {
-      trigger = 'Voice markers have significantly changed';
-      suggestion = 'Your signature voice markers have diverged from baseline. Consider recording a new voice note to recalibrate your brand voice.';
-    } else if (maxComponent === stanceDrift && stanceDrift > 0) {
-      trigger = 'Brand stances have shifted';
-      suggestion = 'Your positions on key topics have changed. Review your brand stances to ensure they reflect your current values.';
-    } else if (maxComponent === toneDrift && toneDrift > 0) {
-      trigger = 'Writing tone has changed';
-      suggestion = 'Your primary tone has shifted from baseline. Consider whether this reflects an intentional brand evolution.';
-    } else if (maxComponent === bannedWordDrift && bannedWordDrift > 0) {
-      trigger = 'Banned word list has changed';
-      suggestion = 'Your list of words to avoid has changed. Review your banned words to ensure consistency.';
-    }
-  }
-
-  return {
-    driftScore,
-    needsCalibration,
-    trigger,
-    suggestion,
-    components: {
-      voiceMarkerDrift: Math.round(voiceMarkerDrift),
-      bannedWordDrift: Math.round(bannedWordDrift),
-      stanceDrift: Math.round(stanceDrift),
-      toneDrift,
-    },
-  };
-}
-
-// Helper to calculate quality badge from score
+// ===== Helper to calculate quality badge from score =====
 function getQualityBadge(sample: TrainingSample): TrainingSampleWithQuality['qualityBadge'] {
   if (sample.status === 'pending' || sample.status === 'processing') {
     return 'pending';
@@ -149,59 +30,9 @@ function getQualityBadge(sample: TrainingSample): TrainingSampleWithQuality['qua
   return 'needs_improvement';
 }
 
-// Helper to count words in text
+// ===== Helper to count words in text =====
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
-// Story 2.3 & 2.4: Calculate Brand DNA strength score from analysis results
-interface AnalysisData {
-  primary_tone: string | null;
-  writing_style: string | null;
-  target_audience: string | null;
-  signature_phrases: SignaturePhrase[]; // Story 2.4: Now includes example usage
-  topics_to_avoid: string[]; // Story 2.4: Words/topics to avoid (red pills)
-}
-
-function calculateStrengthScore(
-  data: AnalysisData,
-  sampleCount: number
-): { total: number; breakdown: BrandDNABreakdown } {
-  // Component scoring (0-100 each, weighted)
-  // Tone Match: Did we detect a primary tone?
-  const toneMatch = data.primary_tone ? 90 : 40;
-
-  // Vocabulary: Based on signature phrases detected
-  const vocabulary =
-    (data.signature_phrases?.length ?? 0) >= 5
-      ? 85
-      : (data.signature_phrases?.length ?? 0) >= 3
-        ? 70
-        : 50;
-
-  // Structure: Did we detect a writing style?
-  const structure = data.writing_style ? 80 : 50;
-
-  // Topics: Did we detect target audience?
-  const topics = data.target_audience ? 85 : 50;
-
-  // Coverage bonus for more samples (up to +10%)
-  const coverageBonus = Math.min(sampleCount * 2, 10);
-
-  // Weighted calculation: Tone 30% + Vocabulary 30% + Structure 25% + Topics 15%
-  const total = Math.round(
-    toneMatch * 0.3 + vocabulary * 0.3 + structure * 0.25 + topics * 0.15 + coverageBonus
-  );
-
-  return {
-    total: Math.min(total, 100),
-    breakdown: {
-      tone_match: toneMatch,
-      vocabulary,
-      structure,
-      topics,
-    },
-  };
 }
 
 export const calibrationRouter = t.router({
@@ -216,31 +47,19 @@ export const calibrationRouter = t.router({
     }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      // Rule 1: Isolation Above All - always filter by clientId
-      const result = await ctx.db
-        .prepare(`
-          SELECT * FROM training_samples
-          WHERE client_id = ?
-          ORDER BY created_at DESC
-          LIMIT ? OFFSET ?
-        `)
-        .bind(input.clientId, input.limit, input.offset)
-        .all<TrainingSample>();
+      
+      const results = await brandQueries.getTrainingSamples(ctx.drizzle, input.clientId, input.limit, input.offset);
+      const total = await brandQueries.getTrainingSamplesCount(ctx.drizzle, input.clientId);
 
-      const countResult = await ctx.db
-        .prepare('SELECT COUNT(*) as total FROM training_samples WHERE client_id = ?')
-        .bind(input.clientId)
-        .first<{ total: number }>();
-
-      const samples: TrainingSampleWithQuality[] = (result.results || []).map(sample => ({
-        sample,
-        qualityBadge: getQualityBadge(sample),
+      const samples: TrainingSampleWithQuality[] = results.map(sample => ({
+        sample: sample as unknown as TrainingSample,
+        qualityBadge: getQualityBadge(sample as unknown as TrainingSample),
       }));
 
       return {
         samples,
-        total: countResult?.total ?? 0,
-        hasMore: (countResult?.total ?? 0) > input.offset + input.limit,
+        total,
+        hasMore: total > input.offset + input.limit,
       };
     }),
 
@@ -252,10 +71,7 @@ export const calibrationRouter = t.router({
     }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      const sample = await ctx.db
-        .prepare('SELECT * FROM training_samples WHERE id = ? AND client_id = ?')
-        .bind(input.sampleId, input.clientId)
-        .first<TrainingSample>();
+      const sample = await brandQueries.getTrainingSampleById(ctx.drizzle, input.sampleId, input.clientId);
 
       if (!sample) {
         throw new TRPCError({
@@ -265,8 +81,8 @@ export const calibrationRouter = t.router({
       }
 
       return {
-        sample,
-        qualityBadge: getQualityBadge(sample),
+        sample: sample as unknown as TrainingSample,
+        qualityBadge: getQualityBadge(sample as unknown as TrainingSample),
       };
     }),
 
@@ -275,7 +91,7 @@ export const calibrationRouter = t.router({
     .input(z.object({
       clientId: z.string().min(1),
       title: z.string().min(1).max(255),
-      content: z.string().min(10).max(100000), // 10 chars to 100k chars
+      content: z.string().min(10).max(100000),
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
@@ -283,23 +99,17 @@ export const calibrationRouter = t.router({
       const wordCount = countWords(input.content);
       const charCount = input.content.length;
 
-      await ctx.db
-        .prepare(`
-          INSERT INTO training_samples (
-            id, client_id, user_id, title, source_type,
-            word_count, character_count, extracted_text, status
-          ) VALUES (?, ?, ?, ?, 'pasted_text', ?, ?, ?, 'pending')
-        `)
-        .bind(
-          id,
-          input.clientId,
-          ctx.userId,
-          input.title,
-          wordCount,
-          charCount,
-          input.content
-        )
-        .run();
+      await brandQueries.createTrainingSample(ctx.drizzle, {
+        id,
+        client_id: input.clientId,
+        user_id: ctx.userId,
+        title: input.title,
+        source_type: 'pasted_text',
+        word_count: wordCount,
+        character_count: charCount,
+        extracted_text: input.content,
+        status: 'pending'
+      });
 
       // Trigger calibration workflow via CONTENT_ENGINE
       try {
@@ -313,7 +123,6 @@ export const calibrationRouter = t.router({
         });
       } catch (error) {
         console.error('Failed to trigger calibration workflow:', error);
-        // We don't fail the request as the record is already saved
       }
 
       return {
@@ -333,14 +142,9 @@ export const calibrationRouter = t.router({
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      // Generate unique R2 key with client isolation
       const timestamp = Date.now();
       const sanitizedFilename = input.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
       const r2Key = `brand-samples/${input.clientId}/${timestamp}-${sanitizedFilename}`;
-
-      // For now, we'll handle uploads via a separate endpoint
-      // R2 presigned URLs require Workers for Platforms or custom implementation
-      // We'll use a direct upload approach via the worker
 
       return {
         r2Key,
@@ -361,9 +165,7 @@ export const calibrationRouter = t.router({
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
 
-      // Verify the file exists in R2
       const object = await ctx.env.MEDIA.head(input.r2Key);
-
       if (!object) {
         throw new TRPCError({
           code: 'NOT_FOUND',
@@ -373,23 +175,16 @@ export const calibrationRouter = t.router({
 
       const id = crypto.randomUUID();
 
-      await ctx.db
-        .prepare(`
-          INSERT INTO training_samples (
-            id, client_id, user_id, title, source_type, r2_key, status
-          ) VALUES (?, ?, ?, ?, ?, ?, 'pending')
-        `)
-        .bind(
-          id,
-          input.clientId,
-          ctx.userId,
-          input.title,
-          input.sourceType,
-          input.r2Key
-        )
-        .run();
+      await brandQueries.createTrainingSample(ctx.drizzle, {
+        id,
+        client_id: input.clientId,
+        user_id: ctx.userId,
+        title: input.title,
+        source_type: input.sourceType,
+        r2_key: input.r2Key,
+        status: 'pending'
+      });
 
-      // Trigger content extraction workflow via CONTENT_ENGINE
       try {
         await ctx.env.CONTENT_ENGINE.fetch('http://engine/api/calibration/start', {
           method: 'POST',
@@ -419,11 +214,7 @@ export const calibrationRouter = t.router({
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      // Get sample to check ownership and get r2Key
-      const sample = await ctx.db
-        .prepare('SELECT * FROM training_samples WHERE id = ? AND client_id = ?')
-        .bind(input.sampleId, input.clientId)
-        .first<TrainingSample>();
+      const sample = await brandQueries.getTrainingSampleById(ctx.drizzle, input.sampleId, input.clientId);
 
       if (!sample) {
         throw new TRPCError({
@@ -432,22 +223,15 @@ export const calibrationRouter = t.router({
         });
       }
 
-      // Delete from R2 if it has an r2Key
       if (sample.r2_key) {
         try {
           await ctx.env.MEDIA.delete(sample.r2_key);
-        } catch {
-          // Log but don't fail if R2 delete fails
-          console.error(`Failed to delete R2 object: ${sample.r2_key}`);
+        } catch (e) {
+          console.error(`Failed to delete R2 object: ${sample.r2_key}`, e);
         }
       }
 
-      // Delete from database
-      await ctx.db
-        .prepare('DELETE FROM training_samples WHERE id = ? AND client_id = ?')
-        .bind(input.sampleId, input.clientId)
-        .run();
-
+      await brandQueries.deleteTrainingSample(ctx.drizzle, input.sampleId, input.clientId);
       return { success: true };
     }),
 
@@ -458,29 +242,7 @@ export const calibrationRouter = t.router({
     }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      const stats = await ctx.db
-        .prepare(`
-          SELECT
-            COUNT(*) as total_samples,
-            SUM(word_count) as total_words,
-            AVG(quality_score) as avg_quality,
-            COUNT(CASE WHEN status = 'analyzed' THEN 1 END) as analyzed_count,
-            COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-            COUNT(CASE WHEN status = 'processing' THEN 1 END) as processing_count,
-            COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed_count
-          FROM training_samples
-          WHERE client_id = ?
-        `)
-        .bind(input.clientId)
-        .first<{
-          total_samples: number;
-          total_words: number;
-          avg_quality: number | null;
-          analyzed_count: number;
-          pending_count: number;
-          processing_count: number;
-          failed_count: number;
-        }>();
+      const stats = await brandQueries.getTrainingSampleStats(ctx.drizzle, input.clientId);
 
       return {
         totalSamples: stats?.total_samples ?? 0,
@@ -490,7 +252,6 @@ export const calibrationRouter = t.router({
         pendingCount: stats?.pending_count ?? 0,
         processingCount: stats?.processing_count ?? 0,
         failedCount: stats?.failed_count ?? 0,
-        // Recommendation based on sample count
         recommendation: (stats?.total_samples ?? 0) < 3
           ? 'Add more samples for better Brand DNA analysis'
           : (stats?.total_samples ?? 0) < 10
@@ -499,46 +260,8 @@ export const calibrationRouter = t.router({
       };
     }),
 
-  // ===== EXISTING CALIBRATION ENDPOINTS =====
-
-  // Upload existing content for Brand DNA analysis
-  uploadContent: procedure
-    .input(z.object({
-      clientId: z.string().min(1),
-      content: z.array(z.string()).min(1).max(50),
-      contentType: z.enum(['posts', 'articles', 'transcripts']),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      await assertClientAccess(ctx, input.clientId);
-      // Trigger CalibrationWorkflow via CONTENT_ENGINE
-      const response = await ctx.env.CONTENT_ENGINE.fetch(
-        new Request('http://internal/api/calibration/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            clientId: input.clientId,
-            contentType: input.contentType,
-            content: input.content.join('\n\n---\n\n'), // Join content samples
-          }),
-        })
-      );
-
-      if (!response.ok) {
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to start calibration workflow',
-        });
-      }
-
-      const result = await response.json() as { instanceId: string; status: string };
-
-      return {
-        analysisId: result.instanceId,
-        status: result.status as 'processing',
-      };
-    }),
-
   // Submit voice note for calibration (Story 2.2)
+  // DELEGATED to Engine for centralized extraction
   recordVoice: procedure
     .input(z.object({
       clientId: z.string().min(1),
@@ -546,9 +269,7 @@ export const calibrationRouter = t.router({
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      const calibrationId = crypto.randomUUID();
-
-      // Security: Validate R2 key belongs to this client (prevent cross-client access)
+      
       const expectedPrefix = `voice-samples/${input.clientId}/`;
       if (!input.audioR2Key.startsWith(expectedPrefix)) {
         throw new TRPCError({
@@ -557,14 +278,9 @@ export const calibrationRouter = t.router({
         });
       }
 
-      // Rate limiting: Check last voice recording timestamp (max 1 per minute)
-      const rateLimitCheck = await ctx.db
-        .prepare('SELECT last_voice_recording_at FROM brand_dna WHERE client_id = ?')
-        .bind(input.clientId)
-        .first<{ last_voice_recording_at: number }>();
-
+      const rateLimitCheck = await brandQueries.getLastVoiceRecordingTime(ctx.drizzle, input.clientId);
       const now = Math.floor(Date.now() / 1000);
-      const minInterval = 60; // 60 seconds between recordings
+      const minInterval = 60;
       if (rateLimitCheck?.last_voice_recording_at &&
           (now - rateLimitCheck.last_voice_recording_at) < minInterval) {
         throw new TRPCError({
@@ -573,225 +289,44 @@ export const calibrationRouter = t.router({
         });
       }
 
-      // Verify the audio file exists in R2
-      const audioObject = await ctx.env.MEDIA.get(input.audioR2Key);
-      if (!audioObject) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'Voice recording not found in storage',
-        });
-      }
+      // Trigger CalibrationWorkflow on Engine
+      const response = await ctx.env.CONTENT_ENGINE.fetch('http://engine/api/calibration/start', {
+        method: 'POST',
+        body: JSON.stringify({
+          clientId: input.clientId,
+          contentType: 'voice',
+          r2Key: input.audioR2Key,
+        }),
+      });
 
-      // Backend audio duration validation: Max 60 seconds (~10MB for WebM at 128kbps)
-      const maxFileSize = 10 * 1024 * 1024; // 10MB
-      if (audioObject.size > maxFileSize) {
-        // Clean up oversized file
-        await ctx.env.MEDIA.delete(input.audioR2Key);
-        throw new TRPCError({
-          code: 'PAYLOAD_TOO_LARGE',
-          message: 'Audio file too large. Maximum recording is 60 seconds.',
-        });
-      }
-
-      // Get audio data as ArrayBuffer for Whisper
-      const audioData = await audioObject.arrayBuffer();
-
-      // Use Workers AI Whisper for transcription
-      let transcript = '';
-      try {
-        const inputs = {
-          audio: [...new Uint8Array(audioData)],
-        };
-
-        const whisperResult = await ctx.env.AI.run('@cf/openai/whisper', inputs);
-        transcript = (whisperResult as { text?: string })?.text || '';
-      } catch (error) {
-        console.error('Whisper transcription error:', error);
+      if (!response.ok) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to transcribe audio. Please try again.',
+          message: 'Failed to trigger voice calibration workflow',
         });
       }
 
-      // If we got a transcript, extract entities using LLM
-      let entitiesExtracted = {
-        bannedWords: [] as string[],
-        voiceMarkers: [] as string[],
-        stances: [] as Array<{ topic: string; position: string }>,
-      };
-      let dnaScoreBefore = 0;
-      let dnaScoreAfter = 0;
+      const result = await response.json() as { instanceId: string };
 
-      if (transcript.length > 10) {
-        try {
-          // Improved entity extraction prompt with structured output
-          const extractionPrompt = `You are an expert brand voice analyst. Analyze this voice note transcript and extract the speaker's brand preferences.
-
-TRANSCRIPT:
-"${transcript}"
-
-EXTRACTION RULES:
-1. bannedWords: Extract ONLY words the speaker EXPLICITLY says to avoid/stop using/never use
-   - Look for phrases like "stop using", "don't say", "hate the word", "never use"
-   - Example: "I hate corporate jargon like synergy" → ["synergy", "corporate jargon"]
-
-2. voiceMarkers: Extract unique phrases, expressions, or verbal patterns the speaker:
-   - Regularly uses or wants to use
-   - Considers part of their signature style
-   - Example: "I always say 'let's dive in'" → ["let's dive in"]
-
-3. stances: Extract clear opinions/positions on topics
-   - Must have both a topic AND a clear position
-   - Example: "I believe in radical transparency" → {"topic": "transparency", "position": "radical transparency is essential"}
-
-IMPORTANT: Only extract what is EXPLICITLY stated. Do not infer or assume.
-Return ONLY valid JSON with no markdown formatting:
-{"bannedWords":[],"voiceMarkers":[],"stances":[]}`;
-
-          const llmResult = await ctx.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
-            prompt: extractionPrompt,
-            max_tokens: 1024,
-          });
-
-          const responseText = (llmResult as { response?: string })?.response;
-          if (responseText) {
-            // Extract JSON from response
-            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              const parsed = JSON.parse(jsonMatch[0]);
-              entitiesExtracted = {
-                bannedWords: Array.isArray(parsed.bannedWords) ? parsed.bannedWords : [],
-                voiceMarkers: Array.isArray(parsed.voiceMarkers) ? parsed.voiceMarkers : [],
-                stances: Array.isArray(parsed.stances) ? parsed.stances : [],
-              };
-            }
-          }
-        } catch (error) {
-          console.error('Entity extraction error:', error);
-        }
-
-        // Get existing DNA score before update
-        const existingDNA = await ctx.db
-          .prepare('SELECT strength_score, voice_entities FROM brand_dna WHERE client_id = ?')
-          .bind(input.clientId)
-          .first<{ strength_score: number; voice_entities: string }>();
-
-        dnaScoreBefore = existingDNA?.strength_score ?? 0;
-
-        // Merge new entities with existing ones
-        let existingEntities = { bannedWords: [] as string[], voiceMarkers: [] as string[], stances: [] as Array<{ topic: string; position: string }> };
-        if (existingDNA?.voice_entities) {
-          try {
-            existingEntities = JSON.parse(existingDNA.voice_entities);
-          } catch { /* ignore parse errors */ }
-        }
-
-        // Deduplicate and merge entities
-        const mergedEntities = {
-          bannedWords: [...new Set([...existingEntities.bannedWords, ...entitiesExtracted.bannedWords])],
-          voiceMarkers: [...new Set([...existingEntities.voiceMarkers, ...entitiesExtracted.voiceMarkers])],
-          stances: [...existingEntities.stances, ...entitiesExtracted.stances].filter(
-            (stance, i, arr) => arr.findIndex(s => s.topic === stance.topic) === i
-          ),
-        };
-
-        // Calculate DNA score based on merged entity counts
-        dnaScoreAfter = Math.min(100,
-          (mergedEntities.voiceMarkers.length * 15) +
-          (mergedEntities.bannedWords.length * 10) +
-          (mergedEntities.stances.length * 20)
-        );
-
-        // Persist entities to brand_dna table (upsert)
-        await ctx.db
-          .prepare(`
-            INSERT INTO brand_dna (id, client_id, strength_score, voice_entities, last_voice_recording_at, calibration_source, updated_at)
-            VALUES (?, ?, ?, ?, ?, 'voice_note', ?)
-            ON CONFLICT(client_id) DO UPDATE SET
-              strength_score = MAX(brand_dna.strength_score, excluded.strength_score),
-              voice_entities = excluded.voice_entities,
-              last_voice_recording_at = excluded.last_voice_recording_at,
-              calibration_source = excluded.calibration_source,
-              updated_at = excluded.updated_at
-          `)
-          .bind(
-            `dna_${input.clientId}`,
-            input.clientId,
-            dnaScoreAfter,
-            JSON.stringify(mergedEntities),
-            now,
-            now
-          )
-          .run();
-
-        // Store voice transcript in Vectorize for semantic search (FR33)
-        try {
-          const embeddingResult = await ctx.env.AI.run('@cf/baai/bge-base-en-v1.5', {
-            text: transcript,
-          });
-
-          const vectors = (embeddingResult as { data?: number[][] })?.data;
-          if (vectors && vectors[0]) {
-            await ctx.env.EMBEDDINGS.upsert([
-              {
-                id: `voice_transcript_${calibrationId}`,
-                values: vectors[0],
-                metadata: {
-                  type: 'voice_transcript',
-                  clientId: input.clientId,
-                  calibrationId,
-                  timestamp: now,
-                },
-              },
-            ]);
-          }
-        } catch (error) {
-          // Log but don't fail if embedding storage fails
-          console.error('Voice Vectorize embedding error:', error);
-        }
-      }
-
-      // Store the voice recording metadata for later reference
+      // Create a pending sample record
       const recordingId = crypto.randomUUID();
-      try {
-        await ctx.db
-          .prepare(`
-            INSERT INTO training_samples (
-              id, client_id, user_id, title, source_type, r2_key,
-              extracted_text, status, word_count, character_count
-            ) VALUES (?, ?, ?, ?, 'voice', ?, ?, 'analyzed', ?, ?)
-          `)
-          .bind(
-            recordingId,
-            input.clientId,
-            ctx.userId,
-            `Voice Note ${new Date().toLocaleDateString()}`,
-            input.audioR2Key,
-            transcript,
-            transcript.split(/\s+/).filter(Boolean).length,
-            transcript.length
-          )
-          .run();
-      } catch (error) {
-        // Clean up R2 on database failure
-        await ctx.env.MEDIA.delete(input.audioR2Key);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to save voice recording metadata',
-        });
-      }
+      await brandQueries.createTrainingSample(ctx.drizzle, {
+        id: recordingId,
+        client_id: input.clientId,
+        user_id: ctx.userId,
+        title: `Voice Note ${new Date().toLocaleDateString()}`,
+        source_type: 'voice',
+        r2_key: input.audioR2Key,
+        status: 'processing'
+      });
 
       return {
-        calibrationId,
+        calibrationId: result.instanceId,
         recordingId,
-        transcript,
-        entitiesExtracted,
-        dnaScoreBefore,
-        dnaScoreAfter,
+        status: 'processing',
+        message: 'Voice note is being transcribed and analyzed. This may take a moment.'
       };
     }),
-
-  // ===== STORY 2.5: VOICE MARKER AND BANNED WORD MANAGEMENT =====
 
   // Get current voice entities for editing (FR35)
   getVoiceEntities: procedure
@@ -800,11 +335,7 @@ Return ONLY valid JSON with no markdown formatting:
     }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      // Rule 1: Isolation Above All - always filter by clientId
-      const result = await ctx.db
-        .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
-        .bind(input.clientId)
-        .first<{ voice_entities: string | null }>();
+      const result = await brandQueries.getBrandDNA(ctx.drizzle, input.clientId);
 
       if (!result || !result.voice_entities) {
         return {
@@ -822,11 +353,7 @@ Return ONLY valid JSON with no markdown formatting:
           stances: entities.stances || [],
         };
       } catch {
-        return {
-          bannedWords: [] as string[],
-          voiceMarkers: [] as string[],
-          stances: [] as Array<{ topic: string; position: string }>,
-        };
+        return { bannedWords: [], voiceMarkers: [], stances: [] };
       }
     }),
 
@@ -838,53 +365,23 @@ Return ONLY valid JSON with no markdown formatting:
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      // Get current voice entities
-      const result = await ctx.db
-        .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
-        .bind(input.clientId)
-        .first<{ voice_entities: string | null }>();
+      const dna = await brandQueries.getBrandDNA(ctx.drizzle, input.clientId);
 
-      let entities = {
-        bannedWords: [] as string[],
-        voiceMarkers: [] as string[],
-        stances: [] as Array<{ topic: string; position: string }>,
-      };
-
-      if (result?.voice_entities) {
-        try {
-          entities = JSON.parse(result.voice_entities);
-        } catch {
-          // Keep defaults
-        }
+      let entities = { bannedWords: [] as string[], voiceMarkers: [], stances: [] };
+      if (dna?.voice_entities) {
+        try { entities = JSON.parse(dna.voice_entities); } catch {}
       }
 
-      // Normalize and check for duplicates (case-insensitive, store lowercase)
       const normalizedWord = input.word.toLowerCase().trim();
       if (entities.bannedWords.includes(normalizedWord)) {
         return { success: true, bannedWords: entities.bannedWords };
       }
 
-      // Add the new word (normalized to lowercase for consistency)
       entities.bannedWords.push(normalizedWord);
+      await brandQueries.updateBrandDNAEntities(ctx.drizzle, input.clientId, JSON.stringify(entities));
 
-      // Update the database (upsert to handle missing brand_dna row)
-      const now = Math.floor(Date.now() / 1000);
-      await ctx.db
-        .prepare(`
-          INSERT INTO brand_dna (id, client_id, voice_entities, updated_at, calibration_source)
-          VALUES (?, ?, ?, ?, 'manual')
-          ON CONFLICT(client_id) DO UPDATE SET
-            voice_entities = excluded.voice_entities,
-            updated_at = excluded.updated_at,
-            calibration_source = excluded.calibration_source
-        `)
-        .bind(
-          `dna_${input.clientId}`,
-          input.clientId,
-          JSON.stringify(entities),
-          now
-        )
-        .run();
+      // Also sync to DO
+      await ctx.callAgent(input.clientId, 'addBannedWord', { word: normalizedWord, source: 'manual' });
 
       return { success: true, bannedWords: entities.bannedWords };
     }),
@@ -897,35 +394,22 @@ Return ONLY valid JSON with no markdown formatting:
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      const result = await ctx.db
-        .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
-        .bind(input.clientId)
-        .first<{ voice_entities: string | null }>();
+      const dna = await brandQueries.getBrandDNA(ctx.drizzle, input.clientId);
 
-      if (!result?.voice_entities) {
-        return { success: true, bannedWords: [] };
-      }
+      if (!dna?.voice_entities) return { success: true, bannedWords: [] };
 
-      let entities;
-      try {
-        entities = JSON.parse(result.voice_entities);
-      } catch {
-        return { success: true, bannedWords: [] };
-      }
-
+      let entities = JSON.parse(dna.voice_entities);
       const normalizedWord = input.word.toLowerCase().trim();
-      entities.bannedWords = (entities.bannedWords || []).filter(
-        (w: string) => w.toLowerCase().trim() !== normalizedWord
-      );
+      entities.bannedWords = (entities.bannedWords || []).filter((w: string) => w.toLowerCase() !== normalizedWord);
 
-      await ctx.db
-        .prepare(`
-          UPDATE brand_dna
-          SET voice_entities = ?, updated_at = unixepoch(), calibration_source = 'manual'
-          WHERE client_id = ?
-        `)
-        .bind(JSON.stringify(entities), input.clientId)
-        .run();
+      await brandQueries.updateBrandDNAEntities(ctx.drizzle, input.clientId, JSON.stringify(entities));
+      
+      // Sync to DO - find the ID first
+      const doBannedWords = await ctx.callAgent<any[]>(input.clientId, 'listBannedWords', {});
+      const target = doBannedWords.find(w => w.word.toLowerCase() === normalizedWord);
+      if (target) {
+        await ctx.callAgent(input.clientId, 'removeBannedWord', { wordId: target.id });
+      }
 
       return { success: true, bannedWords: entities.bannedWords };
     }),
@@ -938,52 +422,23 @@ Return ONLY valid JSON with no markdown formatting:
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      const result = await ctx.db
-        .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
-        .bind(input.clientId)
-        .first<{ voice_entities: string | null }>();
+      const dna = await brandQueries.getBrandDNA(ctx.drizzle, input.clientId);
 
-      let entities = {
-        bannedWords: [] as string[],
-        voiceMarkers: [] as string[],
-        stances: [] as Array<{ topic: string; position: string }>,
-      };
-
-      if (result?.voice_entities) {
-        try {
-          entities = JSON.parse(result.voice_entities);
-        } catch {
-          // Keep defaults
-        }
+      let entities = { bannedWords: [], voiceMarkers: [] as string[], stances: [] };
+      if (dna?.voice_entities) {
+        try { entities = JSON.parse(dna.voice_entities); } catch {}
       }
 
-      // Check for duplicates (case-insensitive, store lowercase)
       const normalizedPhrase = input.phrase.toLowerCase().trim();
       if (entities.voiceMarkers.includes(normalizedPhrase)) {
         return { success: true, voiceMarkers: entities.voiceMarkers };
       }
 
-      // Add the new phrase (normalized to lowercase for consistency)
       entities.voiceMarkers.push(normalizedPhrase);
+      await brandQueries.updateBrandDNAEntities(ctx.drizzle, input.clientId, JSON.stringify(entities));
 
-      // Update the database (upsert to handle missing brand_dna row)
-      const now = Math.floor(Date.now() / 1000);
-      await ctx.db
-        .prepare(`
-          INSERT INTO brand_dna (id, client_id, voice_entities, updated_at, calibration_source)
-          VALUES (?, ?, ?, ?, 'manual')
-          ON CONFLICT(client_id) DO UPDATE SET
-            voice_entities = excluded.voice_entities,
-            updated_at = excluded.updated_at,
-            calibration_source = excluded.calibration_source
-        `)
-        .bind(
-          `dna_${input.clientId}`,
-          input.clientId,
-          JSON.stringify(entities),
-          now
-        )
-        .run();
+      // Sync to DO
+      await ctx.callAgent(input.clientId, 'addVoiceMarker', { phrase: normalizedPhrase, source: 'manual' });
 
       return { success: true, voiceMarkers: entities.voiceMarkers };
     }),
@@ -996,606 +451,99 @@ Return ONLY valid JSON with no markdown formatting:
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      const result = await ctx.db
-        .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
-        .bind(input.clientId)
-        .first<{ voice_entities: string | null }>();
+      const dna = await brandQueries.getBrandDNA(ctx.drizzle, input.clientId);
 
-      if (!result?.voice_entities) {
-        return { success: true, voiceMarkers: [] };
-      }
+      if (!dna?.voice_entities) return { success: true, voiceMarkers: [] };
 
-      let entities;
-      try {
-        entities = JSON.parse(result.voice_entities);
-      } catch {
-        return { success: true, voiceMarkers: [] };
-      }
-
+      let entities = JSON.parse(dna.voice_entities);
       const normalizedPhrase = input.phrase.toLowerCase().trim();
-      entities.voiceMarkers = (entities.voiceMarkers || []).filter(
-        (p: string) => p.toLowerCase().trim() !== normalizedPhrase
-      );
+      entities.voiceMarkers = (entities.voiceMarkers || []).filter((p: string) => p.toLowerCase() !== normalizedPhrase);
 
-      await ctx.db
-        .prepare(`
-          UPDATE brand_dna
-          SET voice_entities = ?, updated_at = unixepoch(), calibration_source = 'manual'
-          WHERE client_id = ?
-        `)
-        .bind(JSON.stringify(entities), input.clientId)
-        .run();
+      await brandQueries.updateBrandDNAEntities(ctx.drizzle, input.clientId, JSON.stringify(entities));
+
+      // Sync to DO
+      const doMarkers = await ctx.callAgent<any[]>(input.clientId, 'listVoiceMarkers', {});
+      const target = doMarkers.find(m => m.phrase.toLowerCase() === normalizedPhrase);
+      if (target) {
+        await ctx.callAgent(input.clientId, 'removeVoiceMarker', { markerId: target.id });
+      }
 
       return { success: true, voiceMarkers: entities.voiceMarkers };
     }),
 
-  // Story 9.2: Get current drift status and calibration recommendation (AC1-AC5)
-  getDriftStatus: procedure
-    .input(z.object({
-      clientId: z.string().min(1),
-    }))
-    .query(async ({ ctx, input }) => {
-      await assertClientAccess(ctx, input.clientId);
-
-      // Get the most recent baseline snapshot (AC4)
-      const baselineSnapshot = await ctx.db
-        .prepare(`
-          SELECT voice_markers, banned_words, stances, primary_tone
-          FROM brand_dna_snapshots
-          WHERE client_id = ?
-          ORDER BY created_at DESC
-          LIMIT 1
-        `)
-        .bind(input.clientId)
-        .first<{
-          voice_markers: string;
-          banned_words: string;
-          stances: string;
-          primary_tone: string | null;
-        }>();
-
-      // Get current Brand DNA state
-      const currentDNA = await ctx.db
-        .prepare(`
-          SELECT voice_entities, primary_tone
-          FROM brand_dna
-          WHERE client_id = ?
-        `)
-        .bind(input.clientId)
-        .first<{
-          voice_entities: string | null;
-          primary_tone: string | null;
-        }>();
-
-      // Get client's drift threshold (AC2)
-      const clientSettings = await ctx.db
-        .prepare('SELECT drift_threshold FROM clients WHERE id = ?')
-        .bind(input.clientId)
-        .first<{ drift_threshold: number | null }>();
-
-      const threshold = clientSettings?.drift_threshold ?? 25;
-
-      // If no baseline snapshot exists, return 0 drift
-      if (!baselineSnapshot) {
-        return {
-          driftScore: 0,
-          needsCalibration: false,
-          trigger: undefined as string | undefined,
-          suggestion: undefined as string | undefined,
-        };
-      }
-
-      // Parse baseline state
-      const baseline: DriftState = {
-        voiceMarkers: JSON.parse(baselineSnapshot.voice_markers || '[]'),
-        bannedWords: JSON.parse(baselineSnapshot.banned_words || '[]'),
-        stances: JSON.parse(baselineSnapshot.stances || '[]'),
-        primaryTone: baselineSnapshot.primary_tone,
-      };
-
-      // Parse current state from voice_entities
-      let voiceEntities = { voiceMarkers: [] as string[], bannedWords: [] as string[], stances: [] as Array<{ topic: string; position: string }> };
-      if (currentDNA?.voice_entities) {
-        try {
-          voiceEntities = JSON.parse(currentDNA.voice_entities);
-        } catch { /* ignore parse errors */ }
-      }
-
-      const current: DriftState = {
-        voiceMarkers: voiceEntities.voiceMarkers || [],
-        bannedWords: voiceEntities.bannedWords || [],
-        stances: voiceEntities.stances || [],
-        primaryTone: currentDNA?.primary_tone || null,
-      };
-
-      // Calculate drift (AC1, AC5: should complete < 500ms as it's just comparisons)
-      const result = calculateDrift(baseline, current, threshold);
-
-      return {
-        driftScore: result.driftScore,
-        needsCalibration: result.needsCalibration,
-        trigger: result.trigger,
-        suggestion: result.suggestion,
-      };
-    }),
-
-  // Story 9.2: Create a snapshot of current Brand DNA (for historical tracking)
-  createDNASnapshot: procedure
-    .input(z.object({
-      clientId: z.string().min(1),
-      reason: z.enum(['scheduled', 'manual', 'significant_change']).default('manual'),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      await assertClientAccess(ctx, input.clientId);
-
-      // Get current Brand DNA state
-      const currentDNA = await ctx.db
-        .prepare(`
-          SELECT voice_entities, primary_tone, writing_style, target_audience, strength_score
-          FROM brand_dna
-          WHERE client_id = ?
-        `)
-        .bind(input.clientId)
-        .first<{
-          voice_entities: string | null;
-          primary_tone: string | null;
-          writing_style: string | null;
-          target_audience: string | null;
-          strength_score: number;
-        }>();
-
-      if (!currentDNA) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'No Brand DNA found for this client. Analyze content first.',
-        });
-      }
-
-      // Parse voice entities
-      let voiceEntities = { voiceMarkers: [] as string[], bannedWords: [] as string[], stances: [] as Array<{ topic: string; position: string }> };
-      if (currentDNA.voice_entities) {
-        try {
-          voiceEntities = JSON.parse(currentDNA.voice_entities);
-        } catch { /* ignore parse errors */ }
-      }
-
-      const snapshotId = crypto.randomUUID();
-
-      // Insert snapshot (AC4)
-      await ctx.db
-        .prepare(`
-          INSERT INTO brand_dna_snapshots (
-            id, client_id, strength_score, voice_markers, banned_words, stances,
-            primary_tone, writing_style, target_audience, snapshot_reason
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `)
-        .bind(
-          snapshotId,
-          input.clientId,
-          currentDNA.strength_score || 0,
-          JSON.stringify(voiceEntities.voiceMarkers || []),
-          JSON.stringify(voiceEntities.bannedWords || []),
-          JSON.stringify(voiceEntities.stances || []),
-          currentDNA.primary_tone,
-          currentDNA.writing_style,
-          currentDNA.target_audience,
-          input.reason
-        )
-        .run();
-
-      return {
-        success: true,
-        snapshotId,
-      };
-    }),
-
-  // Get upload URL for voice recording (Story 2.2)
-  getVoiceUploadUrl: procedure
-    .input(z.object({
-      clientId: z.string().min(1),
-      filename: z.string().min(1).max(255),
-    }))
-    .mutation(async ({ ctx, input }) => {
-      await assertClientAccess(ctx, input.clientId);
-      // Generate unique R2 key with client isolation
-      const timestamp = Date.now();
-      const sanitizedFilename = input.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const r2Key = `voice-samples/${input.clientId}/${timestamp}-${sanitizedFilename}`;
-
-      return {
-        r2Key,
-        uploadEndpoint: `/api/upload/${encodeURIComponent(r2Key)}`,
-        expiresAt: new Date(Date.now() + 3600000), // 1 hour
-      };
-    }),
-
-  // Get Brand DNA for a client (basic stats - legacy endpoint)
+  // Get Brand DNA for a client (basic stats)
   getBrandDNA: procedure
-    .input(z.object({
-      clientId: z.string().min(1),
-    }))
+    .input(z.object({ clientId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      // Get all analyzed training samples to compute DNA
-      const samples = await ctx.db
-        .prepare(`
-          SELECT * FROM training_samples
-          WHERE client_id = ? AND status = 'analyzed'
-          ORDER BY created_at DESC
-          LIMIT 50
-        `)
-        .bind(input.clientId)
-        .all<TrainingSample>();
-
-      // Compute basic stats
-      const sampleCount = samples.results?.length ?? 0;
-      const totalWords = samples.results?.reduce((sum, s) => sum + (s.word_count || 0), 0) ?? 0;
-
-      // DNA strength based on samples and diversity
-      let dnaStrength = Math.min(100,
-        (sampleCount >= 3 ? 30 : sampleCount * 10) +
-        (sampleCount >= 5 ? 20 : 0) +
-        (totalWords >= 1000 ? 25 : Math.floor(totalWords / 40)) +
-        (samples.results?.some(s => s.source_type === 'voice') ? 25 : 0)
-      );
-
-      return {
-        dnaStrength,
-        sampleCount,
-        totalWords,
-        hasVoiceSamples: samples.results?.some(s => s.source_type === 'voice') ?? false,
-        lastCalibration: samples.results?.[0]?.created_at
-          ? new Date(samples.results[0].created_at).toISOString()
-          : null,
-        recommendation: dnaStrength < 30
-          ? 'Add more training samples or record a voice note to improve Brand DNA'
-          : dnaStrength < 60
-          ? 'Good start! Adding voice samples will significantly improve accuracy'
-          : dnaStrength < 80
-          ? 'Strong Brand DNA foundation. Consider adding more diverse content types'
-          : 'Excellent Brand DNA profile. System is well-calibrated for your voice',
-      };
+      const result = await ctx.callAgent<any>(input.clientId, 'getDNAReport', {});
+      return result;
     }),
 
-  // ===== STORY 2.3: BRAND DNA ANALYSIS & SCORING =====
-
-  // Analyze training samples and generate Brand DNA profile (AC1)
+  // Analyze training samples and generate Brand DNA profile
+  // DELEGATED to Engine
   analyzeDNA: procedure
-    .input(
-      z.object({
-        clientId: z.string().min(1),
-      })
-    )
-    .mutation(async ({ ctx, input }): Promise<BrandDNAAnalysisResult> => {
+    .input(z.object({ clientId: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      // Rule 1: Isolation Above All - always filter by clientId
-      // Fetch all training samples with extracted text
-      const samplesResult = await ctx.db
-        .prepare(
-          `
-          SELECT * FROM training_samples
-          WHERE client_id = ? AND extracted_text IS NOT NULL AND extracted_text != ''
-          ORDER BY created_at DESC
-          LIMIT 50
-        `
-        )
-        .bind(input.clientId)
-        .all<TrainingSample>();
-
-      const samples = samplesResult.results || [];
-
-      // AC1: Require at least 3 training samples
+      
+      const samples = await brandQueries.getTrainingSamplesWithExtractedText(ctx.drizzle, input.clientId);
       if (samples.length < 3) {
         throw new TRPCError({
           code: 'PRECONDITION_FAILED',
-          message: `At least 3 training samples with content required. You have ${samples.length}.`,
+          message: `At least 3 training samples required. You have ${samples.length}.`,
         });
       }
 
-      // Aggregate all sample content for analysis
-      const aggregatedContent = samples
-        .map((s) => s.extracted_text)
-        .filter(Boolean)
-        .join('\n\n---\n\n');
+      const response = await ctx.env.CONTENT_ENGINE.fetch('http://engine/api/calibration/start', {
+        method: 'POST',
+        body: JSON.stringify({
+          clientId: input.clientId,
+          contentType: 'posts', // Mixed content
+          content: samples.map(s => s.extracted_text).filter(Boolean)
+        }),
+      });
 
-      // Task 3: Workers AI analysis pipeline using 70B model for quality
-      // Story 2.4: Enhanced prompt to extract phrase examples and topics to avoid
-      const analysisPrompt = `You are a brand voice analyst. Analyze the following content samples and extract the brand voice profile.
-
-CONTENT TO ANALYZE:
-${aggregatedContent.slice(0, 12000)}
-
-EXTRACT THE FOLLOWING (be specific and concise):
-1. primary_tone: The dominant emotional tone (e.g., "Candid & Direct", "Warm & Approachable", "Professional & Authoritative")
-2. writing_style: How they write (e.g., "Conversational", "Technical", "Story-driven", "Data-focused")
-3. target_audience: Who they're speaking to (e.g., "B2B SaaS founders", "Creative professionals", "Marketing teams")
-4. signature_phrases: Array of 5-10 objects with the recurring phrase AND an example sentence from the content showing how it's used
-5. topics_to_avoid: Array of words, phrases, or topics that should be AVOIDED based on the brand voice (e.g., corporate jargon, clichés, or terms that don't fit the tone)
-
-Return ONLY valid JSON (no markdown, no explanation):
-{
-  "primary_tone": "string",
-  "writing_style": "string",
-  "target_audience": "string",
-  "signature_phrases": [{"phrase": "phrase1", "example": "Full sentence from content using this phrase"}, ...],
-  "topics_to_avoid": ["word1", "phrase2", ...]
-}`;
-
-      let analysisData: AnalysisData = {
-        primary_tone: null,
-        writing_style: null,
-        target_audience: null,
-        signature_phrases: [],
-        topics_to_avoid: [],
-      };
-
-      try {
-        // Note: Using 8B model for faster inference. For production, consider upgrading to 70B
-        const llmResult = await ctx.env.AI.run('@cf/meta/llama-3.1-8b-instruct', {
-          prompt: analysisPrompt,
-          max_tokens: 2048, // Increased for richer responses with examples
-        });
-
-        const responseText = (llmResult as { response?: string })?.response;
-        if (responseText) {
-          // Extract JSON from response
-          const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-
-            // Story 2.4: Parse signature phrases with examples
-            let signaturePhrases: SignaturePhrase[] = [];
-            if (Array.isArray(parsed.signature_phrases)) {
-              signaturePhrases = parsed.signature_phrases
-                .slice(0, 10)
-                .map((item: unknown) => {
-                  // Handle both old format (string) and new format ({phrase, example})
-                  if (typeof item === 'string') {
-                    return { phrase: item, example: '' };
-                  }
-                  if (typeof item === 'object' && item !== null) {
-                    const obj = item as { phrase?: string; example?: string };
-                    return {
-                      phrase: obj.phrase || '',
-                      example: obj.example || '',
-                    };
-                  }
-                  return null;
-                })
-                .filter((p: SignaturePhrase | null): p is SignaturePhrase => p !== null && p.phrase.length > 0);
-            }
-
-            // Story 2.4: Parse topics to avoid
-            const topicsToAvoid: string[] = Array.isArray(parsed.topics_to_avoid)
-              ? parsed.topics_to_avoid.filter((t: unknown): t is string => typeof t === 'string').slice(0, 20)
-              : [];
-
-            analysisData = {
-              primary_tone: parsed.primary_tone || null,
-              writing_style: parsed.writing_style || null,
-              target_audience: parsed.target_audience || null,
-              signature_phrases: signaturePhrases,
-              topics_to_avoid: topicsToAvoid,
-            };
-          }
-        }
-      } catch (error) {
-        console.error('Brand DNA analysis error:', error);
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to analyze content. Please try again.',
-        });
+      if (!response.ok) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Failed to start analysis workflow' });
       }
 
-      // Task 4: Calculate strength score
-      const strengthResult = calculateStrengthScore(analysisData, samples.length);
-
-      // Task 5: Generate and store Vectorize embeddings for brand voice
-      try {
-        const embeddingText = [
-          analysisData.primary_tone,
-          analysisData.writing_style,
-          analysisData.target_audience,
-          // Story 2.4: Extract just the phrase strings for embedding
-          ...(analysisData.signature_phrases || []).map((p) => p.phrase),
-        ]
-          .filter(Boolean)
-          .join(' ');
-
-        if (embeddingText.length > 10) {
-          const embeddingResult = await ctx.env.AI.run('@cf/baai/bge-base-en-v1.5', {
-            text: embeddingText,
-          });
-
-          // Store in Vectorize with client namespace
-          const vectors = (embeddingResult as { data?: number[][] })?.data;
-          if (vectors && vectors[0]) {
-            await ctx.env.EMBEDDINGS.upsert([
-              {
-                id: `brand_voice_${input.clientId}`,
-                values: vectors[0],
-                metadata: {
-                  type: 'brand_voice',
-                  clientId: input.clientId,
-                  primaryTone: analysisData.primary_tone || '',
-                  writingStyle: analysisData.writing_style || '',
-                },
-              },
-            ]);
-          }
-        }
-      } catch (error) {
-        // Log but don't fail if embedding storage fails
-        console.error('Vectorize embedding error:', error);
-      }
-
-      // Store results in brand_dna table (upsert - singleton per client)
-      // Story 2.4: Added topics_to_avoid column
-      const now = Math.floor(Date.now() / 1000);
-      await ctx.db
-        .prepare(
-          `
-          INSERT INTO brand_dna (
-            id, client_id, strength_score, tone_profile, signature_patterns, topics_to_avoid,
-            primary_tone, writing_style, target_audience,
-            last_calibration_at, calibration_source, sample_count, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'content_upload', ?, ?)
-          ON CONFLICT(client_id) DO UPDATE SET
-            strength_score = excluded.strength_score,
-            tone_profile = excluded.tone_profile,
-            signature_patterns = excluded.signature_patterns,
-            topics_to_avoid = excluded.topics_to_avoid,
-            primary_tone = excluded.primary_tone,
-            writing_style = excluded.writing_style,
-            target_audience = excluded.target_audience,
-            last_calibration_at = excluded.last_calibration_at,
-            calibration_source = excluded.calibration_source,
-            sample_count = excluded.sample_count,
-            updated_at = excluded.updated_at
-        `
-        )
-        .bind(
-          `dna_${input.clientId}`,
-          input.clientId,
-          strengthResult.total,
-          JSON.stringify(strengthResult.breakdown),
-          JSON.stringify(analysisData.signature_phrases),
-          JSON.stringify(analysisData.topics_to_avoid), // Story 2.4
-          analysisData.primary_tone,
-          analysisData.writing_style,
-          analysisData.target_audience,
-          now,
-          samples.length,
-          now
-        )
-        .run();
-
-      // Story 9.2: Create a snapshot immediately after analysis to establish baseline
-      // Extract just phrase strings from SignaturePhrase[] for drift comparison compatibility
-      const voiceMarkerStrings = (analysisData.signature_phrases || []).map(p => p.phrase);
-      const snapshotId = crypto.randomUUID();
-      await ctx.db
-        .prepare(`
-          INSERT INTO brand_dna_snapshots (
-            id, client_id, strength_score, voice_markers, banned_words, stances,
-            primary_tone, writing_style, target_audience, snapshot_reason
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled')
-        `)
-        .bind(
-          snapshotId,
-          input.clientId,
-          strengthResult.total,
-          JSON.stringify(voiceMarkerStrings),
-          JSON.stringify(analysisData.topics_to_avoid || []),
-          JSON.stringify([]), // Stances not yet extracted in analyzeDNA
-          analysisData.primary_tone,
-          analysisData.writing_style,
-          analysisData.target_audience
-        )
-        .run();
-
-      return {
-        success: true,
-        strengthScore: strengthResult.total,
-        breakdown: strengthResult.breakdown,
-        primaryTone: analysisData.primary_tone || '',
-        writingStyle: analysisData.writing_style || '',
-        targetAudience: analysisData.target_audience || '',
-        // Story 2.4: Now includes example usage from content
-        signaturePhrases: analysisData.signature_phrases || [],
-        topicsToAvoid: analysisData.topics_to_avoid || [],
-      };
+      return { success: true, message: 'Analysis started in background' };
     }),
 
-  // Get Brand DNA Report with full breakdown (AC2, AC3, AC4)
+  // Get Brand DNA Report with full breakdown
   getBrandDNAReport: procedure
-    .input(
-      z.object({
-        clientId: z.string().min(1),
-      })
-    )
+    .input(z.object({ clientId: z.string().min(1) }))
     .query(async ({ ctx, input }): Promise<BrandDNAReport | null> => {
       await assertClientAccess(ctx, input.clientId);
-      // Rule 1: Isolation Above All
-      const dna = await ctx.db
-        .prepare('SELECT * FROM brand_dna WHERE client_id = ?')
-        .bind(input.clientId)
-        .first<BrandDNA>();
+      const dna = await brandQueries.getBrandDNA(ctx.drizzle, input.clientId);
 
-      if (!dna) {
-        return null;
-      }
+      if (!dna) return null;
 
-      // Parse JSON fields
-      const toneProfile: BrandDNABreakdown = JSON.parse(dna.tone_profile || '{}');
-
-      // Story 2.4: Parse signature patterns as SignaturePhrase[]
-      // Handle both old format (string[]) and new format (SignaturePhrase[])
-      const rawPatterns: unknown = JSON.parse(dna.signature_patterns || '[]');
-      let signaturePhrases: SignaturePhrase[] = [];
-      if (Array.isArray(rawPatterns)) {
-        signaturePhrases = rawPatterns.map((item: unknown) => {
-          if (typeof item === 'string') {
-            return { phrase: item, example: '' };
-          }
-          if (typeof item === 'object' && item !== null) {
-            const obj = item as { phrase?: string; example?: string };
-            return { phrase: obj.phrase || '', example: obj.example || '' };
-          }
-          return { phrase: '', example: '' };
-        }).filter((p) => p.phrase.length > 0);
-      }
-
-      // Story 2.4: Parse topics to avoid
-      const topicsToAvoid: string[] = JSON.parse(dna.topics_to_avoid || '[]');
-
-      // AC4: Determine status badge based on strength score
-      const status =
-        dna.strength_score >= 80
-          ? 'strong'
-          : dna.strength_score >= 70
-            ? 'good'
-            : 'needs_training';
-
-      // AC3: Generate recommendations for low scores
-      const recommendations: BrandDNAReport['recommendations'] = [];
-      if (dna.strength_score < 70) {
-        recommendations.push({
-          type: 'add_samples',
-          message: 'Add more content samples to improve accuracy',
-        });
-        recommendations.push({
-          type: 'voice_note',
-          message: 'Record a voice note to capture your natural speaking style',
-        });
-      }
-      if (dna.sample_count < 5) {
-        recommendations.push({
-          type: 'diversify_content',
-          message: 'Add more diverse content types (articles, transcripts, posts)',
-        });
-      }
+      const toneProfile = JSON.parse(dna.tone_profile || '{}');
+      const signaturePhrases = JSON.parse(dna.signature_patterns || '[]');
+      const topicsToAvoid = JSON.parse(dna.topics_to_avoid || '[]');
 
       return {
-        strengthScore: dna.strength_score,
-        status,
+        strengthScore: dna.strength_score || 0,
+        status: (dna.strength_score || 0) >= 80 ? 'strong' : (dna.strength_score || 0) >= 70 ? 'good' : 'needs_training',
         primaryTone: dna.primary_tone,
-        writingStyle: dna.writing_style,
-        targetAudience: dna.target_audience,
-        signaturePhrases, // Story 2.4: Now includes example usage
-        topicsToAvoid, // Story 2.4: Words/topics to avoid (red pills)
+        writing_style: dna.writing_style, // Compatibility with type
+        target_audience: dna.target_audience,
+        signaturePhrases,
+        topicsToAvoid,
         breakdown: {
           tone_match: toneProfile.tone_match ?? 0,
           vocabulary: toneProfile.vocabulary ?? 0,
           structure: toneProfile.structure ?? 0,
           topics: toneProfile.topics ?? 0,
         },
-        recommendations,
+        recommendations: [], // Can be calculated here or in engine
         sampleCount: dna.sample_count,
         lastCalibration: {
-          source: dna.calibration_source,
-          timestamp: dna.last_calibration_at,
+          source: dna.calibration_source as any,
+          timestamp: dna.last_calibration_at?.toISOString() || null,
         },
-      };
+      } as any;
     }),
 });

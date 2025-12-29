@@ -97,7 +97,7 @@ export function ClientManager() {
         </div>
       ) : clientsQuery.data?.items?.length ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {clientsQuery.data.items.map((client: any) => (
+          {clientsQuery.data.items.map((client: Client) => (
             <div
               key={client.id}
               className="p-5 rounded-xl border transition-all hover:border-opacity-50 group relative"

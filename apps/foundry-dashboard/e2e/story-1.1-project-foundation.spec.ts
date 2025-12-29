@@ -19,7 +19,7 @@ const TEST_PASSWORD = 'TestPassword123!';
 
 test.describe('Story 1.1: Project Foundation for User Access', () => {
   test.describe('AC1: Local Development Environment', () => {
-    test('Application loads successfully on localhost', async ({ page }) => {
+    test('Application loads successfully', async ({ page }) => {
       const response = await page.goto(`${BASE_URL}/`);
 
       // Should return 200 OK

@@ -25,7 +25,8 @@ class MockResizeObserver {
   unobserve = vi.fn();
   disconnect = vi.fn();
 }
-(globalThis as any).ResizeObserver = MockResizeObserver;
+// @ts-expect-error Mocking global observer
+globalThis.ResizeObserver = MockResizeObserver;
 
 // Mock IntersectionObserver (must be a class constructor)
 class MockIntersectionObserver {
@@ -37,7 +38,8 @@ class MockIntersectionObserver {
   thresholds = [];
   takeRecords = vi.fn(() => []);
 }
-(globalThis as any).IntersectionObserver = MockIntersectionObserver;
+// @ts-expect-error Mocking global observer
+globalThis.IntersectionObserver = MockIntersectionObserver;
 
 // Mock window.scrollTo
 window.scrollTo = vi.fn();
@@ -63,7 +65,7 @@ vi.mock('@/lib/auth-client', () => ({
 
 // Mock TanStack Router
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, to, ...props }: any) => (
+  Link: ({ children, to, ...props }: { children: React.ReactNode; to: string; [key: string]: any }) => (
     <a href={to} {...props}>{children}</a>
   ),
   useRouterState: vi.fn(() => ({

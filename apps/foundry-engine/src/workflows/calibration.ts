@@ -310,7 +310,8 @@ Output JSON:
           {
             id: `brand-dna-${clientId}`,
             values: result.data[0],
-            metadata: { clientId, type: 'brand-dna' },
+            metadata: { client_id: clientId, type: 'brand-dna' },
+            namespace: clientId,
           },
         ]);
       }

@@ -71,7 +71,8 @@ async function computeSimilarity(vectorize: any, ai: any, content: string, clien
         // The namespace should be the clientId to ensure isolation (Rule 1)
         const matches = await vectorize.query(vector, {
             topK: 1,
-            filter: { client_id: clientId }
+            filter: { client_id: clientId },
+            namespace: clientId
         });
 
         if (matches.matches && matches.matches.length > 0) {

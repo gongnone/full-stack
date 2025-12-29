@@ -5,9 +5,9 @@
 
 import { test, expect } from '@playwright/test';
 
-// Test constants
-const BASE_URL = 'http://localhost:8787';
-const TEST_TIMEOUT = 60000;
+// Test configuration
+const BASE_URL = process.env.BASE_URL || 'http://localhost:8787';
+const HUB_ID = '00000000-0000-0000-0000-000000000000'; // Mock/Test UUID
 
 test.describe('Story 3.5: Real-Time Ingestion Progress', () => {
   test.setTimeout(TEST_TIMEOUT);

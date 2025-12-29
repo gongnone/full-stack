@@ -103,4 +103,78 @@ verification_summary:
     - "Epic 3 Story 3.1: Updated tests to use auto-advance model instead of Next button"
     - "Epic 4: Skipped tests are intentional - data-dependent tests for hubs/spokes"
     - "Epic 6.1 and 8.1: UI text is correct in code - re-test after staging deployment"
-  overall_result: REMEDIATION COMPLETE - PENDING DEPLOYMENT
+  overall_result: DEPLOYMENT BLOCKED - REMEDIATION REQUIRED
+
+# Remediation Backlog (Generated 2025-12-29)
+# Source: Manual Codebase Audit + Deployment Failure
+remediation_backlog:
+  # CRITICAL - Deployment Blocker
+  R-7-remove-legacy-data-ops-imports:
+    status: Verified
+    priority: P0-CRITICAL
+    effort: 1-2 hours
+    blocker: true
+    issue: "Foundry imports @repo/data-ops (Legacy package) - violates architecture isolation"
+    completed: 2025-12-29
+    files:
+      - worker/trpc/context.ts
+      - worker/trpc/routers/calibration.ts
+    files_created:
+      - worker/db/index.ts
+      - worker/db/schema.ts
+      - worker/db/queries/brand.ts
+
+  # HIGH Priority
+  R-1-type-safety-remediation:
+    status: Ready for Dev
+    priority: HIGH
+    effort: 4-6 hours
+    issue: "35+ any types in worker code degrade TypeScript safety"
+
+  R-2-analytics-real-calculations:
+    status: Ready for Dev
+    priority: HIGH
+    effort: 2-3 hours
+    issue: "Analytics dashboard shows hardcoded fake metrics"
+
+  # MEDIUM Priority
+  R-3-design-token-compliance:
+    status: Verified
+    priority: MEDIUM
+    effort: 15 minutes
+    completed: 2025-12-29
+    issue: "2 components use arbitrary Tailwind colors instead of design tokens"
+
+  R-4-clone-spoke-implementation:
+    status: Ready for Dev
+    priority: MEDIUM
+    effort: 1-2 hours
+    issue: "Clone spoke handler is TODO stub"
+
+  R-5-spoke-detail-navigation:
+    status: Verified
+    priority: MEDIUM
+    effort: 1 hour
+    completed: 2025-12-29
+    issue: "Spoke detail modal click handler is empty"
+
+  # LOW Priority
+  R-6-production-console-log-removal:
+    status: Verified
+    priority: LOW
+    effort: 30 minutes
+    completed: 2025-12-29
+    issue: "Email service console.log exposes user emails"
+
+remediation_summary:
+  total_stories: 7
+  critical_blockers: 1
+  estimated_effort: "12-16 hours"
+  recommended_order:
+    - R-7 (CRITICAL - unblocks deployment)
+    - R-3 (15 min quick win)
+    - R-6 (30 min security)
+    - R-5 (1 hr UX)
+    - R-4 (1-2 hrs feature)
+    - R-2 (2-3 hrs data)
+    - R-1 (4-6 hrs code quality)

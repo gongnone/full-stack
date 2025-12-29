@@ -1,6 +1,6 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import type { Context } from '../context';
-// import { assertClientAccess } from '../middleware/client-access'; // Removed import for testing simplicity
+import { assertClientAccess } from '../middleware/client-access';
 import type { Spoke, SpokePlatform, SpokeStatus, QualityScores } from '../../types';
 import { z } from 'zod'; // Import zod to make it available for schema definitions
 
@@ -98,9 +98,7 @@ export const spokesRouter = router({
       cursor: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      // Removed assertClientAccess call for testing simplicity.
-      // In real code, this would be present.
-      // await assertClientAccess(ctx, input.clientId); 
+      await assertClientAccess(ctx, input.clientId);
 
       // Proxy to Durable Object
       const spokes = await ctx.callAgent(input.clientId, 'listSpokes', {
@@ -137,8 +135,7 @@ export const spokesRouter = router({
       spokeId: z.string().uuid(),
     }))
     .query(async ({ ctx, input }) => {
-      // Removed assertClientAccess call
-      // await assertClientAccess(ctx, input.clientId);
+      await assertClientAccess(ctx, input.clientId);
       return await ctx.callAgent(input.clientId, 'getSpoke', {
         spokeId: input.spokeId,
       });
@@ -151,8 +148,7 @@ export const spokesRouter = router({
       spokeId: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Removed assertClientAccess call
-      // await assertClientAccess(ctx, input.clientId);
+      await assertClientAccess(ctx, input.clientId);
       return await ctx.callAgent(input.clientId, 'approveSpoke', {
         spokeId: input.spokeId,
       });
@@ -166,8 +162,7 @@ export const spokesRouter = router({
       reason: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Removed assertClientAccess call
-      // await assertClientAccess(ctx, input.clientId);
+      await assertClientAccess(ctx, input.clientId);
       return await ctx.callAgent(input.clientId, 'rejectSpoke', {
         spokeId: input.spokeId,
         reason: input.reason,
@@ -183,8 +178,7 @@ export const spokesRouter = router({
       platforms: z.array(platformEnum).default(['twitter', 'linkedin']),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Removed assertClientAccess call
-      // await assertClientAccess(ctx, input.clientId);
+      await assertClientAccess(ctx, input.clientId);
       // Fetch hub and pillars from D1 (source of truth)
       const hub = await ctx.db.prepare(`
         SELECT h.id, h.title, hs.raw_content as source_content
@@ -294,8 +288,7 @@ export const spokesRouter = router({
       instanceId: z.string(),
     }))
     .query(async ({ ctx, input }) => {
-      // Removed assertClientAccess call
-      // await assertClientAccess(ctx, input.clientId);
+      await assertClientAccess(ctx, input.clientId);
       const response = await ctx.env.CONTENT_ENGINE.fetch(
         new Request(`http://internal/api/workflows/${input.instanceId}?type=spoke`, {
           method: 'GET',
@@ -325,8 +318,7 @@ export const spokesRouter = router({
       content: z.string().min(1).max(5000),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Removed assertClientAccess call
-      // await assertClientAccess(ctx, input.clientId);
+      await assertClientAccess(ctx, input.clientId);
       // Get original spoke to calculate edit distance
       const original = await ctx.callAgent(input.clientId, 'getSpoke', {
         spokeId: input.spokeId,
@@ -379,8 +371,7 @@ export const spokesRouter = router({
       }
     }))
     .mutation(async ({ ctx, input }) => {
-      // Removed assertClientAccess call
-      // await assertClientAccess(ctx, input.clientId);
+      await assertClientAccess(ctx, input.clientId);
       // Get original spoke for all modes
       const original = await ctx.callAgent(input.clientId, 'getSpoke', {
         spokeId: input.spokeId,
@@ -489,8 +480,7 @@ export const spokesRouter = router({
       spokeId: z.string().uuid(),
     }))
     .query(async ({ ctx, input }) => {
-      // Removed assertClientAccess call
-      // await assertClientAccess(ctx, input.clientId);
+      await assertClientAccess(ctx, input.clientId);
       const variations = await ctx.callAgent(input.clientId, 'listVariations', {
         parentSpokeId: input.spokeId,
       }) as DOSpoke[];
@@ -519,8 +509,7 @@ export const spokesRouter = router({
       spokeId: z.string().uuid(),
     }))
     .query(async ({ ctx, input }) => {
-      // Removed assertClientAccess call
-      // await assertClientAccess(ctx, input.clientId);
+      await assertClientAccess(ctx, input.clientId);
       return await ctx.callAgent(input.clientId, 'countVariations', {
         parentSpokeId: input.spokeId,
       }) as { count: number };

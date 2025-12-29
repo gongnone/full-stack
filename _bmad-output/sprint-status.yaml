@@ -125,12 +125,12 @@ remediation_backlog:
       - worker/db/queries/brand.ts
 
   # HIGH Priority
-  R-1-type-safety-remediation:
-    status: Verified
+  R-1-security-stability-remediation:
+    status: done
     priority: HIGH
-    effort: 4-6 hours
+    effort: 1.5 hours
     completed: 2025-12-29
-    issue: "35+ any types in worker code degrade TypeScript safety"
+    issue: "Security vulnerability (missing access checks) and stability risk (no RPC timeout)"
 
   R-1b-frontend-type-fixes:
     status: done

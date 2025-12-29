@@ -1470,6 +1470,30 @@ Return ONLY valid JSON (no markdown, no explanation):
         )
         .run();
 
+      // Story 9.2: Create a snapshot immediately after analysis to establish baseline
+      // Extract just phrase strings from SignaturePhrase[] for drift comparison compatibility
+      const voiceMarkerStrings = (analysisData.signature_phrases || []).map(p => p.phrase);
+      const snapshotId = crypto.randomUUID();
+      await ctx.db
+        .prepare(`
+          INSERT INTO brand_dna_snapshots (
+            id, client_id, strength_score, voice_markers, banned_words, stances,
+            primary_tone, writing_style, target_audience, snapshot_reason
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled')
+        `)
+        .bind(
+          snapshotId,
+          input.clientId,
+          strengthResult.total,
+          JSON.stringify(voiceMarkerStrings),
+          JSON.stringify(analysisData.topics_to_avoid || []),
+          JSON.stringify([]), // Stances not yet extracted in analyzeDNA
+          analysisData.primary_tone,
+          analysisData.writing_style,
+          analysisData.target_audience
+        )
+        .run();
+
       return {
         success: true,
         strengthScore: strengthResult.total,

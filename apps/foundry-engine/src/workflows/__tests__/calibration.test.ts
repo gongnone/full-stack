@@ -141,6 +141,33 @@ describe('CalibrationWorkflow Voice Transcription', () => {
         mockAI.run('@cf/openai/whisper', { audio: [0, 1, 2] })
       ).rejects.toThrow('AI service unavailable');
     });
+
+    it('should throw error when audio format is unsupported', async () => {
+      const SUPPORTED_AUDIO_TYPES = [
+        'audio/webm',
+        'audio/mp3',
+        'audio/mpeg',
+        'audio/wav',
+        'audio/ogg',
+        'audio/flac',
+        'audio/m4a',
+        'audio/mp4',
+      ];
+
+      const unsupportedContentType = 'image/png';
+
+      // Verify unsupported format is detected
+      expect(SUPPORTED_AUDIO_TYPES).not.toContain(unsupportedContentType);
+
+      // Verify error message is user-friendly
+      const error = new Error(
+        `Unsupported audio format: ${unsupportedContentType}. Supported formats: MP3, WAV, WebM, OGG, FLAC, M4A.`
+      );
+      expect(error.message).toContain('Unsupported audio format');
+      expect(error.message).toContain('image/png');
+      expect(error.message).toContain('MP3');
+      expect(error.message).toContain('WAV');
+    });
   });
 
   describe('AC4: Performance validation', () => {

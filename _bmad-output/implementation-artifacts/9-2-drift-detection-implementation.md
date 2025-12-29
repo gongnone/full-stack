@@ -1,6 +1,6 @@
 # Story 9.2: Drift Detection Implementation
 
-## Status: review
+## Status: done
 
 ## Story Summary
 Implement actual Brand DNA drift calculation. Currently `getDriftStatus` returns hardcoded `driftScore: 0` and `needsCalibration: false` instead of calculating real drift from historical Brand DNA snapshots.
@@ -107,8 +107,28 @@ needsCalibration = drift_score > threshold (default: 25)
 | Modified | apps/foundry-dashboard/worker/trpc/routers/calibration.ts |
 | Modified | apps/foundry-dashboard/worker/trpc/routers/__tests__/calibration.test.ts |
 
+## Senior Developer Review (AI)
+
+**Review Date:** 2025-12-29
+**Reviewer:** Claude Code (Adversarial Review)
+**Verdict:** PASS (after fixes)
+
+### Issues Found & Fixed
+
+| Severity | Issue | Resolution |
+|----------|-------|------------|
+| CRITICAL | Type mismatch in `analyzeDNA` snapshot - stored `SignaturePhrase[]` objects in `voice_markers` column instead of strings, causing false drift detection | Fixed by extracting `.map(p => p.phrase)` before storing |
+| MEDIUM | Missing FK constraint on `brand_dna_snapshots.client_id` | Documented for future migration (non-blocking) |
+| LOW | No snapshot cleanup mechanism | Documented for future implementation |
+
+### Tests After Fix
+- All 18 drift detection tests passing
+- Fixed code ensures `voice_markers` column always stores `string[]` for consistent drift comparison
+
 ## Change Log
 | Date | Change |
 |------|--------|
 | 2025-12-28 | Story created from codebase audit findings |
 | 2025-12-28 | Implemented drift detection with 18 passing tests. All ACs satisfied. |
+| 2025-12-28 | Code Review: Added automatic snapshot creation in `analyzeDNA` to ensure baselines exist. |
+| 2025-12-29 | Code Review: Fixed critical type mismatch - extract phrase strings from SignaturePhrase[] |

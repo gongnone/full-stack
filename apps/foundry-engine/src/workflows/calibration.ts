@@ -3,6 +3,7 @@ import {
   WorkflowStep,
   WorkflowEvent,
 } from 'cloudflare:workers';
+import { z } from 'zod';
 
 interface Env {
   CLIENT_AGENT: DurableObjectNamespace;
@@ -10,6 +11,19 @@ interface Env {
   VECTORIZE: VectorizeIndex;
   MEDIA_BUCKET: R2Bucket;
 }
+
+// Constants
+const MAX_AUDIO_FILE_SIZE = 10 * 1024 * 1024; // 10MB (~60 seconds at 128kbps)
+const SUPPORTED_AUDIO_TYPES = [
+  'audio/webm',
+  'audio/mp3',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/ogg',
+  'audio/flac',
+  'audio/m4a',
+  'audio/mp4',
+] as const;
 
 interface CalibrationParams {
   clientId: string;
@@ -19,13 +33,32 @@ interface CalibrationParams {
   audioR2Key?: string; // Legacy field for voice
 }
 
-interface ExtractedEntities {
-  voiceMarkers: string[];
-  bannedWords: Array<{ word: string; severity: 'hard' | 'soft'; reason: string }>;
-  stances: Array<{ topic: string; position: string }>;
-  signaturePatterns: string[];
-  toneProfile: Record<string, number>;
-}
+// Story 9.8: Define Zod schemas for AI response validation
+const BannedWordSchema = z.object({
+  word: z.string(),
+  severity: z.enum(['hard', 'soft']),
+  reason: z.string(),
+});
+
+const StanceSchema = z.object({
+  topic: z.string(),
+  position: z.string(),
+});
+
+const ExtractedEntitiesSchema = z.object({
+  voiceMarkers: z.array(z.string()).default([]),
+  bannedWords: z.array(BannedWordSchema).default([]),
+  stances: z.array(StanceSchema).default([]),
+  signaturePatterns: z.array(z.string()).default([]),
+  toneProfile: z.record(z.string(), z.number()).default({
+    formal_casual: 50,
+    serious_playful: 50,
+    technical_accessible: 50,
+    reserved_expressive: 50,
+  }),
+});
+
+type ExtractedEntities = z.infer<typeof ExtractedEntitiesSchema>;
 
 export class CalibrationWorkflow extends WorkflowEntrypoint<Env, CalibrationParams> {
   async run(event: WorkflowEvent<CalibrationParams>, step: WorkflowStep) {
@@ -60,18 +93,26 @@ export class CalibrationWorkflow extends WorkflowEntrypoint<Env, CalibrationPara
           throw new Error(`Audio file not found in R2: ${audioKey}`);
         }
 
-        // Validate audio file size (max 10MB for 60s at 128kbps)
-        const maxFileSize = 10 * 1024 * 1024;
-        if (audioObject.size > maxFileSize) {
+        // Validate audio file size
+        if (audioObject.size > MAX_AUDIO_FILE_SIZE) {
           throw new Error('Audio file too large. Maximum supported size is 10MB (~60 seconds).');
+        }
+
+        // Validate audio format (AC3: user-friendly error for unsupported formats)
+        const contentType = audioObject.httpMetadata?.contentType;
+        if (contentType && !SUPPORTED_AUDIO_TYPES.includes(contentType as typeof SUPPORTED_AUDIO_TYPES[number])) {
+          throw new Error(
+            `Unsupported audio format: ${contentType}. Supported formats: MP3, WAV, WebM, OGG, FLAC, M4A.`
+          );
         }
 
         // Convert to ArrayBuffer for Whisper
         const audioData = await audioObject.arrayBuffer();
 
         // Call Workers AI Whisper model
+        // optimization: pass Uint8Array directly to avoid memory spike from spreading into number[]
         const whisperResult = await this.env.AI.run('@cf/openai/whisper', {
-          audio: [...new Uint8Array(audioData)],
+          audio: new Uint8Array(audioData) as any,
         });
 
         const transcript = (whisperResult as { text?: string })?.text || '';
@@ -131,9 +172,15 @@ Output JSON:
 
       try {
         const text = (result as any).response;
-        const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-        return json as ExtractedEntities;
-      } catch {
+        // Robust JSON extraction: remove markdown code blocks and find the first JSON object
+        const cleanText = text.replace(/```json\n|\n```/g, '').trim();
+        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+        const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : '{}');
+        
+        // Story 9.8: Validate with Zod
+        return ExtractedEntitiesSchema.parse(parsed);
+      } catch (error) {
+        console.error('Failed to parse or validate extracted entities:', error);
         return {
           voiceMarkers: [],
           bannedWords: [],
@@ -145,7 +192,7 @@ Output JSON:
             technical_accessible: 50,
             reserved_expressive: 50,
           },
-        } as ExtractedEntities;
+        };
       }
     });
 
@@ -171,9 +218,11 @@ Output JSON:
       const current = currentDNA as any;
 
       // Merge voice markers (dedupe)
+      // Current markers are objects from DB, extracted are strings from AI
+      const currentMarkerPhrases = (current.voiceMarkers || []).map((m: any) => m.phrase);
       const voiceMarkers = [
         ...new Set([
-          ...(current.voiceMarkers || []),
+          ...currentMarkerPhrases,
           ...extracted.voiceMarkers,
         ]),
       ];

@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { ActionButton } from '@/components/ui';
-import type { SpokePlatform } from '../../../worker/types';
+import type { SpokePlatform } from '@worker/types';
 
 export interface VisualConceptProps {
   spokeId: string;

@@ -326,6 +326,7 @@ export interface Spoke {
   is_mutated: number; // 0 = no, 1 = user-edited (survives Kill Chain)
   mutated_at?: number | null; // Timestamp when content was mutated
   parent_spoke_id: string | null; // Story 9-6: Links variations to parent spoke
+  cloned_from: string | null; // Story R-4: Links clones to parent spoke
   created_at: number;
   updated_at: number;
 }

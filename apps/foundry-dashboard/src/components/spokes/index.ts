@@ -10,3 +10,4 @@ export { GenerationProgress, type GenerationProgressProps } from './GenerationPr
 export { PlatformFilter, type PlatformFilterProps } from './PlatformFilter';
 export { SpokeTreeView } from './SpokeTreeView';
 export { SpokeCard } from './SpokeCard';
+export { SpokeDetailModal } from './SpokeDetailModal';

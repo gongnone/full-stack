@@ -223,9 +223,9 @@ describe('TeamAssignment - Story 7-2: RBAC and Team Assignment', () => {
 
       render(<TeamAssignment isOpen={true} onClose={vi.fn()} client={mockClient} />);
 
-      // X button should be present - it has red text styling
+      // X button should be present - it has the correct color styling
       const removeButtons = screen.getAllByRole('button').filter(btn => {
-        return btn.classList.contains('text-red-500');
+        return btn.style.color === 'var(--kill)';
       });
 
       expect(removeButtons.length).toBeGreaterThan(0);
@@ -245,9 +245,9 @@ describe('TeamAssignment - Story 7-2: RBAC and Team Assignment', () => {
 
       render(<TeamAssignment isOpen={true} onClose={vi.fn()} client={mockClient} />);
 
-      // Find the remove button by its red text styling (not the Done button)
+      // Find the remove button by its color text styling (not the Done button)
       const removeButton = screen.getAllByRole('button').find(btn =>
-        btn.classList.contains('text-red-500')
+        btn.style.color === 'var(--kill)'
       );
       expect(removeButton).toBeDefined();
 

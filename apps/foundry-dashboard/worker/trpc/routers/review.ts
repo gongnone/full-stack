@@ -2,9 +2,32 @@ import { initTRPC } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
 import { assertClientAccess } from '../middleware/client-access';
+import type { SpokePlatform, SpokeStatus } from '../../types';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
+
+/**
+ * Review queue spoke representation from Durable Object
+ * Uses camelCase to match DO storage format
+ */
+interface ReviewQueueSpoke {
+  id: string;
+  hubId: string;
+  pillarId: string;
+  platform: SpokePlatform;
+  content: string;
+  status: SpokeStatus;
+  qualityScores: {
+    g2_hook?: number;
+    g4_voice?: boolean;
+    g5_platform?: boolean;
+    g7_engagement?: number;
+  };
+  parent_spoke_id?: string | null;
+  cloned_from?: string | null;
+  createdAt: string;
+}
 
 export const reviewRouter = t.router({
   // Get the bulk approval queue
@@ -19,7 +42,7 @@ export const reviewRouter = t.router({
       const items = await ctx.callAgent(input.clientId, 'getReviewQueue', {
         filter: input.filter,
         limit: input.limit,
-      });
+      }) as ReviewQueueSpoke[];
 
       return {
         items,

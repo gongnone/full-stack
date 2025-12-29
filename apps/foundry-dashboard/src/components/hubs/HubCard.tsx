@@ -5,7 +5,7 @@
 
 import { Link } from '@tanstack/react-router';
 import { formatDate } from '@/lib/date-utils';
-import type { HubListItem } from '../../../worker/types';
+import type { HubListItem } from '@worker/types';
 
 interface HubCardProps {
   hub: HubListItem;

@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { useNavigate } from '@tanstack/react-router';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ChevronDown, Check, Building2 } from 'lucide-react';
 
 export function ClientSelector() {
   const activeClientId = useClientId();
+  const navigate = useNavigate();
   const utils = trpc.useUtils();
   
   const clientsQuery = trpc.clients.list.useQuery({});
@@ -71,7 +73,7 @@ export function ClientSelector() {
                 </span>
               </div>
               {client.id === activeClientId && (
-                <Check className="w-4 h-4 text-blue-500" />
+                <Check className="w-4 h-4" style={{ color: 'var(--edit)' }} />
               )}
             </DropdownMenu.Item>
           ))}
@@ -81,9 +83,9 @@ export function ClientSelector() {
           <DropdownMenu.Item
             className="flex items-center gap-2 px-2 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 transition-colors"
             style={{ color: 'var(--edit)' }}
-            onSelect={() => window.location.href = '/app/clients'}
+            onSelect={() => navigate({ to: '/app/clients' })}
           >
-            <div className="w-6 h-6 rounded bg-blue-500/10 flex items-center justify-center">
+            <div className="w-6 h-6 rounded flex items-center justify-center" style={{ backgroundColor: 'var(--edit-glow)' }}>
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>

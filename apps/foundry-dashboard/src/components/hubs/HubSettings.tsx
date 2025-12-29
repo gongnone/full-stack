@@ -6,7 +6,7 @@
 
 import { useState, useCallback } from 'react';
 import { trpc } from '@/lib/trpc-client';
-import type { Hub, HubStatus } from '../../../worker/types';
+import type { Hub, HubStatus } from '@worker/types';
 
 interface HubSettingsProps {
   hub: Hub;

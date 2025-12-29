@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { ActionButton, GateBadge } from '@/components/ui';
-import type { Spoke, SpokePlatform } from '../../../worker/types';
+import type { Spoke, SpokePlatform } from '@worker/types';
 
 const searchSchema = z.object({
   platform: z.string().optional(),

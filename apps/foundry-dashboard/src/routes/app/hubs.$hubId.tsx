@@ -581,7 +581,7 @@ function HubDetailPage() {
 
       {/* Spoke Detail Modal (Story R-5) */}
       <SpokeDetailModal
-        spoke={selectedSpokeIndex !== -1 ? filteredSpokes[selectedSpokeIndex] : null}
+        spoke={selectedSpokeIndex !== -1 ? filteredSpokes[selectedSpokeIndex] ?? null : null}
         isOpen={!!selectedSpokeId}
         onClose={() => setSelectedSpokeId(null)}
         onNavigate={(direction) => {
@@ -589,7 +589,8 @@ function HubDetailPage() {
           const nextIndex = direction === 'next'
             ? Math.min(selectedSpokeIndex + 1, filteredSpokes.length - 1)
             : Math.max(selectedSpokeIndex - 1, 0);
-          setSelectedSpokeId(filteredSpokes[nextIndex].id);
+          const nextSpoke = filteredSpokes[nextIndex];
+          if (nextSpoke) setSelectedSpokeId(nextSpoke.id);
         }}
         hasNext={selectedSpokeIndex < filteredSpokes.length - 1}
         hasPrev={selectedSpokeIndex > 0}

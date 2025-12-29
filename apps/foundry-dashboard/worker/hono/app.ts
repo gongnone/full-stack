@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type Context, type Next } from 'hono';
 import { cors } from 'hono/cors';
 import { trpcServer } from '@hono/trpc-server';
 import { appRouter } from '../trpc/router';
@@ -47,7 +47,7 @@ app.get('/api/health', async (c) => {
   try {
     await c.env.DB.prepare('SELECT 1').first();
     checks['d1'] = 'ok';
-  } catch (e: any) {
+  } catch (error: unknown) {
     checks['d1'] = 'error';
     allHealthy = false;
   }
@@ -58,7 +58,7 @@ app.get('/api/health', async (c) => {
       // List with limit 1 to check connectivity without reading data
       await c.env.MEDIA.list({ limit: 1 });
       checks['r2'] = 'ok';
-    } catch {
+    } catch (error: unknown) {
       checks['r2'] = 'error';
       allHealthy = false;
     }
@@ -83,10 +83,10 @@ app.get('/api/health/db', async (c) => {
       database: 'foundry-global',
       result,
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return c.json({
       status: 'error',
-      error: e.message,
+      error: e instanceof Error ? e.message : 'Unknown database error',
     }, 503);
   }
 });
@@ -126,18 +126,20 @@ app.on(['GET', 'POST'], '/api/auth/**', async (c) => {
     }
 
     return response;
-  } catch (error: any) {
-    console.error('Auth handler error:', error.message, error.stack);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Unknown auth error';
+    const stack = error instanceof Error ? error.stack : undefined;
+    console.error('Auth handler error:', message, stack);
     // For callbacks, redirect with error instead of returning JSON
     if (c.req.path.includes('/callback/')) {
-      return c.redirect(`/login?error=${encodeURIComponent(error.message)}`);
+      return c.redirect(`/login?error=${encodeURIComponent(message)}`);
     }
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: message }, 500);
   }
 });
 
 // Auth middleware for protected routes
-const authMiddleware = async (c: any, next: any) => {
+const authMiddleware = async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) => {
   const auth = createAuth(c.env);
 
   try {
@@ -166,7 +168,7 @@ const authMiddleware = async (c: any, next: any) => {
     c.set('userRole', sessionData.user.role || 'editor');
 
     return next();
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Auth middleware error:', error);
     return c.json({ error: 'Authentication failed' }, 401);
   }
@@ -405,7 +407,7 @@ app.post('/api/upload/:path{.+}', async (c) => {
       if (!clientAccess) {
         return c.json({ error: 'Access denied to this client' }, 403);
       }
-    } catch {
+    } catch (error: unknown) {
       // If client_members table doesn't exist yet (Epic 7), skip check
       // This allows uploads to work while maintaining security once clients exist
     }
@@ -435,7 +437,7 @@ app.post('/api/upload/:path{.+}', async (c) => {
       r2Key,
       size: body.byteLength,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Upload error:', error);
     return c.json({ error: 'Upload failed' }, 500);
   }

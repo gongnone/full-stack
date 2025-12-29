@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { HubCard } from './HubCard';
-import type { HubListItem } from '../../../worker/types';
+import type { HubListItem } from '@worker/types';
 
 // Mock @tanstack/react-router Link
 vi.mock('@tanstack/react-router', () => ({

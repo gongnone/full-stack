@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SpokeCard } from './SpokeCard';
-import type { Spoke } from '../../../worker/types';
+import type { Spoke } from '@worker/types';
 
 describe('SpokeCard', () => {
   const mockSpoke: Spoke = {
@@ -22,6 +22,7 @@ describe('SpokeCard', () => {
     g5_status: 'pass',
     is_mutated: 0,
     parent_spoke_id: null,
+    cloned_from: null,
     generation_attempt: 1,
     created_at: Date.now(),
     updated_at: Date.now(),

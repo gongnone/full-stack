@@ -16,6 +16,18 @@ const platformEnum = z.enum([
   'youtube_thumbnail',
 ]);
 
+interface ExportResult {
+  exportId: string;
+  status: string;
+  downloadUrl?: string;
+  createdAt?: string;
+  format?: string;
+  spokeCount?: number;
+  platforms?: string[];
+  includesScheduling?: boolean;
+  includesMedia?: boolean;
+}
+
 export const exportsRouter = t.router({
   // Create a content export (Story 6.1, 6.2, 6.3, 6.4)
   create: procedure
@@ -37,7 +49,7 @@ export const exportsRouter = t.router({
         includeVisuals: input.includeVisuals,
         includeScheduling: input.includeScheduling,
         groupByPlatform: input.groupByPlatform,
-      });
+      }) as ExportResult;
 
       return {
         exportId: result.exportId,
@@ -55,7 +67,7 @@ export const exportsRouter = t.router({
       await assertClientAccess(ctx, input.clientId);
       const result = await ctx.callAgent(input.clientId, 'getExport', {
         exportId: input.exportId,
-      });
+      }) as ExportResult;
 
       if (!result || result.status !== 'completed') {
         throw new Error('Export not ready or not found');
@@ -79,7 +91,7 @@ export const exportsRouter = t.router({
       await assertClientAccess(ctx, input.clientId);
       const items = await ctx.callAgent(input.clientId, 'listExports', {
         limit: input.limit,
-      });
+      }) as ExportResult[];
 
       return {
         items,
@@ -95,19 +107,24 @@ export const exportsRouter = t.router({
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
+      interface SpokeContent {
+        platform: string;
+        pillarId?: string;
+        content: string;
+      }
       const spokes = await ctx.callAgent(input.clientId, 'getSpokes', {
         spokeIds: input.spokeIds,
-      });
+      }) as SpokeContent[];
 
       let content = '';
       if (input.format === 'json') {
         content = JSON.stringify(spokes, null, 2);
       } else if (input.format === 'markdown') {
-        content = spokes.map((s: any) =>
+        content = spokes.map((s) =>
           `## ${s.platform.toUpperCase()} - ${s.pillarId || 'General'}\n\n${s.content}\n\n---\n`
         ).join('\n');
       } else {
-        content = spokes.map((s: any) => s.content).join('\n\n---\n\n');
+        content = spokes.map((s) => s.content).join('\n\n---\n\n');
       }
 
       return {
@@ -126,7 +143,7 @@ export const exportsRouter = t.router({
       await assertClientAccess(ctx, input.clientId);
       const result = await ctx.callAgent(input.clientId, 'getExport', {
         exportId: input.exportId,
-      });
+      }) as ExportResult;
 
       return {
         exportId: input.exportId,

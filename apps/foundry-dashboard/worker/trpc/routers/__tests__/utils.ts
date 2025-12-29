@@ -51,6 +51,8 @@ export const createMockContext = () => {
     first: mockFirst,
   };
 
+  const mockDrizzle = {} as any; // Mock Drizzle instance
+
   const mockCallAgent = vi.fn();
   const mockFetch = vi.fn();
 
@@ -60,6 +62,7 @@ export const createMockContext = () => {
       CONTENT_ENGINE: { fetch: mockFetch }
     } as any,
     db: mockDb as any,
+    drizzle: mockDrizzle,
     userId: 'user-123',
     accountId: 'account-123',
     userRole: 'admin',

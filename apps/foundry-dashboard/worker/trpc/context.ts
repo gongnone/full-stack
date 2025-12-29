@@ -1,11 +1,11 @@
 import type { Env } from '../index';
-import { initDatabase } from '@repo/data-ops/database';
-import { DrizzleD1Database } from 'drizzle-orm/d1';
+import { initDatabase, type DrizzleD1Database } from '../db';
+import * as schema from '../db/schema';
 
 export interface Context {
   env: Env;
   db: D1Database;
-  drizzle: DrizzleD1Database<any>;
+  drizzle: DrizzleD1Database<typeof schema>;
   userId: string;
   accountId: string;
   userRole: string;

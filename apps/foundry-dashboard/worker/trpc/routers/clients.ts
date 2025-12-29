@@ -20,7 +20,7 @@ export const clientsRouter = t.router({
         INNER JOIN client_members cm ON c.id = cm.client_id
         WHERE cm.user_id = ?
       `;
-      const params: any[] = [ctx.userId];
+      const params: (string | number | null)[] = [ctx.userId];
 
       if (input.status) {
         query += ' AND c.status = ?';
@@ -31,8 +31,19 @@ export const clientsRouter = t.router({
 
       const result = await ctx.db.prepare(query).bind(...params).all();
 
+      interface ClientRow {
+        id: string;
+        name: string;
+        status: 'active' | 'paused' | 'archived';
+        industry: string | null;
+        contact_email: string | null;
+        logo_url: string | null;
+        brand_color: string;
+        created_at: number;
+      }
+
       return {
-        items: result.results.map((r: any) => ({
+        items: (result.results as unknown as ClientRow[]).map((r) => ({
           id: r.id,
           name: r.name,
           status: r.status,
@@ -86,7 +97,7 @@ export const clientsRouter = t.router({
           clientId,
           success: true,
         };
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Error creating client:', err);
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
@@ -171,7 +182,7 @@ export const clientsRouter = t.router({
           .run();
 
         return { success: true };
-      } catch (err) {
+      } catch (err: unknown) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
           message: 'User is already a member of this client.',
@@ -224,14 +235,23 @@ export const clientsRouter = t.router({
     }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      const dna = await ctx.callAgent(input.clientId, 'getBrandDNA', {});
+      interface BrandDNA {
+        voiceMarkers?: unknown[];
+        bannedWords?: unknown[];
+        stances?: unknown[];
+        toneProfile?: Record<string, unknown>;
+        signaturePatterns?: unknown[];
+        lastCalibration?: string | number | Date;
+      }
+
+      const dna = await ctx.callAgent(input.clientId, 'getBrandDNA', {}) as BrandDNA;
 
       // Calculate a basic strength score based on available data
       let score = 0;
-      if (dna.voiceMarkers?.length > 0) score += 25;
-      if (dna.bannedWords?.length > 0) score += 25;
-      if (dna.stances?.length > 0) score += 25;
-      if (Object.keys(dna.toneProfile || {}).length > 0) score += 25;
+      if (Array.isArray(dna.voiceMarkers) && dna.voiceMarkers.length > 0) score += 25;
+      if (Array.isArray(dna.bannedWords) && dna.bannedWords.length > 0) score += 25;
+      if (Array.isArray(dna.stances) && dna.stances.length > 0) score += 25;
+      if (dna.toneProfile && Object.keys(dna.toneProfile).length > 0) score += 25;
 
       return {
         strengthScore: score,
@@ -240,7 +260,7 @@ export const clientsRouter = t.router({
         bannedWords: dna.bannedWords || [],
         stances: dna.stances || [],
         signaturePatterns: dna.signaturePatterns || [],
-        lastCalibration: dna.lastCalibration ? new Date(dna.lastCalibration) : null,
+        lastCalibration: dna.lastCalibration ? new Date(dna.lastCalibration as string | number | Date) : null,
       };
     }),
 
@@ -392,7 +412,7 @@ export const clientsRouter = t.router({
       }
 
       const updates: string[] = [];
-      const params: any[] = [];
+      const params: (string | number | null)[] = [];
 
       if (input.name !== undefined) {
         updates.push('name = ?');
@@ -525,10 +545,21 @@ export const clientsRouter = t.router({
         });
       }
 
+      interface ClientRowById {
+        id: string;
+        name: string;
+        status: 'active' | 'paused' | 'archived';
+        industry: string | null;
+        contact_email: string | null;
+        logo_url: string | null;
+        brand_color: string;
+        created_at: number;
+      }
+
       const client = await ctx.db
         .prepare('SELECT id, name, status, industry, contact_email, logo_url, brand_color, created_at FROM clients WHERE id = ?')
         .bind(input.clientId)
-        .first<any>();
+        .first<ClientRowById>();
 
       if (!client) {
         throw new TRPCError({

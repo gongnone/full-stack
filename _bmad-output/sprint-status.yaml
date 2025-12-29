@@ -126,15 +126,25 @@ remediation_backlog:
 
   # HIGH Priority
   R-1-type-safety-remediation:
-    status: Ready for Dev
+    status: Verified
     priority: HIGH
     effort: 4-6 hours
+    completed: 2025-12-29
     issue: "35+ any types in worker code degrade TypeScript safety"
 
+  R-1b-frontend-type-fixes:
+    status: done
+    priority: HIGH
+    effort: 1 hour
+    completed: 2025-12-29
+    issue: "58 frontend TypeScript errors from R-1 backend type changes"
+    resolution: "All 58 errors resolved via type fixes in routers, components, routes, and tests"
+
   R-2-analytics-real-calculations:
-    status: Ready for Dev
+    status: done
     priority: HIGH
     effort: 2-3 hours
+    completed: 2025-12-29
     issue: "Analytics dashboard shows hardcoded fake metrics"
 
   # MEDIUM Priority
@@ -146,9 +156,10 @@ remediation_backlog:
     issue: "2 components use arbitrary Tailwind colors instead of design tokens"
 
   R-4-clone-spoke-implementation:
-    status: Ready for Dev
+    status: Verified
     priority: MEDIUM
     effort: 1-2 hours
+    completed: 2025-12-29
     issue: "Clone spoke handler is TODO stub"
 
   R-5-spoke-detail-navigation:

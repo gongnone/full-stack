@@ -31,6 +31,7 @@ import { Miniflare } from 'miniflare';
 import fs from 'fs';
 import path from 'path';
 import type { Context } from '../../context';
+import { initDatabase } from '../../../db';
 
 // Use web crypto API (available in Cloudflare Workers and Node 19+)
 const randomUUID = (): string => crypto.randomUUID();
@@ -58,6 +59,7 @@ export async function createIntegrationContext(): Promise<IntegrationContext> {
   });
 
   const db = await mf.getD1Database('DB');
+  const drizzle = initDatabase(db);
 
   // Generate test IDs
   const testAccountId = randomUUID();
@@ -85,6 +87,7 @@ export async function createIntegrationContext(): Promise<IntegrationContext> {
       },
     } as any,
     db,
+    drizzle,
     mf,
     userId: testUserId,
     accountId: testAccountId,

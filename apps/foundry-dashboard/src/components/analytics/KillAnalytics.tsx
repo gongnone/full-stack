@@ -176,13 +176,17 @@ export function KillAnalytics({ periodDays = 30 }: KillAnalyticsProps) {
       </div>
 
       {/* Top Kill Reasons */}
-      {data.topReasons && data.topReasons.length > 0 && (
+      {data.topReasons && data.topReasons.length > 0 && (() => {
+        const totalKillReasons = data.topReasons.reduce((sum, r) => sum + r.count, 0);
+        return (
         <div className="pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
           <h4 className="text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
             Top Kill Reasons (Learning Opportunities)
           </h4>
           <div className="space-y-3 mb-4">
-            {data.topReasons.map((reason, index) => (
+            {data.topReasons.map((reason, index) => {
+              const percentage = totalKillReasons > 0 ? Math.round((reason.count / totalKillReasons) * 100) : 0;
+              return (
               <div key={reason.reason} className="flex items-center gap-3">
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
@@ -190,21 +194,21 @@ export function KillAnalytics({ periodDays = 30 }: KillAnalyticsProps) {
                       {reason.reason}
                     </span>
                     <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                      {reason.count} ({reason.percentage}%)
+                      {reason.count} ({percentage}%)
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-black/30">
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
-                        width: `${reason.percentage}%`,
+                        width: `${percentage}%`,
                         backgroundColor: COLORS[index % COLORS.length],
                       }}
                     />
                   </div>
                 </div>
               </div>
-            ))}
+            );})}
           </div>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={data.topReasons}>
@@ -236,7 +240,8 @@ export function KillAnalytics({ periodDays = 30 }: KillAnalyticsProps) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

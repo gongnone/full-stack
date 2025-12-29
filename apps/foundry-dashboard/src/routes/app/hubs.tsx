@@ -7,7 +7,7 @@ import { createFileRoute, Link, Outlet, useMatch } from '@tanstack/react-router'
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { HubCard } from '@/components/hubs';
-import type { HubListItem } from '../../../worker/types';
+import type { HubListItem } from '@worker/types';
 
 export const Route = createFileRoute('/app/hubs')({
   component: HubsLayout,

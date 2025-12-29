@@ -10,7 +10,7 @@ import type {
   SpokeGenerationProgress,
   SpokePlatform,
   SpokeStatus
-} from '../../../worker/types';
+} from '@worker/types';
 
 export interface SpokeGeneratorProps {
   hubId: string;

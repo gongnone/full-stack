@@ -13,7 +13,7 @@ class DateToTimestampPlugin implements KyselyPlugin {
     return this.transformNode(args.node) as RootOperationNode;
   }
 
-  private transformNode(node: any): any {
+  private transformNode(node: unknown): unknown {
     if (node === null || node === undefined) return node;
 
     // Handle Date objects - convert to Unix timestamp
@@ -28,9 +28,9 @@ class DateToTimestampPlugin implements KyselyPlugin {
 
     // Handle objects (including Kysely nodes)
     if (typeof node === 'object') {
-      const result: any = {};
+      const result: Record<string, unknown> = {};
       for (const key of Object.keys(node)) {
-        result[key] = this.transformNode(node[key]);
+        result[key] = this.transformNode((node as Record<string, unknown>)[key]);
       }
       return result;
     }

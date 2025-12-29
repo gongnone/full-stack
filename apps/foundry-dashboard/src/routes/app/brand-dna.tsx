@@ -45,14 +45,16 @@ export const Route = createFileRoute('/app/brand-dna')({
 interface VoiceResult {
   calibrationId: string;
   recordingId: string;
-  transcript: string;
-  entitiesExtracted: {
+  status?: string;
+  message?: string;
+  transcript?: string;
+  entitiesExtracted?: {
     bannedWords: string[];
     voiceMarkers: string[];
     stances: Array<{ topic: string; position: string }>;
   };
-  dnaScoreBefore: number;
-  dnaScoreAfter: number;
+  dnaScoreBefore?: number;
+  dnaScoreAfter?: number;
 }
 
 function BrandDNAPage() {
@@ -111,7 +113,7 @@ function BrandDNAPage() {
   const deleteSample = trpc.calibration.deleteSample.useMutation();
 
   // Story 2.2: Voice mutations
-  const getVoiceUploadUrl = trpc.calibration.getVoiceUploadUrl.useMutation();
+  const getVoiceUploadUrl = trpc.calibration.getUploadUrl.useMutation();
   const recordVoice = trpc.calibration.recordVoice.useMutation();
 
   // Story 2.3: Analyze DNA mutation
@@ -341,15 +343,15 @@ function BrandDNAPage() {
                 className="text-3xl font-bold"
                 style={{ color: 'var(--text-primary)' }}
               >
-                {brandDNAQuery.data.dnaStrength}%
+                {brandDNAQuery.data.strengthScore}%
               </span>
               <div
                 className="w-2.5 h-2.5 rounded-full"
                 style={{
                   backgroundColor:
-                    brandDNAQuery.data.dnaStrength >= BRAND_DNA_CONFIG.STRENGTH_THRESHOLDS.STRONG
+                    brandDNAQuery.data.strengthScore >= BRAND_DNA_CONFIG.STRENGTH_THRESHOLDS.STRONG
                       ? 'var(--approve)'
-                      : brandDNAQuery.data.dnaStrength >= BRAND_DNA_CONFIG.STRENGTH_THRESHOLDS.ADEQUATE
+                      : brandDNAQuery.data.strengthScore >= BRAND_DNA_CONFIG.STRENGTH_THRESHOLDS.ADEQUATE
                       ? 'var(--warning)'
                       : 'var(--kill)',
                 }}

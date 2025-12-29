@@ -3,7 +3,7 @@
  * Filter spokes by platform
  */
 
-import type { SpokePlatform } from '../../../worker/types';
+import type { SpokePlatform } from '@worker/types';
 
 export interface PlatformFilterProps {
   value: SpokePlatform | 'all';

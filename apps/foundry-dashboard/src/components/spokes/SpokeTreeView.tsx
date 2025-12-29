@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { SpokeCard } from './SpokeCard';
-import type { Spoke, SpokePlatform, Pillar } from '../../../worker/types';
+import type { Spoke, SpokePlatform, Pillar } from '@worker/types';
 
 // Psychological angle colors (matching hub detail page)
 const ANGLE_COLORS: Record<string, string> = {

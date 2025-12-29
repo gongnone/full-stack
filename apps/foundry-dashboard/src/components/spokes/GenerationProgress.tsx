@@ -3,7 +3,7 @@
  * Shows progress of spoke generation
  */
 
-import type { SpokeGenerationProgress } from '../../../worker/types';
+import type { SpokeGenerationProgress } from '@worker/types';
 
 export interface GenerationProgressProps {
   progress: SpokeGenerationProgress | null;

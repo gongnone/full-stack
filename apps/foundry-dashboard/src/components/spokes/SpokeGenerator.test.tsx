@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SpokeGenerator, type GeneratedSpoke } from './SpokeGenerator';
-import type { SpokePlatform } from '../../../worker/types';
+import type { SpokePlatform } from '@worker/types';
 
 describe('SpokeGenerator', () => {
   const mockHubId = 'hub-123';

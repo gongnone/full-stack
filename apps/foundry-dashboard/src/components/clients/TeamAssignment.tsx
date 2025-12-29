@@ -132,9 +132,8 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
                         required
                         value={newMemberEmail}
                         onChange={(e) => setNewMemberEmail(e.target.value)}
-                        placeholder="colleague@example.com"
-                        className="w-full px-3 py-2 rounded-lg bg-black/20 border transition-all focus:ring-2 focus:ring-blue-500/20"
-                        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+                        className="w-full px-3 py-2 rounded-lg bg-black/20 border transition-all focus:ring-2"
+                        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)', '--tw-ring-color': 'rgba(29, 155, 240, 0.2)' } as React.CSSProperties}
                       />
                     </div>
 
@@ -146,8 +145,8 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
                         id="member-role"
                         value={newMemberRole}
                         onChange={(e) => setNewMemberRole(e.target.value as ClientRole)}
-                        className="w-full px-3 py-2 rounded-lg bg-black/20 border transition-all focus:ring-2 focus:ring-blue-500/20"
-                        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+                        className="w-full px-3 py-2 rounded-lg bg-black/20 border transition-all focus:ring-2"
+                        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)', '--tw-ring-color': 'rgba(29, 155, 240, 0.2)' } as React.CSSProperties}
                       >
                         {Object.entries(ROLE_LABELS).map(([value, label]) => (
                           <option key={value} value={value}>
@@ -185,7 +184,7 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
                   </form>
 
                   {addMemberMutation.error && (
-                    <p className="mt-2 text-xs text-red-500">
+                    <p className="mt-2 text-xs" style={{ color: 'var(--kill)' }}>
                       {addMemberMutation.error.message}
                     </p>
                   )}
@@ -227,7 +226,8 @@ export function TeamAssignment({ isOpen, onClose, client }: TeamAssignmentProps)
                         <button
                           onClick={() => handleRemoveMember(member.id)}
                           disabled={removeMemberMutation.isPending}
-                          className="p-1.5 rounded-lg transition-colors hover:bg-red-500/10 text-red-500 disabled:opacity-50"
+                          className="p-1.5 rounded-lg transition-colors hover:bg-[var(--kill-glow)] disabled:opacity-50"
+                          style={{ color: 'var(--kill)' }}
                         >
                           <X className="w-4 h-4" />
                         </button>

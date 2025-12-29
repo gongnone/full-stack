@@ -80,9 +80,8 @@ async function sendEmail(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
+      // Log error without PII (email address or subject)
       console.error(`Email send attempt ${attempt}/${retries} failed:`, {
-        to: options.to,
-        subject: options.subject,
         error: lastError.message,
       });
 
@@ -98,6 +97,18 @@ async function sendEmail(
     success: false,
     error: lastError?.message || 'Unknown error',
   };
+}
+
+/**
+ * Simple HTML escape to prevent injection
+ */
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 /**
@@ -158,13 +169,12 @@ export async function sendVerificationEmail(
   user: EmailUser,
   verificationUrl: string
 ): Promise<{ success: boolean; error?: string }> {
-  // Skip sending in non-production if SES is not configured
+  // Skip sending if SES is not configured (dev mode - silent fallback)
   if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
-    console.log('SES not configured, skipping email send', { to: user.email });
-    return { success: true }; // Return success for dev mode
+    return { success: true }; // Silent fallback for dev mode
   }
 
-  const userName = user.name || 'there';
+  const userName = escapeHtml(user.name || 'there');
 
   const htmlContent = `
     <p style="margin: 0 0 20px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
@@ -224,13 +234,12 @@ export async function sendPasswordResetEmail(
   user: EmailUser,
   resetUrl: string
 ): Promise<{ success: boolean; error?: string }> {
-  // Skip sending in non-production if SES is not configured
+  // Skip sending if SES is not configured (dev mode - silent fallback)
   if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
-    console.log('SES not configured, skipping email send', { to: user.email });
-    return { success: true }; // Return success for dev mode
+    return { success: true }; // Silent fallback for dev mode
   }
 
-  const userName = user.name || 'there';
+  const userName = escapeHtml(user.name || 'there');
 
   const htmlContent = `
     <p style="margin: 0 0 20px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">

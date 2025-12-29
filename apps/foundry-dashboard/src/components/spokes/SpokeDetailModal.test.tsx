@@ -5,8 +5,9 @@ import type { Spoke } from '@worker/types';
 
 const MOCK_SPOKE: Spoke = {
   id: 'spoke-1',
-  hubId: 'hub-1',
-  pillarId: 'pillar-1',
+  hub_id: 'hub-1',
+  pillar_id: 'pillar-1',
+  client_id: 'client-1',
   platform: 'twitter',
   status: 'ready',
   content: 'This is a test tweet',
@@ -17,10 +18,12 @@ const MOCK_SPOKE: Spoke = {
   quality_scores: {
     g7_overall: 90
   },
+  is_mutated: 0,
+  parent_spoke_id: null,
+  cloned_from: null,
   created_at: Date.now(),
   updated_at: Date.now(),
   generation_attempt: 1,
-  metadata: {}
 };
 
 describe('SpokeDetailModal', () => {
@@ -68,9 +71,11 @@ describe('SpokeDetailModal', () => {
     // We can find it by its accessibility label if added, or by role
     // Since our component wraps the SVG in a button, we can look for button
     const buttons = screen.getAllByRole('button');
-    // The close button is usually the first one or distinct. 
+    // The close button is usually the first one or distinct.
     // In our implementation it's inside Dialog.Close
-    fireEvent.click(buttons[0]); 
+    if (buttons[0]) {
+      fireEvent.click(buttons[0]);
+    }
     expect(handleClose).toHaveBeenCalled();
   });
 

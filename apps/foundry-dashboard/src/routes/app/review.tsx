@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { z } from 'zod';
 import { ActionButton, ScoreBadge, KeyboardHint } from '@/components/ui';
 import { BucketCard, SprintComplete, KillConfirmationModal, CloneSpokeModal } from '@/components/review';
+import type { CloneOptions } from '@/components/review';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 
@@ -59,6 +60,20 @@ function ReviewPage() {
     },
     onError: (err) => {
       alert(`Failed to save edit: ${err.message}`);
+    },
+  });
+
+  // Clone mutation for Story R-4
+  const cloneSpokeMutation = trpc.spokes.clone.useMutation({
+    onSuccess: (result) => {
+      setShowCloneModal(false);
+      queueQuery.refetch();
+      const modeLabel = result.mode === 'exact' ? 'copied' :
+                        result.mode === 'platform' ? 'adapted' : 'queued for variation';
+      alert(`Spoke ${modeLabel}! ${result.newSpokeIds.length} new spoke(s) created.`);
+    },
+    onError: (err) => {
+      alert(`Failed to clone: ${err.message}`);
     },
   });
 
@@ -325,7 +340,7 @@ function ReviewPage() {
 
       {/* High-Velocity Card Container */}
       <div className="relative min-h-[500px] flex items-center justify-center">
-        <div
+        {currentSpoke && <div
           key={currentSpoke.id}
           className={`
             w-full max-w-2xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-2xl p-8 shadow-2xl transition-all duration-150 ease-out relative
@@ -350,19 +365,61 @@ function ReviewPage() {
                   {currentSpoke.pillarId || 'General'}
                 </div>
               </div>
+              
+              {/* Variation/Clone Badge */}
+              {currentSpoke.parent_spoke_id && (
+                <div 
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium"
+                  style={{ backgroundColor: 'var(--edit-glow)', color: 'var(--edit)' }}
+                  title={`Variation of ${currentSpoke.parent_spoke_id.slice(0, 8)}...`}
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Variation
+                </div>
+              )}
+              {currentSpoke.cloned_from && !currentSpoke.parent_spoke_id && (
+                <div 
+                  className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium"
+                  style={{ backgroundColor: 'var(--approve-glow)', color: 'var(--approve)' }}
+                  title={`Cloned from ${currentSpoke.cloned_from.slice(0, 8)}...`}
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Clone
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2">
               <ScoreBadge score={currentSpoke.qualityScores?.g7_engagement || 0} gate="G7" showGate size="sm" />
               <ScoreBadge score={(currentSpoke.qualityScores?.g2_hook || 0) / 10} gate="G2" showGate size="sm" />
-              {(currentSpoke.qualityScores?.g7_engagement || 0) >= 9.0 && (
+              <div className="relative group/clone">
                 <button
-                  onClick={() => setShowCloneModal(true)}
-                  className="px-3 py-1 rounded-full bg-[var(--approve-glow)] text-[var(--approve)] text-xs font-bold hover:bg-[var(--approve)] hover:text-white transition-colors"
+                  onClick={() => {
+                    if ((currentSpoke.qualityScores?.g7_engagement || 0) >= 9.0) {
+                      setShowCloneModal(true);
+                    }
+                  }}
+                  disabled={(currentSpoke.qualityScores?.g7_engagement || 0) < 9.0}
+                  className={`
+                    px-3 py-1 rounded-full text-xs font-bold transition-colors
+                    ${(currentSpoke.qualityScores?.g7_engagement || 0) >= 9.0
+                      ? 'bg-[var(--approve-glow)] text-[var(--approve)] hover:bg-[var(--approve)] hover:text-white'
+                      : 'bg-[var(--bg-surface)] text-[var(--text-disabled)] cursor-not-allowed border border-[var(--border-subtle)]'
+                    }
+                  `}
                 >
                   Clone
                 </button>
-              )}
+                {(currentSpoke.qualityScores?.g7_engagement || 0) < 9.0 && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black/80 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover/clone:opacity-100 transition-opacity pointer-events-none">
+                    Requires G7 Score ≥ 9.0
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -386,7 +443,7 @@ function ReviewPage() {
               </span>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Visual Cues for Swiping */}
         <div className={`absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 transition-all duration-300 ${direction === 'left' ? 'opacity-100 scale-110 text-[var(--kill)]' : 'opacity-20 text-[var(--text-muted)]'}`}>
@@ -473,16 +530,24 @@ function ReviewPage() {
         isLoading={killHubMutation.isPending}
       />
 
-      {/* Clone Spoke Modal */}
+      {/* Clone Spoke Modal (Story R-4) */}
       <CloneSpokeModal
         isOpen={showCloneModal}
         onClose={() => setShowCloneModal(false)}
-        onConfirm={(_options) => {
-          // TODO: Implement clone with options (Story 9-6)
-          setShowCloneModal(false);
+        onConfirm={(options: CloneOptions) => {
+          if (!clientId || !currentSpoke) return;
+          cloneSpokeMutation.mutate({
+            clientId,
+            spokeId: currentSpoke.id,
+            mode: options.mode,
+            count: options.variationCount,
+            targetPlatform: options.targetPlatform,
+          });
         }}
         spokeContent={currentSpoke?.content || ''}
         spokeScore={currentSpoke?.qualityScores?.g7_engagement || 0}
+        currentPlatform={currentSpoke?.platform}
+        isLoading={cloneSpokeMutation.isPending}
       />
 
       {/* Edit Spoke Modal */}

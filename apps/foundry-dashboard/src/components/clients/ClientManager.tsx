@@ -12,10 +12,11 @@ interface Client {
   id: string;
   name: string;
   status: 'active' | 'paused' | 'archived';
-  industry?: string;
-  contactEmail?: string;
+  industry?: string | null;
+  contactEmail?: string | null;
+  logoUrl?: string | null;
   brandColor?: string;
-  createdAt: string;
+  createdAt: number;
 }
 
 export function ClientManager() {

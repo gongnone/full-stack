@@ -1,229 +1,112 @@
-/**
- * Story 5.6: CloneSpokeModal - Unit Tests
- */
-
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { CloneSpokeModal } from './CloneSpokeModal';
+import { describe, it, expect, vi } from 'vitest';
+import { CloneSpokeModal, CloneOptions } from './CloneSpokeModal';
 
 describe('CloneSpokeModal', () => {
+  const mockOnClose = vi.fn();
+  const mockOnConfirm = vi.fn();
   const defaultProps = {
     isOpen: true,
-    onClose: vi.fn(),
-    onConfirm: vi.fn(),
-    spokeContent: 'This is a high-quality spoke content for cloning.',
-    spokeScore: 8.5,
+    onClose: mockOnClose,
+    onConfirm: mockOnConfirm,
+    spokeContent: 'Test spoke content',
+    spokeScore: 9.5,
+    currentPlatform: 'twitter',
+    isLoading: false,
   };
 
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it('renders correctly when open', () => {
+    render(<CloneSpokeModal {...defaultProps} />);
+    expect(screen.getByText('Clone Spoke')).toBeInTheDocument();
+    expect(screen.getByText('Test spoke content')).toBeInTheDocument();
+    expect(screen.getByText('G7: 9.5')).toBeInTheDocument();
   });
 
-  describe('Rendering', () => {
-    it('renders when isOpen is true', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
-
-      expect(screen.getByText('Clone Best')).toBeInTheDocument();
-    });
-
-    it('does not render when isOpen is false', () => {
-      render(<CloneSpokeModal {...defaultProps} isOpen={false} />);
-
-      expect(screen.queryByText('Clone Best')).not.toBeInTheDocument();
-    });
-
-    it('displays spoke score', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
-
-      expect(screen.getByText('G7: 8.5')).toBeInTheDocument();
-    });
-
-    it('displays original spoke content', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
-
-      expect(screen.getByText('Original Spoke')).toBeInTheDocument();
-      expect(screen.getByText(defaultProps.spokeContent)).toBeInTheDocument();
-    });
+  it('does not render when closed', () => {
+    render(<CloneSpokeModal {...defaultProps} isOpen={false} />);
+    expect(screen.queryByText('Clone Spoke')).not.toBeInTheDocument();
   });
 
-  describe('Variation Count Selection', () => {
-    it('renders variation count buttons 1-5', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
+  it('defaults to "Exact Copy" mode', () => {
+    render(<CloneSpokeModal {...defaultProps} />);
+    // Check if Exact Copy is selected (based on button style or text)
+    const exactButton = screen.getByText('Exact Copy').closest('button');
+    expect(exactButton).toHaveClass('bg-[var(--edit)]');
+    expect(screen.getByText('Create Exact Copy')).toBeInTheDocument();
+  });
 
-      expect(screen.getByRole('button', { name: '1' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: '2' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: '3' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: '4' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: '5' })).toBeInTheDocument();
-    });
+  it('switches to "New Variation" mode and shows count selector', () => {
+    render(<CloneSpokeModal {...defaultProps} />);
+    
+    // Click Variation mode
+    fireEvent.click(screen.getByText('New Variation'));
+    
+    expect(screen.getByText('Number of Variations')).toBeInTheDocument();
+    expect(screen.getByText('Generate 1 Variation')).toBeInTheDocument();
 
-    it('defaults to 3 variations selected', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
+    // Select 3 variations
+    fireEvent.click(screen.getByText('3'));
+    expect(screen.getByText('Generate 3 Variations')).toBeInTheDocument();
+  });
 
-      // Confirm button shows "Clone 3 Variations"
-      expect(screen.getByRole('button', { name: /clone 3 variations/i })).toBeInTheDocument();
-    });
+  it('switches to "Different Platform" mode and shows platform selector', () => {
+    render(<CloneSpokeModal {...defaultProps} />);
+    
+    // Click Platform mode
+    fireEvent.click(screen.getByText('Different Platform'));
+    
+    expect(screen.getByText('Target Platform')).toBeInTheDocument();
+    expect(screen.getByText('Select Platform')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Select Platform/i })).toBeDisabled();
 
-    it('updates variation count when button clicked', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
+    // Select LinkedIn
+    fireEvent.click(screen.getByText('LinkedIn'));
+    expect(screen.getByText('Clone to LinkedIn')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Clone to LinkedIn/i })).toBeEnabled();
+  });
 
-      fireEvent.click(screen.getByRole('button', { name: '5' }));
-
-      expect(screen.getByRole('button', { name: /clone 5 variations/i })).toBeInTheDocument();
-    });
-
-    it('shows singular "Variation" for count of 1', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
-
-      fireEvent.click(screen.getByRole('button', { name: '1' }));
-
-      expect(screen.getByRole('button', { name: /clone 1 variation$/i })).toBeInTheDocument();
+  it('calls onConfirm with correct options for Exact Copy', () => {
+    render(<CloneSpokeModal {...defaultProps} />);
+    fireEvent.click(screen.getByText('Create Exact Copy'));
+    
+    expect(mockOnConfirm).toHaveBeenCalledWith({
+      mode: 'exact',
+      variationCount: 1,
+      targetPlatform: undefined,
     });
   });
 
-  describe('Platform Selection', () => {
-    it('renders LinkedIn platform option', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
-
-      expect(screen.getByText('LinkedIn')).toBeInTheDocument();
-    });
-
-    it('renders X / Twitter platform option', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
-
-      expect(screen.getByText('X / Twitter')).toBeInTheDocument();
-    });
-
-    it('renders Threads platform option', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
-
-      expect(screen.getByText('Threads')).toBeInTheDocument();
-    });
-
-    it('defaults to LinkedIn selected', () => {
-      const onConfirm = vi.fn();
-      render(<CloneSpokeModal {...defaultProps} onConfirm={onConfirm} />);
-
-      // Click confirm to check default selection
-      fireEvent.click(screen.getByRole('button', { name: /clone 3 variations/i }));
-
-      expect(onConfirm).toHaveBeenCalledWith(
-        expect.objectContaining({ platforms: ['linkedin'] })
-      );
-    });
-
-    it('allows toggling platforms', () => {
-      const onConfirm = vi.fn();
-      render(<CloneSpokeModal {...defaultProps} onConfirm={onConfirm} />);
-
-      // Add Twitter
-      fireEvent.click(screen.getByText('X / Twitter'));
-      fireEvent.click(screen.getByRole('button', { name: /clone 3 variations/i }));
-
-      expect(onConfirm).toHaveBeenCalledWith(
-        expect.objectContaining({ platforms: expect.arrayContaining(['linkedin', 'twitter']) })
-      );
-    });
-
-    it('disables confirm when no platforms selected', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
-
-      // Deselect LinkedIn (the default)
-      fireEvent.click(screen.getByText('LinkedIn'));
-
-      expect(screen.getByRole('button', { name: /clone 3 variations/i })).toBeDisabled();
+  it('calls onConfirm with correct options for Variation', () => {
+    render(<CloneSpokeModal {...defaultProps} />);
+    fireEvent.click(screen.getByText('New Variation'));
+    fireEvent.click(screen.getByText('3'));
+    fireEvent.click(screen.getByText('Generate 3 Variations'));
+    
+    expect(mockOnConfirm).toHaveBeenCalledWith({
+      mode: 'variation',
+      variationCount: 3,
+      targetPlatform: undefined,
     });
   });
 
-  describe('Vary Angle Option', () => {
-    it('renders vary angle checkbox', () => {
-      render(<CloneSpokeModal {...defaultProps} />);
-
-      expect(screen.getByText('Vary Psychological Angle')).toBeInTheDocument();
-    });
-
-    it('defaults to unchecked', () => {
-      const onConfirm = vi.fn();
-      render(<CloneSpokeModal {...defaultProps} onConfirm={onConfirm} />);
-
-      fireEvent.click(screen.getByRole('button', { name: /clone 3 variations/i }));
-
-      expect(onConfirm).toHaveBeenCalledWith(
-        expect.objectContaining({ varyAngle: false })
-      );
-    });
-
-    it('toggles when checkbox clicked', () => {
-      const onConfirm = vi.fn();
-      render(<CloneSpokeModal {...defaultProps} onConfirm={onConfirm} />);
-
-      const checkbox = screen.getByRole('checkbox');
-      fireEvent.click(checkbox);
-
-      fireEvent.click(screen.getByRole('button', { name: /clone 3 variations/i }));
-
-      expect(onConfirm).toHaveBeenCalledWith(
-        expect.objectContaining({ varyAngle: true })
-      );
+  it('calls onConfirm with correct options for Platform', () => {
+    render(<CloneSpokeModal {...defaultProps} />);
+    fireEvent.click(screen.getByText('Different Platform'));
+    fireEvent.click(screen.getByText('LinkedIn'));
+    fireEvent.click(screen.getByText('Clone to LinkedIn'));
+    
+    expect(mockOnConfirm).toHaveBeenCalledWith({
+      mode: 'platform',
+      variationCount: 1,
+      targetPlatform: 'linkedin',
     });
   });
 
-  describe('Actions', () => {
-    it('calls onClose when Cancel clicked', () => {
-      const onClose = vi.fn();
-      render(<CloneSpokeModal {...defaultProps} onClose={onClose} />);
-
-      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
-
-      expect(onClose).toHaveBeenCalled();
-    });
-
-    it('calls onClose when backdrop clicked', () => {
-      const onClose = vi.fn();
-      const { container } = render(<CloneSpokeModal {...defaultProps} onClose={onClose} />);
-
-      // Click the backdrop (the first div with bg-black/60)
-      const backdrop = container.querySelector('.bg-black\\/60');
-      if (backdrop) fireEvent.click(backdrop);
-
-      expect(onClose).toHaveBeenCalled();
-    });
-
-    it('calls onConfirm with correct options', () => {
-      const onConfirm = vi.fn();
-      render(<CloneSpokeModal {...defaultProps} onConfirm={onConfirm} />);
-
-      fireEvent.click(screen.getByRole('button', { name: '4' })); // 4 variations
-      fireEvent.click(screen.getByText('Threads')); // Add Threads
-      fireEvent.click(screen.getByRole('checkbox')); // Enable vary angle
-
-      fireEvent.click(screen.getByRole('button', { name: /clone 4 variations/i }));
-
-      expect(onConfirm).toHaveBeenCalledWith({
-        variationCount: 4,
-        platforms: ['linkedin', 'threads'],
-        varyAngle: true,
-      });
-    });
-  });
-
-  describe('Loading State', () => {
-    it('shows Generating... when loading', () => {
-      render(<CloneSpokeModal {...defaultProps} isLoading={true} />);
-
-      expect(screen.getByText('Generating...')).toBeInTheDocument();
-    });
-
-    it('disables Cancel button when loading', () => {
-      render(<CloneSpokeModal {...defaultProps} isLoading={true} />);
-
-      expect(screen.getByRole('button', { name: /cancel/i })).toBeDisabled();
-    });
-
-    it('disables Confirm button when loading', () => {
-      render(<CloneSpokeModal {...defaultProps} isLoading={true} />);
-
-      expect(screen.getByRole('button', { name: /generating/i })).toBeDisabled();
-    });
+  it('filters out current platform from platform options', () => {
+    render(<CloneSpokeModal {...defaultProps} currentPlatform="twitter" />);
+    fireEvent.click(screen.getByText('Different Platform'));
+    
+    expect(screen.queryByText('X / Twitter')).not.toBeInTheDocument();
+    expect(screen.getByText('LinkedIn')).toBeInTheDocument();
   });
 });

@@ -92,7 +92,18 @@ function ExportsPage() {
   };
 
   const exports = useMemo(() => {
-    return (exportsListQuery.data?.items || []) as ExportHistoryItem[];
+    const items = exportsListQuery.data?.items || [];
+    return items.map((item) => ({
+      id: item.exportId,
+      createdAt: item.createdAt || new Date().toISOString(),
+      status: (item.status || 'pending') as ExportHistoryItem['status'],
+      format: (item.format || 'json') as ExportHistoryItem['format'],
+      spokeCount: item.spokeCount || 0,
+      platforms: item.platforms || [],
+      includesScheduling: item.includesScheduling || false,
+      includesMedia: item.includesMedia || false,
+      downloadUrl: item.downloadUrl,
+    })) satisfies ExportHistoryItem[];
   }, [exportsListQuery.data]);
 
   return (

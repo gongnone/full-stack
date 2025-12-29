@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { GenerationProgress } from './GenerationProgress';
-import type { SpokeGenerationProgress } from '../../../worker/types';
+import type { SpokeGenerationProgress } from '@worker/types';
 
 describe('GenerationProgress', () => {
   describe('Null State', () => {

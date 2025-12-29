@@ -18,22 +18,13 @@ function AnalyticsPage() {
   const clientId = useClientId();
   const [periodDays, setPeriodDays] = useState<number>(ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS);
 
-  const zeroEditQuery = trpc.analytics.getZeroEditRate.useQuery(
+  const summaryQuery = trpc.analytics.getSummaryMetrics.useQuery(
     { clientId: clientId!, periodDays },
     { enabled: !!clientId }
   );
 
-  const passRateQuery = trpc.analytics.getCriticPassRate.useQuery(
-    { clientId: clientId!, periodDays },
-    { enabled: !!clientId }
-  );
-
-  const healingQuery = trpc.analytics.getSelfHealingEfficiency.useQuery(
-    { clientId: clientId!, periodDays },
-    { enabled: !!clientId }
-  );
-
-  const isLoading = zeroEditQuery.isLoading || passRateQuery.isLoading || healingQuery.isLoading;
+  const isLoading = summaryQuery.isLoading;
+  const data = summaryQuery.data;
 
   return (
     <div className="space-y-6 pb-8">
@@ -73,31 +64,31 @@ function AnalyticsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <MetricCard
           title="Zero-Edit Rate"
-          value={isLoading ? '...' : `${zeroEditQuery.data?.rate || 0}%`}
-          subtitle={isLoading ? 'Loading...' : `${zeroEditQuery.data?.withoutEdit || 0} of ${zeroEditQuery.data?.total || 0} approved without edits`}
-          trend={zeroEditQuery.data?.trend === 'up' ? 5 : zeroEditQuery.data?.trend === 'down' ? -3 : null}
+          value={isLoading ? '...' : `${data?.zeroEditRate?.rate || 0}%`}
+          subtitle={isLoading ? 'Loading...' : `${data?.zeroEditRate?.withoutEdit || 0} of ${data?.zeroEditRate?.total || 0} approved without edits`}
+          trend={null}
         />
         <MetricCard
           title="Critic Pass Rate"
-          value={isLoading ? '...' : `${passRateQuery.data?.overall || 0}%`}
+          value={isLoading ? '...' : `${data?.passRates?.overall || 0}%`}
           subtitle="G2/G4/G5 first-pass success"
           trend={null}
         />
         <MetricCard
           title="Self-Healing Efficiency"
-          value={isLoading ? '...' : `${healingQuery.data?.avgLoops || 0}`}
+          value={isLoading ? '...' : `${data?.healing?.avgLoops || 0}`}
           subtitle="Avg regeneration loops per spoke"
           trend={null}
         />
       </div>
 
       {/* Quality Gate Breakdown */}
-      {!isLoading && passRateQuery.data && (
+      {!isLoading && data?.passRates && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <GateMiniCard label="G2 Hook" score={passRateQuery.data.g2} />
-          <GateMiniCard label="G4 Voice" score={passRateQuery.data.g4} />
-          <GateMiniCard label="G5 Platform" score={passRateQuery.data.g5} />
-          <GateMiniCard label="G7 Predicted" score={passRateQuery.data.g7} />
+          <GateMiniCard label="G2 Hook" score={data.passRates.g2} />
+          <GateMiniCard label="G4 Voice" score={data.passRates.g4} />
+          <GateMiniCard label="G5 Platform" score={data.passRates.g5} />
+          <GateMiniCard label="G7 Predicted" score={data.passRates.g7} />
         </div>
       )}
 
@@ -122,13 +113,17 @@ function AnalyticsPage() {
   );
 }
 
-function GateMiniCard({ label, score }: { label: string; score: number }) {
+function GateMiniCard({ label, score }: { label: string; score: number | null }) {
   return (
     <div className="p-4 rounded-xl bg-black/20 border border-white/5 flex flex-col items-center gap-1">
       <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{label}</span>
-      <span className="text-xl font-mono font-bold" style={{ color: score >= 80 ? 'var(--approve)' : 'var(--text-primary)' }}>
-        {score}%
-      </span>
+      {score !== null ? (
+        <span className="text-xl font-mono font-bold" style={{ color: score >= 80 ? 'var(--approve)' : 'var(--text-primary)' }}>
+          {score}%
+        </span>
+      ) : (
+        <span className="text-sm text-muted-foreground">No data</span>
+      )}
     </div>
   );
 }

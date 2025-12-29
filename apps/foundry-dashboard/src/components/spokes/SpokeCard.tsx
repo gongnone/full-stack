@@ -4,7 +4,7 @@
  */
 
 import { GateBadge } from '@/components/ui';
-import type { Spoke, SpokePlatform } from '../../../worker/types';
+import type { Spoke, SpokePlatform } from '@worker/types';
 import { QUALITY_GATE_CONFIG } from '@/lib/constants';
 
 // Platform icons and colors

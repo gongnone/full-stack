@@ -1,6 +1,7 @@
 import { initTRPC } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
+import { assertClientAccess } from '../middleware/client-access';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
@@ -28,6 +29,7 @@ export const exportsRouter = t.router({
       groupByPlatform: z.boolean().default(false), // Story 6.2
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const result = await ctx.callAgent(input.clientId, 'createExport', {
         format: input.format,
         hubIds: input.hubIds,
@@ -50,6 +52,7 @@ export const exportsRouter = t.router({
       exportId: z.string().uuid(),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const result = await ctx.callAgent(input.clientId, 'getExport', {
         exportId: input.exportId,
       });
@@ -73,6 +76,7 @@ export const exportsRouter = t.router({
       limit: z.number().min(1).max(50).default(10),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const items = await ctx.callAgent(input.clientId, 'listExports', {
         limit: input.limit,
       });
@@ -90,6 +94,7 @@ export const exportsRouter = t.router({
       format: z.enum(['plain', 'markdown', 'json']).default('plain'),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const spokes = await ctx.callAgent(input.clientId, 'getSpokes', {
         spokeIds: input.spokeIds,
       });
@@ -118,6 +123,7 @@ export const exportsRouter = t.router({
       exportId: z.string().uuid(),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const result = await ctx.callAgent(input.clientId, 'getExport', {
         exportId: input.exportId,
       });

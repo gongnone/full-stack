@@ -1,6 +1,7 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
+import { assertClientAccess } from '../middleware/client-access';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
@@ -222,6 +223,7 @@ export const clientsRouter = t.router({
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const dna = await ctx.callAgent(input.clientId, 'getBrandDNA', {});
 
       // Calculate a basic strength score based on available data

@@ -1,6 +1,7 @@
 import { initTRPC } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
+import { assertClientAccess } from '../middleware/client-access';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
@@ -13,6 +14,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(7),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       return await ctx.callAgent(input.clientId, 'getZeroEditRate', {
         periodDays: input.periodDays,
       });
@@ -25,6 +27,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(7),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Calculate from Durable Object
       const metrics = await ctx.callAgent(input.clientId, 'getMetrics', {
         metricType: 'spoke_approval', // Proxy for overall pass
@@ -48,6 +51,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(7),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const metrics = await ctx.callAgent(input.clientId, 'getMetrics', {
         metricType: 'review_decision_time',
         periodDays: input.periodDays,
@@ -67,6 +71,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(7),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const metrics = await ctx.callAgent(input.clientId, 'getMetrics', {
         metricType: 'self_healing_loops',
         periodDays: input.periodDays,
@@ -89,6 +94,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const result = await ctx.db
         .prepare(`
           SELECT 
@@ -117,6 +123,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const metrics = await ctx.callAgent(input.clientId, 'getMetrics', {
         metricType: 'hub_kill',
         periodDays: input.periodDays,
@@ -138,6 +145,7 @@ export const analyticsRouter = t.router({
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const dnaReport = await ctx.callAgent(input.clientId, 'getDNAReport', {});
       const timeToDNA = await ctx.callAgent(input.clientId, 'getTimeToDNA', {});
 
@@ -156,6 +164,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Generate daily time series data
       const days = input.periodDays;
       const data = [];
@@ -188,6 +197,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const days = input.periodDays;
       const data = [];
       const now = Date.now();
@@ -216,6 +226,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const days = input.periodDays;
       const data = [];
       const now = Date.now();
@@ -254,6 +265,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const days = input.periodDays;
       const data = [];
       const now = Date.now();
@@ -287,6 +299,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const days = input.periodDays;
       const data = [];
       const now = Date.now();
@@ -327,6 +340,7 @@ export const analyticsRouter = t.router({
       periodDays: z.number().min(1).max(90).default(30),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const days = input.periodDays;
       const data = [];
       const now = Date.now();

@@ -239,8 +239,8 @@ function HubDetailPage() {
 
         try {
           // Invalidate cache first to ensure fresh data on each poll
-          await trpcUtils.spokes.getWorkflowStatus.invalidate({ instanceId: inst.instanceId });
-          const status = await trpcUtils.spokes.getWorkflowStatus.fetch({ instanceId: inst.instanceId });
+          await trpcUtils.spokes.getWorkflowStatus.invalidate({ clientId, instanceId: inst.instanceId });
+          const status = await trpcUtils.spokes.getWorkflowStatus.fetch({ clientId, instanceId: inst.instanceId });
           if (status.status === 'complete') {
             console.log('[Spoke Gen] Instance', inst.instanceId.slice(0, 8), '✓ complete');
           } else if (status.status !== 'running') {

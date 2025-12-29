@@ -10,6 +10,7 @@ import type {
   BrandDNAAnalysisResult,
   SignaturePhrase,
 } from '../../types';
+import { assertClientAccess } from '../middleware/client-access';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
@@ -94,6 +95,7 @@ export const calibrationRouter = t.router({
       offset: z.number().min(0).default(0),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Rule 1: Isolation Above All - always filter by clientId
       const result = await ctx.db
         .prepare(`
@@ -129,6 +131,7 @@ export const calibrationRouter = t.router({
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const sample = await ctx.db
         .prepare('SELECT * FROM training_samples WHERE id = ? AND client_id = ?')
         .bind(input.sampleId, input.clientId)
@@ -155,6 +158,7 @@ export const calibrationRouter = t.router({
       content: z.string().min(10).max(100000), // 10 chars to 100k chars
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const id = crypto.randomUUID();
       const wordCount = countWords(input.content);
       const charCount = input.content.length;
@@ -208,6 +212,7 @@ export const calibrationRouter = t.router({
       contentType: z.string().default('application/pdf'),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Generate unique R2 key with client isolation
       const timestamp = Date.now();
       const sanitizedFilename = input.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -234,6 +239,7 @@ export const calibrationRouter = t.router({
       fileSize: z.number().min(0).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       console.log('registerFileSample called:', { clientId: input.clientId, r2Key: input.r2Key, title: input.title });
 
       // Verify the file exists in R2
@@ -294,6 +300,7 @@ export const calibrationRouter = t.router({
       clientId: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Get sample to check ownership and get r2Key
       const sample = await ctx.db
         .prepare('SELECT * FROM training_samples WHERE id = ? AND client_id = ?')
@@ -332,6 +339,7 @@ export const calibrationRouter = t.router({
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const stats = await ctx.db
         .prepare(`
           SELECT
@@ -383,6 +391,7 @@ export const calibrationRouter = t.router({
       contentType: z.enum(['posts', 'articles', 'transcripts']),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Trigger CalibrationWorkflow via CONTENT_ENGINE
       const response = await ctx.env.CONTENT_ENGINE.fetch(
         new Request('http://internal/api/calibration/start', {
@@ -418,6 +427,7 @@ export const calibrationRouter = t.router({
       audioR2Key: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const calibrationId = crypto.randomUUID();
 
       // Security: Validate R2 key belongs to this client (prevent cross-client access)
@@ -671,6 +681,7 @@ Return ONLY valid JSON with no markdown formatting:
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Rule 1: Isolation Above All - always filter by clientId
       const result = await ctx.db
         .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
@@ -708,6 +719,7 @@ Return ONLY valid JSON with no markdown formatting:
       word: z.string().min(1).max(100),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Get current voice entities
       const result = await ctx.db
         .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
@@ -766,6 +778,7 @@ Return ONLY valid JSON with no markdown formatting:
       word: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const result = await ctx.db
         .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
         .bind(input.clientId)
@@ -806,6 +819,7 @@ Return ONLY valid JSON with no markdown formatting:
       phrase: z.string().min(1).max(200),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const result = await ctx.db
         .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
         .bind(input.clientId)
@@ -863,6 +877,7 @@ Return ONLY valid JSON with no markdown formatting:
       phrase: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const result = await ctx.db
         .prepare(`SELECT voice_entities FROM brand_dna WHERE client_id = ?`)
         .bind(input.clientId)
@@ -902,6 +917,7 @@ Return ONLY valid JSON with no markdown formatting:
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // TODO: Calculate drift from Durable Object
 
       return {
@@ -919,6 +935,7 @@ Return ONLY valid JSON with no markdown formatting:
       filename: z.string().min(1).max(255),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Generate unique R2 key with client isolation
       const timestamp = Date.now();
       const sanitizedFilename = input.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -937,6 +954,7 @@ Return ONLY valid JSON with no markdown formatting:
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Get all analyzed training samples to compute DNA
       const samples = await ctx.db
         .prepare(`
@@ -988,6 +1006,7 @@ Return ONLY valid JSON with no markdown formatting:
       })
     )
     .mutation(async ({ ctx, input }): Promise<BrandDNAAnalysisResult> => {
+      await assertClientAccess(ctx, input.clientId);
       // Rule 1: Isolation Above All - always filter by clientId
       // Fetch all training samples with extracted text
       const samplesResult = await ctx.db
@@ -1211,6 +1230,7 @@ Return ONLY valid JSON (no markdown, no explanation):
       })
     )
     .query(async ({ ctx, input }): Promise<BrandDNAReport | null> => {
+      await assertClientAccess(ctx, input.clientId);
       // Rule 1: Isolation Above All
       const dna = await ctx.db
         .prepare('SELECT * FROM brand_dna WHERE client_id = ?')

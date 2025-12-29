@@ -1,6 +1,7 @@
 import { initTRPC } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
+import { assertClientAccess } from '../middleware/client-access';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
@@ -14,6 +15,7 @@ export const reviewRouter = t.router({
       limit: z.number().min(1).max(100).default(50),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const items = await ctx.callAgent(input.clientId, 'getReviewQueue', {
         filter: input.filter,
         limit: input.limit,
@@ -33,6 +35,7 @@ export const reviewRouter = t.router({
       spokeIds: z.array(z.string().uuid()),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       return await ctx.callAgent(input.clientId, 'bulkApprove', {
         spokeIds: input.spokeIds,
       });
@@ -46,6 +49,7 @@ export const reviewRouter = t.router({
       reason: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       return await ctx.callAgent(input.clientId, 'bulkReject', {
         spokeIds: input.spokeIds,
         reason: input.reason,
@@ -60,6 +64,7 @@ export const reviewRouter = t.router({
       reason: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       return await ctx.callAgent(input.clientId, 'killHub', {
         hubId: input.hubId,
         reason: input.reason,
@@ -74,6 +79,7 @@ export const reviewRouter = t.router({
       action: z.enum(['approve', 'reject', 'skip']),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       if (input.action === 'approve') {
         await ctx.callAgent(input.clientId, 'approveSpoke', { spokeId: input.spokeId });
       } else if (input.action === 'reject') {

@@ -2,6 +2,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
 import type { HubSource, ExtractionProgress, Pillar, Hub, HubListItem, HubWithPillars, PsychologicalAngle } from '../../types';
+import { assertClientAccess } from '../middleware/client-access';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
@@ -22,6 +23,7 @@ export const hubsRouter = t.router({
       filename: z.string().min(1).max(255),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const sourceId = crypto.randomUUID();
       const timestamp = Date.now();
       const sanitizedFilename = input.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -44,6 +46,7 @@ export const hubsRouter = t.router({
       filename: z.string(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const now = Date.now();
       await ctx.db.prepare(`
         INSERT INTO hub_sources (id, client_id, user_id, title, source_type, r2_key, status, created_at, updated_at)
@@ -61,6 +64,7 @@ export const hubsRouter = t.router({
       content: z.string().min(100).max(100000),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const sourceId = crypto.randomUUID();
       const now = Date.now();
       const wordCount = input.content.split(/\s+/).length;
@@ -82,6 +86,7 @@ export const hubsRouter = t.router({
       title: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const sourceId = crypto.randomUUID();
       const now = Date.now();
       const title = input.title || new URL(input.url).hostname;
@@ -101,6 +106,7 @@ export const hubsRouter = t.router({
       limit: z.number().min(1).max(20).default(5),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const result = await ctx.db.prepare(`
         SELECT id, title, source_type, status, word_count, character_count, created_at
         FROM hub_sources
@@ -129,6 +135,7 @@ export const hubsRouter = t.router({
       platform: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Get source content if not provided
       let content = input.content;
       if (!content) {
@@ -184,6 +191,7 @@ export const hubsRouter = t.router({
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }): Promise<ExtractionProgress> => {
+      await assertClientAccess(ctx, input.clientId);
       // Read progress from D1 extraction_progress table
       const progress = await ctx.db.prepare(`
         SELECT source_id, status, current_stage, progress, stage_message, error_message
@@ -218,6 +226,7 @@ export const hubsRouter = t.router({
       clientId: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Get source content
       const source = await ctx.db.prepare(`
         SELECT raw_content FROM hub_sources WHERE id = ? AND client_id = ?
@@ -269,6 +278,7 @@ export const hubsRouter = t.router({
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }): Promise<Pillar[]> => {
+      await assertClientAccess(ctx, input.clientId);
       const result = await ctx.db.prepare(`
         SELECT id, title, core_claim, psychological_angle, estimated_spoke_count, supporting_points
         FROM extracted_pillars
@@ -298,6 +308,7 @@ export const hubsRouter = t.router({
       psychologicalAngle: psychologicalAngleSchema.optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const { pillarId, clientId, title, coreClaim, psychologicalAngle } = input;
 
       // Build dynamic UPDATE query
@@ -337,6 +348,7 @@ export const hubsRouter = t.router({
       clientId: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // First get the pillar for undo capability
       const pillar = await ctx.db.prepare(`
         SELECT id, title, core_claim, psychological_angle, estimated_spoke_count, supporting_points
@@ -381,6 +393,7 @@ export const hubsRouter = t.router({
       }),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const { sourceId, clientId, pillar } = input;
 
       await ctx.db.prepare(`
@@ -410,6 +423,7 @@ export const hubsRouter = t.router({
       title: z.string().max(255).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       // Get source info for hub creation
       const source = await ctx.db.prepare(`
         SELECT title, source_type FROM hub_sources WHERE id = ? AND client_id = ?
@@ -472,6 +486,7 @@ export const hubsRouter = t.router({
       limit: z.number().min(1).max(100).default(20),
     }))
     .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       let query = `
         SELECT id, title, source_type, pillar_count, spoke_count, status, created_at, updated_at
         FROM hubs
@@ -513,6 +528,7 @@ export const hubsRouter = t.router({
       clientId: z.string().min(1),
     }))
     .query(async ({ ctx, input }): Promise<HubWithPillars> => {
+      await assertClientAccess(ctx, input.clientId);
       const hub = await ctx.db.prepare(`
         SELECT id, source_id, title, source_type, pillar_count, spoke_count, status, created_at, updated_at
         FROM hubs WHERE id = ? AND client_id = ?
@@ -564,6 +580,7 @@ export const hubsRouter = t.router({
       clientId: z.string().min(1),
     }))
     .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
       const now = Date.now();
       await ctx.db.prepare(`
         UPDATE hubs SET status = 'archived', updated_at = ? WHERE id = ? AND client_id = ?

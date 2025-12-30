@@ -1276,7 +1276,8 @@ export class ClientAgent extends DurableObject<Env> {
       const twentyFourHoursAgo = new Date()
       twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24)
       const cutoffISO = twentyFourHoursAgo.toISOString()
-      conditions.push(`(status = 'generating' OR created_at >= '${cutoffISO}')`)
+      conditions.push(`(status = 'generating' OR created_at >= ?)`)
+      sqlParams.push(cutoffISO)
     } else {
       // All pending review items
       conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)

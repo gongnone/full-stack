@@ -447,11 +447,29 @@ export const analyticsRouter = t.router({
       previousCutoff.setDate(previousCutoff.getDate() - input.periodDays);
       const previousCutoffISO = previousCutoff.toISOString();
 
-      // Fetch all spokes from the start of the previous period until now (single RPC call)
-      const allRecentSpokes = await ctx.callAgent(input.clientId, 'listSpokes', {
-        limit: 2000,
-        createdAfter: previousCutoffISO,
-      }) as DOSpoke[];
+      // Fetch all spokes from the start of the previous period until now
+      // Use pagination to ensure we get everything (DO limit is usually 1000-2000)
+      const allRecentSpokes: DOSpoke[] = [];
+      let offset = 0;
+      const BATCH_SIZE = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const batch = await ctx.callAgent(input.clientId, 'listSpokes', {
+          limit: BATCH_SIZE,
+          offset,
+          createdAfter: previousCutoffISO,
+        }) as DOSpoke[];
+
+        if (batch.length > 0) {
+          allRecentSpokes.push(...batch);
+          offset += batch.length;
+        }
+
+        if (batch.length < BATCH_SIZE) {
+          hasMore = false;
+        }
+      }
 
       // Filter in memory
       const currentSpokes = allRecentSpokes.filter(s => {

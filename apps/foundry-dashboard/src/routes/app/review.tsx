@@ -52,6 +52,10 @@ function ReviewPage() {
     { clientId: clientId!, filter: 'flagged', limit: 100 },
     { enabled: !!clientId && !rawFilter }
   );
+  const volumeQuery = trpc.analytics.getVolumeMetrics.useQuery(
+    { clientId: clientId!, periodDays: 1 },
+    { enabled: !!clientId && !rawFilter }
+  );
 
   // Active sprint queue query
   const queueQuery = trpc.review.getQueue.useQuery(
@@ -242,7 +246,7 @@ function ReviewPage() {
           />
           <BucketCard
             title="Just Generated"
-            count={0}
+            count={volumeQuery.data?.spokesGenerated ?? 0}
             description="Real-time feed of new content"
             filter="just-generated"
             variant="blue"

@@ -430,23 +430,65 @@ export const analyticsRouter = t.router({
     }),
 
   getVolumeMetrics: procedure
-    .input(z.object({ clientId: z.string().min(1), periodDays: z.number().optional() }))
+    .input(z.object({
+      clientId: z.string().min(1),
+      periodDays: z.number().min(1).max(90).default(1),
+    }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
 
-      const spokes = await ctx.callAgent(input.clientId, 'listSpokes', { limit: 1000 }) as DOSpoke[];
-      const totalSpokes = spokes.length;
-      const totalWords = spokes.reduce((sum, s) => {
-        // Estimate word count from content if available
-        return sum + 150; // Average words per spoke
-      }, 0);
+      // Calculate cutoff dates for current and previous periods
+      const now = new Date();
+      const currentCutoff = new Date(now);
+      currentCutoff.setDate(currentCutoff.getDate() - input.periodDays);
+      const currentCutoffISO = currentCutoff.toISOString();
+
+      const previousCutoff = new Date(currentCutoff);
+      previousCutoff.setDate(previousCutoff.getDate() - input.periodDays);
+      const previousCutoffISO = previousCutoff.toISOString();
+
+      // Fetch all spokes from the start of the previous period until now (single RPC call)
+      const allRecentSpokes = await ctx.callAgent(input.clientId, 'listSpokes', {
+        limit: 2000,
+        createdAfter: previousCutoffISO,
+      }) as DOSpoke[];
+
+      // Filter in memory
+      const currentSpokes = allRecentSpokes.filter(s => {
+        const createdAt = new Date(s.createdAt);
+        return createdAt >= currentCutoff;
+      });
+
+      const previousSpokes = allRecentSpokes.filter(s => {
+        const createdAt = new Date(s.createdAt);
+        return createdAt >= previousCutoff && createdAt < currentCutoff;
+      });
+
+      // Count hubs created in current period
+      const hubCount = await ctx.callAgent(input.clientId, 'countHubs', {
+        createdAfter: currentCutoffISO,
+      }) as { count: number };
+
+      const spokesGenerated = currentSpokes.length;
+      const previousSpokesCount = previousSpokes.length;
+
+      // Calculate trend percentage
+      let trend = 0;
+      if (previousSpokesCount > 0) {
+        trend = Math.round(((spokesGenerated - previousSpokesCount) / previousSpokesCount) * 100);
+      } else if (spokesGenerated > 0) {
+        trend = 100; // All new if no previous period data
+      }
+
+      // Estimate word count from content
+      const totalWords = currentSpokes.reduce((sum, s) => sum + 150, 0);
 
       return {
         totalWords,
-        totalSpokes,
-        spokesGenerated: totalSpokes,
-        hubsCreated: 0, // Would need hub query
-        trend: 5, // Placeholder trend percentage
+        totalSpokes: spokesGenerated,
+        spokesGenerated,
+        hubsCreated: hubCount.count,
+        trend,
       };
     }),
 });

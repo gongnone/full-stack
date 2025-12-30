@@ -278,6 +278,9 @@ export class ClientAgent extends DurableObject<Env> {
       case 'listHubs':
         return Response.json(await this.listHubs(params))
 
+      case 'countHubs':
+        return Response.json(await this.countHubs(params))
+
       case 'killHub':
         return Response.json(await this.killHub(params.hubId, params.reason))
 
@@ -920,17 +923,26 @@ export class ClientAgent extends DurableObject<Env> {
     }
   }
 
-  private async listHubs(params: { status?: string; limit?: number; offset?: number }): Promise<Hub[]> {
+  private async listHubs(params: { status?: string; limit?: number; offset?: number; createdAfter?: string }): Promise<Hub[]> {
     let query = `SELECT * FROM hubs`
     const sqlParams: any[] = []
-    
+    const conditions: string[] = []
+
     if (params.status) {
-      query += ` WHERE status = ?`
+      conditions.push(`status = ?`)
       sqlParams.push(params.status)
     }
-    
+    if (params.createdAfter) {
+      conditions.push(`created_at >= ?`)
+      sqlParams.push(params.createdAfter)
+    }
+
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(' AND ')}`
+    }
+
     query += ` ORDER BY created_at DESC`
-    
+
     if (params.limit) {
       query += ` LIMIT ?`
       sqlParams.push(params.limit)
@@ -949,6 +961,19 @@ export class ClientAgent extends DurableObject<Env> {
       pillars: JSON.parse(row.pillars as string),
       createdAt: row.created_at as string,
     }))
+  }
+
+  private async countHubs(params: { createdAfter?: string }): Promise<{ count: number }> {
+    let query = `SELECT COUNT(*) as count FROM hubs`
+    const sqlParams: any[] = []
+
+    if (params.createdAfter) {
+      query += ` WHERE created_at >= ?`
+      sqlParams.push(params.createdAfter)
+    }
+
+    const result = this.sql.exec(query, ...sqlParams).one()
+    return { count: (result.count as number) || 0 }
   }
 
   private async killHub(hubId: string, reason?: string): Promise<{ killed: number; survived: number }> {
@@ -1092,7 +1117,7 @@ export class ClientAgent extends DurableObject<Env> {
     return this.getSpoke(spokeId) as Promise<Spoke>
   }
 
-  private async listSpokes(params: { hubId?: string; status?: string; limit?: number }): Promise<Spoke[]> {
+  private async listSpokes(params: { hubId?: string; status?: string; limit?: number; createdAfter?: string }): Promise<Spoke[]> {
     let query = `SELECT * FROM spokes WHERE 1=1`
     const sqlParams: any[] = []
 
@@ -1103,6 +1128,10 @@ export class ClientAgent extends DurableObject<Env> {
     if (params.status) {
       query += ` AND status = ?`
       sqlParams.push(params.status)
+    }
+    if (params.createdAfter) {
+      query += ` AND created_at >= ?`
+      sqlParams.push(params.createdAfter)
     }
     query += ` ORDER BY created_at DESC`
     if (params.limit) {
@@ -1242,6 +1271,12 @@ export class ClientAgent extends DurableObject<Env> {
     } else if (params.filter === 'flagged') {
       // Creative Conflicts: Failed QA or escalated
       conditions.push(`(status = 'failed_qa' OR status = 'creative_conflict')`)
+    } else if (params.filter === 'just-generated') {
+      // Just Generated: Spokes with status 'generating' OR created in last 24 hours
+      const twentyFourHoursAgo = new Date()
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24)
+      const cutoffISO = twentyFourHoursAgo.toISOString()
+      conditions.push(`(status = 'generating' OR created_at >= '${cutoffISO}')`)
     } else {
       // All pending review items
       conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)

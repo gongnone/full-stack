@@ -61,7 +61,10 @@ function ReviewPage() {
   const queueQuery = trpc.review.getQueue.useQuery(
     {
       clientId: clientId!,
-      filter: rawFilter === 'high-confidence' ? 'top10' : rawFilter === 'conflicts' ? 'flagged' : rawFilter === 'needs-review' ? 'needs-review' : 'all'
+      filter: rawFilter === 'high-confidence' ? 'top10' : 
+              rawFilter === 'conflicts' ? 'flagged' : 
+              rawFilter === 'needs-review' ? 'needs-review' : 
+              rawFilter === 'just-generated' ? 'just-generated' : 'all'
     },
     { enabled: !!clientId && !!rawFilter }
   );

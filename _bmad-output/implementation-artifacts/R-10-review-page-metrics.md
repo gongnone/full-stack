@@ -2,7 +2,7 @@
 
 **Epic**: Remediation (Post-Epic 9)
 **Priority**: P1 (UX Bug - Metrics Not Tracking)
-**Status**: ready
+**Status**: done
 **Created**: 2025-12-29
 
 ## Problem Statement
@@ -33,22 +33,22 @@ getVolumeMetrics: procedure
 ## Acceptance Criteria
 
 ### AC1: Period-Filtered Spoke Count
-- [ ] `getVolumeMetrics` filters spokes by `createdAt` within `periodDays`
-- [ ] Default `periodDays` is 1 (last 24 hours) if not specified
-- [ ] Returns accurate count of spokes created within the period
+- [x] `getVolumeMetrics` filters spokes by `createdAt` within `periodDays`
+- [x] Default `periodDays` is 1 (last 24 hours) if not specified
+- [x] Returns accurate count of spokes created within the period
 
 ### AC2: Hub Count Implementation
-- [ ] `hubsCreated` returns actual count of hubs created within period
-- [ ] Query hub data from Durable Object or add hub counting RPC
+- [x] `hubsCreated` returns actual count of hubs created within period
+- [x] Query hub data from Durable Object or add hub counting RPC
 
 ### AC3: Just Generated Filter Support
-- [ ] Add `just-generated` filter to `review.getQueue` router
-- [ ] Filter returns spokes with `status = 'generating'` OR created in last 24h
-- [ ] Review page can navigate to Just Generated sprint
+- [x] Add `just-generated` filter to `review.getQueue` router
+- [x] Filter returns spokes with `status = 'generating'` OR created in last 24h
+- [x] Review page can navigate to Just Generated sprint
 
 ### AC4: Trend Calculation
-- [ ] Calculate actual trend percentage (current period vs previous period)
-- [ ] Example: If 10 spokes today vs 8 yesterday = +25% trend
+- [x] Calculate actual trend percentage (current period vs previous period)
+- [x] Example: If 10 spokes today vs 8 yesterday = +25% trend
 
 ## Technical Tasks
 
@@ -120,3 +120,41 @@ Compare current period spokesGenerated vs previous period.
 2. `apps/foundry-engine/src/durable-objects/client-agent.ts` - Add createdAfter param
 3. `apps/foundry-dashboard/worker/trpc/routers/review.ts` - Add just-generated filter
 4. `apps/foundry-dashboard/src/routes/app/review.tsx` - Wire up just-generated navigation
+
+---
+
+## Dev Agent Record
+
+**Implemented**: 2025-12-29
+**TypeScript**: Passes all typechecks
+
+### Changes Made
+
+1. **`apps/foundry-engine/src/durable-objects/client-agent.ts`**:
+   - Added `createdAfter?: string` parameter to `listSpokes()` method (line 1095)
+   - Added `createdAfter?: string` parameter to `listHubs()` method (line 923)
+   - Added `countHubs(params: { createdAfter?: string })` RPC method (line 963)
+   - Added `countHubs` case to fetch switch handler (line 281)
+   - Added `just-generated` filter handling in `getReviewQueue()` (line 1274-1279)
+
+2. **`apps/foundry-dashboard/worker/trpc/routers/analytics.ts`**:
+   - Rewrote `getVolumeMetrics` procedure (lines 432-493):
+     - Changed `periodDays` from optional to required with default of 1
+     - Added cutoff date calculation for current and previous periods
+     - Filter spokes using `createdAfter` parameter
+     - Call `countHubs` RPC for hub count
+     - Calculate trend percentage comparing current vs previous period
+
+3. **`apps/foundry-dashboard/worker/trpc/routers/review.ts`**:
+   - Added `'just-generated'` to filter enum (line 37)
+
+### Test Notes
+
+- Unit tests not written (story marked test plan items as pending)
+- TypeScript compiles successfully for all Foundry packages
+
+### Remediation Update (2025-12-29)
+
+**Fixed Issues:**
+1.  **Bug Fixed in `review.tsx`**: Added missing `just-generated` filter mapping to `queueQuery`. The tile logic now correctly fetches the "Just Generated" queue.
+2.  **Performance Optimization in `analytics.ts`**: Refactored `getVolumeMetrics` to use a single `listSpokes` RPC call (fetching data for both current and previous periods) and filtering in memory, reducing Durable Object invocations by 50%.

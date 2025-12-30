@@ -34,7 +34,7 @@ export const reviewRouter = t.router({
   getQueue: procedure
     .input(z.object({
       clientId: z.string().min(1),
-      filter: z.enum(['all', 'top10', 'flagged', 'needs-review']).default('all'),
+      filter: z.enum(['all', 'top10', 'flagged', 'needs-review', 'just-generated']).default('all'),
       limit: z.number().min(1).max(100).default(50),
       cursor: z.number().optional(), // offset-based pagination
     }))

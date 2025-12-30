@@ -32,6 +32,13 @@
     ]
   },
 
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["ClientAgent"]
+    }
+  ],
+
   "vars": {
     "ENVIRONMENT": "test"
   }

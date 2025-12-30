@@ -1,7 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock cloudflare:workers before importing the class
+vi.mock('cloudflare:workers', () => {
+  return {
+    DurableObject: class {
+      ctx: any;
+      env: any;
+      constructor(ctx: any, env: any) {
+        this.ctx = ctx;
+        this.env = env;
+      }
+    }
+  };
+});
+
 import { IngestionTracker } from './IngestionTracker';
 
-// Mock WebSocket classes
+// Mock WebSocket classes for manual injection
 class MockWebSocket {
   public readyState = 1; // Open
   public send = vi.fn();
@@ -12,18 +27,8 @@ class MockWebSocket {
   constructor() {}
 }
 
-class MockWebSocketPair {
-  0: MockWebSocket; // Client
-  1: MockWebSocket; // Server
-
-  constructor() {
-    this['0'] = new MockWebSocket();
-    this['1'] = new MockWebSocket();
-  }
-}
-
-// @ts-ignore - Mocking global WebSocketPair
-global.WebSocketPair = MockWebSocketPair;
+// Remove global WebSocketPair mock to allow Response validation with real WebSockets
+// global.WebSocketPair = MockWebSocketPair;
 
 describe('IngestionTracker Durable Object', () => {
   let tracker: IngestionTracker;

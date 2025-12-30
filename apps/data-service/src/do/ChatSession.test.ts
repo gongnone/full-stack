@@ -1,4 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock cloudflare:workers before importing the class
+vi.mock('cloudflare:workers', () => {
+  return {
+    DurableObject: class {
+      ctx: any;
+      env: any;
+      constructor(ctx: any, env: any) {
+        this.ctx = ctx;
+        this.env = env;
+      }
+    }
+  };
+});
+
 import { ChatSession } from './ChatSession';
 
 // Mock Dependencies
@@ -31,21 +46,26 @@ vi.mock('@repo/data-ops/schema', () => ({
   campaigns: {},
 }));
 
-// Global Mock WebSocket
-class MockWebSocket {
-  public readyState = 1; 
-  public send = vi.fn();
-  public accept = vi.fn();
-  public addEventListener = vi.fn();
-  public close = vi.fn();
-}
-class MockWebSocketPair {
-  0: MockWebSocket; 
-  1: MockWebSocket; 
-  constructor() { this['0'] = new MockWebSocket(); this['1'] = new MockWebSocket(); }
-}
+// Mock Global WebSocket (removed to allow Response validation with real WebSockets)
+// class MockWebSocket { ... }
+// class MockWebSocketPair { ... }
+
+// Patch WebSocketPair to allow spying on send and avoid 'not accepted' error
+const RealWebSocketPair = global.WebSocketPair;
 // @ts-ignore
-global.WebSocketPair = MockWebSocketPair;
+global.WebSocketPair = class PatchedWebSocketPair {
+  constructor() {
+    // @ts-ignore
+    const pair = new RealWebSocketPair();
+    const serverSocket = pair[1];
+    
+    // Stub send to avoid "You must call accept()" error and allow spying
+    serverSocket.send = vi.fn();
+    
+    // We return the real pair object, but with patched server socket
+    return pair;
+  }
+};
 
 describe('ChatSession Durable Object', () => {
   let session: ChatSession;

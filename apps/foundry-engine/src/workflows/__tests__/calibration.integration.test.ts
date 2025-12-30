@@ -1,15 +1,15 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { unstable_dev, UnstableDevWorker } from 'wrangler';
+import { describe, it, expect } from 'vitest';
+import { SELF } from 'cloudflare:test';
 
 /**
  * CalibrationWorkflow Integration Tests
  *
  * AC5: Integration test proves real audio → real transcription flow
  *
- * These tests run against REAL Cloudflare Workers AI using wrangler's unstable_dev.
+ * These tests run using @cloudflare/vitest-pool-workers.
  *
  * Prerequisites:
- * 1. Cloudflare account authenticated: `wrangler login`
+ * 1. Cloudflare account authenticated: `wrangler login` (if accessing remote bindings)
  * 2. Environment variables set or wrangler.test.jsonc configured
  *
  * Run with: VITEST_INTEGRATION=true pnpm --filter foundry-engine test
@@ -32,32 +32,13 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 }
 
 describe.skipIf(!isIntegration)('CalibrationWorkflow Integration', () => {
-  let worker: UnstableDevWorker;
-
-  beforeAll(async () => {
-    // Start the worker using wrangler's unstable_dev
-    // This provides real AI and R2 bindings in a local environment
-    worker = await unstable_dev('src/index.ts', {
-      experimental: { disableExperimentalWarning: true },
-      config: 'wrangler.test.jsonc',
-      vars: {
-        ENVIRONMENT: 'test',
-      },
-    });
-  }, 30000); // 30s timeout for worker startup
-
-  afterAll(async () => {
-    if (worker) {
-      await worker.stop();
-    }
-  });
-
+  
   describe('AC1 & AC2: Whisper transcription via Workers AI', () => {
     it('should call Workers AI Whisper and return transcription text', async () => {
       // This test verifies the AI binding works and returns real transcription
       // Using the worker's fetch to trigger an endpoint that calls AI.run
 
-      const response = await worker.fetch('/health', {
+      const response = await SELF.fetch('http://example.com/health', {
         method: 'GET',
       });
 
@@ -101,7 +82,7 @@ describe.skipIf(!isIntegration)('CalibrationWorkflow Integration', () => {
 
       // Verify test prerequisites
       const prerequisites = {
-        workerRunning: worker !== undefined,
+        workerRunning: true, // SELF is always running in pool
         testAudioKey: testAudioKey,
         expectedTranscription: 'brand voice', // Should contain these words
       };
@@ -110,7 +91,7 @@ describe.skipIf(!isIntegration)('CalibrationWorkflow Integration', () => {
 
       // Full integration requires the workflow endpoint
       // When implemented, this would be:
-      // const result = await worker.fetch('/api/calibration', {
+      // const result = await SELF.fetch('http://example.com/api/calibration', {
       //   method: 'POST',
       //   body: JSON.stringify({
       //     clientId: 'test-client',

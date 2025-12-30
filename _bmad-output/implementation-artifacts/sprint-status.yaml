@@ -103,6 +103,7 @@ development_status:
   # Remediation Stories (Audit Findings 2025-12-29)
   # P0 - Critical: Security and stability fixes blocking production
   R-1-security-stability-remediation: review  # Security: spokes.ts access check, Agent RPC timeout/retry - VERIFIED COMPLETE
+  R-10-review-page-metrics: ready  # P1 - UX Bug: Just Generated metric not tracking, periodDays ignored
 
 # Implementation Priority (P0 First):
 # ✅ Story 4.3 - Self-Healing Loop (core differentiator) - DONE

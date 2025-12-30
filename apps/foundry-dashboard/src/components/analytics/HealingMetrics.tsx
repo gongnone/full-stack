@@ -3,15 +3,17 @@
  * Measures the effectiveness of the healing loop
  */
 
+import { memo, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar } from 'recharts';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { ANALYTICS_CONFIG } from '@/lib/constants';
 
 interface HealingMetricsProps {
   periodDays?: number;
 }
 
-export function HealingMetrics({ periodDays = 30 }: HealingMetricsProps) {
+export const HealingMetrics = memo(function HealingMetrics({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: HealingMetricsProps) {
   const clientId = useClientId();
 
   const { data, isLoading } = trpc.analytics.getHealingMetrics.useQuery(
@@ -22,14 +24,13 @@ export function HealingMetrics({ periodDays = 30 }: HealingMetricsProps) {
   if (isLoading) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           Self-Healing Efficiency
         </h3>
         <div className="h-[400px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading metrics...</div>
+          <div className="text-sm text-[var(--text-muted)]">Loading metrics...</div>
         </div>
       </div>
     );
@@ -38,38 +39,43 @@ export function HealingMetrics({ periodDays = 30 }: HealingMetricsProps) {
   if (!data?.data || data.data.length === 0) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           Self-Healing Efficiency
         </h3>
         <div className="h-[400px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>No data available</div>
+          <div className="text-sm text-[var(--text-muted)]">No data available</div>
         </div>
       </div>
     );
   }
 
-  const chartData = data.data.map(d => ({
-    ...d,
-    date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-  }));
+  const chartData = useMemo(() =>
+    data.data.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })),
+    [data.data]
+  );
 
-  const avgLoops = (data.data.reduce((sum, d) => sum + d.avgLoops, 0) / data.data.length).toFixed(2);
-  const avgSuccessRate = Math.round(data.data.reduce((sum, d) => sum + d.successRate, 0) / data.data.length);
-  const currentLoops = data.data[data.data.length - 1]?.avgLoops ?? 0;
+  // Aggregation calculations - memoized
+  const { avgLoops, avgSuccessRate, currentLoops, totalHeals } = useMemo(() => ({
+    avgLoops: (data.data.reduce((sum, d) => sum + d.avgLoops, 0) / data.data.length).toFixed(2),
+    avgSuccessRate: Math.round(data.data.reduce((sum, d) => sum + d.successRate, 0) / data.data.length),
+    currentLoops: data.data[data.data.length - 1]?.avgLoops ?? 0,
+    totalHeals: data.data.reduce((sum, d) => sum + d.totalHeals, 0),
+  }), [data.data]);
 
   return (
     <div
-      className="p-6 rounded-xl border"
-      style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+      className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
     >
       <div className="mb-6">
-        <h3 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium text-[var(--text-primary)]">
           Self-Healing Efficiency
         </h3>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm mt-1 text-[var(--text-secondary)]">
           Automatic regeneration loop effectiveness
         </p>
       </div>
@@ -77,35 +83,35 @@ export function HealingMetrics({ periodDays = 30 }: HealingMetricsProps) {
       {/* Summary Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="p-4 rounded-lg bg-black/20 border border-white/5">
-          <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
             Avg Loops per Spoke
           </div>
-          <div className="text-2xl font-bold mt-1" style={{ color: 'var(--text-primary)' }}>
+          <div className="text-2xl font-bold mt-1 text-[var(--text-primary)]">
             {currentLoops}
           </div>
-          <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <div className="text-xs mt-1 text-[var(--text-secondary)]">
             Period avg: {avgLoops}
           </div>
         </div>
         <div className="p-4 rounded-lg bg-black/20 border border-white/5">
-          <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
             Success Rate
           </div>
-          <div className="text-2xl font-bold mt-1" style={{ color: 'var(--approve)' }}>
+          <div className="text-2xl font-bold mt-1 text-[var(--approve)]">
             {avgSuccessRate}%
           </div>
-          <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <div className="text-xs mt-1 text-[var(--text-secondary)]">
             Eventually passes
           </div>
         </div>
         <div className="p-4 rounded-lg bg-black/20 border border-white/5">
-          <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
             Total Heals
           </div>
-          <div className="text-2xl font-bold mt-1" style={{ color: 'var(--text-primary)' }}>
-            {data.data.reduce((sum, d) => sum + d.totalHeals, 0)}
+          <div className="text-2xl font-bold mt-1 text-[var(--text-primary)]">
+            {totalHeals}
           </div>
-          <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <div className="text-xs mt-1 text-[var(--text-secondary)]">
             Last {periodDays} days
           </div>
         </div>
@@ -113,7 +119,7 @@ export function HealingMetrics({ periodDays = 30 }: HealingMetricsProps) {
 
       {/* Healing Loop Trend */}
       <div className="mb-6">
-        <h4 className="text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+        <h4 className="text-sm font-medium mb-3 text-[var(--text-secondary)]">
           Loops per Spoke Trend (Lower is Better)
         </h4>
         <ResponsiveContainer width="100%" height={200}>
@@ -151,8 +157,8 @@ export function HealingMetrics({ periodDays = 30 }: HealingMetricsProps) {
 
       {/* Failure Analysis */}
       {data.topFailureGates && data.topFailureGates.length > 0 && (
-        <div className="pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-          <h4 className="text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+        <div className="pt-4 border-t border-[var(--border-subtle)]">
+          <h4 className="text-sm font-medium mb-3 text-[var(--text-secondary)]">
             Top Healing Triggers (by Gate)
           </h4>
           <ResponsiveContainer width="100%" height={150}>
@@ -181,4 +187,4 @@ export function HealingMetrics({ periodDays = 30 }: HealingMetricsProps) {
       )}
     </div>
   );
-}
+});

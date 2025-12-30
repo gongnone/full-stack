@@ -3,15 +3,17 @@
  * Tracks patterns in killed content to improve future generation
  */
 
+import { memo, useMemo } from 'react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { ANALYTICS_CONFIG } from '@/lib/constants';
 
 interface KillAnalyticsProps {
   periodDays?: number;
 }
 
-export function KillAnalytics({ periodDays = 30 }: KillAnalyticsProps) {
+export const KillAnalytics = memo(function KillAnalytics({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: KillAnalyticsProps) {
   const clientId = useClientId();
 
   const { data, isLoading } = trpc.analytics.getKillChainTrend.useQuery(
@@ -22,14 +24,13 @@ export function KillAnalytics({ periodDays = 30 }: KillAnalyticsProps) {
   if (isLoading) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           Kill Chain Analytics
         </h3>
         <div className="h-[450px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading kill analytics...</div>
+          <div className="text-sm text-[var(--text-muted)]">Loading kill analytics...</div>
         </div>
       </div>
     );
@@ -38,46 +39,49 @@ export function KillAnalytics({ periodDays = 30 }: KillAnalyticsProps) {
   if (!data?.data || data.data.length === 0) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           Kill Chain Analytics
         </h3>
         <div className="h-[450px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>No data available</div>
+          <div className="text-sm text-[var(--text-muted)]">No data available</div>
         </div>
       </div>
     );
   }
 
-  const chartData = data.data.map(d => ({
-    ...d,
-    date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-  }));
+  const chartData = useMemo(() =>
+    data.data.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })),
+    [data.data]
+  );
 
-  const totalKills = data.data.reduce((sum, d) => sum + d.totalKills, 0);
-  const totalHubKills = data.data.reduce((sum, d) => sum + d.hubKills, 0);
-  const totalSpokeKills = data.data.reduce((sum, d) => sum + d.spokeKills, 0);
+  // Aggregation calculations - memoized
+  const { totalKills, totalHubKills, totalSpokeKills, trendDirection, trendPercent } = useMemo(() => {
+    const kills = data.data.reduce((sum, d) => sum + d.totalKills, 0);
+    const hubKills = data.data.reduce((sum, d) => sum + d.hubKills, 0);
+    const spokeKills = data.data.reduce((sum, d) => sum + d.spokeKills, 0);
+    const firstWeek = data.data.slice(0, 7).reduce((sum, d) => sum + d.totalKills, 0) / 7;
+    const lastWeek = data.data.slice(-7).reduce((sum, d) => sum + d.totalKills, 0) / 7;
+    const direction = lastWeek < firstWeek ? 'improving' : 'worsening';
+    const percent = Math.abs(((lastWeek - firstWeek) / firstWeek) * 100).toFixed(1);
+    return { totalKills: kills, totalHubKills: hubKills, totalSpokeKills: spokeKills, trendDirection: direction, trendPercent: percent };
+  }, [data.data]);
 
-  // Calculate trend
-  const firstWeek = data.data.slice(0, 7).reduce((sum, d) => sum + d.totalKills, 0) / 7;
-  const lastWeek = data.data.slice(-7).reduce((sum, d) => sum + d.totalKills, 0) / 7;
-  const trendDirection = lastWeek < firstWeek ? 'improving' : 'worsening';
-  const trendPercent = Math.abs(((lastWeek - firstWeek) / firstWeek) * 100).toFixed(1);
-
-  const COLORS = ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16'];
+  const COLORS = useMemo(() => ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16'], []);
 
   return (
     <div
-      className="p-6 rounded-xl border"
-      style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+      className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
     >
       <div className="mb-6">
-        <h3 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium text-[var(--text-primary)]">
           Kill Chain Analytics
         </h3>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm mt-1 text-[var(--text-secondary)]">
           Learning from rejected content patterns
         </p>
       </div>
@@ -85,31 +89,31 @@ export function KillAnalytics({ periodDays = 30 }: KillAnalyticsProps) {
       {/* Summary Stats */}
       <div className="grid grid-cols-4 gap-4 mb-6">
         <div className="p-4 rounded-lg bg-black/20 border border-white/5">
-          <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
             Total Kills
           </div>
-          <div className="text-2xl font-bold mt-1" style={{ color: 'var(--kill)' }}>
+          <div className="text-2xl font-bold mt-1 text-[var(--kill)]">
             {totalKills}
           </div>
         </div>
         <div className="p-4 rounded-lg bg-black/20 border border-white/5">
-          <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
             Hub Kills
           </div>
-          <div className="text-2xl font-bold mt-1" style={{ color: 'var(--kill)' }}>
+          <div className="text-2xl font-bold mt-1 text-[var(--kill)]">
             {totalHubKills}
           </div>
         </div>
         <div className="p-4 rounded-lg bg-black/20 border border-white/5">
-          <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
             Spoke Kills
           </div>
-          <div className="text-2xl font-bold mt-1" style={{ color: 'var(--kill)' }}>
+          <div className="text-2xl font-bold mt-1 text-[var(--kill)]">
             {totalSpokeKills}
           </div>
         </div>
         <div className="p-4 rounded-lg bg-black/20 border border-white/5">
-          <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
             Trend
           </div>
           <div
@@ -123,7 +127,7 @@ export function KillAnalytics({ periodDays = 30 }: KillAnalyticsProps) {
 
       {/* Kill Trend Over Time */}
       <div className="mb-6">
-        <h4 className="text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+        <h4 className="text-sm font-medium mb-3 text-[var(--text-secondary)]">
           Kill Rate Trend (Lower is Better)
         </h4>
         <ResponsiveContainer width="100%" height={200}>
@@ -179,8 +183,8 @@ export function KillAnalytics({ periodDays = 30 }: KillAnalyticsProps) {
       {data.topReasons && data.topReasons.length > 0 && (() => {
         const totalKillReasons = data.topReasons.reduce((sum, r) => sum + r.count, 0);
         return (
-        <div className="pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-          <h4 className="text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+        <div className="pt-4 border-t border-[var(--border-subtle)]">
+          <h4 className="text-sm font-medium mb-3 text-[var(--text-secondary)]">
             Top Kill Reasons (Learning Opportunities)
           </h4>
           <div className="space-y-3 mb-4">
@@ -190,10 +194,10 @@ export function KillAnalytics({ periodDays = 30 }: KillAnalyticsProps) {
               <div key={reason.reason} className="flex items-center gap-3">
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                    <span className="text-sm text-[var(--text-primary)]">
                       {reason.reason}
                     </span>
-                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    <span className="text-xs text-[var(--text-muted)]">
                       {reason.count} ({percentage}%)
                     </span>
                   </div>
@@ -244,4 +248,4 @@ export function KillAnalytics({ periodDays = 30 }: KillAnalyticsProps) {
       })()}
     </div>
   );
-}
+});

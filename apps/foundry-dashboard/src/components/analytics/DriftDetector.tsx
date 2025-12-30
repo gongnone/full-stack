@@ -3,6 +3,7 @@
  * Monitors brand voice consistency and DNA strength over time
  */
 
+import { memo, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from 'recharts';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
@@ -13,7 +14,7 @@ interface DriftDetectorProps {
   periodDays?: number;
 }
 
-export function DriftDetector({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: DriftDetectorProps) {
+export const DriftDetector = memo(function DriftDetector({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: DriftDetectorProps) {
   const clientId = useClientId();
 
   const { data, isLoading } = trpc.analytics.getDriftHistory.useQuery(
@@ -29,14 +30,13 @@ export function DriftDetector({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAY
   if (isLoading) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           DNA Strength & Drift Detection
         </h3>
         <div className="h-[450px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading drift analysis...</div>
+          <div className="text-sm text-[var(--text-muted)]">Loading drift analysis...</div>
         </div>
       </div>
     );
@@ -45,42 +45,46 @@ export function DriftDetector({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAY
   if (!data?.data || data.data.length === 0) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           DNA Strength & Drift Detection
         </h3>
         <div className="h-[450px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>No data available</div>
+          <div className="text-sm text-[var(--text-muted)]">No data available</div>
         </div>
       </div>
     );
   }
 
-  const chartData = data.data.map(d => ({
-    ...d,
-    date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-  }));
+  const chartData = useMemo(() =>
+    data.data.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })),
+    [data.data]
+  );
 
   const currentStrength = data.currentStrength;
   const driftDetected = data.driftDetected;
   const driftThreshold = data.driftThreshold;
 
-  // Calculate trends
-  const strengthTrend = (data.data[data.data.length - 1]?.dnaStrength ?? 0) - (data.data[0]?.dnaStrength ?? 0);
-  const avgDrift = Math.round(data.data.reduce((sum, d) => sum + d.driftScore, 0) / data.data.length);
+  // Calculate trends - memoized
+  const { strengthTrend, avgDrift, latestSampleCount } = useMemo(() => ({
+    strengthTrend: (data.data[data.data.length - 1]?.dnaStrength ?? 0) - (data.data[0]?.dnaStrength ?? 0),
+    avgDrift: Math.round(data.data.reduce((sum, d) => sum + d.driftScore, 0) / data.data.length),
+    latestSampleCount: data.data[data.data.length - 1]?.sampleCount ?? 0,
+  }), [data.data]);
 
   return (
     <div
-      className="p-6 rounded-xl border"
-      style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+      className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
     >
       <div className="mb-6">
-        <h3 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium text-[var(--text-primary)]">
           DNA Strength & Drift Detection
         </h3>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm mt-1 text-[var(--text-secondary)]">
           Brand voice consistency and learning progress
         </p>
       </div>
@@ -88,15 +92,14 @@ export function DriftDetector({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAY
       {/* Alert Banner */}
       {driftDetected && (
         <div
-          className="mb-6 p-4 rounded-lg border flex items-start gap-3"
-          style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'var(--kill)' }}
+          className="mb-6 p-4 rounded-lg border flex items-start gap-3 bg-red-500/10 border-[var(--kill)]"
         >
-          <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--kill)' }} />
+          <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-[var(--kill)]" />
           <div>
-            <div className="font-medium" style={{ color: 'var(--kill)' }}>
+            <div className="font-medium text-[var(--kill)]">
               Voice Drift Detected
             </div>
-            <div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+            <div className="text-sm mt-1 text-[var(--text-secondary)]">
               Recent content shows deviation from established brand DNA. Consider reviewing calibration samples.
             </div>
           </div>
@@ -107,8 +110,8 @@ export function DriftDetector({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAY
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="p-4 rounded-lg bg-black/20 border border-white/5">
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-            <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            <TrendingUp className="w-4 h-4 text-[var(--text-muted)]" />
+            <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
               DNA Strength
             </div>
           </div>
@@ -122,44 +125,44 @@ export function DriftDetector({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAY
 
         <div className="p-4 rounded-lg bg-black/20 border border-white/5">
           <div className="flex items-center gap-2 mb-1">
-            <AlertTriangle className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-            <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            <AlertTriangle className="w-4 h-4 text-[var(--text-muted)]" />
+            <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
               Avg Drift
             </div>
           </div>
           <div className="text-2xl font-bold" style={{ color: avgDrift > driftThreshold ? 'var(--kill)' : 'var(--approve)' }}>
             {avgDrift}
           </div>
-          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs mt-1 text-[var(--text-muted)]">
             Threshold: {driftThreshold}
           </div>
         </div>
 
         <div className="p-4 rounded-lg bg-black/20 border border-white/5">
           <div className="flex items-center gap-2 mb-1">
-            <Target className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-            <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            <Target className="w-4 h-4 text-[var(--text-muted)]" />
+            <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
               Hubs to DNA
             </div>
           </div>
-          <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+          <div className="text-2xl font-bold text-[var(--text-primary)]">
             {timeToDNAQuery.data?.hubsToTarget || 0}
           </div>
-          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs mt-1 text-[var(--text-muted)]">
             Until target strength
           </div>
         </div>
 
         <div className="p-4 rounded-lg bg-black/20 border border-white/5">
           <div className="flex items-center gap-2 mb-1">
-            <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
               Samples Analyzed
             </div>
           </div>
-          <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            {data.data[data.data.length - 1]?.sampleCount ?? 0}
+          <div className="text-2xl font-bold text-[var(--text-primary)]">
+            {latestSampleCount}
           </div>
-          <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+          <div className="text-xs mt-1 text-[var(--text-muted)]">
             Training data points
           </div>
         </div>
@@ -167,7 +170,7 @@ export function DriftDetector({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAY
 
       {/* DNA Strength Over Time */}
       <div className="mb-6">
-        <h4 className="text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+        <h4 className="text-sm font-medium mb-3 text-[var(--text-secondary)]">
           DNA Strength Evolution
         </h4>
         <ResponsiveContainer width="100%" height={200}>
@@ -210,8 +213,8 @@ export function DriftDetector({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAY
       </div>
 
       {/* Drift Score Monitoring */}
-      <div className="pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-        <h4 className="text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+      <div className="pt-4 border-t border-[var(--border-subtle)]">
+        <h4 className="text-sm font-medium mb-3 text-[var(--text-secondary)]">
           Voice Drift Score (Lower is Better)
         </h4>
         <ResponsiveContainer width="100%" height={180}>
@@ -258,4 +261,4 @@ export function DriftDetector({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAY
       </div>
     </div>
   );
-}
+});

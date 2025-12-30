@@ -101,6 +101,10 @@ export async function createIntegrationContext(): Promise<IntegrationContext> {
       }
       return { success: true, method, params, clientId } as T;
     },
+    callEngine: async <T = unknown>(path: string, options?: RequestInit): Promise<T> => {
+      // For integration tests, simulate engine responses
+      return { success: true, path } as T;
+    },
     testAccountId,
     testUserId,
     secondAccountId,

@@ -226,9 +226,12 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | 2025-12-29 | Validation: Expanded Task 1 from 2→10 procedures, added line refs, CF Workers caveat | Bob (SM) |
 | 2025-12-29 | Verified all fixes already in place. TypeScript and unit tests pass. Story marked review. | Amelia (Dev) |
 | 2025-12-29 | Fixed unhandled promise rejections in unit tests. Marked story DONE. | Amelia (Dev) |
+| 2025-12-29 | Code Review: Found high-severity bypass of stability logic in engine calls. | Amelia (Dev) |
+| 2025-12-29 | Fix: Implemented `ctx.callEngine` with timeout/retry and updated routers to use it. | Amelia (Dev) |
 
 ### File List
 
-- `apps/foundry-dashboard/worker/trpc/routers/spokes.ts` (verified: security checks active)
-- `apps/foundry-dashboard/worker/trpc/context.ts` (verified: timeout + retry implemented)
-- `apps/foundry-dashboard/worker/trpc/__tests__/context.test.ts` (8 tests for AC2/AC3, cleaned up)
+- `apps/foundry-dashboard/worker/trpc/routers/spokes.ts` (verified: security checks active, stability logic added)
+- `apps/foundry-dashboard/worker/trpc/routers/hubs.ts` (updated: stability logic added)
+- `apps/foundry-dashboard/worker/trpc/context.ts` (verified: timeout + retry + callEngine implemented)
+- `apps/foundry-dashboard/worker/trpc/__tests__/context.test.ts` (11 tests for AC2/AC3, passed)

@@ -3,6 +3,7 @@
  * Charts critic approval trends over time for each quality gate
  */
 
+import { memo, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
@@ -12,7 +13,7 @@ interface CriticTrendsProps {
   periodDays?: number;
 }
 
-export function CriticTrends({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: CriticTrendsProps) {
+export const CriticTrends = memo(function CriticTrends({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: CriticTrendsProps) {
   const clientId = useClientId();
 
   const { data, isLoading } = trpc.analytics.getCriticPassTrend.useQuery(
@@ -23,14 +24,13 @@ export function CriticTrends({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS
   if (isLoading) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           Critic Pass Rate Trends
         </h3>
         <div className="h-[350px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading chart data...</div>
+          <div className="text-sm text-[var(--text-muted)]">Loading chart data...</div>
         </div>
       </div>
     );
@@ -39,37 +39,38 @@ export function CriticTrends({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS
   if (!data?.data || data.data.length === 0) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           Critic Pass Rate Trends
         </h3>
         <div className="h-[350px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>No data available</div>
+          <div className="text-sm text-[var(--text-muted)]">No data available</div>
         </div>
       </div>
     );
   }
 
-  const chartData = data.data.map(d => ({
-    ...d,
-    date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-  }));
+  const chartData = useMemo(() =>
+    data.data.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })),
+    [data.data]
+  );
 
-  // Calculate current rates
-  const latest = data.data[data.data.length - 1]!;
+  // Calculate current rates - memoized
+  const latest = useMemo(() => data.data[data.data.length - 1]!, [data.data]);
 
   return (
     <div
-      className="p-6 rounded-xl border"
-      style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+      className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
     >
       <div className="mb-6">
-        <h3 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium text-[var(--text-primary)]">
           Critic Pass Rate Trends
         </h3>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm mt-1 text-[var(--text-secondary)]">
           First-pass approval rates by quality gate
         </p>
       </div>
@@ -132,7 +133,7 @@ export function CriticTrends({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS
         </LineChart>
       </ResponsiveContainer>
 
-      <div className="mt-6 pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="mt-6 pt-4 border-t border-[var(--border-subtle)]">
         <div className="grid grid-cols-4 gap-4">
           <GateCard label="G2 Hook" rate={latest.g2} color={UI_CONFIG.CHART_COLORS.G2} />
           <GateCard label="G4 Voice" rate={latest.g4} color={UI_CONFIG.CHART_COLORS.G4} />
@@ -142,12 +143,12 @@ export function CriticTrends({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS
       </div>
     </div>
   );
-}
+});
 
 function GateCard({ label, rate, color }: { label: string; rate: number; color: string }) {
   return (
     <div className="text-center">
-      <div className="text-xs uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>
+      <div className="text-xs uppercase tracking-wide mb-2 text-[var(--text-muted)]">
         {label}
       </div>
       <div className="text-2xl font-bold" style={{ color }}>

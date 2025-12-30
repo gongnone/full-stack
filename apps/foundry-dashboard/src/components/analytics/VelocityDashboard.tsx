@@ -3,15 +3,17 @@
  * Production metrics: how fast content is created and reviewed
  */
 
+import { memo, useMemo } from 'react';
 import { ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { ANALYTICS_CONFIG } from '@/lib/constants';
 
 interface VelocityDashboardProps {
   periodDays?: number;
 }
 
-export function VelocityDashboard({ periodDays = 30 }: VelocityDashboardProps) {
+export const VelocityDashboard = memo(function VelocityDashboard({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: VelocityDashboardProps) {
   const clientId = useClientId();
 
   const { data, isLoading } = trpc.analytics.getVelocityTrend.useQuery(
@@ -22,14 +24,13 @@ export function VelocityDashboard({ periodDays = 30 }: VelocityDashboardProps) {
   if (isLoading) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           Content Volume & Review Velocity
         </h3>
         <div className="h-[400px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading velocity data...</div>
+          <div className="text-sm text-[var(--text-muted)]">Loading velocity data...</div>
         </div>
       </div>
     );
@@ -38,43 +39,45 @@ export function VelocityDashboard({ periodDays = 30 }: VelocityDashboardProps) {
   if (!data?.data || data.data.length === 0) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           Content Volume & Review Velocity
         </h3>
         <div className="h-[400px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>No data available</div>
+          <div className="text-sm text-[var(--text-muted)]">No data available</div>
         </div>
       </div>
     );
   }
 
-  const chartData = data.data.map(d => ({
-    ...d,
-    date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-  }));
-
-  // Calculate totals and averages
-  const totalHubs = data.data.reduce((sum, d) => sum + d.hubsCreated, 0);
-  const totalSpokes = data.data.reduce((sum, d) => sum + d.spokesGenerated, 0);
-  const totalReviewed = data.data.reduce((sum, d) => sum + d.spokesReviewed, 0);
-  const avgReviewTime = Math.round(
-    data.data.reduce((sum, d) => sum + d.avgReviewTime, 0) / data.data.length
+  const chartData = useMemo(() =>
+    data.data.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })),
+    [data.data]
   );
-  const reviewRate = totalSpokes > 0 ? Math.round((totalReviewed / totalSpokes) * 100) : 0;
+
+  // Calculate totals and averages - memoized
+  const { totalHubs, totalSpokes, totalReviewed, avgReviewTime, reviewRate } = useMemo(() => {
+    const hubs = data.data.reduce((sum, d) => sum + d.hubsCreated, 0);
+    const spokes = data.data.reduce((sum, d) => sum + d.spokesGenerated, 0);
+    const reviewed = data.data.reduce((sum, d) => sum + d.spokesReviewed, 0);
+    const avgTime = Math.round(data.data.reduce((sum, d) => sum + d.avgReviewTime, 0) / data.data.length);
+    const rate = spokes > 0 ? Math.round((reviewed / spokes) * 100) : 0;
+    return { totalHubs: hubs, totalSpokes: spokes, totalReviewed: reviewed, avgReviewTime: avgTime, reviewRate: rate };
+  }, [data.data]);
 
   return (
     <div
-      className="p-6 rounded-xl border"
-      style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+      className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
     >
       <div className="mb-6">
-        <h3 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium text-[var(--text-primary)]">
           Content Volume & Review Velocity
         </h3>
-        <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm mt-1 text-[var(--text-secondary)]">
           Production throughput and review speed
         </p>
       </div>
@@ -110,7 +113,7 @@ export function VelocityDashboard({ periodDays = 30 }: VelocityDashboardProps) {
 
       {/* Volume Chart */}
       <div className="mb-6">
-        <h4 className="text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+        <h4 className="text-sm font-medium mb-3 text-[var(--text-secondary)]">
           Daily Production Volume
         </h4>
         <ResponsiveContainer width="100%" height={250}>
@@ -170,8 +173,8 @@ export function VelocityDashboard({ periodDays = 30 }: VelocityDashboardProps) {
       </div>
 
       {/* Review Speed Chart */}
-      <div className="pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
-        <h4 className="text-sm font-medium mb-3" style={{ color: 'var(--text-secondary)' }}>
+      <div className="pt-4 border-t border-[var(--border-subtle)]">
+        <h4 className="text-sm font-medium mb-3 text-[var(--text-secondary)]">
           Average Review Time per Spoke
         </h4>
         <ResponsiveContainer width="100%" height={150}>
@@ -207,18 +210,18 @@ export function VelocityDashboard({ periodDays = 30 }: VelocityDashboardProps) {
       </div>
     </div>
   );
-}
+});
 
 function StatCard({ label, value, icon }: { label: string; value: string | number; icon: string }) {
   return (
     <div className="p-4 rounded-lg bg-black/20 border border-white/5">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-lg">{icon}</span>
-        <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
           {label}
         </div>
       </div>
-      <div className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+      <div className="text-2xl font-bold text-[var(--text-primary)]">
         {value}
       </div>
     </div>

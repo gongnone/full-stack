@@ -157,8 +157,8 @@ export const hubsRouter = t.router({
       `).bind(input.sourceId, input.clientId, now).run();
 
       // Trigger the HubIngestionWorkflow via CONTENT_ENGINE service binding
-      const response = await ctx.env.CONTENT_ENGINE.fetch(
-        new Request('http://internal/api/hubs/ingest', {
+      try {
+        const result = await ctx.callEngine<{ instanceId: string; status: string }>('http://internal/api/hubs/ingest', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -168,20 +168,16 @@ export const hubsRouter = t.router({
             platform: input.platform || 'general',
             angle: 'Default',
           }),
-        })
-      );
+        });
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Extraction failed: ${error}` });
+        return {
+          sourceId: input.sourceId,
+          status: 'processing',
+          workflowInstanceId: result.instanceId,
+        };
+      } catch (error) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}` });
       }
-
-      const result = await response.json() as { instanceId: string; status: string };
-      return {
-        sourceId: input.sourceId,
-        status: 'processing',
-        workflowInstanceId: result.instanceId,
-      };
     }),
 
   // Get extraction progress from D1
@@ -249,8 +245,8 @@ export const hubsRouter = t.router({
       `).bind(input.sourceId, input.clientId).run();
 
       // Re-trigger workflow
-      const response = await ctx.env.CONTENT_ENGINE.fetch(
-        new Request('http://internal/api/hubs/ingest', {
+      try {
+        await ctx.callEngine('http://internal/api/hubs/ingest', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -260,12 +256,9 @@ export const hubsRouter = t.router({
             platform: 'general',
             angle: 'Default',
           }),
-        })
-      );
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Retry failed: ${error}` });
+        });
+      } catch (error) {
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Retry failed: ${error instanceof Error ? error.message : 'Unknown error'}` });
       }
 
       return { success: true };

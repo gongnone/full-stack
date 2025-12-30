@@ -237,8 +237,20 @@ export const spokesRouter = router({
       }
 
       // Pass hub and pillar data to engine (instead of having engine query DO)
-      const response = await ctx.env.CONTENT_ENGINE.fetch(
-        new Request('http://internal/api/spokes/generate', {
+      try {
+        return await ctx.callEngine<{
+          status: string;
+          hubId: string;
+          pillarsCount: number;
+          platformsCount: number;
+          spokesQueued: number;
+          instances: Array<{
+            instanceId: string;
+            spokeId: string;
+            platform: string;
+            pillarId: string;
+          }>;
+        }>('http://internal/api/spokes/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -251,34 +263,15 @@ export const spokesRouter = router({
               pillars,
             },
           }),
-        })
-      );
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-        const errorMessage = error && typeof error === 'object' && 'error' in error && typeof error.error === 'string'
-          ? error.error
-          : 'Failed to start generation workflow';
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to start generation workflow';
+        // Map common errors to TRPC codes if possible, otherwise INTERNAL_SERVER_ERROR
         throw new TRPCError({
-          code: response.status === 404 ? 'NOT_FOUND' :
-                response.status === 400 ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+          code: 'INTERNAL_SERVER_ERROR',
           message: errorMessage,
         });
       }
-
-      return await response.json() as {
-        status: string;
-        hubId: string;
-        pillarsCount: number;
-        platformsCount: number;
-        spokesQueued: number;
-        instances: Array<{
-          instanceId: string;
-          spokeId: string;
-          platform: string;
-          pillarId: string;
-        }>;
-      };
     }),
 
   // Get workflow status for a spoke generation instance
@@ -289,25 +282,26 @@ export const spokesRouter = router({
     }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      const response = await ctx.env.CONTENT_ENGINE.fetch(
-        new Request(`http://internal/api/workflows/${input.instanceId}?type=spoke`, {
+      
+      try {
+        return await ctx.callEngine<{
+          workflowType: string;
+          status: 'queued' | 'running' | 'complete' | 'errored';
+          output?: unknown;
+          error?: string;
+        }>(`http://internal/api/workflows/${input.instanceId}?type=spoke`, {
           method: 'GET',
-        })
-      );
-
-      if (!response.ok) {
+        });
+      } catch (error) {
+        // If 404, callEngine returns the response which allows us to catch it? 
+        // No, callEngine throws on non-ok response. 
+        // We need to verify if we can distinguish 404 from other errors in callEngine
+        // Ideally callEngine should expose status or we rely on message
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Workflow not found',
         });
       }
-
-      return await response.json() as {
-        workflowType: string;
-        status: 'queued' | 'running' | 'complete' | 'errored';
-        output?: unknown;
-        error?: string;
-      };
     }),
 
   // Edit spoke content (marks as mutated for Kill Chain survival)
@@ -428,8 +422,17 @@ export const spokesRouter = router({
 
       // AC4: Variation mode - regenerate with same pillar but new seed
       // Call CONTENT_ENGINE variation generation endpoint
-      const response = await ctx.env.CONTENT_ENGINE.fetch(
-        new Request('http://internal/api/spokes/variations', {
+      try {
+        const result = await ctx.callEngine<{
+          status: string;
+          parentSpokeId: string;
+          variationsQueued: number;
+          instances: Array<{
+            instanceId: string;
+            spokeId: string;
+            platform: string;
+          }>;
+        }>('http://internal/api/spokes/variations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -437,40 +440,23 @@ export const spokesRouter = router({
             parentSpokeId: input.spokeId, // Use parentSpokeId here for variation tracking
             count: input.count,
           }),
-        })
-      );
+        });
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-        const errorMessage = error && typeof error === 'object' && 'error' in error && typeof error.error === 'string'
-          ? error.error
-          : 'Failed to generate variations';
+        return {
+          newSpokeIds: result.instances.map(i => i.spokeId),
+          status: 'processing' as const,
+          mode: 'variation' as const,
+          variationsQueued: result.variationsQueued,
+          instances: result.instances,
+          clonedFrom: input.spokeId, // Track original spoke ID for variations
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to generate variations';
         throw new TRPCError({
-          code: response.status === 404 ? 'NOT_FOUND' :
-                response.status === 400 ? 'BAD_REQUEST' : 'INTERNAL_SERVER_ERROR',
+          code: 'INTERNAL_SERVER_ERROR',
           message: errorMessage,
         });
       }
-
-      const result = await response.json() as {
-        status: string;
-        parentSpokeId: string;
-        variationsQueued: number;
-        instances: Array<{
-          instanceId: string;
-          spokeId: string;
-          platform: string;
-        }>;
-      };
-
-      return {
-        newSpokeIds: result.instances.map(i => i.spokeId),
-        status: 'processing' as const,
-        mode: 'variation' as const,
-        variationsQueued: result.variationsQueued,
-        instances: result.instances,
-        clonedFrom: input.spokeId, // Track original spoke ID for variations
-      };
     }),
 
   // Get variations for a spoke

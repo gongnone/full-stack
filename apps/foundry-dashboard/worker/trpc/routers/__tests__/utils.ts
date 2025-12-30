@@ -54,12 +54,16 @@ export const createMockContext = () => {
   const mockDrizzle = {} as any; // Mock Drizzle instance
 
   const mockCallAgent = vi.fn();
+  const mockCallEngine = vi.fn();
   const mockFetch = vi.fn();
+  const mockR2Delete = vi.fn();
+  const mockR2Head = vi.fn();
 
   const ctx: Context = {
     env: {
       DB: mockDb,
-      CONTENT_ENGINE: { fetch: mockFetch }
+      CONTENT_ENGINE: { fetch: mockFetch },
+      MEDIA: { delete: mockR2Delete, head: mockR2Head }
     } as any,
     db: mockDb as any,
     drizzle: mockDrizzle,
@@ -67,7 +71,8 @@ export const createMockContext = () => {
     accountId: 'account-123',
     userRole: 'admin',
     callAgent: mockCallAgent,
+    callEngine: mockCallEngine,
   };
 
-  return { ctx, mockDb, mockCallAgent, mockFetch, setMembershipRole };
+  return { ctx, mockDb, mockCallAgent, mockCallEngine, mockFetch, setMembershipRole, mockR2Delete, mockR2Head };
 };

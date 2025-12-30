@@ -3,6 +3,7 @@
  * Tracks content that needs no edits - the ultimate success metric
  */
 
+import { memo, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
@@ -12,7 +13,7 @@ interface ZeroEditChartProps {
   periodDays?: number;
 }
 
-export function ZeroEditChart({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: ZeroEditChartProps) {
+export const ZeroEditChart = memo(function ZeroEditChart({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS }: ZeroEditChartProps) {
   const clientId = useClientId();
 
   const { data, isLoading } = trpc.analytics.getZeroEditTrend.useQuery(
@@ -23,14 +24,13 @@ export function ZeroEditChart({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAY
   if (isLoading) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           Zero-Edit Rate Trend
         </h3>
         <div className="h-[300px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading chart data...</div>
+          <div className="text-sm text-[var(--text-muted)]">Loading chart data...</div>
         </div>
       </div>
     );
@@ -39,47 +39,59 @@ export function ZeroEditChart({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAY
   if (!data?.data || data.data.length === 0) {
     return (
       <div
-        className="p-6 rounded-xl border"
-        style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+        className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
       >
-        <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
+        <h3 className="text-lg font-medium mb-4 text-[var(--text-primary)]">
           Zero-Edit Rate Trend
         </h3>
         <div className="h-[300px] flex items-center justify-center">
-          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>No data available</div>
+          <div className="text-sm text-[var(--text-muted)]">No data available</div>
         </div>
       </div>
     );
   }
 
-  const chartData = data.data.map(d => ({
-    ...d,
-    date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-  }));
+  const chartData = useMemo(() =>
+    data.data.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })),
+    [data.data]
+  );
 
-  // Calculate trend metrics using centralized window size
-  const windowSize = ANALYTICS_CONFIG.TREND_WINDOW_DAYS;
-  const firstWeekAvg = data.data.slice(0, windowSize).reduce((sum, d) => sum + d.rate, 0) / windowSize;
-  const lastWeekAvg = data.data.slice(-windowSize).reduce((sum, d) => sum + d.rate, 0) / windowSize;
-  const trend = lastWeekAvg - firstWeekAvg;
-  const currentRate = data.data[data.data.length - 1]?.rate ?? 0;
+  // Calculate trend metrics using centralized window size - memoized
+  const { trend, currentRate } = useMemo(() => {
+    const windowSize = ANALYTICS_CONFIG.TREND_WINDOW_DAYS;
+    const firstWeekAvg = data.data.slice(0, windowSize).reduce((sum, d) => sum + d.rate, 0) / windowSize;
+    const lastWeekAvg = data.data.slice(-windowSize).reduce((sum, d) => sum + d.rate, 0) / windowSize;
+    return {
+      trend: lastWeekAvg - firstWeekAvg,
+      currentRate: data.data[data.data.length - 1]?.rate ?? 0,
+    };
+  }, [data.data]);
+
+  // Summary calculations - memoized
+  const { avgRate, bestDay, totalItems } = useMemo(() => ({
+    avgRate: (data.data.reduce((sum, d) => sum + d.rate, 0) / data.data.length).toFixed(1),
+    bestDay: Math.max(...data.data.map(d => d.rate)).toFixed(1),
+    totalItems: data.data.reduce((sum, d) => sum + d.count, 0),
+  }), [data.data]);
 
   return (
     <div
-      className="p-6 rounded-xl border"
-      style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+      className="p-6 rounded-xl border bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
     >
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h3 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
+          <h3 className="text-lg font-medium text-[var(--text-primary)]">
             Zero-Edit Rate Trend
           </h3>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-sm mt-1 text-[var(--text-secondary)]">
             Content approved without modifications
           </p>
         </div>
         <div className="text-right">
-          <div className="text-3xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <div className="text-3xl font-semibold text-[var(--text-primary)]">
             {currentRate.toFixed(1)}%
           </div>
           <div
@@ -126,34 +138,34 @@ export function ZeroEditChart({ periodDays = ANALYTICS_CONFIG.DEFAULT_PERIOD_DAY
         </LineChart>
       </ResponsiveContainer>
 
-      <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="mt-4 pt-4 border-t border-[var(--border-subtle)]">
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
-            <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
               Avg Rate
             </div>
-            <div className="text-lg font-semibold mt-1" style={{ color: 'var(--text-primary)' }}>
-              {(data.data.reduce((sum, d) => sum + d.rate, 0) / data.data.length).toFixed(1)}%
+            <div className="text-lg font-semibold mt-1 text-[var(--text-primary)]">
+              {avgRate}%
             </div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
               Best Day
             </div>
-            <div className="text-lg font-semibold mt-1" style={{ color: 'var(--approve)' }}>
-              {Math.max(...data.data.map(d => d.rate)).toFixed(1)}%
+            <div className="text-lg font-semibold mt-1 text-[var(--approve)]">
+              {bestDay}%
             </div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-xs uppercase tracking-wide text-[var(--text-muted)]">
               Total Items
             </div>
-            <div className="text-lg font-semibold mt-1" style={{ color: 'var(--text-primary)' }}>
-              {data.data.reduce((sum, d) => sum + d.count, 0)}
+            <div className="text-lg font-semibold mt-1 text-[var(--text-primary)]">
+              {totalItems}
             </div>
           </div>
         </div>
       </div>
     </div>
   );
-}
+});

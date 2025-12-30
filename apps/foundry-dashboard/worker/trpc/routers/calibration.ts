@@ -59,6 +59,25 @@ function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
+// ===== Story R-11: AC5, AC6 - Safe DO sync helper =====
+// Wraps ctx.callAgent calls to prevent unhandled rejections and enable partial success
+async function safeDOSync<T>(
+  ctx: Context,
+  clientId: string,
+  method: string,
+  payload: Record<string, unknown>,
+  operation: string
+): Promise<{ result: T | null; failed: boolean }> {
+  try {
+    const result = await ctx.callAgent<T>(clientId, method, payload);
+    return { result, failed: false };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error(`[DO Sync] ${operation} failed for client ${clientId}: ${message}`);
+    return { result: null, failed: true };
+  }
+}
+
 interface DriftComponent {
   voiceMarkers?: string[];
   bannedWords?: string[];
@@ -253,6 +272,37 @@ export const calibrationRouter = t.router({
       };
     }),
 
+  // Get presigned URL for voice upload to R2 (Story R-11: AC1, AC2, AC9)
+  getVoiceUploadUrl: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      filename: z.string().min(1).max(255),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // AC9: Validate audio extension
+      const validExtensions = ['webm', 'mp3', 'wav', 'ogg', 'm4a'];
+      const ext = input.filename.split('.').pop()?.toLowerCase() || '';
+      if (!validExtensions.includes(ext)) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: `Invalid audio format. Allowed: ${validExtensions.join(', ')}`,
+        });
+      }
+
+      const timestamp = Date.now();
+      const sanitizedFilename = input.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+      // AC2: Voice files stored under voice-samples/{clientId}/ prefix
+      const r2Key = `voice-samples/${input.clientId}/${timestamp}-${sanitizedFilename}`;
+
+      return {
+        r2Key,
+        uploadEndpoint: `/api/upload/${encodeURIComponent(r2Key)}`,
+        expiresAt: new Date(Date.now() + 3600000), // 1 hour
+      };
+    }),
+
   // Register file after upload to R2
   registerFileSample: procedure
     .input(z.object({
@@ -390,16 +440,36 @@ export const calibrationRouter = t.router({
       }
 
       // Trigger CalibrationWorkflow on Engine
-      const response = await ctx.env.CONTENT_ENGINE.fetch('http://engine/api/calibration/start', {
-        method: 'POST',
-        body: JSON.stringify({
-          clientId: input.clientId,
-          contentType: 'voice',
-          r2Key: input.audioR2Key,
-        }),
-      });
+      let response: Response;
+      try {
+        response = await ctx.env.CONTENT_ENGINE.fetch('http://engine/api/calibration/start', {
+          method: 'POST',
+          body: JSON.stringify({
+            clientId: input.clientId,
+            contentType: 'voice',
+            r2Key: input.audioR2Key,
+          }),
+        });
+      } catch (error) {
+        // Story R-11: AC10 - Attempt R2 cleanup on failure
+        try {
+          await ctx.env.MEDIA.delete(input.audioR2Key);
+        } catch (cleanupError) {
+          console.error(`[R2 Cleanup] Failed to delete ${input.audioR2Key}:`, cleanupError);
+        }
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to trigger voice calibration workflow',
+        });
+      }
 
       if (!response.ok) {
+        // Story R-11: AC10 - Attempt R2 cleanup on failure
+        try {
+          await ctx.env.MEDIA.delete(input.audioR2Key);
+        } catch (cleanupError) {
+          console.error(`[R2 Cleanup] Failed to delete ${input.audioR2Key}:`, cleanupError);
+        }
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Failed to trigger voice calibration workflow',
@@ -410,15 +480,28 @@ export const calibrationRouter = t.router({
 
       // Create a pending sample record
       const recordingId = crypto.randomUUID();
-      await brandQueries.createTrainingSample(ctx.drizzle, {
-        id: recordingId,
-        client_id: input.clientId,
-        user_id: ctx.userId,
-        title: `Voice Note ${new Date().toLocaleDateString()}`,
-        source_type: 'voice',
-        r2_key: input.audioR2Key,
-        status: 'processing'
-      });
+      try {
+        await brandQueries.createTrainingSample(ctx.drizzle, {
+          id: recordingId,
+          client_id: input.clientId,
+          user_id: ctx.userId,
+          title: `Voice Note ${new Date().toLocaleDateString()}`,
+          source_type: 'voice',
+          r2_key: input.audioR2Key,
+          status: 'processing'
+        });
+      } catch (dbError) {
+        // Story R-11: AC10 - Attempt R2 cleanup if DB insert fails
+        try {
+          await ctx.env.MEDIA.delete(input.audioR2Key);
+        } catch (cleanupError) {
+          console.error(`[R2 Cleanup] Failed to delete ${input.audioR2Key}:`, cleanupError);
+        }
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to create voice recording record',
+        });
+      }
 
       return {
         calibrationId: result.instanceId,
@@ -480,10 +563,14 @@ export const calibrationRouter = t.router({
       entities.bannedWords.push(normalizedWord);
       await brandQueries.updateBrandDNAEntities(ctx.drizzle, input.clientId, JSON.stringify(entities));
 
-      // Also sync to DO
-      await ctx.callAgent(input.clientId, 'addBannedWord', { word: normalizedWord, source: 'manual' });
+      // Story R-11: AC5, AC6 - Use safeDOSync for graceful failure handling
+      const { failed: doSyncFailed } = await safeDOSync(
+        ctx, input.clientId, 'addBannedWord',
+        { word: normalizedWord, source: 'manual' },
+        'addBannedWord'
+      );
 
-      return { success: true, bannedWords: entities.bannedWords };
+      return { success: true, bannedWords: entities.bannedWords, doSyncFailed };
     }),
 
   // Remove a banned word (FR35)
@@ -496,23 +583,40 @@ export const calibrationRouter = t.router({
       await assertClientAccess(ctx, input.clientId);
       const dna = await brandQueries.getBrandDNA(ctx.drizzle, input.clientId);
 
-      if (!dna?.voice_entities) return { success: true, bannedWords: [] };
+      if (!dna?.voice_entities) return { success: true, bannedWords: [], doSyncFailed: false };
 
-      let entities = JSON.parse(dna.voice_entities);
+      // Story R-11: AC7 - JSON.parse error handling
+      let entities = { bannedWords: [] as string[], voiceMarkers: [] as string[], stances: [] as Array<{ topic: string; position: string }> };
+      try {
+        entities = JSON.parse(dna.voice_entities);
+      } catch (error) {
+        console.error(`[JSON Parse] Failed to parse voice_entities for client ${input.clientId}`);
+        return { success: true, bannedWords: [], doSyncFailed: false };
+      }
+
       const normalizedWord = input.word.toLowerCase().trim();
       entities.bannedWords = (entities.bannedWords || []).filter((w: string) => w.toLowerCase() !== normalizedWord);
 
       await brandQueries.updateBrandDNAEntities(ctx.drizzle, input.clientId, JSON.stringify(entities));
-      
-      // Sync to DO - find the ID first
+
+      // Story R-11: AC5, AC6 - Use safeDOSync for graceful failure handling
       interface BannedWord { id: string; word: string; }
-      const doBannedWords = await ctx.callAgent<BannedWord[]>(input.clientId, 'listBannedWords', {});
-      const target = doBannedWords.find(w => w.word.toLowerCase() === normalizedWord);
-      if (target) {
-        await ctx.callAgent(input.clientId, 'removeBannedWord', { wordId: target.id });
+      const { result: doBannedWords, failed: listFailed } = await safeDOSync<BannedWord[]>(
+        ctx, input.clientId, 'listBannedWords', {}, 'listBannedWords'
+      );
+
+      let doSyncFailed = listFailed;
+      if (!listFailed && doBannedWords) {
+        const target = doBannedWords.find(w => w.word.toLowerCase() === normalizedWord);
+        if (target) {
+          const { failed: removeFailed } = await safeDOSync(
+            ctx, input.clientId, 'removeBannedWord', { wordId: target.id }, 'removeBannedWord'
+          );
+          doSyncFailed = removeFailed;
+        }
       }
 
-      return { success: true, bannedWords: entities.bannedWords };
+      return { success: true, bannedWords: entities.bannedWords, doSyncFailed };
     }),
 
   // Add a voice marker phrase (FR35)
@@ -538,10 +642,14 @@ export const calibrationRouter = t.router({
       entities.voiceMarkers.push(normalizedPhrase);
       await brandQueries.updateBrandDNAEntities(ctx.drizzle, input.clientId, JSON.stringify(entities));
 
-      // Sync to DO
-      await ctx.callAgent(input.clientId, 'addVoiceMarker', { phrase: normalizedPhrase, source: 'manual' });
+      // Story R-11: AC5, AC6 - Use safeDOSync for graceful failure handling
+      const { failed: doSyncFailed } = await safeDOSync(
+        ctx, input.clientId, 'addVoiceMarker',
+        { phrase: normalizedPhrase, source: 'manual' },
+        'addVoiceMarker'
+      );
 
-      return { success: true, voiceMarkers: entities.voiceMarkers };
+      return { success: true, voiceMarkers: entities.voiceMarkers, doSyncFailed };
     }),
 
   // Remove a voice marker phrase (FR35)
@@ -554,23 +662,40 @@ export const calibrationRouter = t.router({
       await assertClientAccess(ctx, input.clientId);
       const dna = await brandQueries.getBrandDNA(ctx.drizzle, input.clientId);
 
-      if (!dna?.voice_entities) return { success: true, voiceMarkers: [] };
+      if (!dna?.voice_entities) return { success: true, voiceMarkers: [], doSyncFailed: false };
 
-      let entities = JSON.parse(dna.voice_entities);
+      // Story R-11: AC7 - JSON.parse error handling
+      let entities = { bannedWords: [] as string[], voiceMarkers: [] as string[], stances: [] as Array<{ topic: string; position: string }> };
+      try {
+        entities = JSON.parse(dna.voice_entities);
+      } catch (error) {
+        console.error(`[JSON Parse] Failed to parse voice_entities for client ${input.clientId}`);
+        return { success: true, voiceMarkers: [], doSyncFailed: false };
+      }
+
       const normalizedPhrase = input.phrase.toLowerCase().trim();
       entities.voiceMarkers = (entities.voiceMarkers || []).filter((p: string) => p.toLowerCase() !== normalizedPhrase);
 
       await brandQueries.updateBrandDNAEntities(ctx.drizzle, input.clientId, JSON.stringify(entities));
 
-      // Sync to DO
+      // Story R-11: AC5, AC6 - Use safeDOSync for graceful failure handling
       interface VoiceMarker { id: string; phrase: string; }
-      const doMarkers = await ctx.callAgent<VoiceMarker[]>(input.clientId, 'listVoiceMarkers', {});
-      const target = doMarkers.find(m => m.phrase.toLowerCase() === normalizedPhrase);
-      if (target) {
-        await ctx.callAgent(input.clientId, 'removeVoiceMarker', { markerId: target.id });
+      const { result: doMarkers, failed: listFailed } = await safeDOSync<VoiceMarker[]>(
+        ctx, input.clientId, 'listVoiceMarkers', {}, 'listVoiceMarkers'
+      );
+
+      let doSyncFailed = listFailed;
+      if (!listFailed && doMarkers) {
+        const target = doMarkers.find(m => m.phrase.toLowerCase() === normalizedPhrase);
+        if (target) {
+          const { failed: removeFailed } = await safeDOSync(
+            ctx, input.clientId, 'removeVoiceMarker', { markerId: target.id }, 'removeVoiceMarker'
+          );
+          doSyncFailed = removeFailed;
+        }
       }
 
-      return { success: true, voiceMarkers: entities.voiceMarkers };
+      return { success: true, voiceMarkers: entities.voiceMarkers, doSyncFailed };
     }),
 
   // Get Brand DNA for a client (basic stats)
@@ -651,23 +776,25 @@ export const calibrationRouter = t.router({
       return report;
     }),
 
-  // FIX: Missing procedures for tests
+  // Story R-11: AC4 - Auth checks on stub procedures
   getDriftStatus: procedure
     .input(z.object({ clientId: z.string().min(1) }))
-    .query(async () => {
-       return { 
-         driftScore: 0, 
-         status: 'stable', 
-         lastCheck: Date.now(),
-         needsCalibration: false,
-         trigger: undefined as string | undefined,
-         suggestion: undefined as string | undefined
-       };
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+      return {
+        driftScore: 0,
+        status: 'stable',
+        lastCheck: Date.now(),
+        needsCalibration: false,
+        trigger: undefined as string | undefined,
+        suggestion: undefined as string | undefined
+      };
     }),
 
   createDNASnapshot: procedure
     .input(z.object({ clientId: z.string().min(1) }))
-    .mutation(async () => {
-       return { success: true, snapshotId: 'stub-snapshot' };
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+      return { success: true, snapshotId: 'stub-snapshot' };
     }),
 });

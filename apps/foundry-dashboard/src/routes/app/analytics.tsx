@@ -3,6 +3,8 @@ import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { useState } from 'react';
 import { ANALYTICS_CONFIG } from '@/lib/constants';
+import { useLazyRender } from '@/lib/use-lazy-render';
+import { useDebouncedValue } from '@/lib/use-debounced-value';
 import { ZeroEditChart } from '@/components/analytics/ZeroEditChart';
 import { CriticTrends } from '@/components/analytics/CriticTrends';
 import { HealingMetrics } from '@/components/analytics/HealingMetrics';
@@ -18,8 +20,18 @@ function AnalyticsPage() {
   const clientId = useClientId();
   const [periodDays, setPeriodDays] = useState<number>(ANALYTICS_CONFIG.DEFAULT_PERIOD_DAYS);
 
+  // AC5: Debounce period selector to prevent excessive API calls
+  const debouncedPeriod = useDebouncedValue(periodDays, 300);
+  const isPeriodDebouncing = periodDays !== debouncedPeriod;
+
+  // AC3: Lazy render charts below the fold (charts 3-6)
+  const { ref: healingRef, isVisible: healingVisible } = useLazyRender();
+  const { ref: velocityRef, isVisible: velocityVisible } = useLazyRender();
+  const { ref: killRef, isVisible: killVisible } = useLazyRender();
+  const { ref: driftRef, isVisible: driftVisible } = useLazyRender();
+
   const summaryQuery = trpc.analytics.getSummaryMetrics.useQuery(
-    { clientId: clientId!, periodDays },
+    { clientId: clientId!, periodDays: debouncedPeriod },
     { enabled: !!clientId }
   );
 
@@ -30,33 +42,36 @@ function AnalyticsPage() {
     <div className="space-y-6 pb-8">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+          <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
             Analytics Dashboard
           </h1>
-          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1 text-[var(--text-secondary)]">
             Performance metrics and learning loop analytics
           </p>
         </div>
 
-        {/* Period Selector */}
+        {/* Period Selector with debounce indicator */}
         <div className="flex items-center gap-2">
-          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>Period:</span>
-          <select
-            value={periodDays}
-            onChange={(e) => setPeriodDays(Number(e.target.value))}
-            className="px-3 py-1.5 rounded-lg border text-sm"
-            style={{
-              backgroundColor: 'var(--bg-elevated)',
-              borderColor: 'var(--border-subtle)',
-              color: 'var(--text-primary)',
-            }}
-          >
-            <option value={7}>Last 7 days</option>
-            <option value={14}>Last 14 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={60}>Last 60 days</option>
-            <option value={90}>Last 90 days</option>
-          </select>
+          <span className="text-sm text-[var(--text-muted)]">Period:</span>
+          <div className="relative">
+            <select
+              value={periodDays}
+              onChange={(e) => setPeriodDays(Number(e.target.value))}
+              className="px-3 py-1.5 rounded-lg border text-sm pr-8 bg-[var(--bg-elevated)] border-[var(--border-subtle)] text-[var(--text-primary)]"
+            >
+              <option value={7}>Last 7 days</option>
+              <option value={14}>Last 14 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={60}>Last 60 days</option>
+              <option value={90}>Last 90 days</option>
+            </select>
+            {isPeriodDebouncing && (
+              <div
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 border-2 border-t-transparent rounded-full animate-spin border-[var(--text-muted)]"
+                aria-label="Loading"
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -92,23 +107,47 @@ function AnalyticsPage() {
         </div>
       )}
 
-      {/* Story 8-1: Zero-Edit Rate Trend */}
-      <ZeroEditChart periodDays={periodDays} />
+      {/* Story 8-1: Zero-Edit Rate Trend (above fold - render immediately) */}
+      <ZeroEditChart periodDays={debouncedPeriod} />
 
-      {/* Story 8-2: Critic Pass Rate Trends */}
-      <CriticTrends periodDays={periodDays} />
+      {/* Story 8-2: Critic Pass Rate Trends (above fold - render immediately) */}
+      <CriticTrends periodDays={debouncedPeriod} />
 
-      {/* Story 8-3: Self-Healing Efficiency */}
-      <HealingMetrics periodDays={periodDays} />
+      {/* Story 8-3: Self-Healing Efficiency (lazy rendered) */}
+      <div ref={healingRef}>
+        {healingVisible ? (
+          <HealingMetrics periodDays={debouncedPeriod} />
+        ) : (
+          <ChartSkeleton title="Self-Healing Efficiency" height={400} />
+        )}
+      </div>
 
-      {/* Story 8-4: Content Volume & Review Velocity */}
-      <VelocityDashboard periodDays={periodDays} />
+      {/* Story 8-4: Content Volume & Review Velocity (lazy rendered) */}
+      <div ref={velocityRef}>
+        {velocityVisible ? (
+          <VelocityDashboard periodDays={debouncedPeriod} />
+        ) : (
+          <ChartSkeleton title="Content Volume & Review Velocity" height={400} />
+        )}
+      </div>
 
-      {/* Story 8-5: Kill Chain Analytics */}
-      <KillAnalytics periodDays={periodDays} />
+      {/* Story 8-5: Kill Chain Analytics (lazy rendered) */}
+      <div ref={killRef}>
+        {killVisible ? (
+          <KillAnalytics periodDays={debouncedPeriod} />
+        ) : (
+          <ChartSkeleton title="Kill Chain Analytics" height={450} />
+        )}
+      </div>
 
-      {/* Story 8-6: DNA Strength & Drift Detection */}
-      <DriftDetector periodDays={periodDays} />
+      {/* Story 8-6: DNA Strength & Drift Detection (lazy rendered) */}
+      <div ref={driftRef}>
+        {driftVisible ? (
+          <DriftDetector periodDays={debouncedPeriod} />
+        ) : (
+          <ChartSkeleton title="DNA Strength & Drift Detection" height={450} />
+        )}
+      </div>
     </div>
   );
 }
@@ -118,7 +157,10 @@ function GateMiniCard({ label, score }: { label: string; score: number | null })
     <div className="p-4 rounded-xl bg-black/20 border border-white/5 flex flex-col items-center gap-1">
       <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{label}</span>
       {score !== null ? (
-        <span className="text-xl font-mono font-bold" style={{ color: score >= 80 ? 'var(--approve)' : 'var(--text-primary)' }}>
+        <span
+          className="text-xl font-mono font-bold"
+          style={{ color: score >= 80 ? 'var(--approve)' : 'var(--text-primary)' }}
+        >
           {score}%
         </span>
       ) : (
@@ -138,14 +180,13 @@ interface MetricCardProps {
 function MetricCard({ title, value, subtitle, trend }: MetricCardProps) {
   return (
     <div
-      className="p-5 rounded-xl border transition-all hover:border-white/10"
-      style={{ backgroundColor: 'var(--bg-elevated)', borderColor: 'var(--border-subtle)' }}
+      className="p-5 rounded-xl border transition-all hover:border-white/10 bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
     >
-      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-sm text-[var(--text-secondary)]">
         {title}
       </p>
       <div className="flex items-end gap-2 mt-2">
-        <p className="text-3xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+        <p className="text-3xl font-semibold text-[var(--text-primary)]">
           {value}
         </p>
         {trend !== null && (
@@ -157,9 +198,38 @@ function MetricCard({ title, value, subtitle, trend }: MetricCardProps) {
           </span>
         )}
       </div>
-      <p className="text-xs mt-2" style={{ color: 'var(--text-muted)' }}>
+      <p className="text-xs mt-2 text-[var(--text-muted)]">
         {subtitle}
       </p>
+    </div>
+  );
+}
+
+/**
+ * AC3: Skeleton placeholder for lazy-loaded charts
+ * Uses Midnight Command design tokens per Rule 3
+ */
+function ChartSkeleton({ title, height }: { title: string; height: number }) {
+  return (
+    <div
+      className="p-6 rounded-xl border animate-pulse bg-[var(--bg-elevated)] border-[var(--border-subtle)]"
+    >
+      <div className="mb-6">
+        <h3 className="text-lg font-medium text-[var(--text-primary)]">
+          {title}
+        </h3>
+        <div
+          className="h-3 w-48 mt-2 rounded bg-[var(--bg-surface)]"
+        />
+      </div>
+      <div
+        className="rounded-lg flex items-center justify-center bg-[var(--bg-surface)]"
+        style={{ height: `${height - 100}px` }}
+      >
+        <div className="text-sm text-[var(--text-muted)]">
+          Loading chart...
+        </div>
+      </div>
     </div>
   );
 }

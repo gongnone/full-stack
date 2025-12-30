@@ -112,8 +112,8 @@ function BrandDNAPage() {
   const createTextSample = trpc.calibration.createTextSample.useMutation();
   const deleteSample = trpc.calibration.deleteSample.useMutation();
 
-  // Story 2.2: Voice mutations
-  const getVoiceUploadUrl = trpc.calibration.getUploadUrl.useMutation();
+  // Story 2.2: Voice mutations (R-11: AC1 - Use voice-specific upload URL)
+  const getVoiceUploadUrl = trpc.calibration.getVoiceUploadUrl.useMutation();
   const recordVoice = trpc.calibration.recordVoice.useMutation();
 
   // Story 2.3: Analyze DNA mutation
@@ -312,7 +312,15 @@ function BrandDNAPage() {
       addToast('Voice note processed successfully', 'success');
     } catch (error) {
       console.error('Voice processing error:', error);
-      const message = error instanceof Error ? error.message : 'Failed to process voice note';
+      // R-11: AC9 - Show helpful message for extension validation errors
+      let message = 'Failed to process voice note';
+      if (error instanceof Error) {
+        message = error.message;
+        // Make extension error more user-friendly
+        if (message.includes('Invalid audio format')) {
+          message = 'Unsupported audio format. Please use webm, mp3, wav, ogg, or m4a.';
+        }
+      }
       addToast(message, 'error');
     } finally {
       setIsProcessingVoice(false);

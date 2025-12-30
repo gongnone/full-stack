@@ -226,4 +226,59 @@ describe('callAgent', () => {
       expect(JSON.parse(body)).toEqual({ method: 'someMethod', params: { key: 'value' } });
     });
   });
+
+  describe('callEngine (AC2/AC3 for Engine)', () => {
+    it('should retry engine calls on 5xx errors', async () => {
+      mockEnv.CONTENT_ENGINE.fetch
+        .mockResolvedValueOnce({ ok: false, status: 500, statusText: 'Internal Error' })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ success: true }),
+        });
+
+      const ctx = createTestContext();
+      const resultPromise = ctx.callEngine('/api/test', { method: 'GET' });
+
+      await vi.advanceTimersByTimeAsync(100);
+      const result = await resultPromise;
+
+      expect(result).toEqual({ success: true });
+      expect(mockEnv.CONTENT_ENGINE.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not retry engine calls on 4xx errors', async () => {
+      mockEnv.CONTENT_ENGINE.fetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+      });
+
+      const ctx = createTestContext();
+      await expect(ctx.callEngine('/api/test', { method: 'GET' }))
+        .rejects.toThrow('Engine request failed: Not Found');
+
+      expect(mockEnv.CONTENT_ENGINE.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('should normalize URL path', async () => {
+      mockEnv.CONTENT_ENGINE.fetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({}),
+      });
+
+      const ctx = createTestContext();
+      
+      // Test with leading slash
+      await ctx.callEngine('/api/test1');
+      expect((mockEnv.CONTENT_ENGINE.fetch.mock.calls[0][0] as Request).url).toBe('http://internal/api/test1');
+
+      // Test without leading slash
+      await ctx.callEngine('api/test2');
+      expect((mockEnv.CONTENT_ENGINE.fetch.mock.calls[1][0] as Request).url).toBe('http://internal/api/test2');
+      
+      // Test full URL
+      await ctx.callEngine('http://external/api/test3');
+      expect((mockEnv.CONTENT_ENGINE.fetch.mock.calls[2][0] as Request).url).toBe('http://external/api/test3');
+    });
+  });
 });

@@ -156,3 +156,5 @@ pnpm test
 Test locations:
 - E2E tests: `apps/foundry-dashboard/e2e/`
 - Component tests: `apps/foundry-dashboard/src/**/*.test.tsx`
+
+## Commit Test

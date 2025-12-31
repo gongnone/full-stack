@@ -168,6 +168,19 @@ export const exportJobs = sqliteTable('export_jobs', {
 });
 
 // ==========================================
+// CLIENT ONBOARDING TOKENS
+// ==========================================
+
+export const clientOnboardTokens = sqliteTable('client_onboard_tokens', {
+  id: text('id').primaryKey(),
+  clientId: text('client_id').notNull().references(() => clients.id),
+  token: text('token').notNull().unique(),
+  expiresAt: integer('expires_at').notNull(),
+  usedAt: integer('used_at'),
+  createdAt: integer('created_at').notNull(),
+});
+
+// ==========================================
 // RELATIONS
 // ==========================================
 
@@ -275,6 +288,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
   metrics: many(globalMetrics),
   workflows: many(workflowInstances),
   exports: many(exportJobs),
+  onboardingTokens: many(clientOnboardTokens),
 }));
 
 // Define spokeEvaluations relations
@@ -289,6 +303,13 @@ export const spokeEvaluationsRelations = relations(spokeEvaluations, ({ one }) =
   }),
   client: one(clients, {
     fields: [spokeEvaluations.clientId],
+    references: [clients.id],
+  }),
+}));
+
+export const clientOnboardTokensRelations = relations(clientOnboardTokens, ({ one }) => ({
+  client: one(clients, {
+    fields: [clientOnboardTokens.clientId],
     references: [clients.id],
   }),
 }));

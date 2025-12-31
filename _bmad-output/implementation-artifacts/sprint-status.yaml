@@ -10,9 +10,9 @@ story_location: _bmad-output/implementation-artifacts
 # - ready: Story file complete, ready for implementation
 # - blocked: Waiting on dependency
 
-# Last Updated: 2025-12-28
-# Updated By: Claude Opus 4.5
-# Reason: Added Epic 9 (Production Hardening) - 4 critical backend gaps discovered via codebase audit
+# Last Updated: 2025-12-30
+# Updated By: Claude Opus 4.5 (Bob, SM)
+# Reason: Closed R-11 Voice Recording Isolation - all implementation verified, tests passing
 
 development_status:
   # Epic 1: Foundation & Identity (The Access Layer) - VERIFIED ON STAGING
@@ -102,10 +102,23 @@ development_status:
 
   # Remediation Stories (Audit Findings 2025-12-29)
   # P0 - Critical: Security and stability fixes blocking production
-  R-1-security-stability-remediation: review  # Security: spokes.ts access check, Agent RPC timeout/retry - VERIFIED COMPLETE
+  R-1-security-stability-remediation: done  # Security: spokes.ts access check, Agent RPC timeout/retry - VERIFIED COMPLETE 2025-12-30
   R-10-review-page-metrics: done  # P1 - UX Bug: Fixed getVolumeMetrics date filtering, added countHubs RPC, wired just-generated filter
-  R-11-voice-recording-isolation-fix: review  # P0 - Voice recording isolation fixed, auth checks added, DO sync graceful failures
+  R-11-voice-recording-isolation-fix: done  # P0 - Voice recording isolation fixed, auth checks added, DO sync graceful failures - VERIFIED 2025-12-30
   R-12-analytics-performance-optimization: done  # P2 - useMemo, React.memo, lazy rendering, debounce - 2025-12-29
+  R-13-session-cache-isolation: done  # P0 - Security: Clear React Query cache on logout/login - 5 E2E tests
+  R-14-new-user-onboarding-flow: done  # P0 - UX Blocker: New users stuck with 403s, need onboarding to create first client - IMPLEMENTED 2025-12-30
+
+  # Epic 10: Strategic Brand Onboarding Pipeline - NEW
+  # P0 - Core Differentiator: AI Brand Strategist for agency onboarding
+  # Created: 2025-12-29 via product discovery session
+  # Mobile-first is MANDATORY for all client-facing flows
+  epic-10: ready
+  10-1-client-brand-dna-email-invitation: ready  # P0 - Auto-send invite, token-gated voice capture
+  10-2-deep-research-agent: ready  # P0 - Market analysis, competitor scan, proven frameworks
+  10-3-strategic-pillar-synthesis: ready  # P0 - AI proposes pillars from DNA + research (THE WOW)
+  10-4-mobile-first-client-approval-flow: ready  # P0 - Client approves pillars on mobile
+  10-5-iterative-pillar-refinement: ready  # P1 - Client modifies/regenerates pillars
 
 # Implementation Priority (P0 First):
 # ✅ Story 4.3 - Self-Healing Loop (core differentiator) - DONE
@@ -119,9 +132,16 @@ development_status:
 
 # Quality Gate Status:
 # Last Run: 2025-12-29
-# Decision: PASS - All remediation stories complete or in review
+# Decision: PASS - Core platform complete, Epic 10 ready for implementation
 # P0 Pass Rate: 100% (all critical stories reviewed and approved)
-# Epics Done: 9 of 9 (ALL COMPLETE)
-# Stories Done: 52 of 52 + 4 remediation (R-1 review, R-10 done, R-11 review, R-12 done)
+# Epics Done: 9 of 10 (Epic 10 newly scoped for agency onboarding)
+# Stories Done: 52 of 57 + 6 remediation (all remediation complete)
 # Technical Debt: All P0-P2 issues resolved
-# Status: READY FOR PRODUCTION
+# Status: READY FOR PRODUCTION + Epic 10 in backlog
+#
+# Epic 10 Priority: NEXT SPRINT
+# - Transforms Brand DNA from "voice capture" to "AI Brand Strategist"
+# - Client self-service onboarding via email invite
+# - Deep research + strategic pillar synthesis
+# - Mobile-first approval flow (MANDATORY)
+# - Estimated: 22-28 hours total

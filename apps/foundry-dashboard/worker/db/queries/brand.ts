@@ -172,3 +172,16 @@ export async function updateBrandDNAEntities(
     .where(eq(brand_dna.client_id, clientId))
     .run();
 }
+
+export async function updateLastVoiceRecordingTime(
+  db: DrizzleD1Database<typeof schema>,
+  clientId: string
+) {
+  return await db
+    .update(brand_dna)
+    .set({
+      last_voice_recording_at: sql`(unixepoch())`, // Store as seconds
+    })
+    .where(eq(brand_dna.client_id, clientId))
+    .run();
+}

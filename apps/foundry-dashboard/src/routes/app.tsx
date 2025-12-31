@@ -3,9 +3,14 @@ import { useSession } from '@/lib/auth-client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar, CommandPalette, ClientSelector } from '@/components/layout';
 import { ActiveContextIndicator } from '@/components/layout/ActiveContextIndicator';
+import { CreateFirstClient } from '@/components/onboarding';
 import { trpc } from '@/lib/trpc-client';
+import { clearSessionCache } from '@/lib/query-client';
 import { useClientId } from '@/lib/use-client-id';
 import { UI_CONFIG } from '@/lib/constants';
+
+// R-13: Session-scoped cache key stored in sessionStorage
+const SESSION_USER_KEY = 'foundry_session_user_id';
 
 export const Route = createFileRoute('/app')({
   component: AppLayout,
@@ -15,12 +20,34 @@ function AppLayout() {
   const { data: session, isPending } = useSession();
   const activeClientId = useClientId();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  
-  const clientsQuery = trpc.clients.list.useQuery({}, { enabled: !!session });
+
+  // R-13 AC3: Include userId in query key for cache isolation
+  const clientsQuery = trpc.clients.list.useQuery(
+    { userId: session?.user?.id },
+    { enabled: !!session?.user?.id }
+  );
   const activeClient = clientsQuery.data?.items?.find(c => c.id === activeClientId);
 
   const loadStartTime = useRef(performance.now());
   const hasLoggedPerformance = useRef(false);
+
+  // R-13 AC2/AC4: Session Guard - detect user changes and clear cache
+  // This handles OAuth redirects and edge cases where cache wasn't cleared on login
+  useEffect(() => {
+    if (!session?.user?.id) return;
+
+    const currentUserId = session.user.id;
+    const storedUserId = sessionStorage.getItem(SESSION_USER_KEY);
+
+    if (storedUserId && storedUserId !== currentUserId) {
+      // Different user logged in - clear all cached data
+      console.info('[R-13] Session user changed, clearing cache');
+      clearSessionCache();
+    }
+
+    // Store current user ID for future comparison
+    sessionStorage.setItem(SESSION_USER_KEY, currentUserId);
+  }, [session?.user?.id]);
 
   // NFR-P5: Measure and log page load performance
   useEffect(() => {
@@ -85,6 +112,29 @@ function AppLayout() {
 
   if (!session) {
     return <Navigate to="/login" />;
+  }
+
+  if (!clientsQuery.isLoading && clientsQuery.error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-red-500">
+        Error loading clients: {clientsQuery.error.message}
+      </div>
+    );
+  }
+
+  // R-14 AC2: If user has no clients, show onboarding flow
+  // Wait for clients query to load before showing onboarding to avoid flash
+  // Safety: Only show onboarding if we SUCCESSFULLY fetched data and confirmed 0 items
+  // This prevents showing onboarding on network errors (where data is undefined)
+  if (!clientsQuery.isLoading && clientsQuery.data) {
+    console.log('[AppLayout] Route guard check:', { 
+      clientCount: clientsQuery.data.items?.length, 
+      activeClientId 
+    });
+  }
+
+  if (!clientsQuery.isLoading && clientsQuery.data && (!clientsQuery.data.items?.length || activeClientId === null)) {
+    return <CreateFirstClient />;
   }
 
   return (

@@ -92,8 +92,10 @@ export const authRouter = t.router({
       };
     }
 
-    // Priority: profile.active_client_id > first client in client_members > accountId
-    const clientId = profile?.active_client_id || await getFirstClientId(ctx) || ctx.accountId || ctx.userId;
+    // Priority: profile.active_client_id > first client in client_members > null
+    // R-14 AC1: Do NOT fall back to accountId or userId - those are not valid clientIds
+    // Return null when user has no clients to trigger onboarding flow
+    const clientId = profile?.active_client_id || await getFirstClientId(ctx) || null;
 
     return {
       user: userResult,

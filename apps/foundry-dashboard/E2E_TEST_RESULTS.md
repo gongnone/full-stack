@@ -159,7 +159,7 @@ curl "http://localhost:8787/trpc/clients.list?input=%7B%7D"
 - ✅ tRPC provider wrapping app (`src/main.tsx`)
 - ✅ Login/signup routes available (`/login`, `/signup`)
 - ✅ Protected app route (`/app/*`)
-- ✅ Example tRPC query in dashboard (`trpc.clients.list.useQuery`)
+- ✅ Example tRPC query in dashboard (`trpc.clients.list.useQuery({ userId: session.user.id })`)
 
 ### User Flow
 1. **Visit:** `http://localhost:5173/signup`

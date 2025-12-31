@@ -16,18 +16,22 @@ const psychologicalAngleSchema = z.enum([
 export const hubsRouter = t.router({
   // ===== SOURCE MANAGEMENT (Story 3-1) =====
 
-  // Get upload URL for source PDF
+  // Get upload URL for source file (Story 1.5-4-1)
   getSourceUploadUrl: procedure
     .input(z.object({
       clientId: z.string().min(1),
       filename: z.string().min(1).max(255),
+      fileType: z.enum(['pdf', 'docx', 'txt', 'mp3', 'mp4']),
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
       const sourceId = crypto.randomUUID();
       const timestamp = Date.now();
       const sanitizedFilename = input.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-      const r2Key = `sources/${input.clientId}/${sourceId}/${timestamp}-${sanitizedFilename}`;
+      const ext = input.filename.split('.').pop()?.toLowerCase() || '';
+      
+      // AC2: Store in R2: /hubs/{client_id}/{hub_id}/source.*
+      const r2Key = `hubs/${input.clientId}/${sourceId}/source.${ext}`;
 
       return {
         sourceId,
@@ -37,21 +41,32 @@ export const hubsRouter = t.router({
       };
     }),
 
-  // Register a PDF source after upload to R2
-  registerPdfSource: procedure
+  // Register a source file after upload to R2 (Story 1.5-4-1)
+  registerSource: procedure
     .input(z.object({
       clientId: z.string().min(1),
       sourceId: z.string().uuid(),
       r2Key: z.string(),
       filename: z.string(),
+      sourceType: z.enum(['pdf', 'docx', 'txt', 'mp3', 'mp4']),
     }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
       const now = Date.now();
+      
       await ctx.db.prepare(`
         INSERT INTO hub_sources (id, client_id, user_id, title, source_type, r2_key, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'pdf', ?, 'pending', ?, ?)
-      `).bind(input.sourceId, input.clientId, ctx.userId, input.filename, input.r2Key, now, now).run();
+        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)
+      `).bind(
+        input.sourceId, 
+        input.clientId, 
+        ctx.userId, 
+        input.filename, 
+        input.sourceType, 
+        input.r2Key, 
+        now, 
+        now
+      ).run();
 
       return { sourceId: input.sourceId, status: 'pending' as const };
     }),
@@ -213,6 +228,32 @@ export const hubsRouter = t.router({
         progress: 0,
         stageMessage: 'Waiting to start...',
       };
+    }),
+
+  // Get extracted themes for a hub/source (Story 1.5-4-3)
+  getExtractedThemes: procedure
+    .input(z.object({
+      sourceId: z.string().uuid(),
+      clientId: z.string().min(1),
+    }))
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+      
+      const source = await ctx.db.prepare(`
+        SELECT extracted_themes FROM hub_sources 
+        WHERE id = ? AND client_id = ?
+      `).bind(input.sourceId, input.clientId).first();
+
+      if (!source?.extracted_themes) {
+        return [];
+      }
+
+      try {
+        return JSON.parse(source.extracted_themes as string);
+      } catch (e) {
+        console.error('Failed to parse extracted_themes:', e);
+        return [];
+      }
     }),
 
   // Retry failed extraction
@@ -467,6 +508,257 @@ export const hubsRouter = t.router({
         pillarCount: (pillarCount?.count as number) || 0,
         redirectTo: `/app/hubs/${hubId}`,
       };
+    }),
+
+  // ===== GOLDEN NUGGETS (Story 1.5-4-4) =====
+
+  // Mark a supporting point as a golden nugget
+  markGoldenNugget: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      pillarId: z.string().uuid(),
+      nuggetIndex: z.number().min(0), // Index in supportingPoints array
+      isGolden: z.boolean(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // Get pillar with supporting points
+      const pillar = await ctx.db.prepare(`
+        SELECT id, supporting_points, golden_nuggets
+        FROM extracted_pillars WHERE id = ? AND client_id = ?
+      `).bind(input.pillarId, input.clientId).first();
+
+      if (!pillar) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Pillar not found' });
+      }
+
+      const supportingPoints = JSON.parse((pillar.supporting_points as string) || '[]');
+      if (input.nuggetIndex >= supportingPoints.length) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid nugget index' });
+      }
+
+      // Parse existing golden nuggets (array of indices)
+      let goldenNuggets: number[] = [];
+      try {
+        goldenNuggets = JSON.parse((pillar.golden_nuggets as string) || '[]');
+      } catch { /* ignore */ }
+
+      // Add or remove nugget index
+      if (input.isGolden && !goldenNuggets.includes(input.nuggetIndex)) {
+        goldenNuggets.push(input.nuggetIndex);
+      } else if (!input.isGolden) {
+        goldenNuggets = goldenNuggets.filter(i => i !== input.nuggetIndex);
+      }
+
+      await ctx.db.prepare(`
+        UPDATE extracted_pillars SET golden_nuggets = ? WHERE id = ?
+      `).bind(JSON.stringify(goldenNuggets), input.pillarId).run();
+
+      return { success: true, goldenNuggets };
+    }),
+
+  // Get all golden nuggets for a source
+  getGoldenNuggets: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      sourceId: z.string().uuid(),
+    }))
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      const result = await ctx.db.prepare(`
+        SELECT id, title, supporting_points, golden_nuggets
+        FROM extracted_pillars
+        WHERE source_id = ? AND client_id = ?
+      `).bind(input.sourceId, input.clientId).all();
+
+      return (result.results || []).map((row: Record<string, unknown>) => {
+        const supportingPoints = JSON.parse((row.supporting_points as string) || '[]');
+        const goldenIndices: number[] = JSON.parse((row.golden_nuggets as string) || '[]');
+
+        return {
+          pillarId: row.id as string,
+          pillarTitle: row.title as string,
+          nuggets: supportingPoints.map((point: string, index: number) => ({
+            index,
+            text: point,
+            isGolden: goldenIndices.includes(index),
+          })),
+        };
+      });
+    }),
+
+  // Bulk update golden nugget weights
+  updateNuggetWeights: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      pillarId: z.string().uuid(),
+      weights: z.record(z.string(), z.number().min(0).max(10)), // index -> weight (0-10)
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      await ctx.db.prepare(`
+        UPDATE extracted_pillars SET nugget_weights = ? WHERE id = ? AND client_id = ?
+      `).bind(JSON.stringify(input.weights), input.pillarId, input.clientId).run();
+
+      return { success: true };
+    }),
+
+  // Trigger Spoke Generation Workflow (Story 1.5-4-5)
+  triggerSpokeGeneration: procedure
+    .input(z.object({
+      hubId: z.string().uuid(),
+      clientId: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // 1. Fetch Approved Pillars
+      const pillars = await ctx.db.prepare(`
+        SELECT id, title, core_claim, psychological_angle, supporting_points, golden_nuggets
+        FROM extracted_pillars
+        WHERE hub_id = ? AND client_id = ?
+      `).bind(input.hubId, input.clientId).all();
+
+      if (!pillars.results || pillars.results.length === 0) {
+        throw new TRPCError({
+          code: 'PRECONDITION_FAILED',
+          message: 'No pillars found for this hub. Extract pillars first.',
+        });
+      }
+
+      // 2. Fetch Platform Strategy
+      const strategy = await ctx.db.prepare(`
+        SELECT platform, status, posting_cadence
+        FROM platform_recommendations
+        WHERE client_id = ? AND status != 'excluded'
+      `).bind(input.clientId).all();
+
+      // 3. Trigger Workflow on Engine
+      try {
+        const result = await ctx.callEngine<{ instanceId: string }>('http://internal/api/hubs/generate-spokes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId: input.clientId,
+            hubId: input.hubId,
+            pillars: pillars.results,
+            strategy: strategy.results,
+          }),
+        });
+
+        // Update hub status
+        await ctx.db.prepare(`
+          UPDATE hubs SET status = 'processing', updated_at = ? WHERE id = ?
+        `).bind(Date.now(), input.hubId).run();
+
+        return {
+          success: true,
+          workflowInstanceId: result.instanceId,
+        };
+      } catch (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: `Failed to trigger generation: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        });
+      }
+    }),
+
+  // Get Spoke Generation Progress (Story 1.5-4-6)
+  getGenerationProgress: procedure
+    .input(z.object({
+      hubId: z.string().uuid(),
+      clientId: z.string().min(1),
+    }))
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+      
+      try {
+        const result = await ctx.db.prepare(`
+          SELECT COUNT(*) as generated, total_expected
+          FROM spokes s
+          JOIN hubs h ON s.hub_id = h.id
+          WHERE h.id = ? AND h.client_id = ?
+        `).bind(input.hubId, input.clientId).first();
+
+        return {
+          generated: (result?.generated as number) || 0,
+          total: (result?.total_expected as number) || 25, // Fallback to 25
+        };
+      } catch (error) {
+        return { generated: 0, total: 25 };
+      }
+    }),
+
+  // Resume Failed Generation (Story 1.5-4-9)
+  resumeSpokeGeneration: procedure
+    .input(z.object({
+      hubId: z.string().uuid(),
+      clientId: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // Check for already generated spokes
+      const existing = await ctx.db.prepare(`
+        SELECT COUNT(*) as count FROM spokes WHERE hub_id = ?
+      `).bind(input.hubId).first();
+      
+      const skipCount = (existing?.count as number) || 0;
+
+      // Re-trigger workflow passing the skip count
+      try {
+        const result = await ctx.callEngine<{ instanceId: string }>('http://internal/api/hubs/generate-spokes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId: input.clientId,
+            hubId: input.hubId,
+            skipCount, // Engine should skip these many spokes
+          }),
+        });
+
+        await ctx.db.prepare(`
+          UPDATE hubs SET status = 'processing', updated_at = ? WHERE id = ?
+        `).bind(Date.now(), input.hubId).run();
+
+        return { success: true, resumedFrom: skipCount };
+      } catch (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to resume generation',
+        });
+      }
+    }),
+
+  // Start Over Spoke Generation (Story 1.5-4-9)
+  startOverSpokeGeneration: procedure
+    .input(z.object({
+      hubId: z.string().uuid(),
+      clientId: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // 1. Delete existing spokes for this hub
+      await ctx.db.prepare(`
+        DELETE FROM spokes WHERE hub_id = ?
+      `).bind(input.hubId).run();
+
+      // 2. Trigger fresh generation
+      const result = await ctx.callEngine<{ instanceId: string }>('http://internal/api/hubs/generate-spokes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientId: input.clientId,
+          hubId: input.hubId,
+          skipCount: 0,
+        }),
+      });
+
+      return { success: true };
     }),
 
   // ===== HUB MANAGEMENT (Story 3.4) =====

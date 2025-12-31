@@ -76,7 +76,7 @@ describe('@P1 Hub Creation Workflow Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('P1-HUB-01: Hub Initialization', () => {

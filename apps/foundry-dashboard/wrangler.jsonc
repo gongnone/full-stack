@@ -44,6 +44,24 @@
     "binding": "AI"
   },
 
+  // Durable Objects (Story 1.5-1-1: BrandDNA Agent)
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BRAND_DNA_AGENT",
+        "class_name": "BrandDNAAgent"
+      }
+    ]
+  },
+
+  // Required for Durable Objects
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["BrandDNAAgent"]
+    }
+  ],
+
   // Local development vars
   "vars": {
     "ENVIRONMENT": "local",
@@ -98,6 +116,14 @@
       ],
       "ai": {
         "binding": "AI"
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "BRAND_DNA_AGENT",
+            "class_name": "BrandDNAAgent"
+          }
+        ]
       }
     },
     "production": {
@@ -139,7 +165,18 @@
           "binding": "EMBEDDINGS",
           "index_name": "foundry-embeddings"
         }
-      ]
+      ],
+      "ai": {
+        "binding": "AI"
+      },
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "BRAND_DNA_AGENT",
+            "class_name": "BrandDNAAgent"
+          }
+        ]
+      }
     }
   }
 }

@@ -52,8 +52,8 @@ export interface UserProfileInput {
 export interface UserWithProfile {
   user: User;
   profile: UserProfile | null;
-  /** Client ID for multi-tenant isolation. For MVP, this is userId or accountId. */
-  clientId: string;
+  /** Client ID for multi-tenant isolation. null when user has no clients (triggers onboarding). */
+  clientId: string | null;
 }
 
 // Training sample for Brand DNA analysis (Story 2.1 & 2.2)

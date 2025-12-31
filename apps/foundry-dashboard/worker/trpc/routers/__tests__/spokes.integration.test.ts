@@ -20,7 +20,7 @@ describe('spokesRouter - Integration', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('list', () => {

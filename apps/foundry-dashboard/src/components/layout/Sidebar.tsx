@@ -1,5 +1,6 @@
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router';
 import { useSession, signOut } from '@/lib/auth-client';
+import { clearSessionCache } from '@/lib/query-client';
 
 interface NavItem {
   name: string;
@@ -82,6 +83,10 @@ export function Sidebar() {
 
   const handleSignOut = async () => {
     await signOut();
+    // R-13 AC1: Clear all cached data to prevent leakage to next user
+    clearSessionCache();
+    // Clear session user tracking for cache guard
+    sessionStorage.removeItem('foundry_session_user_id');
     navigate({ to: '/login' });
   };
 

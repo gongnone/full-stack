@@ -70,7 +70,7 @@ describe('@P1 Self-Healing Loop Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('P1-HEAL-01: Feedback loop writes', () => {

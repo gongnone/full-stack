@@ -1,12 +1,14 @@
 import * as React from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { signOut } from '@/lib/auth-client';
+import { clearSessionCache } from '@/lib/query-client';
 import { useToast } from '@/lib/toast';
 import { Button } from '@/components/ui/button';
 
 /**
  * SignOutButton component for signing out the user
  * AC3: Sign out invalidates session and redirects to /login
+ * R-13: Clear React Query cache on logout to prevent data leakage
  */
 export function SignOutButton() {
   const { addToast } = useToast();
@@ -17,6 +19,10 @@ export function SignOutButton() {
     setIsLoading(true);
     try {
       await signOut();
+      // R-13 AC1: Clear all cached data to prevent leakage to next user
+      clearSessionCache();
+      // Clear session user tracking for cache guard
+      sessionStorage.removeItem('foundry_session_user_id');
       // SPA navigation to login page after signout (preserves React state, faster)
       navigate({ to: '/login' });
     } catch (error) {

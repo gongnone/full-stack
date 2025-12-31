@@ -1,24 +1,30 @@
-import { defineConfig } from 'vitest/config';
+import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-export default defineConfig({
+export default defineWorkersConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.tsx'],
     include: [
       'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
       'worker/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
-      'worker/**/*.integration.test.{js,ts}',
     ],
-    // Resource management for large test suites (Vitest 4 top-level options)
+    // Default to 'forks' pool for unit tests (fast, no worker runtime needed)
     pool: 'forks',
-    maxWorkers: 4,
-    minWorkers: 1,
-    testTimeout: 10000,
-    hookTimeout: 10000,
+    poolOptions: {
+      workers: {
+        wrangler: { configPath: './wrangler.jsonc' },
+        miniflare: {
+          compatibilityDate: '2024-04-05',
+          compatibilityFlags: ['nodejs_compat'],
+          d1Databases: ['DB'],
+          r2Buckets: ['ASSETS'],
+          kvNamespaces: ['KV'],
+        },
+      },
+    },
     // Isolate tests to prevent memory leaks between files
     isolate: true,
     // Retry flaky tests once

@@ -49,21 +49,63 @@ export const createMockContext = () => {
     run: vi.fn(),
     all: mockAll,
     first: mockFirst,
+    batch: vi.fn(),
   };
 
-  const mockDrizzle = {} as any; // Mock Drizzle instance
+  const mockDrizzle = {
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockImplementation((table: any) => {
+      // Drizzle tables have a name property or can be stringified
+      lastQuery = `SELECT FROM ${table?.name || table || 'unknown'}`;
+      return mockDrizzle;
+    }),
+    where: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
+    offset: vi.fn().mockReturnThis(),
+    insert: vi.fn().mockImplementation((table: any) => {
+      lastQuery = `INSERT INTO ${table?.name || table || 'unknown'}`;
+      return mockDrizzle;
+    }),
+    values: vi.fn().mockReturnThis(),
+    returning: vi.fn().mockReturnThis(),
+    update: vi.fn().mockImplementation((table: any) => {
+      lastQuery = `UPDATE ${table?.name || table || 'unknown'}`;
+      return mockDrizzle;
+    }),
+    set: vi.fn().mockReturnThis(),
+    delete: vi.fn().mockImplementation((table: any) => {
+      lastQuery = `DELETE FROM ${table?.name || table || 'unknown'}`;
+      return mockDrizzle;
+    }),
+    
+    // Terminal methods delegating to mockDb
+    get: mockFirst,
+    all: vi.fn().mockImplementation(async () => {
+      const result = await mockAll();
+      // If result has .results (D1 format), return that. Otherwise return result (if array or other).
+      if (result && typeof result === 'object' && 'results' in result) {
+        return (result as any).results;
+      }
+      return result;
+    }),
+    run: mockDb.run,
+  } as any;
 
   const mockCallAgent = vi.fn();
   const mockCallEngine = vi.fn();
   const mockFetch = vi.fn();
   const mockR2Delete = vi.fn();
   const mockR2Head = vi.fn();
+  const mockR2Get = vi.fn();
+  const mockAIRun = vi.fn();
 
   const ctx: Context = {
     env: {
       DB: mockDb,
       CONTENT_ENGINE: { fetch: mockFetch },
-      MEDIA: { delete: mockR2Delete, head: mockR2Head }
+      MEDIA: { delete: mockR2Delete, head: mockR2Head, get: mockR2Get },
+      AI: { run: mockAIRun },
     } as any,
     db: mockDb as any,
     drizzle: mockDrizzle,
@@ -74,5 +116,5 @@ export const createMockContext = () => {
     callEngine: mockCallEngine,
   };
 
-  return { ctx, mockDb, mockCallAgent, mockCallEngine, mockFetch, setMembershipRole, mockR2Delete, mockR2Head };
+  return { ctx, mockDb, mockCallAgent, mockCallEngine, mockFetch, setMembershipRole, mockR2Delete, mockR2Head, mockR2Get, mockAIRun };
 };

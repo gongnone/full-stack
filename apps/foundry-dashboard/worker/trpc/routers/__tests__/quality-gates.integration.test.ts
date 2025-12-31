@@ -74,7 +74,7 @@ describe('@P1 Quality Gates Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('P1-GATE-01: G2 Hook scoring', () => {

@@ -52,6 +52,79 @@ describe('authRouter', () => {
 
       await expect(caller.me()).rejects.toThrow(TRPCError);
     });
+
+    // R-14 AC1: auth.me returns clientId: null when user has no clients
+    it('returns clientId: null when user has no clients', async () => {
+      const { ctx, mockDb } = mockCtx;
+      const caller = authRouter.createCaller(ctx);
+
+      const mockUser = { id: 'user-123', email: 'new@example.com', name: 'New User' };
+      // Profile exists but has no active_client_id
+      const mockProfile = {
+        id: 'prof-1',
+        user_id: 'user-123',
+        display_name: 'New User',
+        active_client_id: null
+      };
+
+      mockDb.first.mockResolvedValueOnce(mockUser); // user query
+      mockDb.first.mockResolvedValueOnce(mockProfile); // profile query
+      mockDb.first.mockResolvedValueOnce(null); // getFirstClientId returns null (no memberships)
+
+      const result = await caller.me();
+
+      // R-14: clientId should be null, NOT userId or accountId
+      expect(result.clientId).toBeNull();
+      expect(result.user.id).toBe('user-123');
+    });
+
+    it('returns clientId from active_client_id when set', async () => {
+      const { ctx, mockDb } = mockCtx;
+      const caller = authRouter.createCaller(ctx);
+
+      const mockUser = { id: 'user-123', email: 'test@example.com', name: 'Test User' };
+      const mockProfile = {
+        id: 'prof-1',
+        user_id: 'user-123',
+        display_name: 'Test User',
+        active_client_id: 'client-abc'
+      };
+
+      mockDb.first.mockResolvedValueOnce(mockUser); // user query
+      mockDb.first.mockResolvedValueOnce(mockProfile); // profile query
+
+      const result = await caller.me();
+
+      expect(result.clientId).toBe('client-abc');
+    });
+
+    it('falls back to first client membership when no active_client_id', async () => {
+      const { ctx, mockDb } = mockCtx;
+      const caller = authRouter.createCaller(ctx);
+
+      const mockUser = { id: 'user-123', email: 'test@example.com', name: 'Test User' };
+      const mockProfile = {
+        id: 'prof-1',
+        user_id: 'user-123',
+        display_name: 'Test User',
+        active_client_id: null
+      };
+
+      // Override the default first() behavior to return specific values in order
+      // Note: client_members queries are special-cased in mock utils, so we use raw implementation
+      let callCount = 0;
+      mockDb.first.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) return Promise.resolve(mockUser); // user query
+        if (callCount === 2) return Promise.resolve(mockProfile); // profile query
+        if (callCount === 3) return Promise.resolve({ client_id: 'client-xyz' }); // getFirstClientId
+        return Promise.resolve(null);
+      });
+
+      const result = await caller.me();
+
+      expect(result.clientId).toBe('client-xyz');
+    });
   });
 
   describe('updateProfile', () => {

@@ -32,7 +32,7 @@ describe('Hubs Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('Hub CRUD Operations', () => {

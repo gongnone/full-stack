@@ -83,6 +83,10 @@ development_status:
   9-7-database-foreign-key-constraints: Verified
   9-8-type-safety-improvements: Verified
 
+  # Epic 10: Strategic Brand Onboarding Pipeline
+  epic-10: in-progress
+  10-1-client-brand-dna-email-invitation: in-progress
+
 verification_summary:
   last_full_e2e_run: 2025-12-24
   environment: Staging (https://stage.williamjshaw.ca)
@@ -185,6 +189,11 @@ remediation_backlog:
     completed: 2025-12-29
     issue: "Email service console.log exposes user emails"
 
+  R-11-voice-recording-isolation-fix:
+    status: done
+    priority: HIGH
+    completed: 2025-12-30
+
 remediation_summary:
   total_stories: 7
   critical_blockers: 0
@@ -205,12 +214,13 @@ remediation_summary:
 technical_debt_backlog:
   # CI/CD Infrastructure
   TD-1-vitest-pool-workers-migration:
-    status: Ready for Dev
+    status: In Progress
     priority: HIGH
     effort: 2-4 hours
     issue: "Integration tests fail in GitHub Actions due to Miniflare D1 proxy initialization"
     root_cause: "Miniflare's D1 proxy doesn't work in Ubuntu CI environment"
     solution: "Migrate from custom Miniflare harness to @cloudflare/vitest-pool-workers"
+    progress: "Dependencies added, syntax error fixed. Tests failing with better-auth workerd issues."
     benefits:
       - "Green CI pipeline (currently failing on P1 Integration Tests)"
       - "Real D1/R2/DO testing in actual Workers runtime"
@@ -227,11 +237,12 @@ technical_debt_backlog:
       - https://developers.cloudflare.com/workers/testing/vitest-integration/recipes/
 
   TD-2-code-review-any-type-detection:
-    status: Ready for Dev
+    status: Verified
     priority: MEDIUM
     effort: 1 hour
     issue: "No automated detection of 'any' types during code review"
     solution: "Add ESLint rule @typescript-eslint/no-explicit-any with error level"
+    progress: "ESLint config created and deps installed."
     benefits:
       - "Prevents accumulation of type safety debt"
       - "Catches any types before PR merge"
@@ -240,11 +251,12 @@ technical_debt_backlog:
       - apps/foundry-engine/.eslintrc.cjs
 
   TD-3-integration-test-assertion-quality:
-    status: Ready for Dev
+    status: Verified
     priority: MEDIUM
     effort: 30 minutes
     issue: "Placeholder integration tests (expect(true).toBe(true)) slip through"
     solution: "Add ESLint rule to flag trivial assertions in test files"
+    progress: "ESLint config created with restricted syntax rule."
     benefits:
       - "Ensures tests actually test something"
       - "Prevents false confidence in test coverage"

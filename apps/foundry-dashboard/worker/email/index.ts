@@ -226,6 +226,74 @@ The Agentic Content Foundry
 }
 
 /**
+ * Send Brand DNA invitation email (Story 10-1)
+ */
+export async function sendBrandDNAInvitation(
+  env: Env,
+  email: string,
+  clientName: string,
+  inviteUrl: string,
+  agencyName: string
+): Promise<{ success: boolean; error?: string }> {
+  // Silent fallback for dev mode
+  if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+    console.log(`[Email Mock] Sending Brand DNA Invite to ${email}: ${inviteUrl}`);
+    return { success: true };
+  }
+
+  const subject = `${agencyName} invited you to set up your brand voice`;
+  
+  const htmlContent = `
+    <p style="margin: 0 0 20px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
+      Hi ${escapeHtml(clientName)},
+    </p>
+    <p style="margin: 0 0 24px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
+      ${escapeHtml(agencyName)} is setting up AI-powered content generation for your brand.
+      To make sure every piece sounds authentically YOU, we need 2 minutes of your time.
+    </p>
+    <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 24px;">
+      <tr>
+        <td style="background-color: #1D9BF0; border-radius: 6px;">
+          <a href="${inviteUrl}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #FFFFFF; text-decoration: none;">
+            Set Up My Brand Voice →
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin: 0 0 16px; font-size: 14px; color: #8B98A5; line-height: 1.6;">
+      You'll:
+    </p>
+    <ul style="margin: 0 0 24px; padding-left: 20px; font-size: 14px; color: #E7E9EA; line-height: 1.6;">
+      <li style="margin-bottom: 8px;">Record a quick voice note (just talk naturally!)</li>
+      <li style="margin-bottom: 8px;">Optionally upload your best existing content</li>
+    </ul>
+    <p style="margin: 0; font-size: 14px; color: #8B98A5; line-height: 1.6;">
+      The more you share, the better your content will be.
+    </p>
+  `;
+
+  const textContent = `
+Hi ${clientName},
+
+${agencyName} is setting up AI-powered content generation for your brand.
+To make sure every piece sounds authentically YOU, we need 2 minutes of your time.
+
+Set Up My Brand Voice: ${inviteUrl}
+
+You'll:
+- Record a quick voice note (just talk naturally!)
+- Optionally upload your best existing content
+
+The more you share, the better your content will be.
+`;
+
+  return sendEmail(env, {
+    to: email,
+    subject,
+    html: wrapInTemplate(htmlContent),
+    text: textContent.trim(),
+  });
+}/**
  * Send password reset email
  * Token expires according to Better Auth configuration
  */

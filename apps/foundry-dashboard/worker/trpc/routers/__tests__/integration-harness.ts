@@ -2,22 +2,17 @@
  * Integration Test Harness with Real D1
  * INFRA-04: Creates a test context with actual D1 database operations
  *
- * This harness uses Miniflare's D1 implementation to provide
- * real database operations without mocking.
+ * This harness uses the native @cloudflare/vitest-pool-workers env
+ * to provide real database operations without manual mocking.
  *
  * Usage:
- *   import { createIntegrationContext, setupTestDatabase } from './integration-harness';
+ *   import { createIntegrationContext } from './integration-harness';
  *
  *   describe('My Integration Test', () => {
  *     let ctx: IntegrationContext;
  *
  *     beforeAll(async () => {
  *       ctx = await createIntegrationContext();
- *       await setupTestDatabase(ctx.db);
- *     });
- *
- *     afterAll(async () => {
- *       await ctx.cleanup();
  *     });
  *
  *     it('should write to real D1', async () => {
@@ -27,9 +22,7 @@
  *   });
  */
 
-import { Miniflare } from 'miniflare';
-import fs from 'fs';
-import path from 'path';
+import { env } from 'cloudflare:test';
 import type { Context } from '../../context';
 import { initDatabase } from '../../../db';
 
@@ -37,28 +30,17 @@ import { initDatabase } from '../../../db';
 const randomUUID = (): string => crypto.randomUUID();
 
 export interface IntegrationContext extends Context {
-  cleanup: () => Promise<void>;
   testAccountId: string;
   testUserId: string;
   secondAccountId: string; // For cross-tenant testing
   secondUserId: string;
-  mf: Miniflare;
 }
 
 /**
- * Create an integration test context with real D1 database via Miniflare
+ * Create an integration test context with real D1 database via native test env
  */
 export async function createIntegrationContext(): Promise<IntegrationContext> {
-  // Spin up local D1 with Miniflare
-  const mf = new Miniflare({
-    modules: true,
-    script: '', // Dummy script as we only need the bindings
-    d1Databases: ['DB'],
-    // Use unique persistence for each context to avoid state leakage
-    d1Persist: false, 
-  });
-
-  const db = await mf.getD1Database('DB');
+  const db = env.DB;
   const drizzle = initDatabase(db);
 
   // Generate test IDs
@@ -88,13 +70,12 @@ export async function createIntegrationContext(): Promise<IntegrationContext> {
     } as any,
     db,
     drizzle,
-    mf,
     userId: testUserId,
     accountId: testAccountId,
     userRole: 'admin',
     callAgent: async <T = unknown>(clientId: string, method: string, params: any): Promise<T> => {
       // For integration tests, we simulate DO logic or return success
-      // If we wanted real DO integration, we'd add Durable Objects to Miniflare
+      // If we wanted real DO integration, we'd add Durable Objects to the pool
       if (method === 'getSpoke') {
         // Return a mock spoke for edit tests
         return { content: 'Original content', id: params.spokeId } as T;
@@ -109,9 +90,6 @@ export async function createIntegrationContext(): Promise<IntegrationContext> {
     testUserId,
     secondAccountId,
     secondUserId,
-    cleanup: async () => {
-      await mf.dispose();
-    },
   };
 
   return ctx;

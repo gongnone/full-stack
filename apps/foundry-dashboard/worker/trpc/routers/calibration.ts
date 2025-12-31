@@ -1,5 +1,6 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
+import { eq, desc } from 'drizzle-orm';
 import type { Context } from '../context';
 import type {
   TrainingSample,
@@ -13,7 +14,7 @@ import type {
 } from '../../types';
 import { assertClientAccess } from '../middleware/client-access';
 import * as brandQueries from '../../db/queries/brand';
-import type * as schema from '../../db/schema';
+import * as schema from '../../db/schema';
 
 // Helper to map DB TrainingSample to API TrainingSample
 function mapTrainingSample(dbSample: schema.TrainingSample): TrainingSample {
@@ -57,6 +58,60 @@ function getQualityBadge(sample: TrainingSample): TrainingSampleWithQuality['qua
 // ===== Helper to count words in text =====
 function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+// ===== Helper to validate audio file magic bytes (Story 1.5-1-3) =====
+async function validateAudioFile(ctx: Context, r2Key: string): Promise<boolean> {
+  try {
+    // Read first 12 bytes to cover most signatures
+    const object = await ctx.env.MEDIA.get(r2Key, { range: { offset: 0, length: 12 } });
+    if (!object) return false;
+
+    const buffer = await object.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    
+    // WebM (EBML) - 1A 45 DF A3
+    if (bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3) return true;
+    
+    // WAV (RIFF....WAVE) - 52 49 46 46 ... 57 41 56 45
+    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+        bytes[8] === 0x57 && bytes[9] === 0x41 && bytes[10] === 0x56 && bytes[11] === 0x45) return true;
+        
+    // OGG - 4F 67 67 53
+    if (bytes[0] === 0x4F && bytes[1] === 0x67 && bytes[2] === 0x67 && bytes[3] === 0x53) return true;
+    
+    // MP3 (ID3) - 49 44 33
+    if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) return true;
+    // MP3 (MPEG Frame) - FF FB or FF F3 (approx check)
+    if (bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0) return true;
+    
+    // M4A/MP4 (ftyp) - ... ftyp
+    // Usually starts with size (4 bytes) then 'ftyp' at offset 4
+    if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) return true;
+
+    return false;
+  } catch (error) {
+    console.error('Validation error:', error);
+    return false;
+  }
+}
+
+/**
+ * Sanitize user content for LLM consumption (Story 1.5-1-4)
+ * Wraps content in XML-like tags and escapes existing tags to prevent injection.
+ */
+function sanitizeForLLM(text: string): string {
+  if (!text) return '';
+  
+  // Escape existing XML-like tags that could be used for injection
+  const escaped = text
+    .replace(/<user_content>/g, '&lt;user_content&gt;')
+    .replace(/<\/user_content>/g, '&lt;/user_content&gt;')
+    .replace(/<system_prompt>/g, '&lt;system_prompt&gt;')
+    .replace(/<\/system_prompt>/g, '&lt;/system_prompt&gt;');
+  
+  // Standard delimiter used by our Content Engine
+  return `<user_content>\n${escaped}\n</user_content>`;
 }
 
 // ===== Story R-11: AC5, AC6 - Safe DO sync helper =====
@@ -237,7 +292,7 @@ export const calibrationRouter = t.router({
           body: JSON.stringify({
             clientId: input.clientId,
             contentType: 'transcripts',
-            content: [input.content],
+            content: [sanitizeForLLM(input.content)],
           }),
         });
       } catch (error: unknown) {
@@ -439,6 +494,18 @@ export const calibrationRouter = t.router({
         });
       }
 
+      // Validate file integrity (Story 1.5-1-3)
+      const isValid = await validateAudioFile(ctx, input.audioR2Key);
+      if (!isValid) {
+        // Cleanup invalid file
+        try { await ctx.env.MEDIA.delete(input.audioR2Key); } catch {}
+        
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Invalid audio file format. File corrupted or type mismatch.',
+        });
+      }
+
       // Trigger CalibrationWorkflow on Engine
       let response: Response;
       try {
@@ -490,6 +557,9 @@ export const calibrationRouter = t.router({
           r2_key: input.audioR2Key,
           status: 'processing'
         });
+
+        // Story R-11: AC8 - Update rate limit timestamp
+        await brandQueries.updateLastVoiceRecordingTime(ctx.drizzle, input.clientId);
       } catch (dbError) {
         // Story R-11: AC10 - Attempt R2 cleanup if DB insert fails
         try {
@@ -703,7 +773,22 @@ export const calibrationRouter = t.router({
     .input(z.object({ clientId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      const result = await ctx.callAgent<BrandDNAReport>(input.clientId, 'getDNAReport', {});
+      
+      // Story R-11: AC5, AC6 - Use safeDOSync for graceful failure handling
+      const { result, failed } = await safeDOSync<BrandDNAReport>(
+        ctx, 
+        input.clientId, 
+        'getDNAReport', 
+        {}, 
+        'getBrandDNA'
+      );
+
+      if (failed || !result) {
+        // Return a minimal valid response or throw a specific error
+        // For this UI query, we return null to let the frontend handle the empty state
+        return null;
+      }
+
       return result;
     }),
 
@@ -727,7 +812,7 @@ export const calibrationRouter = t.router({
         body: JSON.stringify({
           clientId: input.clientId,
           contentType: 'posts', // Mixed content
-          content: samples.map(s => s.extracted_text).filter(Boolean)
+          content: samples.map(s => sanitizeForLLM(s.extracted_text || '')).filter(Boolean)
         }),
       });
 
@@ -747,9 +832,28 @@ export const calibrationRouter = t.router({
 
       if (!dna) return null;
 
-      const toneProfile = JSON.parse(dna.tone_profile || '{}');
-      const signaturePhrases = JSON.parse(dna.signature_patterns || '[]');
-      const topicsToAvoid = JSON.parse(dna.topics_to_avoid || '[]');
+      // Story R-11: AC7 - JSON.parse error handling for all DB fields
+      let toneProfile: any = {};
+      let signaturePhrases: any[] = [];
+      let topicsToAvoid: any[] = [];
+
+      try {
+        toneProfile = JSON.parse(dna.tone_profile || '{}');
+      } catch (e) {
+        console.error(`[JSON Parse] Failed to parse tone_profile for client ${input.clientId}`);
+      }
+
+      try {
+        signaturePhrases = JSON.parse(dna.signature_patterns || '[]');
+      } catch (e) {
+        console.error(`[JSON Parse] Failed to parse signature_patterns for client ${input.clientId}`);
+      }
+
+      try {
+        topicsToAvoid = JSON.parse(dna.topics_to_avoid || '[]');
+      } catch (e) {
+        console.error(`[JSON Parse] Failed to parse topics_to_avoid for client ${input.clientId}`);
+      }
 
       const report: BrandDNAReport = {
         strengthScore: dna.strength_score || 0,
@@ -781,13 +885,77 @@ export const calibrationRouter = t.router({
     .input(z.object({ clientId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
+      
+      // Get baseline snapshot (most recent)
+      const baselineSnapshot = await ctx.drizzle
+        .select()
+        .from(schema.brand_dna_snapshots)
+        .where(eq(schema.brand_dna_snapshots.client_id, input.clientId))
+        .orderBy(desc(schema.brand_dna_snapshots.created_at))
+        .limit(1)
+        .get();
+
+      if (!baselineSnapshot) {
+        return {
+          driftScore: 0,
+          status: 'stable',
+          lastCheck: Date.now(),
+          needsCalibration: false,
+          trigger: undefined as string | undefined,
+          suggestion: undefined as string | undefined
+        };
+      }
+
+      // Get current Brand DNA
+      const currentDNA = await brandQueries.getBrandDNA(ctx.drizzle, input.clientId);
+      if (!currentDNA) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Brand DNA not found' });
+      }
+
+      // Get client settings for threshold
+      const clientSettings = await ctx.drizzle
+        .select({ drift_threshold: schema.clients.drift_threshold })
+        .from(schema.clients)
+        .where(eq(schema.clients.id, input.clientId))
+        .get();
+      
+      const threshold = clientSettings?.drift_threshold ?? 25;
+
+      // Parse baseline components
+      const baseline: DriftComponent = {
+        voiceMarkers: baselineSnapshot.voice_markers ? JSON.parse(baselineSnapshot.voice_markers) : [],
+        bannedWords: baselineSnapshot.banned_words ? JSON.parse(baselineSnapshot.banned_words) : [],
+        stances: baselineSnapshot.stances ? JSON.parse(baselineSnapshot.stances) : [],
+        primaryTone: baselineSnapshot.primary_tone,
+      };
+
+      // Parse current components
+      let currentEntities = { voiceMarkers: [], bannedWords: [], stances: [] };
+      try {
+        if (currentDNA.voice_entities) {
+          currentEntities = JSON.parse(currentDNA.voice_entities);
+        }
+      } catch (e) {
+        console.error(`Failed to parse voice_entities for drift check: ${input.clientId}`);
+      }
+
+      const current: DriftComponent = {
+        voiceMarkers: currentEntities.voiceMarkers || [],
+        bannedWords: currentEntities.bannedWords || [],
+        stances: currentEntities.stances || [],
+        primaryTone: currentDNA.primary_tone,
+      };
+
+      const result = calculateDrift(baseline, current, threshold);
+
       return {
-        driftScore: 0,
-        status: 'stable',
+        driftScore: result.driftScore,
+        status: result.needsCalibration ? 'drifted' : 'stable',
         lastCheck: Date.now(),
-        needsCalibration: false,
-        trigger: undefined as string | undefined,
-        suggestion: undefined as string | undefined
+        needsCalibration: result.needsCalibration,
+        trigger: result.trigger,
+        suggestion: result.suggestion,
+        components: result.components
       };
     }),
 
@@ -795,6 +963,35 @@ export const calibrationRouter = t.router({
     .input(z.object({ clientId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      return { success: true, snapshotId: 'stub-snapshot' };
+      
+      const dna = await brandQueries.getBrandDNA(ctx.drizzle, input.clientId);
+      if (!dna) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Brand DNA not found' });
+      }
+
+      let entities = { voiceMarkers: [], bannedWords: [], stances: [] };
+      try {
+        if (dna.voice_entities) {
+          entities = JSON.parse(dna.voice_entities);
+        }
+      } catch (e) {
+        console.warn('Failed to parse voice entities for snapshot');
+      }
+
+      const snapshotId = crypto.randomUUID();
+      await ctx.drizzle.insert(schema.brand_dna_snapshots).values({
+        id: snapshotId,
+        client_id: input.clientId,
+        voice_markers: JSON.stringify(entities.voiceMarkers || []),
+        banned_words: JSON.stringify(entities.bannedWords || []),
+        stances: JSON.stringify(entities.stances || []),
+        primary_tone: dna.primary_tone,
+        writing_style: dna.writing_style,
+        target_audience: dna.target_audience,
+        strength_score: dna.strength_score,
+        created_at: new Date(), // D1 will store as integer/text depending on setup
+      }).run();
+
+      return { success: true, snapshotId };
     }),
 });

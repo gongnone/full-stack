@@ -32,7 +32,7 @@ describe('Clients Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('Client CRUD Operations', () => {

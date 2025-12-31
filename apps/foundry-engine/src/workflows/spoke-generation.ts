@@ -23,6 +23,45 @@ interface SpokeGenerationParams {
   isVariation?: boolean;
 }
 
+// Story 1.5-4-7: Platform-specific structural requirements
+const PLATFORM_INSTRUCTIONS: Record<string, string> = {
+  twitter: `
+STRUCTURE:
+1. PUNCHY HOOK: Use a pattern-interrupt or contrarian opening (max 80 chars).
+2. CORE VALUE: One clear takeaway.
+3. HASHTAGS: Include EXACTLY 1-2 relevant hashtags at the end.
+CONSTRAINT: Total length MUST be under 280 characters.`,
+  linkedin: `
+STRUCTURE:
+1. STRONG HOOK: Open with a compelling question or bold statement.
+2. STORY/VALUE: Use professional but authentic storytelling.
+3. LINE BREAKS: Use frequent line breaks for readability.
+CONSTRAINT: Max length 3000 characters.`,
+  tiktok: `
+STRUCTURE:
+1. 3-SECOND HOOK: Start with a high-energy "Scroll Stopper" script line.
+2. THE MEAT: A clear middle section delivering the core insight.
+3. SOFT CTA: End with a natural call to action.
+FORMAT: This is a VIDEO SCRIPT.`,
+  instagram: `
+STRUCTURE:
+1. VISUAL HOOK: Reference the visual element.
+2. LIFESTYLE TONE: Use authentic, behind-the-scenes phrasing.
+3. EMOJI: Use 2-4 relevant emoji.`,
+  carousel: `
+STRUCTURE: Generate a 10-SLIDE outline:
+- Slide 1: High-impact Hook
+- Slide 2: The Problem
+- Slides 3-8: Progressive Reveal of the Solution (one point per slide)
+- Slide 9: Summary
+- Slide 10: Call to Action`,
+  thread: `
+STRUCTURE: 5-7 tweet thread.
+- Tweet 1: Mega-hook and promise.
+- Tweets 2-6: Individual value points with numbering (1/7, 2/7...).
+- Tweet 7: Conclusion and CTA.`
+};
+
 const PLATFORM_SPECS: Record<string, {
   maxLength: number;
   format: string;
@@ -162,6 +201,7 @@ PLATFORM REQUIREMENTS (${platform.toUpperCase()}):
 - Max Length: ${platformSpec.maxLength} characters
 - Format: ${platformSpec.format}
 - Style: ${platformSpec.style}
+${PLATFORM_INSTRUCTIONS[platform] || ''}
 
 CONTENT PILLAR: ${pillarTitle}
 HOOK OPTIONS: ${Array.isArray(hooks) && hooks.length > 0 ? hooks.join(' | ') : 'Create an attention-grabbing opener'}
@@ -225,16 +265,14 @@ Output JSON only:
       }
     });
 
-    let { archetype, thumbnailConcept, imagePrompt } = visualMetadata;
+    const { archetype, thumbnailConcept, imagePrompt } = visualMetadata;
 
-    // Step 4: CRITIC AGENT - Run Quality Gates
-    let iteration = 0;
+    // Step 4: CRITIC AGENT - Run Quality Gates (Lite Mode - Story 1.5-5)
     let allGatesPassed = false;
     let qualityScores: Record<string, any> = {};
 
-    while (iteration < MAX_REGENERATION_ATTEMPTS && !allGatesPassed) {
-      // Run G2: Hook Strength
-      const g2Result = await step.do(`critic-g2-iteration-${iteration}`, async () => {
+    // Run G2: Hook Strength
+    const g2Result = await step.do('critic-g2-pass', async () => {
         const result = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as any, {
           messages: [
             {
@@ -268,7 +306,7 @@ Pass threshold: 60`,
       qualityScores.g2_hook = g2Result.score;
 
       // Run G4: Voice Alignment
-      const g4Result = await step.do(`critic-g4-iteration-${iteration}`, async () => {
+      const g4Result = await step.do('critic-g4-pass', async () => {
         const { brandDNA } = context;
 
         const result = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as any, {
@@ -302,7 +340,7 @@ Output JSON: { "passed": boolean, "violations": ["string"], "feedback": "string"
       qualityScores.g4_voice = g4Result.passed;
 
       // Run G5: Platform Compliance
-      const g5Result = await step.do(`critic-g5-iteration-${iteration}`, async () => {
+      const g5Result = await step.do('critic-g5-pass', async () => {
         const { platformSpec } = context;
 
         const lengthOk = generatedContent.length <= platformSpec.maxLength;
@@ -314,8 +352,8 @@ Output JSON: { "passed": boolean, "violations": ["string"], "feedback": "string"
 
       qualityScores.g5_platform = g5Result.passed;
 
-      // Run G6: Visual Metaphor (NEW)
-      const g6Result = await step.do(`critic-g6-iteration-${iteration}`, async () => {
+      // Run G6: Visual Metaphor
+      const g6Result = await step.do('critic-g6-pass', async () => {
         const result = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as any, {
           messages: [
             {
@@ -348,7 +386,7 @@ Pass threshold: 70`,
       qualityScores.g6_visual = g6Result.score;
 
       // Run G7: Engagement Prediction
-      const g7Result = await step.do(`critic-g7-iteration-${iteration}`, async () => {
+      const g7Result = await step.do('critic-g7-pass', async () => {
         const result = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as any, {
           messages: [
             {
@@ -378,96 +416,10 @@ Output JSON: { "score": number, "feedback": "string" }`,
       qualityScores.g7_engagement = g7Result.score;
 
       // Check if all gates passed
-      allGatesPassed = g2Result.passed && g4Result.passed && g5Result.passed && g6Result.passed;
+      allGatesPassed = g2Result.passed && g4Result.passed && g5Result.passed;
 
-      if (!allGatesPassed && iteration < MAX_REGENERATION_ATTEMPTS - 1) {
-        // Store feedback for self-healing
-        await step.do(`store-feedback-iteration-${iteration}`, async () => {
-          const id = this.env.CLIENT_AGENT.idFromName(clientId);
-          const agent = this.env.CLIENT_AGENT.get(id);
-
-          const feedback = [
-            !g2Result.passed ? `G2: ${g2Result.feedback}` : '',
-            !g4Result.passed ? `G4: ${g4Result.feedback}` : '',
-            !g5Result.passed ? `G5: ${g5Result.feedback}` : '',
-            !g6Result.passed ? `G6: ${g6Result.feedback}` : '',
-          ].filter(Boolean).join('\n');
-
-          await agent.fetch(new Request('http://internal/rpc', {
-            method: 'POST',
-            body: JSON.stringify({
-              method: 'storeFeedback',
-              params: {
-                spokeId,
-                gate: 'combined',
-                criticOutput: feedback,
-                iteration,
-              },
-            }),
-          }));
-        });
-
-        // SELF-HEALING: Regenerate with feedback
-        const healingResult = await step.do(`regenerate-iteration-${iteration + 1}`, async () => {
-          const { brandDNA, platformSpec } = context;
-
-          const healingPrompt = `You are a CREATOR agent REGENERATING content and visual metadata based on CRITIC feedback.
-
-PREVIOUS ATTEMPT FAILED THESE GATES:
-${!g2Result.passed ? `- G2 Hook Strength: ${g2Result.feedback}` : ''}
-${!g4Result.passed ? `- G4 Voice Alignment: ${g4Result.feedback}` : ''}
-${!g5Result.passed ? `- G5 Platform Compliance: ${g5Result.feedback}` : ''}
-${!g6Result.passed ? `- G6 Visual Metaphor: ${g6Result.feedback}` : ''}
-
-ORIGINAL CONTENT:
-${generatedContent}
-
-ORIGINAL VISUAL:
-- Archetype: ${archetype}
-- Prompt: ${imagePrompt}
-
-REQUIREMENTS:
-- Fix ALL identified issues
-- Maintain core message
-- Stay within ${platformSpec.maxLength} chars
-- Match brand voice exactly
-- Fix visual prompt to avoid clichés: robot brains, handshakes, lightbulbs
-
-Output JSON only: {
-  "content": "string (improved text)",
-  "archetype": "string",
-  "thumbnailConcept": "string",
-  "imagePrompt": "string"
-}`;
-
-          const result = await this.env.AI.run('@cf/meta/llama-3.1-70b-instruct' as any, {
-            messages: [
-              { role: 'system', content: healingPrompt },
-              { role: 'user', content: 'Regenerate addressing all feedback.' },
-            ],
-          });
-
-          try {
-            const text = (result as any).response;
-            return JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-          } catch {
-            return { content: generatedContent, archetype, thumbnailConcept, imagePrompt };
-          }
-        });
-
-        generatedContent = healingResult.content || generatedContent;
-        archetype = healingResult.archetype || archetype;
-        thumbnailConcept = healingResult.thumbnailConcept || thumbnailConcept;
-        imagePrompt = healingResult.imagePrompt || imagePrompt;
-
-        iteration++;
-      } else {
-        break;
-      }
-    }
-
-    // Step 5: Update spoke with final content and scores
-    const finalStatus = allGatesPassed ? 'reviewing' : 'reviewing';
+    // Step 5: Update spoke with final content and scores (Story 1.5-4-8)
+    const finalStatus = 'pending_review';
     await step.do('update-spoke-final', async () => {
       const id = this.env.CLIENT_AGENT.idFromName(clientId);
       const agent = this.env.CLIENT_AGENT.get(id);
@@ -485,7 +437,7 @@ Output JSON only: {
               visualArchetype: archetype,
               imagePrompt: imagePrompt,
               thumbnailConcept: thumbnailConcept,
-              regenerationCount: iteration,
+              regenerationCount: 0,
             },
           },
         }),
@@ -496,7 +448,7 @@ Output JSON only: {
       spokeId,
       platform,
       status: finalStatus,
-      iterations: iteration + 1,
+      iterations: 1,
       allGatesPassed,
       qualityScores,
       contentLength: generatedContent.length,

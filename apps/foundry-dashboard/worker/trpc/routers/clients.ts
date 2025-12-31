@@ -11,11 +11,22 @@ export const clientsRouter = t.router({
   list: procedure
     .input(z.object({
       status: z.enum(['active', 'paused', 'archived']).optional(),
+      // R-13 AC3: userId included in input to enforce cache isolation between sessions
+      userId: z.string().optional(),
     }))
     .query(async ({ ctx, input }) => {
-      // Join with client_members to only return clients the user has access to
+      // Join with client_members to only return clients the user is a member of
+      // Story 1.5-7-2: Include Brand DNA completion status
       let query = `
-        SELECT c.id, c.name, c.status, c.industry, c.contact_email, c.logo_url, c.brand_color, c.created_at
+        SELECT 
+          c.id, c.name, c.status, c.industry, c.contact_email, c.logo_url, c.brand_color, c.created_at,
+          (
+            SELECT json_object('status', status, 'current_step', current_step)
+            FROM brand_dna_sessions 
+            WHERE client_id = c.id 
+            ORDER BY created_at DESC 
+            LIMIT 1
+          ) as dna_session
         FROM clients c
         INNER JOIN client_members cm ON c.id = cm.client_id
         WHERE cm.user_id = ?
@@ -40,19 +51,42 @@ export const clientsRouter = t.router({
         logo_url: string | null;
         brand_color: string;
         created_at: number;
+        dna_session: string | null;
       }
 
       return {
-        items: (result.results as unknown as ClientRow[]).map((r) => ({
-          id: r.id,
-          name: r.name,
-          status: r.status,
-          industry: r.industry,
-          contactEmail: r.contact_email,
-          logoUrl: r.logo_url,
-          brandColor: r.brand_color,
-          createdAt: r.created_at,
-        })),
+        items: (result.results as unknown as ClientRow[]).map((r) => {
+          let dnaStatus = 'not_started';
+          let dnaProgress = 0;
+
+          if (r.dna_session) {
+            try {
+              const session = JSON.parse(r.dna_session);
+              // Map session step to progress
+              const steps = ['welcome', 'voice_capture', 'personality', 'audience', 'pillars', 'complete'];
+              const idx = steps.indexOf(session.current_step || 'welcome');
+              dnaProgress = Math.round((idx / (steps.length - 1)) * 100);
+              
+              if (session.current_step === 'complete') dnaStatus = 'complete';
+              else if (idx > 0) dnaStatus = 'in_progress';
+            } catch {
+              // ignore parse error
+            }
+          }
+
+          return {
+            id: r.id,
+            name: r.name,
+            status: r.status,
+            industry: r.industry,
+            contactEmail: r.contact_email,
+            logoUrl: r.logo_url,
+            brandColor: r.brand_color,
+            createdAt: r.created_at,
+            dnaStatus: dnaStatus as 'not_started' | 'in_progress' | 'complete',
+            dnaProgress,
+          };
+        }),
         usage: {
           hubsThisMonth: 0,
           limit: 50,
@@ -73,22 +107,35 @@ export const clientsRouter = t.router({
 
       try {
         // Create client in D1
-        await ctx.db
+        const createClient = ctx.db
           .prepare(`
             INSERT INTO clients (id, name, status, industry, contact_email, brand_color)
             VALUES (?, ?, 'active', ?, ?, ?)
           `)
-          .bind(clientId, input.name, input.industry || null, input.contactEmail || null, input.brandColor)
-          .run();
+          .bind(clientId, input.name, input.industry || null, input.contactEmail || null, input.brandColor);
 
         // AC: Add creator as agency_owner
-        await ctx.db
+        const createMembership = ctx.db
           .prepare(`
             INSERT INTO client_members (id, client_id, user_id, role)
             VALUES (?, ?, ?, 'agency_owner')
           `)
-          .bind(crypto.randomUUID(), clientId, ctx.userId)
-          .run();
+          .bind(crypto.randomUUID(), clientId, ctx.userId);
+
+        // R-14 AC4: Auto-set first created client as active in user_profiles
+        // This ensures new users are immediately switched to their first client
+        const updateProfile = ctx.db
+          .prepare(`
+            INSERT INTO user_profiles (id, user_id, active_client_id, created_at, updated_at)
+            VALUES (?, ?, ?, unixepoch(), unixepoch())
+            ON CONFLICT(user_id) DO UPDATE SET
+              active_client_id = excluded.active_client_id,
+              updated_at = unixepoch()
+          `)
+          .bind(crypto.randomUUID().replace(/-/g, ''), ctx.userId, clientId);
+
+        // Execute all writes in a single transaction for data integrity
+        await ctx.db.batch([createClient, createMembership, updateProfile]);
 
         // Provision Durable Object by sending a dummy request or initialization RPC
         await ctx.callAgent(clientId, 'getBrandDNA', {});
@@ -578,5 +625,298 @@ export const clientsRouter = t.router({
         brandColor: client.brand_color,
         createdAt: client.created_at,
       };
+    }),
+
+  // Story 1.5-7-3: Invite new client via email
+  inviteClient: procedure
+    .input(z.object({
+      name: z.string().min(1).max(100),
+      email: z.string().email(),
+      welcomeMessage: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Create pending client record
+      const clientId = crypto.randomUUID();
+      const inviteToken = crypto.randomUUID().replace(/-/g, '');
+      const now = Date.now();
+
+      await ctx.db.batch([
+        // Create client with 'invited' status (Story 1.5-7-3 AC2)
+        ctx.db.prepare(`
+          INSERT INTO clients (id, name, status, contact_email, created_at, updated_at)
+          VALUES (?, ?, 'invited', ?, ?, ?)
+        `).bind(clientId, input.name, input.email, now, now),
+
+        // Create invite record
+        ctx.db.prepare(`
+          INSERT INTO client_invites (id, client_id, email, token, status, created_at, expires_at)
+          VALUES (?, ?, ?, ?, 'pending', ?, ?)
+        `).bind(
+          crypto.randomUUID(),
+          clientId,
+          input.email,
+          inviteToken,
+          now,
+          now + 7 * 24 * 60 * 60 * 1000 // 7 days expiry
+        ),
+      ]);
+
+      // TODO: Integrate actual email service (AWS SES)
+      // For now, return the link for manual sharing/testing
+      const inviteLink = `${ctx.env.BETTER_AUTH_URL}/accept-invite?token=${inviteToken}`;
+      console.log(`[Email Mock] Sending invite to ${input.email}: ${inviteLink}`);
+
+      return {
+        success: true,
+        inviteLink, // Returned for dev convenience/testing
+        clientId,
+      };
+    }),
+
+  // Story 1.5-7-6: Generate self-serve onboarding link
+  createOnboardingLink: procedure
+    .input(z.object({
+      prefillName: z.string().optional(),
+      maxUses: z.number().min(1).default(1),
+      expiresInDays: z.number().min(1).default(7),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const token = crypto.randomUUID().replace(/-/g, '');
+      const now = Date.now();
+      const expiresAt = now + input.expiresInDays * 24 * 60 * 60 * 1000;
+
+      await ctx.db.prepare(`
+        INSERT INTO onboarding_links (id, creator_id, token, prefill_name, max_uses, expires_at, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        crypto.randomUUID(),
+        ctx.userId,
+        token,
+        input.prefillName || null,
+        input.maxUses,
+        expiresAt,
+        now
+      ).run();
+
+      return {
+        success: true,
+        url: `/onboarding/start?token=${token}`,
+        token,
+        expiresAt: new Date(expiresAt),
+      };
+    }),
+
+  // Validate onboarding token (Public access logic handled in app router, this is for checking status)
+  getOnboardingLinkStatus: procedure
+    .input(z.object({
+      token: z.string(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const link = await ctx.db.prepare(`
+        SELECT * FROM onboarding_links WHERE token = ?
+      `).bind(input.token).first();
+
+      if (!link) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Link not found' });
+      }
+
+      const now = Date.now();
+      const isExpired = (link.expires_at as number) < now;
+      const isExhausted = (link.use_count as number) >= (link.max_uses as number);
+
+      return {
+        isValid: !isExpired && !isExhausted,
+        prefillName: link.prefill_name as string | null,
+        expiresAt: new Date(link.expires_at as number),
+        useCount: link.use_count as number,
+        maxUses: link.max_uses as number,
+      };
+    }),
+
+  // Story 1.5-7-7: Get client progress overview
+  getProgressOverview: procedure
+    .input(z.object({}))
+    .query(async ({ ctx }) => {
+      // Get all clients user manages
+      const clients = await ctx.db.prepare(`
+        SELECT 
+          c.id, c.name, 
+          b.status as dna_status, b.current_step, b.updated_at as last_activity
+        FROM clients c
+        JOIN client_members cm ON c.id = cm.client_id
+        LEFT JOIN brand_dna_sessions b ON c.id = b.client_id
+        WHERE cm.user_id = ?
+        ORDER BY c.name ASC
+      `).bind(ctx.userId).all();
+
+      const now = Date.now();
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+      return (clients.results || []).map((row: any) => {
+        let status: 'not_started' | 'in_progress' | 'complete' = 'not_started';
+        let percentage = 0;
+        const lastActivity = row.last_activity as number || 0;
+
+        if (row.dna_status === 'complete') {
+          status = 'complete';
+          percentage = 100;
+        } else if (row.dna_status === 'active' || row.current_step) {
+          status = 'in_progress';
+          // Approximate progress based on step
+          const steps = ['welcome', 'voice_capture', 'personality', 'audience', 'pillars', 'complete'];
+          const idx = steps.indexOf(row.current_step || 'welcome');
+          percentage = Math.round((idx / (steps.length - 1)) * 100);
+        }
+
+        const needsNudge = status === 'in_progress' && (now - lastActivity > SEVEN_DAYS_MS);
+
+        return {
+          id: row.id as string,
+          name: row.name as string,
+          status,
+          percentage,
+          lastActivity,
+          needsNudge,
+        };
+      });
+    }),
+
+  // Story 1.5-7-8: Request to complete BrandDNA on behalf of client
+  requestProxyAccess: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // 1. Verify agency owner permissions
+      const membership = await ctx.db
+        .prepare('SELECT role FROM client_members WHERE client_id = ? AND user_id = ?')
+        .bind(input.clientId, ctx.userId)
+        .first<{ role: string }>();
+
+      if (!membership || !['agency_owner', 'account_manager'].includes(membership.role)) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only agency owners can request proxy access' });
+      }
+
+      // 2. Check 14-day inactivity (Story 1.5-7-8 AC1)
+      const session = await ctx.db.prepare(`
+        SELECT updated_at FROM brand_dna_sessions WHERE client_id = ? ORDER BY created_at DESC LIMIT 1
+      `).bind(input.clientId).first();
+
+      const lastActivity = session?.updated_at as number || 0;
+      const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+      
+      // If session exists and is recent (< 14 days), block request
+      if (session && (Date.now() - lastActivity < FOURTEEN_DAYS_MS)) {
+        throw new TRPCError({ 
+          code: 'PRECONDITION_FAILED', 
+          message: 'Client has been active recently. Proxy access requires 14 days of inactivity.' 
+        });
+      }
+
+      // 3. Log request
+      const now = Date.now();
+      // Store in audit log or separate proxy_requests table
+      // For MVP, we'll assume implicit consent after 48h timeout logic handles this on the frontend trigger
+      // Here we just log the intent
+      await ctx.db.prepare(`
+        INSERT INTO audit_log (id, client_id, user_id, action, details, created_at)
+        VALUES (?, ?, ?, 'request_proxy_access', 'Initiated proxy completion request', ?)
+      `).bind(crypto.randomUUID(), input.clientId, ctx.userId, now).run();
+
+      // TODO: Send email to client (AC2)
+      console.log(`[Email Mock] Asking client ${input.clientId} for proxy consent`);
+
+      return { 
+        success: true, 
+        message: 'Request sent. You can proceed in 48 hours if no response.' 
+      };
+    }),
+
+  // Start proxy session (AC3)
+  startProxySession: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      consentType: z.enum(['explicit', 'implicit']),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Verify permissions again
+      const membership = await ctx.db
+        .prepare('SELECT role FROM client_members WHERE client_id = ? AND user_id = ?')
+        .bind(input.clientId, ctx.userId)
+        .first<{ role: string }>();
+
+      if (!membership || !['agency_owner', 'account_manager'].includes(membership.role)) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+      }
+
+      const now = Date.now();
+      const sessionId = crypto.randomUUID();
+
+      // Create session marked as proxy
+      await ctx.db.prepare(`
+        INSERT INTO brand_dna_sessions (id, client_id, user_id, status, mode, created_at, updated_at)
+        VALUES (?, ?, ?, 'active', 'proxy', ?, ?)
+      `).bind(sessionId, input.clientId, ctx.userId, now, now).run();
+
+      // Notify client (AC3)
+      console.log(`[Email Mock] Notify client: Agency started your profile (Consent: ${input.consentType})`);
+
+      return { 
+        success: true, 
+        sessionId,
+        mode: 'proxy' 
+      };
+    }),
+
+  // Story 1.5-7-9: Automated Nudge Emails (Cron Job Handler)
+  checkNudges: procedure
+    .mutation(async ({ ctx }) => {
+      // Find stuck clients
+      const now = Date.now();
+      const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+      const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+
+      const stuckSessions = await ctx.db.prepare(`
+        SELECT b.id, b.client_id, b.updated_at, c.contact_email, c.name
+        FROM brand_dna_sessions b
+        JOIN clients c ON b.client_id = c.id
+        WHERE b.status = 'active' 
+          AND b.updated_at < ?
+          AND c.status = 'active'
+      `).bind(now - THREE_DAYS).all();
+
+      let nudgesSent = 0;
+
+      for (const session of stuckSessions.results || []) {
+        const lastActivity = session.updated_at as number;
+        const daysSince = Math.floor((now - lastActivity) / (24 * 60 * 60 * 1000));
+        
+        let type = '';
+        if (daysSince >= 14) type = '14-day';
+        else if (daysSince >= 7) type = '7-day';
+        else if (daysSince >= 3) type = '3-day';
+
+        if (type) {
+          // Check if already nudged recently
+          const lastNudge = await ctx.db.prepare(`
+            SELECT sent_at FROM nudge_emails 
+            WHERE client_id = ? AND type = ? 
+            ORDER BY sent_at DESC LIMIT 1
+          `).bind(session.client_id, type).first();
+
+          if (!lastNudge) {
+            // Send nudge
+            await ctx.db.prepare(`
+              INSERT INTO nudge_emails (id, client_id, type, sent_at)
+              VALUES (?, ?, ?, ?)
+            `).bind(crypto.randomUUID(), session.client_id, type, now).run();
+
+            console.log(`[Email Mock] Sending ${type} nudge to ${session.name} (${session.contact_email})`);
+            nudgesSent++;
+          }
+        }
+      }
+
+      return { success: true, nudgesSent };
     }),
 });

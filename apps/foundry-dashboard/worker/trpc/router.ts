@@ -7,6 +7,14 @@ import { clientsRouter } from './routers/clients';
 import { calibrationRouter } from './routers/calibration';
 import { analyticsRouter } from './routers/analytics';
 import { exportsRouter } from './routers/exports';
+import { brandDnaRouter } from './routers/brandDna';
+import { audienceRouter } from './routers/audience';
+import { pillarsRouter } from './routers/pillars';
+import { criticRouter } from './routers/critic';
+import { agencyRouter } from './routers/agency';
+import { testimonialsRouter } from './routers/testimonials';
+import { complianceRouter } from './routers/compliance';
+import { operationsRouter } from './routers/operations';
 import type { Context } from './context';
 
 const t = initTRPC.context<Context>().create();
@@ -20,6 +28,14 @@ export const appRouter = t.router({
   calibration: calibrationRouter,
   analytics: analyticsRouter,
   exports: exportsRouter,
+  brandDna: brandDnaRouter,
+  audience: audienceRouter,
+  pillars: pillarsRouter,
+  critic: criticRouter,
+  agency: agencyRouter,
+  testimonials: testimonialsRouter,
+  compliance: complianceRouter,
+  operations: operationsRouter,
 });
 
 export type AppRouter = typeof appRouter;

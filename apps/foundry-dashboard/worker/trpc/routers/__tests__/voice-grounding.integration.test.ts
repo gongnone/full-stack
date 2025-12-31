@@ -88,7 +88,7 @@ describe('@P1 Voice-to-Grounding Pipeline Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('P1-VOICE-01: Audio Recording Upload', () => {

@@ -80,7 +80,7 @@ describe('@P1 Analytics Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('P1-ANA-01: Zero-Edit Rate calculation', () => {

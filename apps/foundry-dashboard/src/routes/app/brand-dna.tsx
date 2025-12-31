@@ -158,12 +158,15 @@ function BrandDNAPage() {
       setIsUploading(true);
       setUploadProgress(0);
 
+      // Story 1.5-1-5: Explicitly handle content type to prevent mismatches
+      const contentType = file.type || 'application/octet-stream';
+
       // Get upload URL
       if (!clientId) throw new Error('Not authenticated');
       const { r2Key, uploadEndpoint } = await getUploadUrl.mutateAsync({
         clientId,
         filename: file.name,
-        contentType: file.type || 'application/octet-stream',
+        contentType,
       });
 
       setUploadProgress(20);
@@ -173,7 +176,7 @@ function BrandDNAPage() {
         method: 'POST',
         body: file,
         headers: {
-          'Content-Type': file.type || 'application/octet-stream',
+          'Content-Type': contentType,
         },
         credentials: 'include',
       });

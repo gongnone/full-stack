@@ -34,10 +34,12 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.8.47",
     "@types/node": "^22.15.19",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.2",
-    "vitest": "^4.0.16",
-    "wrangler": "^4.56.0"
-  }
-}
+        "typescript": "^5.9.2",
+        "vitest": "^3.0.0",
+        "wrangler": "^4.56.0"
+      }
+    }
+    

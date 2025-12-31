@@ -229,9 +229,15 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 | 2025-12-29 | Code Review: Found high-severity bypass of stability logic in engine calls. | Amelia (Dev) |
 | 2025-12-29 | Fix: Implemented `ctx.callEngine` with timeout/retry and updated routers to use it. | Amelia (Dev) |
 
+### Code Review Fixes (2025-12-30)
+
+- **Performance/Refactoring**: Moved `fetchWithRetry` outside of `createContext` to avoid re-defining the function on every request.
+- **Robustness**: Improved backoff logic to use `Math.min` for array bounds safety.
+- **Verification**: Verified all 11 unit tests for timeout and retry logic pass after refactoring.
+
 ### File List
 
 - `apps/foundry-dashboard/worker/trpc/routers/spokes.ts` (verified: security checks active, stability logic added)
 - `apps/foundry-dashboard/worker/trpc/routers/hubs.ts` (updated: stability logic added)
-- `apps/foundry-dashboard/worker/trpc/context.ts` (verified: timeout + retry + callEngine implemented)
+- `apps/foundry-dashboard/worker/trpc/context.ts` (verified: timeout + retry + callEngine implemented; refactored for performance)
 - `apps/foundry-dashboard/worker/trpc/__tests__/context.test.ts` (11 tests for AC2/AC3, passed)

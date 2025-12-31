@@ -1,11 +1,11 @@
-import { useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { trpc } from '@/lib/trpc-client';
+import { useState } from 'react';
 import { useSession } from '@/lib/auth-client';
+import { trpc } from '@/lib/trpc-client';
+import { ClientManager } from '@/components/clients/ClientManager';
+import * as Dialog from '@radix-ui/react-dialog';
 import { useToast } from '@/lib/toast';
 import { UI_CONFIG } from '@/lib/constants';
-import * as Dialog from '@radix-ui/react-dialog';
-import { ClientManager } from '@/components/clients/ClientManager';
 
 export const Route = createFileRoute('/app/clients')({
   component: ClientsPage,
@@ -13,20 +13,13 @@ export const Route = createFileRoute('/app/clients')({
 
 function ClientsPage() {
   const { data: session } = useSession();
+  const utils = trpc.useUtils();
   const { addToast } = useToast();
+  
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientIndustry, setNewClientIndustry] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
-
-  const utils = trpc.useUtils();
-  const clientsQuery = trpc.clients.list.useQuery(
-    {},
-    {
-      enabled: !!session,
-      retry: false,
-    }
-  );
 
   const createClientMutation = trpc.clients.create.useMutation({
     onSuccess: () => {
@@ -38,20 +31,24 @@ function ClientsPage() {
       addToast('Client created successfully', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
     },
     onError: (err) => {
-      addToast(`Failed to create client: ${err.message}`, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
+      addToast(`Creation failed: ${err.message}`, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
   });
 
   const handleAddClient = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newClientName.trim()) return;
-
     createClientMutation.mutate({
       name: newClientName,
       industry: newClientIndustry || undefined,
       contactEmail: newClientEmail || undefined,
     });
   };
+  
+  // R-13 AC3: Include userId for cache isolation
+  const clientsQuery = trpc.clients.list.useQuery(
+    { userId: session?.user?.id },
+    { enabled: !!session?.user?.id }
+  );
 
   return (
     <div className="space-y-6">

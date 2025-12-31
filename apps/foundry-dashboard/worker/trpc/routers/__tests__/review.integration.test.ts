@@ -42,7 +42,7 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   beforeEach(async () => {

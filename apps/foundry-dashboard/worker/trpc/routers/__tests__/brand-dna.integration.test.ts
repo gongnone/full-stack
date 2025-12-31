@@ -81,7 +81,7 @@ describe('@P1 Brand DNA Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('P1-DNA-01: Voice markers CRUD', () => {

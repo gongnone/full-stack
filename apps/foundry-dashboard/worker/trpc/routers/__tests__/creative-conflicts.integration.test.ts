@@ -61,7 +61,7 @@ describe('Creative Conflicts Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('Gate Score Persistence', () => {

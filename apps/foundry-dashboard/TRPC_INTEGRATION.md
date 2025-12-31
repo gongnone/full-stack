@@ -51,27 +51,22 @@ The following backend routers are now accessible on the frontend:
 ```typescript
 import { trpc } from '@/lib/trpc-client';
 
-function MyComponent() {
-  // Query example
+// 2. Use in React component
+export function ClientList() {
+  const { data: session } = useSession();
   const { data, isLoading, error } = trpc.clients.list.useQuery({
-    status: 'active',
+    userId: session?.user?.id // R-13 AC3: Required for cache isolation
   });
 
-  // Mutation example
-  const createHub = trpc.hubs.create.useMutation({
-    onSuccess: (data) => {
-      console.log('Hub created:', data.hubId);
-    },
-  });
+  if (isLoading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
 
   return (
-    <button onClick={() => createHub.mutate({
-      clientId: 'uuid-here',
-      sourceType: 'pdf',
-      source: 'https://example.com/doc.pdf',
-    })}>
-      Create Hub
-    </button>
+    <ul>
+      {data.items.map((client) => (
+        <li key={client.id}>{client.name}</li>
+      ))}
+    </ul>
   );
 }
 ```

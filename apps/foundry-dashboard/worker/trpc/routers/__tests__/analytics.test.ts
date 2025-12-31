@@ -121,7 +121,7 @@ describe('analyticsRouter', () => {
         { id: '3', createdAt: twentyFiveHoursAgo },
       ];
 
-      (mockCtx.callAgent as any).mockImplementation((_c, method) => {
+      (mockCtx.callAgent as any).mockImplementation((_c: unknown, method: string) => {
         if (method === 'listSpokes') return Promise.resolve(mockSpokes);
         if (method === 'countHubs') return Promise.resolve({ count: 0 });
         return Promise.resolve(null);

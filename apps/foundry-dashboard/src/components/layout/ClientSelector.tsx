@@ -1,22 +1,30 @@
 import { useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
-import { useNavigate } from '@tanstack/react-router';
+import { Button } from '@/components/ui/button';
+import { Check, ChevronDown, Building2 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ChevronDown, Check, Building2 } from 'lucide-react';
 
 export function ClientSelector() {
-  const activeClientId = useClientId();
   const navigate = useNavigate();
+  const { data: session } = useSession();
+  const activeClientId = useClientId();
   const utils = trpc.useUtils();
   
-  const clientsQuery = trpc.clients.list.useQuery({});
+  // R-13 AC3: Include userId in query key for cache isolation
+  const clientsQuery = trpc.clients.list.useQuery(
+    { userId: session?.user?.id },
+    { enabled: !!session?.user?.id }
+  );
+
   const switchMutation = trpc.clients.switch.useMutation({
-    onSuccess: () => {
-      // Invalidate all queries to refresh data for the new client
-      utils.invalidate();
-      // Specifically reload "me" to update activeClientId
-      utils.auth.me.invalidate();
+    onSuccess: async () => {
+      // Invalidate queries to refresh data for new client context
+      await utils.invalidate();
+      // Reload page to ensure clean state (or use better state management)
+      window.location.reload();
     },
   });
 
@@ -30,6 +38,7 @@ export function ClientSelector() {
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button
+          data-testid="client-selector"
           className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hover:bg-white/5 border border-transparent hover:border-white/10"
           style={{ color: 'var(--text-primary)' }}
         >
@@ -60,7 +69,7 @@ export function ClientSelector() {
             <DropdownMenu.Item
               key={client.id}
               disabled={client.id === activeClientId || switchMutation.isPending}
-              onClick={() => switchMutation.mutate({ clientId: client.id })}
+              onSelect={() => switchMutation.mutate({ clientId: client.id })}
               className="flex items-center justify-between px-2 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 focus:bg-white/5 transition-colors disabled:cursor-default"
             >
               <div className="flex items-center gap-2">

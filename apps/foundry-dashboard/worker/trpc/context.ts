@@ -11,6 +11,67 @@ function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// Standalone helper to avoid recreation on every request
+// Optimization: Moved out of createContext to module scope
+async function fetchWithRetry(
+  env: Env,
+  url: string, 
+  init?: RequestInit, 
+  errorContext: string = 'Engine request'
+): Promise<Response> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < AGENT_RPC_MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), AGENT_RPC_TIMEOUT_MS);
+
+    try {
+      const response = await env.CONTENT_ENGINE.fetch(
+        new Request(url, init),
+        { signal: controller.signal }
+      );
+
+      if (!response.ok) {
+        // Don't retry 4xx errors (client errors)
+        if (response.status >= 400 && response.status < 500) {
+          // Return response to let caller handle 4xx
+          clearTimeout(timeout);
+          return response;
+        }
+        // Retry 5xx errors (server errors)
+        lastError = new Error(`${errorContext} failed: ${response.statusText}`);
+        if (attempt < AGENT_RPC_MAX_RETRIES - 1) {
+          // Robust backoff: use Math.min to handle array bounds safely
+          const backoff = AGENT_RPC_BACKOFF_MS[Math.min(attempt, AGENT_RPC_BACKOFF_MS.length - 1)];
+          await sleep(backoff);
+        }
+        continue;
+      }
+
+      clearTimeout(timeout);
+      return response;
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') {
+        lastError = new Error(`${errorContext} timeout after ${AGENT_RPC_TIMEOUT_MS}ms`);
+      } else if (e instanceof Error) {
+        lastError = e;
+      } else {
+        lastError = new Error(`Unknown ${errorContext.toLowerCase()} error`);
+      }
+
+      if (attempt < AGENT_RPC_MAX_RETRIES - 1) {
+        // Robust backoff: use Math.min to handle array bounds safely
+        const backoff = AGENT_RPC_BACKOFF_MS[Math.min(attempt, AGENT_RPC_BACKOFF_MS.length - 1)];
+        await sleep(backoff);
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  throw lastError ?? new Error(`${errorContext} failed after retries`);
+}
+
 export interface Context {
   env: Env;
   db: D1Database;
@@ -33,56 +94,6 @@ export interface CreateContextOptions {
 export function createContext(opts: CreateContextOptions): Context {
   const drizzle = initDatabase(opts.env.DB);
   
-  const fetchWithRetry = async (url: string, init?: RequestInit, errorContext: string = 'Engine request'): Promise<Response> => {
-    let lastError: Error | null = null;
-
-    for (let attempt = 0; attempt < AGENT_RPC_MAX_RETRIES; attempt++) {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), AGENT_RPC_TIMEOUT_MS);
-
-      try {
-        const response = await opts.env.CONTENT_ENGINE.fetch(
-          new Request(url, init),
-          { signal: controller.signal }
-        );
-
-        if (!response.ok) {
-          // Don't retry 4xx errors (client errors)
-          if (response.status >= 400 && response.status < 500) {
-            // Return response to let caller handle 4xx
-            clearTimeout(timeout);
-            return response;
-          }
-          // Retry 5xx errors (server errors)
-          lastError = new Error(`${errorContext} failed: ${response.statusText}`);
-          if (attempt < AGENT_RPC_MAX_RETRIES - 1) {
-            await sleep(AGENT_RPC_BACKOFF_MS[attempt] ?? 400);
-          }
-          continue;
-        }
-
-        clearTimeout(timeout);
-        return response;
-      } catch (e) {
-        if (e instanceof Error && e.name === 'AbortError') {
-          lastError = new Error(`${errorContext} timeout after ${AGENT_RPC_TIMEOUT_MS}ms`);
-        } else if (e instanceof Error) {
-          lastError = e;
-        } else {
-          lastError = new Error(`Unknown ${errorContext.toLowerCase()} error`);
-        }
-
-        if (attempt < AGENT_RPC_MAX_RETRIES - 1) {
-          await sleep(AGENT_RPC_BACKOFF_MS[attempt] ?? 400);
-        }
-      } finally {
-        clearTimeout(timeout);
-      }
-    }
-
-    throw lastError ?? new Error(`${errorContext} failed after retries`);
-  };
-
   return {
     env: opts.env,
     db: opts.env.DB,
@@ -92,7 +103,7 @@ export function createContext(opts: CreateContextOptions): Context {
     userRole: opts.userRole,
     callEngine: async <T>(path: string, options?: RequestInit): Promise<T> => {
       const url = path.startsWith('http') ? path : `http://internal${path.startsWith('/') ? '' : '/'}${path}`;
-      const response = await fetchWithRetry(url, options, 'Engine request');
+      const response = await fetchWithRetry(opts.env, url, options, 'Engine request');
       
       if (!response.ok) {
         throw new Error(`Engine request failed: ${response.statusText}`);
@@ -101,7 +112,7 @@ export function createContext(opts: CreateContextOptions): Context {
     },
     callAgent: async <T>(clientId: string, method: string, params: Record<string, unknown>): Promise<T> => {
       const url = `http://internal/api/client/${clientId}/rpc`;
-      const response = await fetchWithRetry(url, {
+      const response = await fetchWithRetry(opts.env, url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method, params }),

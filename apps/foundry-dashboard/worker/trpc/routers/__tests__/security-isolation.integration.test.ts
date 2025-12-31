@@ -47,7 +47,7 @@ describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('AC3: No Cross-Client Data Leakage', () => {

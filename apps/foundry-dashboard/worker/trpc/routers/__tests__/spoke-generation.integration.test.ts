@@ -34,7 +34,7 @@ describe('Spoke Generation Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('Spoke Creation', () => {

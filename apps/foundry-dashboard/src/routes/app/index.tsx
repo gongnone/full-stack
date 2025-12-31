@@ -3,17 +3,22 @@ import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { ActionButton } from '@/components/ui';
+import { useToast } from '@/lib/toast';
 
 export const Route = createFileRoute('/app/')({
-  component: DashboardPage,
+  component: DashboardHome,
 });
 
-function DashboardPage() {
+function DashboardHome() {
   const { data: session } = useSession();
   const clientId = useClientId();
-
-  // Real tRPC queries
-  const clientsQuery = trpc.clients.list.useQuery({}, { enabled: !!session });
+  const { addToast } = useToast();
+  
+  // R-13 AC3: Include userId in query key
+  const clientsQuery = trpc.clients.list.useQuery(
+    { userId: session?.user?.id }, 
+    { enabled: !!session?.user?.id }
+  );
   
   const highConfidenceQuery = trpc.review.getQueue.useQuery(
     { clientId: clientId!, filter: 'top10', limit: 100 },

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { signUp } from '@/lib/auth-client';
+import { clearSessionCache } from '@/lib/query-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -61,6 +62,8 @@ function SignupPage() {
         return;
       }
 
+      // R-13 AC2: Clear any stale cached data before navigation
+      clearSessionCache();
       navigate({ to: '/app' });
     } catch (err) {
       setError('An unexpected error occurred');

@@ -7,16 +7,18 @@ import { z } from 'zod'; // Import zod to make it available for schema definitio
 // import { createCallerFactory } from '@trpc/server/unstable-core-do-not-import';
 
 // --- MOCK SETUP ---
-// Declare mocks at the top level
-const mockCallAgent = vi.fn();
-let mockAssertClientAccess = vi.fn();
+// Declare mocks at the top level using vi.hoisted to ensure they are available for vi.mock
+const mocks = vi.hoisted(() => ({
+  mockAssertClientAccess: vi.fn(),
+  mockCallAgent: vi.fn(),
+}));
 
 // Mock the middleware/client-access module BEFORE spokes.ts is imported
 vi.mock('../../middleware/client-access', async (importOriginal) => {
   const mod = await importOriginal<typeof import('../../middleware/client-access')>();
   return {
     ...mod,
-    assertClientAccess: mockAssertClientAccess,
+    assertClientAccess: mocks.mockAssertClientAccess,
   };
 });
 
@@ -44,7 +46,8 @@ describe('spokesRouter.clone', () => {
 
   const mockCtx = {
     clientId: MOCK_CLIENT_ID,
-    callAgent: mockCallAgent,
+    callAgent: mocks.mockCallAgent,
+    callEngine: vi.fn(),
     env: {
       CONTENT_ENGINE: {
         fetch: vi.fn(),
@@ -54,13 +57,17 @@ describe('spokesRouter.clone', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCallAgent.mockResolvedValue(MOCK_ORIGINAL_SPOKE); // Default mock for getSpoke
-    mockAssertClientAccess.mockResolvedValue(undefined); // Reset mock for each test
+    mocks.mockCallAgent.mockResolvedValue(MOCK_ORIGINAL_SPOKE); // Default mock for getSpoke
+    mocks.mockAssertClientAccess.mockResolvedValue(undefined); // Reset mock for each test
     mockCtx.env.CONTENT_ENGINE.fetch.mockReset(); // Reset fetch mock as well
+    mockCtx.callEngine.mockReset(); // Reset callEngine
   });
 
   it('should successfully clone a spoke in "exact" mode (AC3)', async () => {
-    mockCallAgent.mockResolvedValueOnce({ id: 'new-spoke-id-exact' }); // for duplicateSpoke
+    // 1st call: getSpoke, 2nd call: duplicateSpoke
+    mocks.mockCallAgent
+      .mockResolvedValueOnce(MOCK_ORIGINAL_SPOKE)
+      .mockResolvedValueOnce({ id: 'new-spoke-id-exact' });
 
     const caller = spokesRouter.createCaller(mockCtx);
     const result = await caller.clone({
@@ -69,9 +76,9 @@ describe('spokesRouter.clone', () => {
       mode: 'exact',
     });
 
-    expect(mockAssertClientAccess).toHaveBeenCalledWith(mockCtx, MOCK_CLIENT_ID);
-    expect(mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'getSpoke', { spokeId: MOCK_SPOKE_ID });
-    expect(mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'duplicateSpoke', {
+    expect(mocks.mockAssertClientAccess).toHaveBeenCalledWith(mockCtx, MOCK_CLIENT_ID);
+    expect(mocks.mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'getSpoke', { spokeId: MOCK_SPOKE_ID });
+    expect(mocks.mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'duplicateSpoke', {
       spokeId: MOCK_SPOKE_ID,
       clonedFrom: MOCK_SPOKE_ID,
     });
@@ -84,7 +91,10 @@ describe('spokesRouter.clone', () => {
   });
 
   it('should successfully clone a spoke in "platform" mode (AC5)', async () => {
-    mockCallAgent.mockResolvedValueOnce({ id: 'new-spoke-id-platform' }); // for duplicateSpoke
+    // 1st call: getSpoke, 2nd call: duplicateSpoke
+    mocks.mockCallAgent
+      .mockResolvedValueOnce(MOCK_ORIGINAL_SPOKE)
+      .mockResolvedValueOnce({ id: 'new-spoke-id-platform' });
     const targetPlatform: SpokePlatform = 'linkedin';
 
     const caller = spokesRouter.createCaller(mockCtx);
@@ -95,9 +105,9 @@ describe('spokesRouter.clone', () => {
       targetPlatform,
     });
 
-    expect(mockAssertClientAccess).toHaveBeenCalledWith(mockCtx, MOCK_CLIENT_ID);
-    expect(mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'getSpoke', { spokeId: MOCK_SPOKE_ID });
-    expect(mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'duplicateSpoke', {
+    expect(mocks.mockAssertClientAccess).toHaveBeenCalledWith(mockCtx, MOCK_CLIENT_ID);
+    expect(mocks.mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'getSpoke', { spokeId: MOCK_SPOKE_ID });
+    expect(mocks.mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'duplicateSpoke', {
       spokeId: MOCK_SPOKE_ID,
       clonedFrom: MOCK_SPOKE_ID,
       overrides: {
@@ -114,8 +124,6 @@ describe('spokesRouter.clone', () => {
   });
 
   it('should throw ZodError if targetPlatform is missing for "platform" mode', async () => {
-    mockCallAgent.mockResolvedValueOnce(MOCK_ORIGINAL_SPOKE); 
-
     const caller = spokesRouter.createCaller(mockCtx);
     await expect(
       caller.clone({
@@ -125,28 +133,21 @@ describe('spokesRouter.clone', () => {
         // targetPlatform is missing - Zod should catch this via superRefine
       } as any)
     ).rejects.toThrowError(/`targetPlatform` must be defined for `platform` mode/); 
-    // mockAssertClientAccess is called inside the procedure, but Zod validation happens BEFORE
-    // Actually, TRPC inputs are validated before handler.
-    // So assertClientAccess might NOT be called if validation fails.
-    // expect(mockAssertClientAccess).toHaveBeenCalledWith(mockCtx, MOCK_CLIENT_ID); 
   });
 
   it('should successfully clone a spoke in "variation" mode (AC4)', async () => {
     const VARIATION_COUNT = 3;
-    const mockContentEngineResponse = {
-      ok: true,
-      json: () => Promise.resolve({
-        status: 'processing',
-        parentSpokeId: MOCK_SPOKE_ID,
-        variationsQueued: VARIATION_COUNT,
-        instances: Array.from({ length: VARIATION_COUNT }).map((_, i) => ({
-          instanceId: `instance-${i}`,
-          spokeId: `variation-spoke-${i}`,
-          platform: MOCK_ORIGINAL_SPOKE.platform,
-        })),
-      }),
+    const mockVariationResponse = {
+      status: 'processing',
+      parentSpokeId: MOCK_SPOKE_ID,
+      variationsQueued: VARIATION_COUNT,
+      instances: Array.from({ length: VARIATION_COUNT }).map((_, i) => ({
+        instanceId: `instance-${i}`,
+        spokeId: `variation-spoke-${i}`,
+        platform: MOCK_ORIGINAL_SPOKE.platform,
+      })),
     };
-    mockCtx.env.CONTENT_ENGINE.fetch.mockResolvedValueOnce(mockContentEngineResponse);
+    mockCtx.callEngine.mockResolvedValueOnce(mockVariationResponse);
 
     const caller = spokesRouter.createCaller(mockCtx);
     const result = await caller.clone({
@@ -156,10 +157,11 @@ describe('spokesRouter.clone', () => {
       count: VARIATION_COUNT,
     });
 
-    expect(mockAssertClientAccess).toHaveBeenCalledWith(mockCtx, MOCK_CLIENT_ID);
-    expect(mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'getSpoke', { spokeId: MOCK_SPOKE_ID });
-    expect(mockCtx.env.CONTENT_ENGINE.fetch).toHaveBeenCalledWith(
-      new Request('http://internal/api/spokes/variations', {
+    expect(mocks.mockAssertClientAccess).toHaveBeenCalledWith(mockCtx, MOCK_CLIENT_ID);
+    expect(mocks.mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'getSpoke', { spokeId: MOCK_SPOKE_ID });
+    expect(mockCtx.callEngine).toHaveBeenCalledWith(
+      'http://internal/api/spokes/variations',
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -167,7 +169,7 @@ describe('spokesRouter.clone', () => {
           parentSpokeId: MOCK_SPOKE_ID,
           count: VARIATION_COUNT,
         }),
-      })
+      }
     );
     expect(result.newSpokeIds.length).toBe(VARIATION_COUNT);
     expect(result.mode).toBe('variation');
@@ -175,7 +177,7 @@ describe('spokesRouter.clone', () => {
   });
 
   it('should throw an error if original spoke is not found', async () => {
-    mockCallAgent.mockResolvedValue(null); // getSpoke returns null
+    mocks.mockCallAgent.mockResolvedValue(null); // getSpoke returns null
 
     const caller = spokesRouter.createCaller(mockCtx);
     await expect(
@@ -185,7 +187,7 @@ describe('spokesRouter.clone', () => {
         mode: 'exact',
       })
     ).rejects.toThrow(TRPCError);
-    expect(mockAssertClientAccess).toHaveBeenCalledWith(mockCtx, MOCK_CLIENT_ID);
-    expect(mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'getSpoke', { spokeId: '11111111-1111-1111-1111-111111111111' });
+    expect(mocks.mockAssertClientAccess).toHaveBeenCalledWith(mockCtx, MOCK_CLIENT_ID);
+    expect(mocks.mockCallAgent).toHaveBeenCalledWith(MOCK_CLIENT_ID, 'getSpoke', { spokeId: '11111111-1111-1111-1111-111111111111' });
   });
 });

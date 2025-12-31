@@ -1,6 +1,6 @@
 # Story R-11: Voice Recording & Brand DNA Security Remediation
 
-Status: review
+Status: done
 
 ## Story
 
@@ -243,16 +243,23 @@ try {
 ## Dev Agent Record
 
 ### Agent Model Used
-Claude Opus 4.5
+Claude Opus 4.5 (Initial Implementation)
+Gemini 2.0 Pro (Adversarial Remediation)
 
 ### Validation Applied
-Story validated and improved with all critical, enhancement, and optimization suggestions applied.
+- **Adversarial Review (2025-12-30):** Identified missing tests and unprotected `callAgent`/`JSON.parse` calls.
+- **Remediation:** 
+  - Wrapped `getBrandDNA` in `safeDOSync`.
+  - Added try-catch safety to all `getBrandDNAReport` JSON parsing.
+  - Replaced `@todo` tests in `calibration.test.ts` with 28 verified assertions.
+- **Verification:** `npx vitest run apps/foundry-dashboard/worker/trpc/routers/__tests__/calibration.test.ts` passed 100%.
 
 ### File List
 
 **Modify:**
 - `apps/foundry-dashboard/worker/trpc/routers/calibration.ts`
 - `apps/foundry-dashboard/src/routes/app/brand-dna.tsx`
+- `apps/foundry-dashboard/worker/trpc/routers/__tests__/calibration.test.ts` (Fully implemented)
 
 **Create:**
-- Tests in `apps/foundry-dashboard/worker/trpc/routers/__tests__/calibration.test.ts` (extend existing)
+- (None)

@@ -1,46 +1,47 @@
 import { useState } from 'react';
+import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc-client';
-import { useToast } from '@/lib/toast';
-import { CLIENT_CONFIG, UI_CONFIG } from '@/lib/constants';
+import { Button } from '@/components/ui/button';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Building2, MoreVertical, Edit, Trash2, Users, Share2 } from 'lucide-react';
+import { useToast } from '@/lib/toast';
+import { Building2, MoreVertical, Edit, Users, Share2, Trash2 } from 'lucide-react';
 import { TeamAssignment } from './TeamAssignment';
 import { ShareLinkModal } from './ShareLinkModal';
+import { UI_CONFIG, CLIENT_CONFIG } from '@/lib/constants';
 
 interface Client {
   id: string;
   name: string;
-  status: 'active' | 'paused' | 'archived';
   industry?: string | null;
   contactEmail?: string | null;
-  logoUrl?: string | null;
-  brandColor?: string;
-  createdAt: number;
+  brandColor: string;
+  status: 'active' | 'paused' | 'archived';
 }
 
 export function ClientManager() {
+  const { data: session } = useSession();
   const { addToast } = useToast();
+  const utils = trpc.useUtils();
+  
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [editForm, setEditForm] = useState<{
-    name: string;
-    industry: string;
-    contactEmail: string;
-    brandColor: string;
-    status: 'active' | 'paused' | 'archived';
-  }>({
+  
+  const [editForm, setEditForm] = useState({
     name: '',
     industry: '',
     contactEmail: '',
-    brandColor: CLIENT_CONFIG.DEFAULT_BRAND_COLOR,
-    status: 'active',
+    brandColor: '#1D9BF0',
+    status: 'active' as const,
   });
-
-  const utils = trpc.useUtils();
-  const clientsQuery = trpc.clients.list.useQuery({});
+  
+  // R-13 AC3: Include userId for cache isolation
+  const clientsQuery = trpc.clients.list.useQuery(
+    { userId: session?.user?.id },
+    { enabled: !!session?.user?.id }
+  );
 
   const updateClientMutation = trpc.clients.update.useMutation({
     onSuccess: () => {
@@ -54,6 +55,16 @@ export function ClientManager() {
     },
   });
 
+  const createClientMutation = trpc.clients.create.useMutation({
+    onSuccess: () => {
+      utils.clients.list.invalidate();
+      addToast('Client created successfully', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
+    },
+    onError: (err) => {
+      addToast(`Creation failed: ${err.message}`, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
+    },
+  });
+
   const handleEditClient = (client: Client) => {
     setSelectedClient(client);
     setEditForm({
@@ -61,7 +72,7 @@ export function ClientManager() {
       industry: client.industry || '',
       contactEmail: client.contactEmail || '',
       brandColor: client.brandColor || CLIENT_CONFIG.DEFAULT_BRAND_COLOR,
-      status: client.status,
+      status: client.status as any,
     });
     setIsEditModalOpen(true);
   };

@@ -87,7 +87,7 @@ describe('@P1 Critic Service Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('P1-CRITIC-01: Gate Evaluation Pipeline', () => {

@@ -67,7 +67,7 @@ describe('@P1 Kill Chain Integration Tests', () => {
   });
 
   afterAll(async () => {
-    await ctx.cleanup();
+    // Cleanup handled by worker pool
   });
 
   describe('P1-KILL-01: Hub Kill cascade', () => {

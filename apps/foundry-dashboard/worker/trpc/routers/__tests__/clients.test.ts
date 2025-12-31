@@ -39,13 +39,21 @@ describe('clientsRouter', () => {
         brandColor: '#FF0000',
       };
 
-      mockDb.run.mockResolvedValue({ success: true });
+      // Mock batch execution
+      mockDb.batch.mockResolvedValue([{ success: true }, { success: true }, { success: true }]);
       mockCallAgent.mockResolvedValue({});
 
       const result = await caller.create(input);
 
+      // Verify transaction components
       expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO clients'));
       expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO client_members'));
+      // R-14 AC4: Verify auto-set active client
+      expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO user_profiles'));
+      
+      // Verify batch call
+      expect(mockDb.batch).toHaveBeenCalled();
+      
       expect(mockCallAgent).toHaveBeenCalledWith(expect.any(String), 'getBrandDNA', {});
       expect(result.success).toBe(true);
     });

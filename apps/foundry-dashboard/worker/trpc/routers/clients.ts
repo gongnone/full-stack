@@ -2,6 +2,7 @@ import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
 import { assertClientAccess } from '../middleware/client-access';
+import { sendBrandDNAInvitation } from '../../email';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
@@ -139,6 +140,47 @@ export const clientsRouter = t.router({
 
         // Provision Durable Object by sending a dummy request or initialization RPC
         await ctx.callAgent(clientId, 'getBrandDNA', {});
+
+        // Story 10-1 AC1: Auto-Send Brand DNA Invitation
+        if (input.contactEmail) {
+          const account = await ctx.db
+            .prepare('SELECT name FROM accounts WHERE id = ?')
+            .bind(ctx.accountId)
+            .first<{ name: string }>();
+          
+          const agencyName = account?.name || 'The Agentic Content Foundry';
+          const token = crypto.randomUUID().replace(/-/g, '');
+          const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+
+          await ctx.db.prepare(`
+            INSERT INTO client_onboard_tokens (id, client_id, token, expires_at, created_at)
+            VALUES (?, ?, ?, ?, ?)
+          `).bind(crypto.randomUUID(), clientId, token, expiresAt, Date.now()).run();
+
+          // Send Email
+          // Use a public URL path that will be handled by the app
+          const inviteUrl = `${ctx.env.BETTER_AUTH_URL}/onboard/${token}`;
+          
+          // Fire and forget email to avoid blocking response
+          ctx.env.QUEUE?.send?.({
+            type: 'email',
+            payload: {
+              to: input.contactEmail,
+              template: 'brand-dna-invite',
+              data: {
+                clientName: input.name,
+                agencyName,
+                inviteUrl
+              }
+            }
+          });
+          
+          // Direct call for now as queue consumer might not be set up for this specific type
+          // In production, offload to queue
+          await sendBrandDNAInvitation(ctx.env, input.contactEmail, input.name, inviteUrl, agencyName).catch(err => {
+            console.error('Failed to send invite email:', err);
+          });
+        }
 
         return {
           clientId,

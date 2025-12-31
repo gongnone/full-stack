@@ -85,7 +85,7 @@ development_status:
 
   # Epic 10: Strategic Brand Onboarding Pipeline
   epic-10: in-progress
-  10-1-client-brand-dna-email-invitation: in-progress
+  10-1-client-brand-dna-email-invitation: review
 
 verification_summary:
   last_full_e2e_run: 2025-12-24

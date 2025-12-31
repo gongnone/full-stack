@@ -373,6 +373,58 @@ app.post('/api/review/edit', async (c) => {
 // Apply auth middleware to tRPC routes
 app.use('/trpc/*', authMiddleware);
 
+// Public upload endpoint for onboarding (Story 10-1)
+app.post('/api/upload/onboarding/:token/:path{.+}', async (c) => {
+  const token = c.req.param('token');
+  const rawPath = c.req.param('path');
+  const filename = rawPath ? decodeURIComponent(rawPath) : '';
+
+  if (!token || !filename) {
+    return c.json({ error: 'Missing token or filename' }, 400);
+  }
+
+  // Validate token
+  const invite = await c.env.DB.prepare(`
+    SELECT client_id, expires_at, used_at FROM client_onboard_tokens WHERE token = ?
+  `).bind(token).first<{ client_id: string; expires_at: number; used_at: number | null }>();
+
+  if (!invite || invite.expires_at < Date.now() || invite.used_at) {
+    return c.json({ error: 'Invalid or expired token' }, 403);
+  }
+
+  // Construct secure key
+  // Format: onboarding/{client_id}/{uuid}/{filename}
+  // We use the filename provided in path, but prefix it securely
+  const r2Key = `onboarding/${invite.client_id}/${crypto.randomUUID()}/${filename}`;
+
+  try {
+    const body = await c.req.arrayBuffer();
+
+    if (body.byteLength === 0) {
+      return c.json({ error: 'Empty file' }, 400);
+    }
+
+    if (body.byteLength > 50 * 1024 * 1024) { // 50MB limit for audio/video
+      return c.json({ error: 'File too large (max 50MB)' }, 400);
+    }
+
+    await c.env.MEDIA.put(r2Key, body, {
+      httpMetadata: {
+        contentType: c.req.header('Content-Type') || 'application/octet-stream',
+      },
+    });
+
+    return c.json({
+      success: true,
+      r2Key,
+      size: body.byteLength,
+    });
+  } catch (error: unknown) {
+    console.error('Onboarding upload error:', error);
+    return c.json({ error: 'Upload failed' }, 500);
+  }
+});
+
 // Apply auth middleware to upload routes
 app.use('/api/upload/*', authMiddleware);
 

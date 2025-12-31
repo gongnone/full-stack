@@ -28,6 +28,8 @@ export interface Env {
   AWS_SECRET_ACCESS_KEY?: string;
   AWS_REGION?: string;
   EMAIL_FROM?: string;
+  // Queue for async processing
+  QUEUE: Queue;
 }
 
 // Export Durable Object classes for Cloudflare Workers runtime

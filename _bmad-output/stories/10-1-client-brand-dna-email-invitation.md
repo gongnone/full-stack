@@ -2,7 +2,7 @@
 
 **Epic:** 10 - Strategic Brand Onboarding Pipeline
 **Priority:** P0
-**Status:** ready
+**Status:** review
 **Effort:** 4-6 hours
 **Created:** 2025-12-29
 
@@ -21,41 +21,41 @@ Currently, agencies create clients but have no automated way to get Brand DNA fr
 ## Acceptance Criteria
 
 ### AC1: Auto-Send on Client Creation
-- [ ] When agency creates client with email address, system generates Brand DNA invitation
-- [ ] Email sent via AWS SES (reuse Story 9-4 infrastructure)
-- [ ] Email includes agency name, personalized greeting, clear CTA
-- [ ] Invitation token generated with 7-day expiration
+- [x] When agency creates client with email address, system generates Brand DNA invitation
+- [x] Email sent via AWS SES (reuse Story 9-4 infrastructure)
+- [x] Email includes agency name, personalized greeting, clear CTA
+- [x] Invitation token generated with 7-day expiration
 
 ### AC2: Email Content & Design
-- [ ] Subject: "[Agency Name] invited you to set up your brand voice"
-- [ ] Mobile-optimized HTML template
-- [ ] Clear value proposition: "2 minutes to capture YOUR authentic voice"
-- [ ] Primary CTA button: "Set Up My Brand Voice"
-- [ ] Explains what they'll do: record voice, upload content, answer questions
+- [x] Subject: "[Agency Name] invited you to set up your brand voice"
+- [x] Mobile-optimized HTML template
+- [x] Clear value proposition: "2 minutes to capture YOUR authentic voice"
+- [x] Primary CTA button: "Set Up My Brand Voice"
+- [x] Explains what they'll do: record voice, upload content, answer questions
 
 ### AC3: Token-Gated Landing Page
-- [ ] Route: `/onboard/:token` (public, no auth required)
-- [ ] Token validation: check expiry, check not already used
-- [ ] Invalid/expired token: friendly error with "Request new invite" option
-- [ ] Valid token: resolves to clientId, loads onboarding UI
+- [x] Route: `/onboard/:token` (public, no auth required)
+- [x] Token validation: check expiry, check not already used
+- [x] Invalid/expired token: friendly error with "Request new invite" option
+- [x] Valid token: resolves to clientId, loads onboarding UI
 
 ### AC4: Voice Recording on Landing Page
-- [ ] Reuse VoiceRecorder component from Story 2-2
-- [ ] Guided prompt displayed: "Tell us about the customers you love working with — and the ones who drive you crazy"
-- [ ] Recording limit: 2 minutes
-- [ ] Works on mobile browsers (iOS Safari, Chrome Android)
-- [ ] Upload to R2, trigger Whisper transcription
+- [x] Reuse VoiceRecorder component from Story 2-2
+- [x] Guided prompt displayed: "Tell us about the customers you love working with — and the ones who drive you crazy"
+- [x] Recording limit: 2 minutes
+- [x] Works on mobile browsers (iOS Safari, Chrome Android)
+- [x] Upload to R2, trigger Whisper transcription
 
 ### AC5: Optional Content Upload
-- [ ] Allow PDF/text paste as secondary input
-- [ ] "Already have content? Upload your best posts"
-- [ ] Same processing as Story 2-1 (multi-source ingestion)
+- [x] Allow PDF/text paste as secondary input
+- [x] "Already have content? Upload your best posts"
+- [x] Same processing as Story 2-1 (multi-source ingestion)
 
 ### AC6: Submission & Processing
-- [ ] On submit: show processing state "Analyzing your brand..."
-- [ ] Write raw Brand DNA to client's tables (voice_markers, brand_stances, etc.)
-- [ ] Mark invitation token as used
-- [ ] Trigger next phase (Story 10-2: Deep Research)
+- [x] On submit: show processing state "Analyzing your brand..."
+- [x] Write raw Brand DNA to client's tables (voice_markers, brand_stances, etc.)
+- [x] Mark invitation token as used
+- [x] Trigger next phase (Story 10-2: Deep Research)
 
 ### AC7: Agency Notification
 - [ ] Agency owner receives email: "Sarah completed Brand DNA setup"
@@ -154,3 +154,25 @@ Questions? Reply to this email.
 - [ ] Token security reviewed (no enumeration, proper expiry)
 - [ ] Agency notification working
 - [ ] Integration with Story 10-2 trigger point documented
+
+## Dev Agent Record
+
+### Implementation Notes - 2025-12-30
+- Implemented `client_onboard_tokens` table in D1 schema.
+- Added `sendBrandDNAInvitation` to email service using AWS SES.
+- Updated `clients.create` to generate invitation token and send email.
+- Created new `onboarding` router for public token validation and submission.
+- Added public upload endpoint in `app.ts` for unauthenticated uploads (token-gated).
+- Implemented `onboard.$token.tsx` landing page with Voice Recorder and Content Upload tabs.
+- Integrated `VoiceRecorder` component with manual upload logic to public endpoint.
+
+### File List
+- packages/foundry-core/src/schema/index.ts
+- apps/foundry-dashboard/worker/email/index.ts
+- apps/foundry-dashboard/worker/trpc/routers/clients.ts
+- apps/foundry-dashboard/worker/trpc/routers/onboarding.ts
+- apps/foundry-dashboard/src/routes/onboard.$token.tsx
+- apps/foundry-dashboard/worker/trpc/router.ts
+- apps/foundry-dashboard/worker/hono/app.ts
+- apps/foundry-dashboard/worker/index.ts
+- apps/foundry-dashboard/worker/trpc/routers/__tests__/onboarding.integration.test.ts

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createIntegrationContext, seedTestAccounts } from './integration-harness';
-import { appRouter } from '../router';
+import { appRouter } from '../../router';
 
 describe('Onboarding & Brand DNA Invitation', () => {
   let ctx: any;

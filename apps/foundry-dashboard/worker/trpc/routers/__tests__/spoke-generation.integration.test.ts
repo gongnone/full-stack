@@ -353,7 +353,7 @@ describe('Spoke Generation Integration Tests', () => {
     });
 
     it('counts spokes per hub', async () => {
-      const hub = await seedTestHubsAndSpokes(ctx.db, account1.id, account1.clientId, 10);
+      const hub = await seedTestHubsAndSpokes(ctx.db, account1.clientId, account1.userId, 10);
 
       // Verify each spoke was created
       for (const spokeId of hub.spokeIds) {
@@ -369,13 +369,13 @@ describe('Spoke Generation Integration Tests', () => {
 
   describe('Query Performance', () => {
     it('queries by hub_id are efficient (indexed)', async () => {
-      const hub = await seedTestHubsAndSpokes(ctx.db, account1.id, account1.clientId, 20);
+      const hub = await seedTestHubsAndSpokes(ctx.db, account1.clientId, account1.userId, 20);
 
       const start = performance.now();
 
       await ctx.db.prepare(`
-        SELECT * FROM spokes WHERE hub_id = ? AND account_id = ?
-      `).bind(hub.hubId, account1.id).all();
+        SELECT * FROM spokes WHERE hub_id = ? AND client_id = ?
+      `).bind(hub.hubId, account1.clientId).all();
 
       const duration = performance.now() - start;
       expect(duration).toBeLessThan(100);
@@ -385,8 +385,8 @@ describe('Spoke Generation Integration Tests', () => {
       const start = performance.now();
 
       await ctx.db.prepare(`
-        SELECT * FROM spokes WHERE status = 'pending' AND account_id = ?
-      `).bind(account1.id).all();
+        SELECT * FROM spokes WHERE status = 'pending' AND client_id = ?
+      `).bind(account1.clientId).all();
 
       const duration = performance.now() - start;
       expect(duration).toBeLessThan(100);

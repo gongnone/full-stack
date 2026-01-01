@@ -84,9 +84,10 @@ development_status:
   9-8-type-safety-improvements: Verified
 
   # Epic 10: Strategic Brand Onboarding Pipeline
-  epic-10: in-progress
+  epic-10: Verified
   10-1-client-brand-dna-email-invitation: Verified
   10-2-deep-research-agent: Verified
+  # Stories 10-3, 10-4, 10-5 deferred to Post-MVP Phase 2A
 
 verification_summary:
   last_full_e2e_run: 2025-12-24
@@ -263,10 +264,29 @@ technical_debt_backlog:
       - "Ensures tests actually test something"
       - "Prevents false confidence in test coverage"
 
+  TD-4-integration-test-schema-mismatch:
+    status: Open
+    priority: MEDIUM
+    effort: 4-6 hours
+    issue: "Integration tests use account_id column but schema uses client_id"
+    root_cause: "Tests were written for hypothetical schema that doesn't exist"
+    scope: "~15 test files, ~100+ SQL queries"
+    partial_fixes_applied:
+      - "setupTestDatabase export added"
+      - "hub_sources FK constraint fixed"
+      - "seedTestHubsAndSpokes parameter order fixed (6 files)"
+    remaining_work:
+      - "Replace account_id with client_id across all test files"
+      - "Update temp table CREATE statements"
+      - "Verify test assertions match real data model"
+    files_affected:
+      - "apps/foundry-dashboard/worker/trpc/routers/__tests__/*.integration.test.ts"
+    not_blocking: "Production is working, E2E tests pass"
+
 technical_debt_summary:
-  total_items: 3
+  total_items: 4
   high_priority: 0
-  medium_priority: 2
+  medium_priority: 3
   completed: 1
-  estimated_total_effort: "3.5-5.5 hours"
+  estimated_total_effort: "7.5-11.5 hours"
   td1_completed: 2026-01-01

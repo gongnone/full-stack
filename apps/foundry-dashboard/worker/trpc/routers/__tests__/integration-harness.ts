@@ -13,6 +13,16 @@ export interface IntegrationContext extends Context {
 }
 
 /**
+ * No-op function for backwards compatibility.
+ * Database setup is handled globally in test/setup.ts via beforeAll hook.
+ * This function exists to satisfy imports in test files that reference it.
+ */
+export async function setupTestDatabase(_db: D1Database): Promise<void> {
+  // Database is already initialized via test/setup.ts beforeAll hook
+  // which runs all migrations. This is a no-op for compatibility.
+}
+
+/**
  * Create an integration test context with real D1 database via native test env
  */
 export function createIntegrationContext(): IntegrationContext {
@@ -134,8 +144,14 @@ export async function seedTestHubsAndSpokes(
   count: number = 5
 ): Promise<{ hubId: string; spokeIds: string[] }> {
   const hubId = randomUUID();
-    const sourceId = randomUUID();
+  const sourceId = randomUUID();
   const spokeIds: string[] = [];
+
+  // Create hub_source first (required FK for hubs)
+  await db.prepare(`
+    INSERT INTO hub_sources (id, client_id, user_id, title, source_type, raw_content, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).bind(sourceId, clientId, userId, 'Test Source', 'text', 'Test content for hub source', 'ready').run();
 
   // Create hub
   await db.prepare(`

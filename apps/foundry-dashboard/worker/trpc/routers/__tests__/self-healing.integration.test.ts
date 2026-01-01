@@ -66,7 +66,7 @@ describe('@P1 Self-Healing Loop Integration Tests', () => {
 
     const accounts = await seedTestAccounts(ctx.db, ctx);
     account = accounts.account1;
-    hubData = await seedTestHubsAndSpokes(ctx.db, account.id, account.clientId, 3);
+    hubData = await seedTestHubsAndSpokes(ctx.db, account.clientId, account.userId, 3);
   });
 
   afterAll(async () => {

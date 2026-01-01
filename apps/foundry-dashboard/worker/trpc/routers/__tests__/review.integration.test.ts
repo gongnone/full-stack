@@ -38,7 +38,7 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
     account = accounts.account1;
 
     // Seed hub with 5 spokes for testing
-    testHub = await seedTestHubsAndSpokes(ctx.db, account.id, account.clientId, 5);
+    testHub = await seedTestHubsAndSpokes(ctx.db, account.clientId, account.userId, 5);
   });
 
   afterAll(async () => {
@@ -285,8 +285,8 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
 
       const account2Hub = await seedTestHubsAndSpokes(
         ctx.db,
-        accounts.account2.id,
         accounts.account2.clientId,
+        accounts.account2.userId,
         3
       );
 

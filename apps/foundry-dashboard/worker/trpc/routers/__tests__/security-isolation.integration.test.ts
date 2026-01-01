@@ -42,8 +42,8 @@ describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
     account2 = accounts.account2;
 
     // Seed data for each account
-    account1Hub = await seedTestHubsAndSpokes(ctx.db, account1.id, account1.clientId, 3);
-    account2Hub = await seedTestHubsAndSpokes(ctx.db, account2.id, account2.clientId, 3);
+    account1Hub = await seedTestHubsAndSpokes(ctx.db, account1.clientId, account1.userId, 3);
+    account2Hub = await seedTestHubsAndSpokes(ctx.db, account2.clientId, account2.userId, 3);
   });
 
   afterAll(async () => {

@@ -184,7 +184,7 @@ export function createAuth(env: Env) {
     trustedOrigins: [
       'http://localhost:5173',
       'http://localhost:8787',
-      'https://stage.williamjshaw.ca',
+      'https://foundry-stage.williamjshaw.ca',
       'https://foundry.williamjshaw.ca',
     ],
 
@@ -195,7 +195,7 @@ export function createAuth(env: Env) {
       },
       // Use default 'better-auth' prefix to match existing session cookies
       // Use secure cookies only in production - localhost HTTP needs non-secure for WebKit
-      useSecureCookies: env.ENVIRONMENT === 'production',
+      useSecureCookies: env.ENVIRONMENT === 'production' || env.ENVIRONMENT === 'stage',
       crossSubDomainCookies: {
         enabled: false,
       },
@@ -204,7 +204,7 @@ export function createAuth(env: Env) {
       // secure: false for local dev to support WebKit E2E tests on localhost HTTP
       defaultCookieAttributes: {
         sameSite: 'lax',
-        secure: env.ENVIRONMENT === 'production',
+        secure: env.ENVIRONMENT === 'production' || env.ENVIRONMENT === 'stage',
         httpOnly: true,
       },
     },

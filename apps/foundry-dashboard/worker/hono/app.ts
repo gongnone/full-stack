@@ -22,7 +22,7 @@ app.use('*', cors({
     const allowedOrigins = [
       'http://localhost:5173',
       'http://localhost:8787',
-      'https://stage.williamjshaw.ca',
+      'https://foundry-stage.williamjshaw.ca',
       'https://foundry.williamjshaw.ca',
     ];
     return allowedOrigins.includes(origin || '') ? origin : allowedOrigins[0];
@@ -99,7 +99,7 @@ app.get('/api/health/db', async (c) => {
 // If debugging is needed, use wrangler tail or local development instead.
 
 // Better Auth routes - handles all /api/auth/* endpoints
-app.on(['GET', 'POST'], '/api/auth/**', async (c) => {
+app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
   const auth = createAuth(c.env);
 
   try {

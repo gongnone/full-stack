@@ -341,6 +341,32 @@ export const post_performance = sqliteTable('post_performance', {
   recorded_at: integer('recorded_at').notNull(),
 });
 
+// === ENGAGEMENT TRAINING DATA (Epic 12-1) ===
+
+export const engagement_training_data = sqliteTable('engagement_training_data', {
+  id: text('id').primaryKey(),
+  client_id: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  spoke_id: text('spoke_id').notNull(),
+  platform: text('platform').notNull(),
+  content_hash: text('content_hash').notNull(), // For deduplication
+
+  // Predicted scores (at generation time)
+  predicted_engagement: integer('predicted_engagement').notNull(), // 0-100 scaled from 0-10
+  predicted_confidence: text('predicted_confidence').notNull(), // 'low', 'medium', 'high'
+
+  // Actual performance (filled in after publishing)
+  actual_engagement_rate: integer('actual_engagement_rate'), // Engagement rate * 1000 (for integer storage)
+  actual_performance_tier: text('actual_performance_tier'), // 'viral', 'high', 'average', 'low', 'flop'
+
+  // Timing
+  predicted_at: integer('predicted_at').notNull(),
+  published_at: integer('published_at'),
+  metrics_recorded_at: integer('metrics_recorded_at'),
+
+  // For model training
+  feature_vector: text('feature_vector'), // JSON: normalized features used for prediction
+});
+
 // === CRITIC CALIBRATION (Story 1.5-5-7) ===
 
 export const critic_calibration_data = sqliteTable('critic_calibration_data', {
@@ -489,3 +515,5 @@ export type BrandDnaSession = typeof brand_dna_sessions.$inferSelect;
 export type Client = typeof clients.$inferSelect;
 export type VoiceRecording = typeof voice_recordings.$inferSelect;
 export type VoiceRecordingInsert = typeof voice_recordings.$inferInsert;
+export type EngagementTrainingData = typeof engagement_training_data.$inferSelect;
+export type EngagementTrainingDataInsert = typeof engagement_training_data.$inferInsert;

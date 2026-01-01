@@ -4,7 +4,7 @@ interface BucketCardProps {
   title: string;
   count: number;
   description: string;
-  filter: 'high-confidence' | 'needs-review' | 'conflicts' | 'just-generated';
+  filter: 'high-confidence' | 'needs-review' | 'conflicts' | 'just-generated' | 'golden-nuggets';
   variant: 'green' | 'yellow' | 'red' | 'blue';
 }
 

@@ -5,12 +5,22 @@
  * - G2: Hook strength scoring
  * - G4: Brand voice alignment
  * - G5: Platform compliance
+ *
+ * Epic 12-1: Engagement Prediction
+ * - G7e: Engagement prediction (0-10 scale, 9+ = Golden Nugget)
  */
 
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
 import { assertClientAccess } from '../middleware/client-access';
+import {
+  predictEngagement,
+  predictEngagementBatch,
+  predictionToDbFormat,
+  type PredictionInput,
+  type EngagementPrediction,
+} from '../../lib/engagement-prediction';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
@@ -210,8 +220,9 @@ Respond with JSON: { "score": number, "feedback": "explanation", "markersFound":
         score -= (hashtagCount - requirements.hashtagLimit) * 5;
       }
 
-      // Check emoji usage
-      const emojiCount = (input.content.match(/[\u{1F300}-\u{1F9FF}]/gu) || []).length;
+      // Check emoji usage (using surrogate pairs for ES5 compatibility)
+      const emojiPattern = /[\uD83C-\uDBFF\uDC00-\uDFFF]+|[\u2600-\u27FF]|[\uFE00-\uFEFF]/g;
+      const emojiCount = (input.content.match(emojiPattern) || []).length;
       if (requirements.emojiPolicy === 'minimal' && emojiCount > 2) {
         issues.push(`Too many emojis for ${input.platform} (${emojiCount})`);
         score -= (emojiCount - 2) * 3;
@@ -568,6 +579,149 @@ Provide exactly 2 rewrite suggestions in JSON format:
           platform: platformResult.feedback,
         },
         overallStatus: g7 >= 85 ? 'excellent' : g7 >= 70 ? 'good' : g7 >= 50 ? 'needs-work' : 'poor',
+      };
+    }),
+
+  // ===== Epic 12-1: Engagement Prediction =====
+
+  predictEngagement: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      spokeId: z.string().uuid(),
+      content: z.string().min(1),
+      platform: z.enum(['twitter', 'linkedin', 'instagram', 'tiktok', 'newsletter', 'thread', 'carousel']),
+      g2HookScore: z.number().min(0).max(100).optional(),
+      psychologicalAngle: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      const prediction = predictEngagement({
+        content: input.content,
+        platform: input.platform,
+        g2HookScore: input.g2HookScore,
+        psychologicalAngle: input.psychologicalAngle,
+      });
+
+      // Store prediction in spoke via Durable Object
+      const dbFormat = predictionToDbFormat(prediction);
+      await ctx.callAgent(input.clientId, 'updateSpokeScores', {
+        spokeId: input.spokeId,
+        scores: {
+          engagement_prediction: dbFormat.engagement_prediction,
+          engagement_confidence: dbFormat.engagement_confidence,
+          engagement_factors: dbFormat.engagement_factors,
+        },
+      });
+
+      return {
+        spokeId: input.spokeId,
+        prediction,
+      };
+    }),
+
+  predictEngagementBatch: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      spokes: z.array(z.object({
+        spokeId: z.string().uuid(),
+        content: z.string().min(1),
+        platform: z.enum(['twitter', 'linkedin', 'instagram', 'tiktok', 'newsletter', 'thread', 'carousel']),
+        g2HookScore: z.number().min(0).max(100).optional(),
+        psychologicalAngle: z.string().optional(),
+      })),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      const predictions = input.spokes.map((spoke) => ({
+        spokeId: spoke.spokeId,
+        prediction: predictEngagement({
+          content: spoke.content,
+          platform: spoke.platform,
+          g2HookScore: spoke.g2HookScore,
+          psychologicalAngle: spoke.psychologicalAngle,
+        }),
+      }));
+
+      // Store all predictions
+      await Promise.all(
+        predictions.map(async ({ spokeId, prediction }) => {
+          const dbFormat = predictionToDbFormat(prediction);
+          await ctx.callAgent(input.clientId, 'updateSpokeScores', {
+            spokeId,
+            scores: {
+              engagement_prediction: dbFormat.engagement_prediction,
+              engagement_confidence: dbFormat.engagement_confidence,
+              engagement_factors: dbFormat.engagement_factors,
+            },
+          });
+        })
+      );
+
+      return {
+        total: predictions.length,
+        goldenNuggets: predictions.filter((p) => p.prediction.isGoldenNugget).length,
+        predictions,
+      };
+    }),
+
+  getGoldenNuggets: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      hubId: z.string().uuid().optional(),
+      limit: z.number().min(1).max(100).default(20),
+    }))
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // Get spokes with engagement_prediction >= 9 (Golden Nuggets)
+      const goldenNuggets = await ctx.callAgent(input.clientId, 'getGoldenNuggets', {
+        hubId: input.hubId,
+        limit: input.limit,
+      }) as Array<{
+        id: string;
+        content: string;
+        platform: string;
+        engagement_prediction: number;
+        engagement_confidence: string;
+        engagement_factors: string;
+      }>;
+
+      return {
+        items: goldenNuggets.map((spoke) => ({
+          ...spoke,
+          engagement_factors: spoke.engagement_factors ? JSON.parse(spoke.engagement_factors) : null,
+        })),
+        count: goldenNuggets.length,
+        threshold: 9,
+      };
+    }),
+
+  getEngagementStats: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      hubId: z.string().uuid().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // Get engagement prediction distribution
+      const stats = await ctx.callAgent(input.clientId, 'getEngagementStats', {
+        hubId: input.hubId,
+      }) as {
+        total: number;
+        goldenNuggets: number; // >= 9
+        strong: number; // 7-8.9
+        average: number; // 5-6.9
+        weak: number; // < 5
+        avgScore: number;
+      };
+
+      return {
+        ...stats,
+        goldenNuggetRate: stats.total > 0 ? Math.round((stats.goldenNuggets / stats.total) * 100) : 0,
+        strongRate: stats.total > 0 ? Math.round((stats.strong / stats.total) * 100) : 0,
       };
     }),
 });

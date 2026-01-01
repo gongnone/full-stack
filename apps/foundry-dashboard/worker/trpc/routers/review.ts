@@ -24,6 +24,9 @@ interface ReviewQueueSpoke {
     g5_platform?: boolean;
     g7_engagement?: number;
   };
+  // Epic 12-1: G7e Engagement Prediction
+  engagementPrediction?: number | null; // 0-10 scale, 9+ = Golden Nugget
+  engagementConfidence?: 'low' | 'medium' | 'high' | null;
   parentSpokeId?: string | null;
   clonedFrom?: string | null;
   createdAt: string;
@@ -34,7 +37,7 @@ export const reviewRouter = t.router({
   getQueue: procedure
     .input(z.object({
       clientId: z.string().min(1),
-      filter: z.enum(['all', 'top10', 'flagged', 'needs-review', 'just-generated']).default('all'),
+      filter: z.enum(['all', 'top10', 'flagged', 'needs-review', 'just-generated', 'golden-nuggets']).default('all'),
       limit: z.number().min(1).max(100).default(50),
       cursor: z.number().optional(), // offset-based pagination
     }))
@@ -58,6 +61,9 @@ export const reviewRouter = t.router({
         ...item,
         parentSpokeId: item.parentSpokeId || item.parent_spoke_id,
         clonedFrom: item.clonedFrom || item.cloned_from,
+        // Epic 12-1: Map engagement prediction fields
+        engagementPrediction: item.engagementPrediction ?? item.engagement_prediction ?? null,
+        engagementConfidence: item.engagementConfidence ?? item.engagement_confidence ?? null,
       }));
 
       return {

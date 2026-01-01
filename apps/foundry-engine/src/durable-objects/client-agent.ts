@@ -68,6 +68,9 @@ interface Spoke {
   mutatedAt: string | null
   parentSpokeId: string | null
   createdAt: string
+  // Epic 12-1: Engagement Prediction
+  engagementPrediction?: number | null
+  engagementConfidence?: 'low' | 'medium' | 'high' | null
 }
 
 interface Env {
@@ -190,6 +193,9 @@ export class ClientAgent extends DurableObject<Env> {
         g5_platform INTEGER,
         g6_visual REAL,
         g7_engagement REAL,
+        engagement_prediction REAL,
+        engagement_confidence TEXT,
+        engagement_factors TEXT,
         visual_archetype TEXT,
         image_prompt TEXT,
         thumbnail_concept TEXT,
@@ -199,6 +205,19 @@ export class ClientAgent extends DurableObject<Env> {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       )
     `)
+
+    // Migration: Add engagement prediction columns if they don't exist
+    try {
+      const columns = this.sql.exec(`PRAGMA table_info(spokes)`).toArray()
+      const hasEngagementPrediction = columns.some(c => c.name === 'engagement_prediction')
+      if (!hasEngagementPrediction) {
+        this.sql.exec(`ALTER TABLE spokes ADD COLUMN engagement_prediction REAL`)
+        this.sql.exec(`ALTER TABLE spokes ADD COLUMN engagement_confidence TEXT`)
+        this.sql.exec(`ALTER TABLE spokes ADD COLUMN engagement_factors TEXT`)
+      }
+    } catch {
+      // Columns might already exist
+    }
 
     try {
       const columns = this.sql.exec(`PRAGMA table_info(spokes)`).toArray()
@@ -394,6 +413,22 @@ export class ClientAgent extends DurableObject<Env> {
 
       case 'analyzeBrandDNA':
         return Response.json(await this.analyzeBrandDNA(params))
+
+      // Epic 12-1: Engagement Prediction Methods
+      case 'updateSpokeScores':
+        return Response.json(await this.updateSpokeScores(params))
+
+      case 'getSpokesScores':
+        return Response.json(await this.getSpokesScores(params))
+
+      case 'getFlaggedSpokes':
+        return Response.json(await this.getFlaggedSpokes(params))
+
+      case 'getGoldenNuggets':
+        return Response.json(await this.getGoldenNuggets(params))
+
+      case 'getEngagementStats':
+        return Response.json(await this.getEngagementStats(params))
 
       default:
         return Response.json({ error: `Unknown method: ${method}` }, { status: 400 })
@@ -1278,6 +1313,10 @@ export class ClientAgent extends DurableObject<Env> {
       const cutoffISO = twentyFourHoursAgo.toISOString()
       conditions.push(`(status = 'generating' OR created_at >= ?)`)
       sqlParams.push(cutoffISO)
+    } else if (params.filter === 'golden-nuggets') {
+      // Epic 12-1: Golden Nuggets - engagement_prediction >= 9.0
+      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
+      conditions.push(`engagement_prediction >= 9.0`)
     } else {
       // All pending review items
       conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
@@ -1322,6 +1361,9 @@ export class ClientAgent extends DurableObject<Env> {
         mutatedAt: row.mutated_at as string | null,
         parentSpokeId: row.parent_spoke_id as string | null,
         createdAt: row.created_at as string,
+        // Epic 12-1: Engagement Prediction
+        engagementPrediction: row.engagement_prediction as number | null,
+        engagementConfidence: row.engagement_confidence as string | null,
       }))
     } catch (error) {
       console.error('getReviewQueue query failed:', error)
@@ -2378,6 +2420,245 @@ Return JSON format:
       voiceMarkersCount: voiceMarkers.length,
       stancesCount: brandStances.length,
       embeddingsStored,
+    }
+  }
+
+  // ===== Epic 12-1: Engagement Prediction Methods =====
+
+  /**
+   * Update spoke scores (used by critic router for quality and engagement scores)
+   */
+  private async updateSpokeScores(params: {
+    spokeId: string
+    scores: {
+      g2_hook?: number
+      g4_voice?: number
+      g4_similarity?: number
+      g5_platform?: number
+      g6_visual?: number
+      g7_overall?: number
+      g7_engagement?: number
+      engagement_prediction?: number
+      engagement_confidence?: string
+      engagement_factors?: string
+    }
+  }): Promise<{ success: boolean }> {
+    const { spokeId, scores } = params
+    const sets: string[] = []
+    const sqlParams: (string | number | null)[] = []
+
+    if (scores.g2_hook !== undefined) {
+      sets.push(`g2_hook = ?`)
+      sqlParams.push(scores.g2_hook)
+    }
+    if (scores.g4_voice !== undefined) {
+      sets.push(`g4_voice = ?`)
+      sqlParams.push(scores.g4_voice)
+    }
+    if (scores.g4_similarity !== undefined) {
+      sets.push(`g4_similarity = ?`)
+      sqlParams.push(scores.g4_similarity)
+    }
+    if (scores.g5_platform !== undefined) {
+      sets.push(`g5_platform = ?`)
+      sqlParams.push(scores.g5_platform)
+    }
+    if (scores.g6_visual !== undefined) {
+      sets.push(`g6_visual = ?`)
+      sqlParams.push(scores.g6_visual)
+    }
+    if (scores.g7_overall !== undefined) {
+      sets.push(`g7_engagement = ?`) // g7_overall maps to g7_engagement column
+      sqlParams.push(scores.g7_overall)
+    }
+    if (scores.g7_engagement !== undefined) {
+      sets.push(`g7_engagement = ?`)
+      sqlParams.push(scores.g7_engagement)
+    }
+    if (scores.engagement_prediction !== undefined) {
+      sets.push(`engagement_prediction = ?`)
+      sqlParams.push(scores.engagement_prediction)
+    }
+    if (scores.engagement_confidence !== undefined) {
+      sets.push(`engagement_confidence = ?`)
+      sqlParams.push(scores.engagement_confidence)
+    }
+    if (scores.engagement_factors !== undefined) {
+      sets.push(`engagement_factors = ?`)
+      sqlParams.push(scores.engagement_factors)
+    }
+
+    if (sets.length > 0) {
+      sqlParams.push(spokeId)
+      this.sql.exec(`UPDATE spokes SET ${sets.join(', ')} WHERE id = ?`, ...sqlParams)
+    }
+
+    return { success: true }
+  }
+
+  /**
+   * Get scores for multiple spokes (batch query)
+   */
+  private async getSpokesScores(params: {
+    spokeIds: string[]
+  }): Promise<Record<string, {
+    g2_hook?: number
+    g4_voice?: number
+    g5_platform?: number
+    g7_overall?: number
+    engagement_prediction?: number
+    engagement_confidence?: string
+  }>> {
+    const result: Record<string, {
+      g2_hook?: number
+      g4_voice?: number
+      g5_platform?: number
+      g7_overall?: number
+      engagement_prediction?: number
+      engagement_confidence?: string
+    }> = {}
+
+    for (const spokeId of params.spokeIds) {
+      const row = this.sql.exec(`
+        SELECT g2_hook, g4_voice, g5_platform, g7_engagement, engagement_prediction, engagement_confidence
+        FROM spokes WHERE id = ?
+      `, spokeId).one()
+
+      if (row) {
+        result[spokeId] = {
+          g2_hook: row.g2_hook as number | undefined,
+          g4_voice: row.g4_voice as number | undefined,
+          g5_platform: row.g5_platform as number | undefined,
+          g7_overall: row.g7_engagement as number | undefined,
+          engagement_prediction: row.engagement_prediction as number | undefined,
+          engagement_confidence: row.engagement_confidence as string | undefined,
+        }
+      }
+    }
+
+    return result
+  }
+
+  /**
+   * Get flagged spokes (low scores)
+   */
+  private async getFlaggedSpokes(params: {
+    threshold: number
+    limit: number
+  }): Promise<Array<{
+    id: string
+    content: string
+    platform: string
+    qualityScores: Record<string, number | boolean>
+    flagReason: string
+  }>> {
+    const rows = this.sql.exec(`
+      SELECT id, content, platform, g2_hook, g4_voice, g5_platform, g7_engagement, engagement_prediction
+      FROM spokes
+      WHERE (g7_engagement IS NOT NULL AND g7_engagement < ?)
+         OR (g2_hook IS NOT NULL AND g2_hook < ?)
+      ORDER BY COALESCE(g7_engagement, g2_hook, 0) ASC
+      LIMIT ?
+    `, params.threshold, params.threshold, params.limit).toArray()
+
+    return rows.map(row => ({
+      id: row.id as string,
+      content: row.content as string,
+      platform: row.platform as string,
+      qualityScores: {
+        g2_hook: row.g2_hook as number,
+        g4_voice: row.g4_voice as number,
+        g5_platform: row.g5_platform as number,
+        g7_engagement: row.g7_engagement as number,
+        engagement_prediction: row.engagement_prediction as number,
+      },
+      flagReason: (row.g2_hook as number) < params.threshold
+        ? 'Weak hook'
+        : (row.g7_engagement as number) < params.threshold
+          ? 'Low quality score'
+          : 'Flagged for review',
+    }))
+  }
+
+  /**
+   * Get Golden Nuggets (engagement_prediction >= 9)
+   */
+  private async getGoldenNuggets(params: {
+    hubId?: string
+    limit: number
+  }): Promise<Array<{
+    id: string
+    content: string
+    platform: string
+    engagement_prediction: number
+    engagement_confidence: string
+    engagement_factors: string
+  }>> {
+    let query = `
+      SELECT id, content, platform, engagement_prediction, engagement_confidence, engagement_factors
+      FROM spokes
+      WHERE engagement_prediction >= 9
+    `
+    const sqlParams: (string | number)[] = []
+
+    if (params.hubId) {
+      query += ` AND hub_id = ?`
+      sqlParams.push(params.hubId)
+    }
+
+    query += ` ORDER BY engagement_prediction DESC LIMIT ?`
+    sqlParams.push(params.limit)
+
+    return this.sql.exec(query, ...sqlParams).toArray().map(row => ({
+      id: row.id as string,
+      content: row.content as string,
+      platform: row.platform as string,
+      engagement_prediction: row.engagement_prediction as number,
+      engagement_confidence: row.engagement_confidence as string,
+      engagement_factors: row.engagement_factors as string,
+    }))
+  }
+
+  /**
+   * Get engagement prediction statistics
+   */
+  private async getEngagementStats(params: {
+    hubId?: string
+  }): Promise<{
+    total: number
+    goldenNuggets: number
+    strong: number
+    average: number
+    weak: number
+    avgScore: number
+  }> {
+    let whereClause = `WHERE engagement_prediction IS NOT NULL`
+    const sqlParams: string[] = []
+
+    if (params.hubId) {
+      whereClause += ` AND hub_id = ?`
+      sqlParams.push(params.hubId)
+    }
+
+    const stats = this.sql.exec(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN engagement_prediction >= 9 THEN 1 ELSE 0 END) as golden_nuggets,
+        SUM(CASE WHEN engagement_prediction >= 7 AND engagement_prediction < 9 THEN 1 ELSE 0 END) as strong,
+        SUM(CASE WHEN engagement_prediction >= 5 AND engagement_prediction < 7 THEN 1 ELSE 0 END) as average,
+        SUM(CASE WHEN engagement_prediction < 5 THEN 1 ELSE 0 END) as weak,
+        AVG(engagement_prediction) as avg_score
+      FROM spokes
+      ${whereClause}
+    `, ...sqlParams).one()
+
+    return {
+      total: (stats.total as number) || 0,
+      goldenNuggets: (stats.golden_nuggets as number) || 0,
+      strong: (stats.strong as number) || 0,
+      average: (stats.average as number) || 0,
+      weak: (stats.weak as number) || 0,
+      avgScore: Math.round(((stats.avg_score as number) || 0) * 10) / 10,
     }
   }
 }

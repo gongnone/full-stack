@@ -61,12 +61,19 @@ function ReviewPage() {
   const queueQuery = trpc.review.getQueue.useQuery(
     {
       clientId: clientId!,
-      filter: rawFilter === 'high-confidence' ? 'top10' : 
-              rawFilter === 'conflicts' ? 'flagged' : 
-              rawFilter === 'needs-review' ? 'needs-review' : 
-              rawFilter === 'just-generated' ? 'just-generated' : 'all'
+      filter: rawFilter === 'high-confidence' ? 'top10' :
+              rawFilter === 'conflicts' ? 'flagged' :
+              rawFilter === 'needs-review' ? 'needs-review' :
+              rawFilter === 'just-generated' ? 'just-generated' :
+              rawFilter === 'golden-nuggets' ? 'golden-nuggets' : 'all'
     },
     { enabled: !!clientId && !!rawFilter }
+  );
+
+  // Epic 12-1: Golden Nuggets count query
+  const goldenNuggetsCountQuery = trpc.review.getQueue.useQuery(
+    { clientId: clientId!, filter: 'golden-nuggets', limit: 100 },
+    { enabled: !!clientId && !rawFilter }
   );
 
   const swipeMutation = trpc.review.swipeAction.useMutation();
@@ -225,11 +232,19 @@ function ReviewPage() {
         </div>
 
         {/* Bucket Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          {/* Epic 12-1: Golden Nuggets - Engagement Prediction >= 9 */}
+          <BucketCard
+            title="Golden Nuggets"
+            count={goldenNuggetsCountQuery.data?.totalCount ?? 0}
+            description="Predicted high engagement (9+)"
+            filter="golden-nuggets"
+            variant="green"
+          />
           <BucketCard
             title="High Confidence"
             count={highConfidenceCountQuery.data?.totalCount ?? 0}
-            description="G7 > 9.0 - Ready for auto-approval"
+            description="G7 Quality > 9.0 - Ready for approval"
             filter="high-confidence"
             variant="green"
           />
@@ -415,6 +430,22 @@ function ReviewPage() {
             </div>
 
             <div className="flex gap-2">
+              {/* Epic 12-1: Engagement Prediction Badge */}
+              {currentSpoke.engagementPrediction !== undefined && currentSpoke.engagementPrediction !== null && (
+                <div
+                  className={`px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 ${
+                    currentSpoke.engagementPrediction >= 9
+                      ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                      : currentSpoke.engagementPrediction >= 7
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                  }`}
+                  title={`Engagement Prediction: ${currentSpoke.engagementPrediction.toFixed(1)} (${currentSpoke.engagementConfidence || 'low'} confidence)`}
+                >
+                  {currentSpoke.engagementPrediction >= 9 && <span>✨</span>}
+                  <span>EP {currentSpoke.engagementPrediction.toFixed(1)}</span>
+                </div>
+              )}
               <ScoreBadge score={currentSpoke.qualityScores?.g7_engagement || 0} gate="G7" showGate size="sm" />
               <ScoreBadge score={(currentSpoke.qualityScores?.g2_hook || 0) / 10} gate="G2" showGate size="sm" />
               <div className="relative group/clone">

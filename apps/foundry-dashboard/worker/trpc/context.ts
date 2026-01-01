@@ -5,7 +5,7 @@ import * as schema from '../db/schema';
 // Agent RPC configuration
 const AGENT_RPC_TIMEOUT_MS = 30000;
 const AGENT_RPC_MAX_RETRIES = 3;
-const AGENT_RPC_BACKOFF_MS = [100, 200, 400] as const;
+const AGENT_RPC_BACKOFF_MS: readonly number[] = [100, 200, 400];
 
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -42,7 +42,7 @@ async function fetchWithRetry(
         lastError = new Error(`${errorContext} failed: ${response.statusText}`);
         if (attempt < AGENT_RPC_MAX_RETRIES - 1) {
           // Robust backoff: use Math.min to handle array bounds safely
-          const backoff = AGENT_RPC_BACKOFF_MS[Math.min(attempt, AGENT_RPC_BACKOFF_MS.length - 1)];
+          const backoff = AGENT_RPC_BACKOFF_MS[Math.min(attempt, AGENT_RPC_BACKOFF_MS.length - 1)] ?? 400;
           await sleep(backoff);
         }
         continue;
@@ -61,7 +61,7 @@ async function fetchWithRetry(
 
       if (attempt < AGENT_RPC_MAX_RETRIES - 1) {
         // Robust backoff: use Math.min to handle array bounds safely
-        const backoff = AGENT_RPC_BACKOFF_MS[Math.min(attempt, AGENT_RPC_BACKOFF_MS.length - 1)];
+        const backoff = AGENT_RPC_BACKOFF_MS[Math.min(attempt, AGENT_RPC_BACKOFF_MS.length - 1)] ?? 400;
         await sleep(backoff);
       }
     } finally {
@@ -81,6 +81,8 @@ export interface Context {
   userRole: string;
   callAgent: <T = unknown>(clientId: string, method: string, params: Record<string, unknown>) => Promise<T>;
   callEngine: <T = unknown>(path: string, options?: RequestInit) => Promise<T>;
+  /** Optional request for audit logging - may be undefined in some contexts */
+  request?: Request;
   [key: string]: unknown;
 }
 

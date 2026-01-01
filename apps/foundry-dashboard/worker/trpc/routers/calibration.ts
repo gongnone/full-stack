@@ -69,7 +69,8 @@ async function validateAudioFile(ctx: Context, r2Key: string): Promise<boolean> 
 
     const buffer = await object.arrayBuffer();
     const bytes = new Uint8Array(buffer);
-    
+    if (bytes.length < 12) return false;
+
     // WebM (EBML) - 1A 45 DF A3
     if (bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3) return true;
     
@@ -83,7 +84,7 @@ async function validateAudioFile(ctx: Context, r2Key: string): Promise<boolean> 
     // MP3 (ID3) - 49 44 33
     if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) return true;
     // MP3 (MPEG Frame) - FF FB or FF F3 (approx check)
-    if (bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0) return true;
+    if (bytes[0] === 0xFF && bytes[1] !== undefined && (bytes[1] & 0xE0) === 0xE0) return true;
     
     // M4A/MP4 (ftyp) - ... ftyp
     // Usually starts with size (4 bytes) then 'ftyp' at offset 4

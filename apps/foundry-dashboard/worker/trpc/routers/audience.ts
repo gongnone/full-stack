@@ -103,7 +103,7 @@ function calculateWeeklyPosts(frequency: string): number {
 
   // Handle "Nx/day" patterns
   const dailyMatch = lower.match(/(\d+)[\s-]?(?:x\s*)?\/?\s*day/);
-  if (dailyMatch) {
+  if (dailyMatch?.[1]) {
     return parseInt(dailyMatch[1], 10) * 7;
   }
 
@@ -114,13 +114,13 @@ function calculateWeeklyPosts(frequency: string): number {
 
   // Handle "Nx/week" patterns
   const weeklyMatch = lower.match(/(\d+)[\s-]?(?:x\s*)?\/?\s*week/);
-  if (weeklyMatch) {
+  if (weeklyMatch?.[1]) {
     return parseInt(weeklyMatch[1], 10);
   }
 
   // Handle "Nx/month" patterns
   const monthlyMatch = lower.match(/(\d+)[\s-]?(?:x\s*)?\/?\s*month/);
-  if (monthlyMatch) {
+  if (monthlyMatch?.[1]) {
     return Math.ceil(parseInt(monthlyMatch[1], 10) / 4);
   }
 
@@ -1069,6 +1069,7 @@ Respond ONLY with valid JSON array:`;
           const now = Date.now();
           for (let i = 0; i < recommendations.length; i++) {
             const rec = recommendations[i];
+            if (!rec) continue;
             await tx.insert(schema.platform_recommendations).values({
               id: crypto.randomUUID(),
               client_id: input.clientId,
@@ -1414,7 +1415,7 @@ Respond ONLY with valid JSON array:`;
       };
 
       const now = Date.now();
-      const cadenceRecommendations = [];
+      const cadenceRecommendations: Array<{ platform: string; status: string; frequency: string; bestTimes: string[]; weeklyPosts: number }> = [];
 
       // Story 1.5-2-9: Use a transaction for multiple platform updates
       await ctx.drizzle.transaction(async (tx) => {

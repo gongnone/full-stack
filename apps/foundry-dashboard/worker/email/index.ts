@@ -112,9 +112,10 @@ function escapeHtml(unsafe: string): string {
 }
 
 /**
- * Midnight Command branded email template wrapper
+ * Wrap email content in the standard Foundry email template
+ * Used for transactional emails with pre-formatted body content
  */
-function wrapInTemplate(content: string): string {
+function wrapInTemplate(bodyContent: string): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -139,7 +140,69 @@ function wrapInTemplate(content: string): string {
           <!-- Content -->
           <tr>
             <td style="padding: 40px;">
-              ${content}
+              ${bodyContent}
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; border-top: 1px solid #2A3038; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #8B98A5;">
+                This email was sent by The Agentic Content Foundry.<br>
+                If you have questions, contact support at support@williamjshaw.ca
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+`;
+}
+
+/**
+ * Midnight Command branded email template wrapper
+ */
+function brandedEmailTemplate(subject: string, body: string, ctaText: string, ctaUrl: string, footerText: string): string {
+  const escapedSubject = escapeHtml(subject);
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapedSubject}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #0F1419;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #0F1419;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #1A1F26; border-radius: 8px; border: 1px solid #2A3038;">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 40px; border-bottom: 1px solid #2A3038;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #E7E9EA;">
+                The Agentic Content Foundry
+              </h1>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              ${body}
+                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 24px 0;">
+                    <tr>
+                        <td style="background-color: #1D9BF0; border-radius: 9999px;">
+                            <a href="${ctaUrl}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 700; color: #FFFFFF; text-decoration: none;">
+                                ${ctaText}
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+               <p style="margin: 0; font-size: 14px; color: #8B98A5; line-height: 1.6;">
+                ${footerText}
+              </p>
             </td>
           </tr>
           <!-- Footer -->
@@ -176,29 +239,20 @@ export async function sendVerificationEmail(
 
   const userName = escapeHtml(user.name || 'there');
 
-  const htmlContent = `
+    const subject = 'Verify your Foundry account';
+  const htmlBody = brandedEmailTemplate(
+        subject,
+    `
     <p style="margin: 0 0 20px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
       Hi ${userName},
     </p>
     <p style="margin: 0 0 24px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
       Welcome to The Agentic Content Foundry! Click the button below to verify your email address and activate your account.
-    </p>
-    <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 24px;">
-      <tr>
-        <td style="background-color: #00D26A; border-radius: 6px;">
-          <a href="${verificationUrl}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none;">
-            Verify Email
-          </a>
-        </td>
-      </tr>
-    </table>
-    <p style="margin: 0 0 16px; font-size: 14px; color: #8B98A5; line-height: 1.6;">
-      This link expires in 24 hours.
-    </p>
-    <p style="margin: 0; font-size: 14px; color: #8B98A5; line-height: 1.6;">
-      If you didn't create this account, you can safely ignore this email.
-    </p>
-  `;
+    </p>`,
+    'Verify Email',
+    verificationUrl,
+    `This link expires in 24 hours. If you didn't create this account, you can safely ignore this email.`
+  );
 
   const textContent = `
 Hi ${userName},
@@ -218,7 +272,7 @@ The Agentic Content Foundry
   const result = await sendEmail(env, {
     to: user.email,
     subject: 'Verify your Foundry account',
-    html: wrapInTemplate(htmlContent),
+    html: htmlBody,
     text: textContent.trim(),
   });
 
@@ -242,8 +296,10 @@ export async function sendBrandDNAInvitation(
   }
 
   const subject = `${agencyName} invited you to set up your brand voice`;
-  
-  const htmlContent = `
+
+  const htmlBody = brandedEmailTemplate(
+        subject,
+        `
     <p style="margin: 0 0 20px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
       Hi ${escapeHtml(clientName)},
     </p>
@@ -251,26 +307,17 @@ export async function sendBrandDNAInvitation(
       ${escapeHtml(agencyName)} is setting up AI-powered content generation for your brand.
       To make sure every piece sounds authentically YOU, we need 2 minutes of your time.
     </p>
-    <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 24px;">
-      <tr>
-        <td style="background-color: #1D9BF0; border-radius: 6px;">
-          <a href="${inviteUrl}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #FFFFFF; text-decoration: none;">
-            Set Up My Brand Voice →
-          </a>
-        </td>
-      </tr>
-    </table>
     <p style="margin: 0 0 16px; font-size: 14px; color: #8B98A5; line-height: 1.6;">
       You'll:
     </p>
     <ul style="margin: 0 0 24px; padding-left: 20px; font-size: 14px; color: #E7E9EA; line-height: 1.6;">
       <li style="margin-bottom: 8px;">Record a quick voice note (just talk naturally!)</li>
       <li style="margin-bottom: 8px;">Optionally upload your best existing content</li>
-    </ul>
-    <p style="margin: 0; font-size: 14px; color: #8B98A5; line-height: 1.6;">
-      The more you share, the better your content will be.
-    </p>
-  `;
+    </ul>`,
+        'Set Up My Brand Voice →',
+        inviteUrl,
+        'The more you share, the better your content will be.'
+    );
 
   const textContent = `
 Hi ${clientName},
@@ -290,10 +337,184 @@ The more you share, the better your content will be.
   return sendEmail(env, {
     to: email,
     subject,
-    html: wrapInTemplate(htmlContent),
+    html: htmlBody,
     text: textContent.trim(),
   });
 }/**
+ * Send Brand DNA completion notification to agency owner (Story 10-1 AC7)
+ */
+export async function sendBrandDNACompletionEmail(
+  env: Env,
+  agencyEmail: string,
+  clientName: string,
+  clientId: string,
+  dashboardUrl: string
+): Promise<{ success: boolean; error?: string }> {
+  // Silent fallback for dev mode
+  if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+    console.log(`[Email Mock] Sending Brand DNA Completion notification to ${agencyEmail} for ${clientName}`);
+    return { success: true };
+  }
+
+  const subject = `${clientName} completed Brand DNA setup`;
+
+  const htmlContent = `
+    <p style="margin: 0 0 20px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
+      Great news! 🎉
+    </p>
+    <p style="margin: 0 0 24px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
+      <strong>${escapeHtml(clientName)}</strong> has completed their Brand DNA capture.
+      Their voice profile is now being processed and will be ready for content generation shortly.
+    </p>
+    <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 24px;">
+      <tr>
+        <td style="background-color: #00D26A; border-radius: 6px;">
+          <a href="${dashboardUrl}/clients/${clientId}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none;">
+            View Brand DNA Results →
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin: 0; font-size: 14px; color: #8B98A5; line-height: 1.6;">
+      Next step: Once processing completes, you can start creating Hubs for ${escapeHtml(clientName)}.
+    </p>
+  `;
+
+  const textContent = `
+Great news!
+
+${clientName} has completed their Brand DNA capture.
+Their voice profile is now being processed and will be ready for content generation shortly.
+
+View Brand DNA Results: ${dashboardUrl}/clients/${clientId}
+
+Next step: Once processing completes, you can start creating Hubs for ${clientName}.
+`;
+
+  return sendEmail(env, {
+    to: agencyEmail,
+    subject,
+    html: wrapInTemplate(htmlContent),
+    text: textContent.trim(),
+  });
+}
+
+/**
+ * Send Strategy Ready email (Story 10-4)
+ */
+export async function sendStrategyReadyEmail(
+  env: Env,
+  email: string,
+  clientName: string,
+  approvalUrl: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+    console.log(`[Email Mock] Sending Strategy Ready to ${email}: ${approvalUrl}`);
+    return { success: true };
+  }
+
+  const subject = `Your brand strategy is ready (2 min review)`;
+
+  const htmlContent = `
+    <p style="margin: 0 0 20px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
+      Hi ${escapeHtml(clientName)},
+    </p>
+    <p style="margin: 0 0 24px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
+      We've analyzed your voice and researched your market.
+      Your personalized content strategy is ready for review.
+    </p>
+    <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 24px;">
+      <tr>
+        <td style="background-color: #00D26A; border-radius: 6px;">
+          <a href="${approvalUrl}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none;">
+            Review My Strategy →
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin: 0; font-size: 14px; color: #8B98A5; line-height: 1.6;">
+      Takes about 2 minutes. No login required.
+    </p>
+  `;
+
+  const textContent = `
+Hi ${clientName},
+
+We've analyzed your voice and researched your market.
+Your personalized content strategy is ready for review.
+
+Review My Strategy: ${approvalUrl}
+
+Takes about 2 minutes. No login required.
+`;
+
+  return sendEmail(env, {
+    to: email,
+    subject,
+    html: wrapInTemplate(htmlContent),
+    text: textContent.trim(),
+  });
+}
+
+/**
+ * Send Strategy Locked email to agency (Story 10-4)
+ */
+export async function sendStrategyLockedEmail(
+  env: Env,
+  agencyEmail: string,
+  clientName: string,
+  clientId: string,
+  dashboardUrl: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+    console.log(`[Email Mock] Sending Strategy Locked to ${agencyEmail} for ${clientName}`);
+    return { success: true };
+  }
+
+  const subject = `${clientName} locked their brand strategy`;
+
+  const htmlContent = `
+    <p style="margin: 0 0 20px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
+      Great news! 🎉
+    </p>
+    <p style="margin: 0 0 24px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
+      <strong>${escapeHtml(clientName)}</strong> has approved their brand strategy.
+      They're now ready for content generation!
+    </p>
+    <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 24px;">
+      <tr>
+        <td style="background-color: #00D26A; border-radius: 6px;">
+          <a href="${dashboardUrl}/clients/${clientId}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none;">
+            View Approved Pillars →
+          </a>
+        </td>
+      </tr>
+    </table>
+    <p style="margin: 0; font-size: 14px; color: #8B98A5; line-height: 1.6;">
+      You can now start creating Hubs for ${escapeHtml(clientName)}.
+    </p>
+  `;
+
+  const textContent = `
+Great news!
+
+${clientName} has approved their brand strategy.
+They're now ready for content generation!
+
+View Approved Pillars: ${dashboardUrl}/clients/${clientId}
+
+You can now start creating Hubs for ${clientName}.
+`;
+
+  return sendEmail(env, {
+    to: agencyEmail,
+    subject,
+    html: wrapInTemplate(htmlContent),
+    text: textContent.trim(),
+  });
+}
+
+/**
  * Send password reset email
  * Token expires according to Better Auth configuration
  */

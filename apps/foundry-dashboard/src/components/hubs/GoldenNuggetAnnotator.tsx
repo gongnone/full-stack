@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { Button } from '../ui/card';
+import { Button } from '../ui/button';
 import { Sparkles, Trash2, Info } from 'lucide-react';
 
 interface GoldenNugget {

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { trpc } from '../lib/trpc'
+import { trpc } from '@/lib/trpc-client'
 import { useState } from 'react'
 import { VoiceRecorder } from '@/components/voice/VoiceRecorder'
 
@@ -134,22 +134,31 @@ function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0F1419] text-[#E7E9EA] p-4 font-sans">
-      <div className="max-w-md mx-auto pt-10">
-        <h1 className="text-3xl font-bold mb-2">Welcome, {data.clientName}</h1>
-        <p className="text-[#8B98A5] mb-8">Let's capture your brand voice.</p>
-        
-        {/* Tabs */}
+    <div className="min-h-screen bg-[#0F1419] text-[#E7E9EA] p-4 font-sans overflow-x-hidden">
+      <div className="max-w-md mx-auto pt-6 sm:pt-10">
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2">Welcome, {data.clientName}</h1>
+        <p className="text-[#8B98A5] mb-6 sm:mb-8">Let's capture your brand voice.</p>
+
+        {/* Progress indicator */}
+        <div className="flex items-center gap-2 mb-6">
+          <div className={`h-1 flex-1 rounded-full ${recordingKey ? 'bg-[#00D26A]' : 'bg-[#2A3038]'}`} />
+          <div className={`h-1 flex-1 rounded-full ${contentKey ? 'bg-[#00D26A]' : 'bg-[#2A3038]'}`} />
+          <span className="text-xs text-[#8B98A5] ml-2">
+            {recordingKey && contentKey ? '2/2' : recordingKey || contentKey ? '1/2' : '0/2'}
+          </span>
+        </div>
+
+        {/* Tabs - Mobile-optimized with 44px minimum touch targets */}
         <div className="flex mb-6 border-b border-[#2A3038]">
           <button
             onClick={() => setActiveTab('voice')}
-            className={`px-4 py-2 font-medium transition-colors ${activeTab === 'voice' ? 'text-[#1D9BF0] border-b-2 border-[#1D9BF0]' : 'text-[#8B98A5] hover:text-[#E7E9EA]'}`}
+            className={`flex-1 py-3 min-h-[44px] font-medium transition-colors text-center ${activeTab === 'voice' ? 'text-[#1D9BF0] border-b-2 border-[#1D9BF0]' : 'text-[#8B98A5] hover:text-[#E7E9EA]'}`}
           >
             Voice Recorder
           </button>
           <button
             onClick={() => setActiveTab('content')}
-            className={`px-4 py-2 font-medium transition-colors ${activeTab === 'content' ? 'text-[#1D9BF0] border-b-2 border-[#1D9BF0]' : 'text-[#8B98A5] hover:text-[#E7E9EA]'}`}
+            className={`flex-1 py-3 min-h-[44px] font-medium transition-colors text-center ${activeTab === 'content' ? 'text-[#1D9BF0] border-b-2 border-[#1D9BF0]' : 'text-[#8B98A5] hover:text-[#E7E9EA]'}`}
           >
             Upload Content
           </button>
@@ -193,9 +202,9 @@ function OnboardingPage() {
                   <span className="font-medium">Voice Captured</span>
                 </div>
                 <p className="text-sm text-[#8B98A5]">Your recording has been uploaded successfully.</p>
-                <button 
+                <button
                   onClick={() => setRecordingKey(null)}
-                  className="mt-3 text-xs text-[#1D9BF0] hover:underline"
+                  className="mt-3 px-4 py-2 min-h-[44px] text-sm text-[#1D9BF0] hover:bg-[#1D9BF0]/10 rounded-lg transition-colors"
                 >
                   Record again
                 </button>
@@ -214,21 +223,21 @@ function OnboardingPage() {
 
             {!contentKey ? (
               <div className={isUploading ? 'opacity-50 pointer-events-none' : 'space-y-6'}>
-                {/* File Upload */}
-                <div className="border-2 border-dashed border-[#2A3038] rounded-lg p-6 text-center hover:border-[#1D9BF0] transition-colors cursor-pointer relative">
-                  <input 
-                    type="file" 
+                {/* File Upload - Mobile-optimized with large touch target */}
+                <div className="border-2 border-dashed border-[#2A3038] rounded-lg p-8 text-center hover:border-[#1D9BF0] active:border-[#1D9BF0] transition-colors cursor-pointer relative min-h-[120px]">
+                  <input
+                    type="file"
                     accept=".pdf,.txt,.docx"
                     onChange={handleFileUpload}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
                   <div className="text-[#1D9BF0] mb-2">
-                    <svg className="w-8 h-8 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-10 h-10 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
                   </div>
-                  <p className="text-sm text-[#E7E9EA] font-medium">Click to upload PDF or Doc</p>
-                  <p className="text-xs text-[#8B98A5] mt-1">Max 10MB</p>
+                  <p className="text-base text-[#E7E9EA] font-medium">Tap to upload PDF or Doc</p>
+                  <p className="text-sm text-[#8B98A5] mt-1">Max 10MB</p>
                 </div>
 
                 <div className="text-center text-[#8B98A5] text-xs uppercase tracking-widest font-bold">OR</div>
@@ -239,12 +248,12 @@ function OnboardingPage() {
                     value={textContent}
                     onChange={(e) => setTextContent(e.target.value)}
                     placeholder="Paste your best content here..."
-                    className="w-full h-32 bg-[#0F1419] border border-[#2A3038] rounded-lg p-3 text-[#E7E9EA] text-sm focus:border-[#1D9BF0] focus:outline-none"
+                    className="w-full h-32 bg-[#0F1419] border border-[#2A3038] rounded-lg p-4 text-[#E7E9EA] text-base focus:border-[#1D9BF0] focus:outline-none resize-none"
                   />
                   <button
                     onClick={handleTextSubmit}
                     disabled={!textContent.trim()}
-                    className="mt-2 w-full py-2 bg-[#2A3038] text-[#E7E9EA] rounded font-medium hover:bg-[#3A4048] transition-colors disabled:opacity-50"
+                    className="mt-3 w-full py-3 min-h-[44px] bg-[#2A3038] text-[#E7E9EA] rounded-lg font-medium hover:bg-[#3A4048] active:bg-[#4A5058] transition-colors disabled:opacity-50"
                   >
                     Submit Text
                   </button>
@@ -271,9 +280,9 @@ function OnboardingPage() {
                   <span className="font-medium">Content Uploaded</span>
                 </div>
                 <p className="text-sm text-[#8B98A5]">Your content has been received.</p>
-                <button 
+                <button
                   onClick={() => setContentKey(null)}
-                  className="mt-3 text-xs text-[#1D9BF0] hover:underline"
+                  className="mt-3 px-4 py-2 min-h-[44px] text-sm text-[#1D9BF0] hover:bg-[#1D9BF0]/10 rounded-lg transition-colors"
                 >
                   Upload more
                 </button>
@@ -282,13 +291,13 @@ function OnboardingPage() {
           </div>
         )}
         
-        {/* Next Steps Placeholder */}
+        {/* Final CTA - Mobile-optimized */}
         {(recordingKey || contentKey) && (
-          <div className="text-center animate-fade-in pb-10">
-            <button 
+          <div className="text-center animate-fade-in pb-10 safe-area-bottom">
+            <button
               onClick={handleSubmit}
               disabled={submitMutation.isPending}
-              className="px-8 py-3 bg-[#1D9BF0] text-white rounded-full font-bold hover:bg-[#1A8CD8] transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full sm:w-auto px-8 py-4 min-h-[52px] bg-[#1D9BF0] text-white text-lg rounded-full font-bold hover:bg-[#1A8CD8] active:bg-[#1682C7] transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitMutation.isPending ? 'Processing...' : 'Analyze My Brand DNA →'}
             </button>

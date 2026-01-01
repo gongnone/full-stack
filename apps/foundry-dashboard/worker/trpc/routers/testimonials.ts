@@ -111,8 +111,8 @@ export const testimonialsRouter = t.router({
         testimonial.client_id,
         ctx.userId,
         JSON.stringify({ testimonialId: input.id, fileType: testimonial.type }),
-        ctx.req?.headers.get('cf-connecting-ip') || 'unknown',
-        ctx.req?.headers.get('user-agent') || 'unknown',
+        ctx.request?.headers.get('cf-connecting-ip') || 'unknown',
+        ctx.request?.headers.get('user-agent') || 'unknown',
         now
       ).run();
 
@@ -173,8 +173,8 @@ export const testimonialsRouter = t.router({
         input.clientId,
         ctx.userId,
         JSON.stringify({ count: input.testimonialIds.length, ids: input.testimonialIds }),
-        ctx.req?.headers.get('cf-connecting-ip') || 'unknown',
-        ctx.req?.headers.get('user-agent') || 'unknown',
+        ctx.request?.headers.get('cf-connecting-ip') || 'unknown',
+        ctx.request?.headers.get('user-agent') || 'unknown',
         now
       ).run();
 

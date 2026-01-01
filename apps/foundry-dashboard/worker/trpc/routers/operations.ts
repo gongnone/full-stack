@@ -82,7 +82,7 @@ export const operationsRouter = t.router({
         '30d': 30 * 24 * 60 * 60 * 1000,
       };
 
-      const since = Date.now() - periodMs[input.period];
+      const since = Date.now() - (periodMs[input.period] ?? 24 * 60 * 60 * 1000);
 
       // Metrics would come from a time-series DB in production
       // This is a simplified implementation using D1
@@ -281,7 +281,8 @@ export const operationsRouter = t.router({
       `).bind(input.clientId).first();
 
       const tier = (client?.rate_limit_tier as string) || 'default';
-      const limits = RATE_LIMITS[tier] || RATE_LIMITS.default;
+      const limits = RATE_LIMITS[tier] ?? RATE_LIMITS.default;
+      if (!limits) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Invalid rate limit tier' });
 
       // Get current usage (last window)
       const windowStart = Date.now() - limits.windowMs;
@@ -332,7 +333,8 @@ export const operationsRouter = t.router({
       `).bind(input.clientId).first();
 
       const tier = (client?.rate_limit_tier as string) || 'default';
-      const limits = RATE_LIMITS[tier] || RATE_LIMITS.default;
+      const limits = RATE_LIMITS[tier] ?? RATE_LIMITS.default;
+      if (!limits) return { recorded: true, isLimited: false, remaining: 0 };
       const windowStart = now - limits.windowMs;
 
       const usage = await ctx.db.prepare(`

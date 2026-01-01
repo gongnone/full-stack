@@ -60,7 +60,7 @@ export function ReviewQueue({ spokes, onApprove, onReject, onPost }: ReviewQueue
     }
   };
 
-  if (filteredSpokes.length === 0) {
+  if (filteredSpokes.length === 0 || !currentSpoke) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-[#1A1F26] border border-[#2A3038] rounded-2xl text-center">
         <div className="w-16 h-16 bg-[#2A3038] rounded-full flex items-center justify-center mb-4">

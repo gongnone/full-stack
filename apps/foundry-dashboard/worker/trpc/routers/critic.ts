@@ -319,30 +319,39 @@ Respond with JSON: { "score": number, "feedback": "explanation", "markersFound":
       // Generate actionable feedback based on scores
       const feedback: Array<{ category: string; score: number | boolean | undefined; suggestion: string; priority: 'high' | 'medium' | 'low' }> = [];
 
-      if ((scores.g2_hook as number) < 70) {
+      // Helper to extract numeric score
+      const getNumericScore = (key: string): number | undefined => {
+        const val = scores[key];
+        return typeof val === 'number' ? val : undefined;
+      };
+
+      const g2Hook = getNumericScore('g2_hook');
+      if (g2Hook !== undefined && g2Hook < 70) {
         feedback.push({
           category: 'Hook Strength',
-          score: scores.g2_hook,
+          score: g2Hook,
           suggestion: 'Start with a bold statement, question, or surprising fact to grab attention',
-          priority: (scores.g2_hook as number) < 50 ? 'high' : 'medium',
+          priority: g2Hook < 50 ? 'high' : 'medium',
         });
       }
 
-      if ((scores.g4_voice as number) < 70) {
+      const g4Voice = getNumericScore('g4_voice');
+      if (g4Voice !== undefined && g4Voice < 70) {
         feedback.push({
           category: 'Voice Alignment',
-          score: scores.g4_voice,
+          score: g4Voice,
           suggestion: 'Adjust tone and vocabulary to better match brand voice profile',
-          priority: (scores.g4_voice as number) < 50 ? 'high' : 'medium',
+          priority: g4Voice < 50 ? 'high' : 'medium',
         });
       }
 
-      if ((scores.g5_platform as number) < 80) {
+      const g5Platform = getNumericScore('g5_platform');
+      if (g5Platform !== undefined && g5Platform < 80) {
         feedback.push({
           category: 'Platform Compliance',
-          score: scores.g5_platform,
+          score: g5Platform,
           suggestion: `Review character limits and formatting requirements for ${spoke.platform}`,
-          priority: (scores.g5_platform as number) < 65 ? 'high' : 'medium',
+          priority: g5Platform < 65 ? 'high' : 'medium',
         });
       }
 

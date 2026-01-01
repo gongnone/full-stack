@@ -242,6 +242,7 @@ Respond ONLY with valid JSON array:
 
         for (let i = 0; i < pillars.length; i++) {
           const pillar = pillars[i];
+          if (!pillar) continue;
           const id = crypto.randomUUID();
 
           await ctx.drizzle.insert(schema.content_pillars).values({

@@ -16,12 +16,12 @@
 #
 # TEST STRATEGY:
 #   - All pushes/PRs: P1 Integration tests (211 tests, mock D1, fast)
-#   - All pushes/PRs: Core E2E tests (accessibility + P0 priority)
-#   - Manual trigger: Full E2E suite via test_filter
+#   - All pushes/PRs: Full E2E suite with 4-way parallel sharding
+#   - Manual trigger: Filtered E2E suite via test_filter
 #
 # CONFIGURATION:
 #   - Session reuse: Per-worker storage state (avoids re-login per test)
-#   - Timeout: 60s per test, 30min per job
+#   - Timeout: 60s per test, 15min per shard (4 shards run in parallel)
 #   - Retries: 2 on CI (configured in playwright.config.ts)
 #   - Browsers: Chromium (CI), all browsers (local)
 
@@ -132,10 +132,15 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════════════
 
   e2e-tests:
-    name: 🧪 E2E Tests
+    name: 🧪 E2E Tests (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
     needs: typecheck
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shardIndex: [1, 2, 3, 4]
+        shardTotal: [4]
     # Per-worker session isolation enabled via auth.fixture.ts storage state
     # Each worker gets its own storage-state-{workerIndex}.json to prevent login conflicts
 
@@ -167,35 +172,27 @@ jobs:
           # Fallback to single user if shard-specific secrets not set
           TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
-          # Per-shard credentials (optional - enables parallel execution)
-          E2E_TEST_EMAIL_1: ${{ secrets.E2E_TEST_EMAIL_1 || secrets.E2E_TEST_EMAIL }}
-          E2E_TEST_PASSWORD_1: ${{ secrets.E2E_TEST_PASSWORD_1 || secrets.E2E_TEST_PASSWORD }}
-          E2E_TEST_EMAIL_2: ${{ secrets.E2E_TEST_EMAIL_2 }}
-          E2E_TEST_PASSWORD_2: ${{ secrets.E2E_TEST_PASSWORD_2 }}
-          E2E_TEST_EMAIL_3: ${{ secrets.E2E_TEST_EMAIL_3 }}
-          E2E_TEST_PASSWORD_3: ${{ secrets.E2E_TEST_PASSWORD_3 }}
-          E2E_TEST_EMAIL_4: ${{ secrets.E2E_TEST_EMAIL_4 }}
-          E2E_TEST_PASSWORD_4: ${{ secrets.E2E_TEST_PASSWORD_4 }}
           # CI flag enables retries and special reporter
           CI: true
+          # Shard index for per-shard test user selection
+          SHARD_INDEX: ${{ matrix.shardIndex }}
         run: |
           # Apply test filter if provided via workflow dispatch
           if [ -n "${{ github.event.inputs.test_filter }}" ]; then
-            echo "Running filtered tests: ${{ github.event.inputs.test_filter }}"
-            pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}"
+            echo "Running filtered tests: ${{ github.event.inputs.test_filter }} (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})"
+            pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}" --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
           else
-            # Run core E2E tests: accessibility (always) + P0 priority tests
-            # Session isolation via per-worker storage state prevents login conflicts
+            # Run core E2E tests with sharding for parallel execution
             # 60s timeout + 2 retries handles Cloudflare staging latency
-            echo "Running accessibility and P0 tests..."
-            pnpm exec playwright test e2e/accessibility.spec.ts
+            echo "Running E2E tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})..."
+            pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
           fi
 
       - name: 📊 Upload Blob Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: blob-report
+          name: blob-report-${{ matrix.shardIndex }}
           path: apps/foundry-dashboard/blob-report/
           retention-days: 7
 
@@ -203,7 +200,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-artifacts
+          name: test-artifacts-shard-${{ matrix.shardIndex }}
           path: apps/foundry-dashboard/test-results/
           retention-days: 7
 
@@ -231,18 +228,19 @@ jobs:
       - name: 📦 Install dependencies
         run: pnpm install
 
-      - name: 📥 Download blob report
+      - name: 📥 Download all blob reports
         uses: actions/download-artifact@v4
         with:
-          name: blob-report
-          path: blob-report
+          pattern: blob-report-*
+          path: all-blob-reports
+          merge-multiple: true
 
-      - name: 📊 Generate HTML Report
+      - name: 📊 Merge and Generate HTML Report
         working-directory: apps/foundry-dashboard
         continue-on-error: true
         run: |
-          # Convert blob report to HTML
-          pnpm exec playwright merge-reports --reporter html ../../blob-report || echo "Report generation skipped"
+          # Merge all shard blob reports into single HTML report
+          pnpm exec playwright merge-reports --reporter html ../../all-blob-reports || echo "Report generation skipped"
 
       - name: 📤 Upload HTML Report
         uses: actions/upload-artifact@v4

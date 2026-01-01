@@ -80,3 +80,40 @@ export const ROLE_DESCRIPTIONS = CLIENT_ROLES.reduce((acc, role) => {
   acc[role.value] = role.description;
   return acc;
 }, {} as Record<ClientRole, string>);
+
+/**
+ * Menu visibility configuration for RBAC UI
+ * Maps menu items to the roles that can see them
+ */
+export type MenuItemId = 'dashboard' | 'hubs' | 'review' | 'clients' | 'brand-dna' | 'analytics' | 'settings';
+
+export const MENU_VISIBILITY: Record<MenuItemId, ClientRole[]> = {
+  // Dashboard: visible to all authenticated users
+  dashboard: ['agency_owner', 'account_manager', 'creator', 'client_admin', 'client_reviewer'],
+
+  // Hubs (content creation): agency_owner, account_manager, creator
+  hubs: ['agency_owner', 'account_manager', 'creator'],
+
+  // Review: all except creator (they create, others review)
+  review: ['agency_owner', 'account_manager', 'client_admin', 'client_reviewer'],
+
+  // Clients (team management): agency_owner, account_manager only
+  clients: ['agency_owner', 'account_manager'],
+
+  // Brand DNA: agency_owner, account_manager (configure brand), creators can view
+  'brand-dna': ['agency_owner', 'account_manager', 'creator'],
+
+  // Analytics: all internal roles (not client_reviewer)
+  analytics: ['agency_owner', 'account_manager', 'creator', 'client_admin'],
+
+  // Settings: agency_owner, account_manager only
+  settings: ['agency_owner', 'account_manager'],
+};
+
+/**
+ * Check if a role can see a specific menu item
+ */
+export function canAccessMenuItem(role: ClientRole | null, menuItem: MenuItemId): boolean {
+  if (!role) return false;
+  return MENU_VISIBILITY[menuItem].includes(role);
+}

@@ -99,6 +99,10 @@ jobs:
       - name: 🛡️ Type Check (Foundry - excludes test files)
         run: pnpm run foundry:typecheck:build
 
+      - name: 🔍 ESLint Check (Foundry)
+        run: pnpm run foundry:lint
+        continue-on-error: true  # TODO: Remove once lint errors are fixed
+
   # ═══════════════════════════════════════════════════════════════════════════
   # 3. THE LEGACY DEPLOYER (hero.williamjshaw.ca)
   # ═══════════════════════════════════════════════════════════════════════════

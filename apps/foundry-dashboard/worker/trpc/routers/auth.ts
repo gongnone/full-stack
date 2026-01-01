@@ -17,6 +17,17 @@ async function getFirstClientId(ctx: Context): Promise<string | null> {
   return membership?.client_id || null;
 }
 
+/**
+ * Helper to get user's role for a specific client
+ */
+async function getClientRole(ctx: Context, clientId: string): Promise<string | null> {
+  const membership = await ctx.db
+    .prepare('SELECT role FROM client_members WHERE user_id = ? AND client_id = ?')
+    .bind(ctx.userId, clientId)
+    .first<{ role: string }>();
+  return membership?.role || null;
+}
+
 // Input validation schemas
 // displayName is required for AC2 (update display name)
 // Other fields are optional for future profile expansion
@@ -97,10 +108,14 @@ export const authRouter = t.router({
     // Return null when user has no clients to trigger onboarding flow
     const clientId = profile?.active_client_id || await getFirstClientId(ctx) || null;
 
+    // Get user's role for the active client (for RBAC UI)
+    const clientRole = clientId ? await getClientRole(ctx, clientId) : null;
+
     return {
       user: userResult,
       profile: profile || null,
       clientId,
+      clientRole,
     };
   }),
 

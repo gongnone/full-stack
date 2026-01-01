@@ -35,7 +35,8 @@
     "stage:deploy": "pnpm build && wrangler deploy --env stage",
     "production:deploy": "pnpm build && wrangler deploy --env production",
     "deploy:stage": "pnpm build && wrangler deploy --env stage",
-    "deploy:production": "pnpm build && wrangler deploy --env production"
+    "deploy:production": "pnpm build && wrangler deploy --env production",
+    "lint": "eslint src/ worker/ --ext .ts,.tsx"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.958.0",

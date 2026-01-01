@@ -163,11 +163,19 @@ jobs:
           # Target staging environment for stage branch, production for main
           BASE_URL: ${{ github.event.inputs.environment == 'production' && 'https://foundry.williamjshaw.ca' || (github.ref == 'refs/heads/main' && 'https://foundry.williamjshaw.ca' || 'https://foundry-stage.williamjshaw.ca') }}
           # Test credentials - stored as GitHub secrets
-          # Required secrets: E2E_TEST_EMAIL, E2E_TEST_PASSWORD
-          # Default test user: e2e-test@foundry.local / TestPassword123!
-          # Create user on staging via: BASE_URL=https://foundry-stage.williamjshaw.ca npx playwright test e2e/create-test-user.spec.ts
+          # Per-shard test users for parallel execution without session conflicts
+          # Fallback to single user if shard-specific secrets not set
           TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
           TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
+          # Per-shard credentials (optional - enables parallel execution)
+          E2E_TEST_EMAIL_1: ${{ secrets.E2E_TEST_EMAIL_1 || secrets.E2E_TEST_EMAIL }}
+          E2E_TEST_PASSWORD_1: ${{ secrets.E2E_TEST_PASSWORD_1 || secrets.E2E_TEST_PASSWORD }}
+          E2E_TEST_EMAIL_2: ${{ secrets.E2E_TEST_EMAIL_2 }}
+          E2E_TEST_PASSWORD_2: ${{ secrets.E2E_TEST_PASSWORD_2 }}
+          E2E_TEST_EMAIL_3: ${{ secrets.E2E_TEST_EMAIL_3 }}
+          E2E_TEST_PASSWORD_3: ${{ secrets.E2E_TEST_PASSWORD_3 }}
+          E2E_TEST_EMAIL_4: ${{ secrets.E2E_TEST_EMAIL_4 }}
+          E2E_TEST_PASSWORD_4: ${{ secrets.E2E_TEST_PASSWORD_4 }}
           # CI flag enables retries and special reporter
           CI: true
         run: |

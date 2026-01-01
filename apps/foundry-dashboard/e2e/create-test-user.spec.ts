@@ -1,65 +1,98 @@
 /**
- * One-time script to create a test user on stage
- * Run with: BASE_URL=https://stage.williamjshaw.ca npx playwright test e2e/create-test-user.spec.ts --project=chromium
+ * One-time script to create E2E test users on staging
+ *
+ * Creates shard-specific test users for parallel E2E execution:
+ * - e2e-shard-1@test.foundry.com through e2e-shard-4@test.foundry.com
+ *
+ * Run with:
+ *   BASE_URL=https://foundry-stage.williamjshaw.ca pnpm exec playwright test e2e/create-test-user.spec.ts --project=chromium
+ *
+ * After running, add these secrets to GitHub:
+ *   E2E_TEST_EMAIL_1, E2E_TEST_PASSWORD_1, etc.
  */
 
 import { test, expect } from '@playwright/test';
 
-const TEST_EMAIL = 'e2e-test@foundry.local';
-const TEST_PASSWORD = 'TestPassword123!';
-const TEST_NAME = 'E2E Test User';
+// Test users for parallel execution
+const TEST_USERS = [
+  { email: 'e2e-shard-1@test.foundry.com', password: 'TestShard1Pass!', name: 'E2E Shard 1' },
+  { email: 'e2e-shard-2@test.foundry.com', password: 'TestShard2Pass!', name: 'E2E Shard 2' },
+  { email: 'e2e-shard-3@test.foundry.com', password: 'TestShard3Pass!', name: 'E2E Shard 3' },
+  { email: 'e2e-shard-4@test.foundry.com', password: 'TestShard4Pass!', name: 'E2E Shard 4' },
+];
 
-test('create test user via signup form', async ({ page }) => {
+// Legacy single user (backwards compatible)
+const LEGACY_USER = { email: 'e2e-test@foundry.local', password: 'TestPassword123!', name: 'E2E Test User' };
+
+async function createOrVerifyUser(
+  page: import('@playwright/test').Page,
+  user: { email: string; password: string; name: string }
+): Promise<boolean> {
   // Navigate to signup page
   await page.goto('/signup');
-
-  // Wait for the form to load
   await page.waitForSelector('#email', { timeout: 10000 });
 
-  // Fill signup form using correct IDs
-  await page.fill('#name', TEST_NAME);
-  await page.fill('#email', TEST_EMAIL);
-  await page.fill('#password', TEST_PASSWORD);
-  await page.fill('#confirmPassword', TEST_PASSWORD);
-
-  // Take screenshot before submit
-  await page.screenshot({ path: 'test-results/signup-before.png' });
-
-  // Submit form
+  // Fill signup form
+  await page.fill('#name', user.name);
+  await page.fill('#email', user.email);
+  await page.fill('#password', user.password);
+  await page.fill('#confirmPassword', user.password);
   await page.click('button[type="submit"]');
 
-  // Wait for either success (redirect to app) or error message
+  // Wait for result
   try {
     await page.waitForURL(/\/app/, { timeout: 15000 });
-    console.log('✅ User created successfully! Redirected to app.');
-
-    // Log the credentials for reference
-    console.log(`\nTest Credentials:`);
-    console.log(`  Email: ${TEST_EMAIL}`);
-    console.log(`  Password: ${TEST_PASSWORD}`);
-
+    console.log(`✅ Created: ${user.email}`);
+    return true;
   } catch {
     // Check for error messages
     const errorText = await page.locator('[role="alert"]').textContent().catch(() => null);
-    if (errorText) {
-      console.log(`⚠️ Signup response: ${errorText}`);
-
-      // If user already exists, try to login instead
-      if (errorText.toLowerCase().includes('exists') || errorText.toLowerCase().includes('already')) {
-        console.log('User already exists, attempting login...');
-        await page.goto('/login');
-        await page.fill('#email', TEST_EMAIL);
-        await page.fill('#password', TEST_PASSWORD);
-        await page.click('button[type="submit"]');
+    if (errorText?.toLowerCase().includes('exists') || errorText?.toLowerCase().includes('already')) {
+      // Verify login works
+      await page.goto('/login');
+      await page.fill('#email', user.email);
+      await page.fill('#password', user.password);
+      await page.click('button[type="submit"]');
+      try {
         await page.waitForURL(/\/app/, { timeout: 10000 });
-        console.log('✅ Logged in with existing user!');
+        console.log(`✅ Verified: ${user.email} (already exists)`);
+        return true;
+      } catch {
+        console.log(`❌ Failed to login: ${user.email}`);
+        return false;
       }
     }
+    console.log(`❌ Failed to create: ${user.email} - ${errorText}`);
+    return false;
+  }
+}
 
-    await page.screenshot({ path: 'test-results/signup-result.png' });
+test('create legacy test user', async ({ page }) => {
+  const success = await createOrVerifyUser(page, LEGACY_USER);
+  expect(success).toBe(true);
+  console.log('\n📋 Legacy credentials for GitHub secrets:');
+  console.log(`   E2E_TEST_EMAIL: ${LEGACY_USER.email}`);
+  console.log(`   E2E_TEST_PASSWORD: ${LEGACY_USER.password}`);
+});
+
+test('create shard test users for parallel execution', async ({ page }) => {
+  console.log('\n🔧 Creating shard test users for parallel E2E...\n');
+
+  const results: string[] = [];
+
+  for (let i = 0; i < TEST_USERS.length; i++) {
+    const user = TEST_USERS[i];
+    const success = await createOrVerifyUser(page, user);
+    if (success) {
+      results.push(`   E2E_TEST_EMAIL_${i + 1}: ${user.email}`);
+      results.push(`   E2E_TEST_PASSWORD_${i + 1}: ${user.password}`);
+    }
+    // Logout before next user
+    await page.goto('/');
   }
 
-  // Verify we're logged in
-  const currentUrl = page.url();
-  expect(currentUrl).toContain('/app');
+  console.log('\n📋 Add these secrets to GitHub:');
+  results.forEach((r) => console.log(r));
+
+  expect(results.length).toBeGreaterThan(0);
 });

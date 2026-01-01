@@ -54,6 +54,8 @@ export interface UserWithProfile {
   profile: UserProfile | null;
   /** Client ID for multi-tenant isolation. null when user has no clients (triggers onboarding). */
   clientId: string | null;
+  /** User's role in the active client for RBAC UI. null when no active client. */
+  clientRole: string | null;
 }
 
 // Training sample for Brand DNA analysis (Story 2.1 & 2.2)

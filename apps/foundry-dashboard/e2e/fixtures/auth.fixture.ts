@@ -29,11 +29,42 @@ import { GenerationPage } from '../pages/GenerationPage';
 import { QualityGatesPage } from '../pages/QualityGatesPage';
 import { CreativeConflictsPage } from '../pages/CreativeConflictsPage';
 
+/**
+ * Get per-worker test credentials
+ * Each parallel worker gets its own test user to prevent session conflicts
+ *
+ * Worker 0 → E2E_TEST_EMAIL_1 / E2E_TEST_PASSWORD_1 (or fallback to E2E_TEST_EMAIL)
+ * Worker 1 → E2E_TEST_EMAIL_2 / E2E_TEST_PASSWORD_2
+ * Worker 2 → E2E_TEST_EMAIL_3 / E2E_TEST_PASSWORD_3
+ * Worker 3 → E2E_TEST_EMAIL_4 / E2E_TEST_PASSWORD_4
+ */
+const getWorkerCredentials = (): { email: string; password: string } => {
+  const workerIndex = parseInt(process.env.TEST_PARALLEL_INDEX || '0', 10);
+  const shardNum = workerIndex + 1; // 1-indexed for secrets naming
+
+  // Try shard-specific credentials first
+  const shardEmail = process.env[`E2E_TEST_EMAIL_${shardNum}`];
+  const shardPassword = process.env[`E2E_TEST_PASSWORD_${shardNum}`];
+
+  if (shardEmail && shardPassword) {
+    return { email: shardEmail, password: shardPassword };
+  }
+
+  // Fallback to single test user (backwards compatible)
+  return {
+    email: process.env.TEST_EMAIL || 'e2e-test@foundry.local',
+    password: process.env.TEST_PASSWORD || 'TestPassword123!',
+  };
+};
+
 // Configuration
-const config = {
-  baseUrl: process.env.BASE_URL || 'http://localhost:5173',
-  testEmail: process.env.TEST_EMAIL || 'e2e-test@foundry.local',
-  testPassword: process.env.TEST_PASSWORD || 'TestPassword123!',
+const getConfig = () => {
+  const credentials = getWorkerCredentials();
+  return {
+    baseUrl: process.env.BASE_URL || 'http://localhost:5173',
+    testEmail: credentials.email,
+    testPassword: credentials.password,
+  };
 };
 
 // Per-worker storage state file to prevent parallel login conflicts
@@ -80,6 +111,8 @@ type AuthFixtures = {
  * Perform login and save storage state for session reuse
  */
 async function performLogin(page: Page, context: BrowserContext, storagePath: string): Promise<void> {
+  const config = getConfig();
+
   // Navigate to login
   await page.goto(`${config.baseUrl}/login`);
 
@@ -125,6 +158,7 @@ export const test = base.extend<AuthFixtures>({
   // Authenticated page fixture - reuses session via storage state
   authenticatedPage: async ({ page, context }, use) => {
     const storagePath = getStorageStatePath();
+    const config = getConfig();
 
     // Try to reuse existing session
     if (isStorageStateValid(storagePath)) {

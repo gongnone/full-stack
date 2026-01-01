@@ -110,6 +110,10 @@ jobs:
       - name: 🛡️ Type Check (Foundry - excludes test files)
         run: pnpm run foundry:typecheck:build
 
+      - name: 🔍 ESLint Check (Foundry)
+        run: pnpm run foundry:lint
+        continue-on-error: true  # TODO: Remove once lint errors are fixed
+
       # Uncomment when tests are stable
       # - name: 🧪 Run Tests
       #   run: pnpm test

@@ -1,8 +1,11 @@
 import { Link, useRouterState, useNavigate } from '@tanstack/react-router';
 import { useSession, signOut } from '@/lib/auth-client';
 import { clearSessionCache } from '@/lib/query-client';
+import { useClientRole } from '@/lib/use-client-role';
+import { canAccessMenuItem, type MenuItemId, ROLE_LABELS } from '@/lib/rbac';
 
 interface NavItem {
+  id: MenuItemId;
   name: string;
   href: string;
   icon: React.ReactNode;
@@ -10,6 +13,7 @@ interface NavItem {
 
 const navigation: NavItem[] = [
   {
+    id: 'dashboard',
     name: 'Dashboard',
     href: '/app',
     icon: (
@@ -19,6 +23,7 @@ const navigation: NavItem[] = [
     ),
   },
   {
+    id: 'hubs',
     name: 'Hubs',
     href: '/app/hubs',
     icon: (
@@ -28,6 +33,7 @@ const navigation: NavItem[] = [
     ),
   },
   {
+    id: 'review',
     name: 'Review',
     href: '/app/review',
     icon: (
@@ -37,6 +43,7 @@ const navigation: NavItem[] = [
     ),
   },
   {
+    id: 'clients',
     name: 'Clients',
     href: '/app/clients',
     icon: (
@@ -46,6 +53,7 @@ const navigation: NavItem[] = [
     ),
   },
   {
+    id: 'brand-dna',
     name: 'Brand DNA',
     href: '/app/brand-dna',
     icon: (
@@ -55,6 +63,7 @@ const navigation: NavItem[] = [
     ),
   },
   {
+    id: 'analytics',
     name: 'Analytics',
     href: '/app/analytics',
     icon: (
@@ -64,6 +73,7 @@ const navigation: NavItem[] = [
     ),
   },
   {
+    id: 'settings',
     name: 'Settings',
     href: '/app/settings',
     icon: (
@@ -79,7 +89,11 @@ export function Sidebar() {
   const { data: session } = useSession();
   const routerState = useRouterState();
   const navigate = useNavigate();
+  const { role } = useClientRole();
   const currentPath = routerState.location.pathname;
+
+  // Filter navigation based on user's role
+  const visibleNavigation = navigation.filter(item => canAccessMenuItem(role, item.id));
 
   const handleSignOut = async () => {
     await signOut();
@@ -113,9 +127,9 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navigation.map((item) => (
+        {visibleNavigation.map((item) => (
           <Link
-            key={item.name}
+            key={item.id}
             to={item.href}
             className={`sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${
               isActive(item.href) ? 'active' : ''
@@ -158,7 +172,7 @@ export function Sidebar() {
               {session?.user.name || 'User'}
             </p>
             <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-              {session?.user.email}
+              {role ? ROLE_LABELS[role] : session?.user.email}
             </p>
           </div>
           <button

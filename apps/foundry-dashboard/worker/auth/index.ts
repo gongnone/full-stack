@@ -86,7 +86,7 @@ export function createAuth(env: Env) {
       },
     },
 
-    // Session configuration - map to snake_case DB columns
+    // Session configuration - use default camelCase columns (matches DB schema)
     session: {
       expiresIn: 60 * 60 * 24 * 7, // 7 days
       updateAge: 60 * 60 * 24, // Update session every 24 hours
@@ -94,57 +94,29 @@ export function createAuth(env: Env) {
       cookieCache: {
         enabled: false,
       },
-      fields: {
-        expiresAt: 'expires_at',
-        createdAt: 'created_at',
-        updatedAt: 'updated_at',
-        ipAddress: 'ip_address',
-        userAgent: 'user_agent',
-        userId: 'user_id',
-      },
+      // No field mappings - DB uses camelCase columns which is Better Auth's default
     },
 
-    // Account configuration - map to snake_case DB columns
+    // Account configuration - use default camelCase columns (matches DB schema)
     account: {
       accountLinking: {
         enabled: true,
         trustedProviders: ['google', 'github', 'twitter'],
       },
-      fields: {
-        accountId: 'account_id',
-        providerId: 'provider_id',
-        userId: 'user_id',
-        accessToken: 'access_token',
-        refreshToken: 'refresh_token',
-        idToken: 'id_token',
-        accessTokenExpiresAt: 'access_token_expires_at',
-        refreshTokenExpiresAt: 'refresh_token_expires_at',
-        createdAt: 'created_at',
-        updatedAt: 'updated_at',
-      },
+      // No field mappings - DB uses camelCase columns which is Better Auth's default
     },
 
-    // Verification configuration - map to snake_case DB columns
-    verification: {
-      fields: {
-        expiresAt: 'expires_at',
-        createdAt: 'created_at',
-        updatedAt: 'updated_at',
-      },
-    },
+    // Verification configuration - use default camelCase columns (matches DB schema)
+    // No field mappings needed
 
-    // User configuration with custom fields - map to snake_case DB columns
+    // User configuration with custom fields - use default camelCase columns
     user: {
-      fields: {
-        emailVerified: 'email_verified',
-        createdAt: 'created_at',
-        updatedAt: 'updated_at',
-      },
+      // No field mappings - DB uses camelCase columns which is Better Auth's default
       additionalFields: {
         accountId: {
           type: 'string',
           required: false,
-          fieldName: 'account_id',
+          // DB column is 'accountId' (camelCase), not 'account_id'
         },
         role: {
           type: 'string',

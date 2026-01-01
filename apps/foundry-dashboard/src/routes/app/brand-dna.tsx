@@ -4,6 +4,7 @@ import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { useToast } from '@/lib/toast';
 import { BRAND_DNA_CONFIG } from '@/lib/constants';
+import { useClientRole } from '@/lib/use-client-role';
 import {
   FileDropZone,
   TrainingSamplesList,
@@ -78,6 +79,9 @@ function BrandDNAPage() {
   // Get client ID from authenticated session (Rule 1: Isolation Above All)
   const clientId = useClientId();
   const { addToast } = useToast();
+
+  // RBAC: Check if user can edit brand DNA (creators+ can edit, reviewers are read-only)
+  const { canCreateContent } = useClientRole();
 
   // tRPC queries - only run when clientId is available
   const samplesQuery = trpc.calibration.listSamples.useQuery({
@@ -432,6 +436,7 @@ function BrandDNAPage() {
             <VoiceEntitiesEditor
               clientId={clientId}
               onClose={() => setIsEditingVoiceProfile(false)}
+              readOnly={!canCreateContent}
             />
           ) : (
             <BrandDNACard

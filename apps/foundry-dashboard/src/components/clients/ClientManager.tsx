@@ -18,7 +18,11 @@ interface Client {
   status: 'active' | 'paused' | 'archived';
 }
 
-export function ClientManager() {
+interface ClientManagerProps {
+  canManageTeam?: boolean;
+}
+
+export function ClientManager({ canManageTeam = false }: ClientManagerProps) {
   const { data: session } = useSession();
   const { addToast } = useToast();
   const utils = trpc.useUtils();
@@ -33,7 +37,7 @@ export function ClientManager() {
     industry: '',
     contactEmail: '',
     brandColor: '#1D9BF0',
-    status: 'active' as const,
+    status: 'active' as 'active' | 'paused' | 'archived',
   });
   
   // R-13 AC3: Include userId for cache isolation
@@ -146,63 +150,66 @@ export function ClientManager() {
                   </div>
                 </div>
 
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger asChild>
-                    <button
-                      className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Portal>
-                    <DropdownMenu.Content
-                      className="z-50 min-w-[180px] bg-[#1A1F26] border border-white/10 rounded-xl shadow-2xl p-1 animate-in fade-in zoom-in-95 duration-100"
-                      align="end"
-                      sideOffset={5}
-                    >
-                      <DropdownMenu.Item
-                        onClick={() => handleEditClient(client)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 transition-colors"
-                        style={{ color: 'var(--text-primary)' }}
+                {/* RBAC: Only show admin actions to team managers */}
+                {canManageTeam && (
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild>
+                      <button
+                        className="p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                        style={{ color: 'var(--text-muted)' }}
                       >
-                        <Edit className="w-4 h-4" />
-                        Edit Details
-                      </DropdownMenu.Item>
-                      <DropdownMenu.Item
-                        onClick={() => handleManageTeam(client)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 transition-colors"
-                        style={{ color: 'var(--text-primary)' }}
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.Content
+                        className="z-50 min-w-[180px] bg-[#1A1F26] border border-white/10 rounded-xl shadow-2xl p-1 animate-in fade-in zoom-in-95 duration-100"
+                        align="end"
+                        sideOffset={5}
                       >
-                        <Users className="w-4 h-4" />
-                        Manage Team
-                      </DropdownMenu.Item>
-                      <DropdownMenu.Item
-                        onClick={() => handleShare(client)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 transition-colors"
-                        style={{ color: 'var(--text-primary)' }}
-                      >
-                        <Share2 className="w-4 h-4" />
-                        Share Review Link
-                      </DropdownMenu.Item>
-                      <DropdownMenu.Separator className="h-px bg-white/10 my-1" />
-                      <DropdownMenu.Item
-                        onClick={() => {
-                          if (confirm(`Archive "${client.name}"? This will hide the client from your workspace.`)) {
-                            updateClientMutation.mutate({
-                              clientId: client.id,
-                              status: 'archived',
-                            });
-                          }
-                        }}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 transition-colors text-red-500"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Archive Client
-                      </DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Portal>
-                </DropdownMenu.Root>
+                        <DropdownMenu.Item
+                          onClick={() => handleEditClient(client)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 transition-colors"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          <Edit className="w-4 h-4" />
+                          Edit Details
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                          onClick={() => handleManageTeam(client)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 transition-colors"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          <Users className="w-4 h-4" />
+                          Manage Team
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                          onClick={() => handleShare(client)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 transition-colors"
+                          style={{ color: 'var(--text-primary)' }}
+                        >
+                          <Share2 className="w-4 h-4" />
+                          Share Review Link
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Separator className="h-px bg-white/10 my-1" />
+                        <DropdownMenu.Item
+                          onClick={() => {
+                            if (confirm(`Archive "${client.name}"? This will hide the client from your workspace.`)) {
+                              updateClientMutation.mutate({
+                                clientId: client.id,
+                                status: 'archived',
+                              });
+                            }
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 transition-colors text-red-500"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Archive Client
+                        </DropdownMenu.Item>
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu.Root>
+                )}
               </div>
 
               <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--border-subtle)' }}>

@@ -16,9 +16,11 @@ import { VALIDATION_LIMITS, UI_CONFIG } from '@/lib/constants';
 interface VoiceEntitiesEditorProps {
   clientId: string;
   onClose: () => void;
+  /** RBAC: If true, shows read-only view without edit controls */
+  readOnly?: boolean;
 }
 
-export function VoiceEntitiesEditor({ clientId, onClose }: VoiceEntitiesEditorProps) {
+export function VoiceEntitiesEditor({ clientId, onClose, readOnly = false }: VoiceEntitiesEditorProps) {
   const { addToast } = useToast();
   const utils = trpc.useUtils();
 
@@ -187,10 +189,10 @@ export function VoiceEntitiesEditor({ clientId, onClose }: VoiceEntitiesEditorPr
             className="text-lg font-medium"
             style={{ color: 'var(--text-primary)' }}
           >
-            Edit Voice Profile
+            {readOnly ? 'Voice Profile' : 'Edit Voice Profile'}
           </h3>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            Fine-tune what the system learns about your brand voice
+            {readOnly ? 'View brand voice markers and banned words' : 'Fine-tune what the system learns about your brand voice'}
           </p>
         </div>
         <button
@@ -242,6 +244,7 @@ export function VoiceEntitiesEditor({ clientId, onClose }: VoiceEntitiesEditorPr
           isLoading={isLoading}
           disabled={isMutating}
           maxLength={VALIDATION_LIMITS.MAX_VOICE_MARKER_LENGTH}
+          readOnly={readOnly}
         />
       </div>
 
@@ -271,6 +274,7 @@ export function VoiceEntitiesEditor({ clientId, onClose }: VoiceEntitiesEditorPr
           isLoading={isLoading}
           disabled={isMutating}
           maxLength={VALIDATION_LIMITS.MAX_BANNED_WORD_LENGTH}
+          readOnly={readOnly}
         />
       </div>
 
@@ -303,17 +307,19 @@ export function VoiceEntitiesEditor({ clientId, onClose }: VoiceEntitiesEditorPr
         </div>
       )}
 
-      {/* Tip */}
-      <div
-        className="text-xs pt-4 border-t"
-        style={{
-          color: 'var(--text-muted)',
-          borderColor: 'var(--border-subtle)',
-        }}
-      >
-        <strong>Tip:</strong> Changes take effect immediately. The system will use
-        these markers when generating and evaluating content.
-      </div>
+      {/* Tip - only show for editors */}
+      {!readOnly && (
+        <div
+          className="text-xs pt-4 border-t"
+          style={{
+            color: 'var(--text-muted)',
+            borderColor: 'var(--border-subtle)',
+          }}
+        >
+          <strong>Tip:</strong> Changes take effect immediately. The system will use
+          these markers when generating and evaluating content.
+        </div>
+      )}
     </div>
   );
 }

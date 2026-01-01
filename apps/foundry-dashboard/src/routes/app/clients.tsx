@@ -6,6 +6,7 @@ import { ClientManager } from '@/components/clients/ClientManager';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useToast } from '@/lib/toast';
 import { UI_CONFIG } from '@/lib/constants';
+import { useClientRole } from '@/lib/use-client-role';
 
 export const Route = createFileRoute('/app/clients')({
   component: ClientsPage,
@@ -15,7 +16,8 @@ function ClientsPage() {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
   const { addToast } = useToast();
-  
+  const { canManageTeam, isAgencyOwner } = useClientRole();
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newClientName, setNewClientName] = useState('');
   const [newClientIndustry, setNewClientIndustry] = useState('');
@@ -62,18 +64,20 @@ function ClientsPage() {
           </p>
         </div>
 
-        <Dialog.Root open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-          <Dialog.Trigger asChild>
-            <button
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors"
-              style={{ backgroundColor: 'var(--edit)', color: '#fff' }}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Add Client
-            </button>
-          </Dialog.Trigger>
+        {/* RBAC: Only agency_owner can create new clients */}
+        {isAgencyOwner && (
+          <Dialog.Root open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
+            <Dialog.Trigger asChild>
+              <button
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors"
+                style={{ backgroundColor: 'var(--edit)', color: '#fff' }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Add Client
+              </button>
+            </Dialog.Trigger>
           <Dialog.Portal>
             <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in duration-200" />
             <Dialog.Content 
@@ -154,10 +158,11 @@ function ClientsPage() {
               </form>
             </Dialog.Content>
           </Dialog.Portal>
-        </Dialog.Root>
+          </Dialog.Root>
+        )}
       </div>
 
-      <ClientManager />
+      <ClientManager canManageTeam={canManageTeam} />
     </div>
   );
 }

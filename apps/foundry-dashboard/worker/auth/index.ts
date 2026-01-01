@@ -108,7 +108,7 @@ export function createAuth(env: Env) {
     account: {
       accountLinking: {
         enabled: true,
-        trustedProviders: ['google', 'github'],
+        trustedProviders: ['google', 'github', 'twitter'],
       },
       fields: {
         accountId: 'account_id',
@@ -165,6 +165,14 @@ export function createAuth(env: Env) {
         clientId: env.GITHUB_CLIENT_ID || '',
         clientSecret: env.GITHUB_CLIENT_SECRET || '',
         enabled: !!(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET),
+      },
+      // Twitter/X OAuth 2.0 for social posting (Phase 2B)
+      // Requires Twitter API v2 OAuth 2.0 app with read/write access
+      // Scopes needed: tweet.read, tweet.write, users.read, offline.access
+      twitter: {
+        clientId: env.TWITTER_CLIENT_ID || '',
+        clientSecret: env.TWITTER_CLIENT_SECRET || '',
+        enabled: !!(env.TWITTER_CLIENT_ID && env.TWITTER_CLIENT_SECRET),
       },
     },
 

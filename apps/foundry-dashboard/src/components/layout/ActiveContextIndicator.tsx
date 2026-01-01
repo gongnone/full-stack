@@ -1,9 +1,12 @@
 import { useClientId } from '@/lib/use-client-id';
+import { useClientRole } from '@/lib/use-client-role';
+import { ROLE_LABELS } from '@/lib/rbac';
 import { trpc } from '@/lib/trpc-client';
-import { Building2, Zap } from 'lucide-react';
+import { Building2, Zap, Shield } from 'lucide-react';
 
 export function ActiveContextIndicator() {
   const clientId = useClientId();
+  const { role } = useClientRole();
 
   const clientQuery = trpc.clients.getById.useQuery(
     { clientId: clientId! },
@@ -15,6 +18,7 @@ export function ActiveContextIndicator() {
   }
 
   const client = clientQuery.data;
+  const roleLabel = role ? ROLE_LABELS[role] : null;
 
   return (
     <div
@@ -45,9 +49,24 @@ export function ActiveContextIndicator() {
             style={{ color: 'var(--approve)' }}
           />
         </div>
-        <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-          Active Workspace
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+            Active Workspace
+          </span>
+          {roleLabel && (
+            <>
+              <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>•</span>
+              <span
+                className="flex items-center gap-0.5 text-[10px] font-medium"
+                style={{ color: 'var(--edit)' }}
+                title={`Your role: ${roleLabel}`}
+              >
+                <Shield className="w-2.5 h-2.5" />
+                {roleLabel}
+              </span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

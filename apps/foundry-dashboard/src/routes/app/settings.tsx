@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { ProfileCard, SignOutButton } from '@/components/settings';
+import { ProfileCard, RoleInfoCard, SignOutButton, SocialAccountsCard } from '@/components/settings';
 
 /**
  * Settings page for user profile management
@@ -31,6 +31,12 @@ function SettingsPage() {
 
       {/* Profile Section - AC1, AC2 */}
       <ProfileCard />
+
+      {/* Role & Permissions - RBAC UI differentiation */}
+      <RoleInfoCard />
+
+      {/* Social Accounts - Phase 2B */}
+      <SocialAccountsCard />
 
       {/* Sign Out Section - AC3 */}
       <SignOutButton />

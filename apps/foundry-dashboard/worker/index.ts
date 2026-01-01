@@ -20,6 +20,9 @@ export interface Env {
   GOOGLE_CLIENT_SECRET?: string;
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
+  // Twitter/X OAuth 2.0 (for social posting - Phase 2B)
+  TWITTER_CLIENT_ID?: string;
+  TWITTER_CLIENT_SECRET?: string;
   // Stripe
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;

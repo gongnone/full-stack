@@ -2,6 +2,15 @@ import { useState } from 'react';
 import { createFileRoute, useParams } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import * as Dialog from '@radix-ui/react-dialog';
+import { useClientRole } from '@/lib/use-client-role';
+
+// Member type from tRPC listMembers response
+interface ClientMember {
+  id: string;
+  role: string;
+  name: string | null;
+  email: string;
+}
 
 export const Route = createFileRoute('/app/clients/$clientId/settings')({
   component: ClientSettingsPage,
@@ -12,6 +21,9 @@ function ClientSettingsPage() {
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
   const [memberRole, setMemberRole] = useState<'agency_owner' | 'account_manager' | 'creator' | 'client_admin' | 'client_reviewer'>('account_manager');
+
+  // RBAC: Check if user can manage team members
+  const { canManageTeam } = useClientRole();
 
   const utils = trpc.useUtils();
   
@@ -72,16 +84,18 @@ function ClientSettingsPage() {
           <h2 className="text-lg font-medium" style={{ color: 'var(--text-primary)' }}>
             Team Members
           </h2>
-          
-          <Dialog.Root open={isAddMemberModalOpen} onOpenChange={setIsAddMemberModalOpen}>
-            <Dialog.Trigger asChild>
-              <button
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-                style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
-              >
-                Add Member
-              </button>
-            </Dialog.Trigger>
+
+          {/* RBAC: Only agency_owner and account_manager can add members */}
+          {canManageTeam && (
+            <Dialog.Root open={isAddMemberModalOpen} onOpenChange={setIsAddMemberModalOpen}>
+              <Dialog.Trigger asChild>
+                <button
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
+                  style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-subtle)' }}
+                >
+                  Add Member
+                </button>
+              </Dialog.Trigger>
             <Dialog.Portal>
               <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in duration-200" />
               <Dialog.Content 
@@ -117,7 +131,7 @@ function ClientSettingsPage() {
                     </label>
                     <select
                       value={memberRole}
-                      onChange={(e) => setMemberRole(e.target.value as 'account_manager' | 'creator' | 'client_admin' | 'client_viewer')}
+                      onChange={(e) => setMemberRole(e.target.value as 'agency_owner' | 'account_manager' | 'creator' | 'client_admin' | 'client_reviewer')}
                       className="w-full px-3 py-2 rounded-lg bg-black/20 border"
                       style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
                     >
@@ -153,7 +167,8 @@ function ClientSettingsPage() {
                 </form>
               </Dialog.Content>
             </Dialog.Portal>
-          </Dialog.Root>
+            </Dialog.Root>
+          )}
         </div>
 
         <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border-subtle)' }}>
@@ -171,7 +186,7 @@ function ClientSettingsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-subtle)]">
-                {membersQuery.data?.map((member) => (
+                {(membersQuery.data as ClientMember[] | undefined)?.map((member) => (
                   <tr key={member.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="px-4 py-4">
                       <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{member.name}</div>
@@ -187,18 +202,23 @@ function ClientSettingsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <button
-                        onClick={() => {
-                          if (confirm(`Remove ${member.name || member.email} from this client?`)) {
-                            removeMemberMutation.mutate({ clientId, memberId: member.id });
-                          }
-                        }}
-                        disabled={removeMemberMutation.isPending}
-                        className="text-xs font-medium hover:underline disabled:opacity-50"
-                        style={{ color: 'var(--kill)' }}
-                      >
-                        {removeMemberMutation.isPending ? 'Removing...' : 'Remove'}
-                      </button>
+                      {/* RBAC: Only agency_owner and account_manager can remove members */}
+                      {canManageTeam ? (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Remove ${member.name || member.email} from this client?`)) {
+                              removeMemberMutation.mutate({ clientId, memberId: member.id });
+                            }
+                          }}
+                          disabled={removeMemberMutation.isPending}
+                          className="text-xs font-medium hover:underline disabled:opacity-50"
+                          style={{ color: 'var(--kill)' }}
+                        >
+                          {removeMemberMutation.isPending ? 'Removing...' : 'Remove'}
+                        </button>
+                      ) : (
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>-</span>
+                      )}
                     </td>
                   </tr>
                 ))}

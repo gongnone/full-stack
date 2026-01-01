@@ -6,6 +6,7 @@
 import { createFileRoute, Link, Outlet, useMatch } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { useClientRole } from '@/lib/use-client-role';
 import { HubCard } from '@/components/hubs';
 import type { HubListItem } from '@worker/types';
 
@@ -56,7 +57,7 @@ function HubCardSkeleton() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ canCreate }: { canCreate: boolean }) {
   return (
     <div
       className="flex flex-col items-center justify-center py-16 rounded-xl border"
@@ -74,18 +75,20 @@ function EmptyState() {
         No hubs yet
       </h3>
       <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
-        Create your first hub to start generating content
+        {canCreate ? 'Create your first hub to start generating content' : 'No content hubs available for this client'}
       </p>
-      <Link
-        to="/app/hubs/new"
-        className="mt-4 flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors"
-        style={{ backgroundColor: 'var(--edit)', color: '#fff' }}
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-        Create Hub
-      </Link>
+      {canCreate && (
+        <Link
+          to="/app/hubs/new"
+          className="mt-4 flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors"
+          style={{ backgroundColor: 'var(--edit)', color: '#fff' }}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Create Hub
+        </Link>
+      )}
     </div>
   );
 }
@@ -93,6 +96,7 @@ function EmptyState() {
 function HubsPage() {
   // Get client ID using shared hook for consistency with hub creation wizard
   const clientId = useClientId() || '';
+  const { canCreateContent } = useClientRole();
 
   // Fetch Hubs list
   const {
@@ -119,17 +123,19 @@ function HubsPage() {
             Manage your content sources and pillars
           </p>
         </div>
-        <Link
-          to="/app/hubs/new"
-          data-testid="new-hub-btn"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors"
-          style={{ backgroundColor: 'var(--edit)', color: '#fff' }}
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          New Hub
-        </Link>
+        {canCreateContent && (
+          <Link
+            to="/app/hubs/new"
+            data-testid="new-hub-btn"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-colors"
+            style={{ backgroundColor: 'var(--edit)', color: '#fff' }}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            New Hub
+          </Link>
+        )}
       </div>
 
       {/* Loading state */}
@@ -154,7 +160,7 @@ function HubsPage() {
       )}
 
       {/* Empty state */}
-      {!isLoading && !error && hubs.length === 0 && <EmptyState />}
+      {!isLoading && !error && hubs.length === 0 && <EmptyState canCreate={canCreateContent} />}
 
       {/* Hub grid */}
       {!isLoading && hubs.length > 0 && (

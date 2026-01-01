@@ -17,6 +17,8 @@ interface EditableChipListProps {
   isLoading?: boolean;
   disabled?: boolean;
   maxLength?: number;
+  /** RBAC: If true, hides input and remove buttons (view-only mode) */
+  readOnly?: boolean;
 }
 
 const chipStyles = {
@@ -46,6 +48,7 @@ export function EditableChipList({
   isLoading = false,
   disabled = false,
   maxLength = 100,
+  readOnly = false,
 }: EditableChipListProps) {
   const [inputValue, setInputValue] = useState('');
   const [removingItem, setRemovingItem] = useState<string | null>(null);
@@ -96,39 +99,41 @@ export function EditableChipList({
 
   return (
     <div className="space-y-3">
-      {/* Input field */}
-      <div className="relative">
-        <input
-          ref={inputRef}
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value.slice(0, maxLength))}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled || isLoading}
-          className="w-full px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
-          style={{
-            backgroundColor: 'var(--bg-surface)',
-            color: 'var(--text-primary)',
-            border: '1px solid var(--border-subtle)',
-          }}
-          data-testid="chip-input"
-        />
-        {inputValue && (
-          <span
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            {inputValue.length}/{maxLength}
-          </span>
-        )}
-      </div>
+      {/* Input field - hidden in read-only mode */}
+      {!readOnly && (
+        <div className="relative">
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value.slice(0, maxLength))}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            disabled={disabled || isLoading}
+            className="w-full px-3 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+            style={{
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-subtle)',
+            }}
+            data-testid="chip-input"
+          />
+          {inputValue && (
+            <span
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              {inputValue.length}/{maxLength}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Chips list */}
       <div className="flex flex-wrap gap-2 min-h-[32px]">
         {items.length === 0 && !isLoading && (
           <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            No items yet. Add one above.
+            {readOnly ? 'No items configured.' : 'No items yet. Add one above.'}
           </span>
         )}
         {items.map((item) => (
@@ -149,27 +154,30 @@ export function EditableChipList({
             data-testid={`chip-${item}`}
           >
             <span>{item}</span>
-            <button
-              onClick={() => handleRemove(item)}
-              disabled={disabled || isLoading}
-              className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-black/10 transition-colors disabled:opacity-50"
-              aria-label={`Remove ${item}`}
-              data-testid={`remove-${item}`}
-            >
-              <svg
-                className="w-3 h-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            {/* Remove button - hidden in read-only mode */}
+            {!readOnly && (
+              <button
+                onClick={() => handleRemove(item)}
+                disabled={disabled || isLoading}
+                className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-black/10 transition-colors disabled:opacity-50"
+                aria-label={`Remove ${item}`}
+                data-testid={`remove-${item}`}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            )}
           </span>
         ))}
         {isLoading && (

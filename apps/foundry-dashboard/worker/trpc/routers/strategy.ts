@@ -496,6 +496,115 @@ export const strategyRouter = t.router({
     }),
 
   /**
+   * AI Chat refinement for pillar - conversational pillar modification
+   * Uses Workers AI to suggest pillar refinements based on user chat
+   */
+  refinePillarWithAI: publicProcedure
+    .input(z.object({
+      token: z.string(),
+      pillarId: z.string(),
+      currentPillar: z.object({
+        name: z.string(),
+        strategy: z.array(z.string()),
+        rationale: z.string(),
+        exampleHook: z.string(),
+      }),
+      userMessage: z.string(),
+      conversationHistory: z.array(z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string(),
+      })).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Validate token
+      const tokenRecord = await ctx.db.prepare(`
+        SELECT * FROM strategy_approval_tokens WHERE token = ? AND expires_at > ? AND locked_at IS NULL
+      `).bind(input.token, Date.now()).first();
+
+      if (!tokenRecord) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid or expired token' });
+      }
+
+      const AI = ctx.env.AI;
+      if (!AI) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'AI service not available',
+        });
+      }
+
+      // Build conversation context
+      const systemPrompt = `You are a brand strategist helping refine content pillars.
+Current pillar:
+- Name: "${input.currentPillar.name}"
+- Strategy tags: ${input.currentPillar.strategy.join(', ')}
+- Rationale: ${input.currentPillar.rationale}
+- Example hook: "${input.currentPillar.exampleHook}"
+
+Your job is to help the user refine this pillar based on their feedback. Be conversational and helpful.
+When suggesting changes, always respond with a JSON block at the end like:
+\`\`\`json
+{
+  "suggestedName": "New Pillar Name",
+  "suggestedStrategy": ["TEACH", "CHALLENGE"],
+  "suggestedRationale": "Updated rationale...",
+  "suggestedHook": "New example hook here"
+}
+\`\`\`
+If no changes are needed yet, just have a conversation without the JSON block.
+Keep responses concise (2-3 sentences + optional JSON).`;
+
+      const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+        { role: 'system', content: systemPrompt },
+      ];
+
+      // Add conversation history
+      if (input.conversationHistory) {
+        for (const msg of input.conversationHistory) {
+          messages.push({ role: msg.role, content: msg.content });
+        }
+      }
+
+      // Add current user message
+      messages.push({ role: 'user', content: input.userMessage });
+
+      try {
+        const response = await AI.run('@cf/meta/llama-3.1-8b-instruct', {
+          messages,
+          max_tokens: 500,
+        });
+
+        const responseText = response.response || '';
+
+        // Parse out any suggested refinement JSON
+        let suggestedRefinement = null;
+        const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/);
+        if (jsonMatch && jsonMatch[1]) {
+          try {
+            suggestedRefinement = JSON.parse(jsonMatch[1]);
+          } catch {
+            // JSON parsing failed, no refinement suggested
+          }
+        }
+
+        // Clean response text (remove JSON block for display)
+        const displayText = responseText.replace(/```json[\s\S]*?```/g, '').trim();
+
+        return {
+          message: displayText,
+          suggestedRefinement,
+          success: true,
+        };
+      } catch (error) {
+        console.error('[AI Chat] Refinement failed:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'AI refinement failed. Please try again.',
+        });
+      }
+    }),
+
+  /**
    * Get alternative pillars for a slot
    */
   getAlternatives: publicProcedure

@@ -363,7 +363,21 @@ function StrategyApprovalPage() {
   )
 }
 
-// Story 10-5: Modification Modal with Voice Note Support (AC5)
+// Chat message interface
+interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+// Suggested refinement from AI
+interface SuggestedRefinement {
+  suggestedName?: string
+  suggestedStrategy?: string[]
+  suggestedRationale?: string
+  suggestedHook?: string
+}
+
+// Story 10-5: Modification Modal with Voice Note + AI Chat Support
 function ModifyPillarModal({
   pillar,
   token,
@@ -375,9 +389,20 @@ function ModifyPillarModal({
   onClose: () => void
   onSave: (modified: Pillar) => void
 }) {
+  // Tab state: 'manual' for direct editing, 'chat' for AI conversation
+  const [activeTab, setActiveTab] = useState<'manual' | 'chat'>('manual')
+
+  // Manual edit state
   const [name, setName] = useState(pillar.name)
   const [selectedTags, setSelectedTags] = useState<string[]>(pillar.strategy)
   const [note, setNote] = useState('')
+
+  // AI Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [suggestedRefinement, setSuggestedRefinement] = useState<SuggestedRefinement | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
 
   // Voice recording state
   const [isRecording, setIsRecording] = useState(false)
@@ -391,8 +416,14 @@ function ModifyPillarModal({
   const modifyMutation = trpc.strategy.modifyPillar.useMutation()
   const alternativesMutation = trpc.strategy.getAlternatives.useMutation()
   const transcribeMutation = trpc.strategy.transcribeVoiceNote.useMutation()
+  const refineMutation = trpc.strategy.refinePillarWithAI.useMutation()
 
   const availableTags = ['TEACH', 'ENTERTAIN', 'ENGINEER', 'CHALLENGE', 'PROVE']
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -423,7 +454,6 @@ function ModifyPillarModal({
         if (blob.size > 0) {
           setIsTranscribing(true)
           try {
-            // Convert blob to base64 for transmission
             const buffer = await blob.arrayBuffer()
             const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
 
@@ -433,8 +463,15 @@ function ModifyPillarModal({
               mimeType: recorder.mimeType,
             })
 
-            // Append transcription to note
-            setNote(prev => prev ? `${prev}\n\n${result.transcription}` : result.transcription)
+            if (activeTab === 'chat') {
+              // In chat mode, send transcription as chat message
+              if (result.transcription) {
+                handleSendChat(result.transcription)
+              }
+            } else {
+              // In manual mode, append to note
+              setNote(prev => prev ? `${prev}\n\n${result.transcription}` : result.transcription)
+            }
           } catch (err) {
             console.error('Transcription failed:', err)
           } finally {
@@ -448,7 +485,6 @@ function ModifyPillarModal({
       setMediaRecorder(recorder)
       setIsRecording(true)
 
-      // Timer with auto-stop at 30 seconds
       timerRef.current = window.setInterval(() => {
         setRecordingTime(prev => {
           if (prev >= MAX_RECORDING_SECONDS - 1) {
@@ -464,7 +500,6 @@ function ModifyPillarModal({
     }
   }
 
-  // Stop voice recording
   const stopRecording = () => {
     if (mediaRecorder?.state === 'recording') {
       mediaRecorder.stop()
@@ -476,6 +511,53 @@ function ModifyPillarModal({
     setSelectedTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     )
+  }
+
+  // Send chat message to AI
+  const handleSendChat = async (message?: string) => {
+    const userMessage = message || chatInput.trim()
+    if (!userMessage) return
+
+    setChatInput('')
+    const newUserMessage: ChatMessage = { role: 'user', content: userMessage }
+    setChatMessages(prev => [...prev, newUserMessage])
+
+    try {
+      const result = await refineMutation.mutateAsync({
+        token,
+        pillarId: pillar.id,
+        currentPillar: {
+          name: pillar.name,
+          strategy: pillar.strategy,
+          rationale: pillar.rationale,
+          exampleHook: pillar.exampleHook,
+        },
+        userMessage,
+        conversationHistory: chatMessages,
+      })
+
+      const assistantMessage: ChatMessage = { role: 'assistant', content: result.message }
+      setChatMessages(prev => [...prev, assistantMessage])
+
+      if (result.suggestedRefinement) {
+        setSuggestedRefinement(result.suggestedRefinement)
+        setShowPreview(true)
+      }
+    } catch (err) {
+      const errorMessage: ChatMessage = { role: 'assistant', content: 'Sorry, I had trouble processing that. Please try again.' }
+      setChatMessages(prev => [...prev, errorMessage])
+    }
+  }
+
+  // Accept AI suggestion
+  const handleAcceptRefinement = () => {
+    if (suggestedRefinement) {
+      if (suggestedRefinement.suggestedName) setName(suggestedRefinement.suggestedName)
+      if (suggestedRefinement.suggestedStrategy) setSelectedTags(suggestedRefinement.suggestedStrategy)
+      setSuggestedRefinement(null)
+      setShowPreview(false)
+      setActiveTab('manual') // Switch to manual to review/save
+    }
   }
 
   const handleSave = async () => {
@@ -500,8 +582,6 @@ function ModifyPillarModal({
       token,
       pillarId: pillar.id,
     })
-    // For now, just show an alert with alternatives
-    // In a full implementation, this would open a selection UI
     if (result.alternatives.length > 0) {
       alert(`Alternative options:\n${result.alternatives.map((a: { name: string }) => `• ${a.name}`).join('\n')}`)
     }
@@ -511,7 +591,7 @@ function ModifyPillarModal({
     <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center">
       <div className="bg-[#1A1F26] w-full max-w-md rounded-t-2xl sm:rounded-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[#2A3038] sticky top-0 bg-[#1A1F26]">
+        <div className="flex items-center justify-between p-4 border-b border-[#2A3038] sticky top-0 bg-[#1A1F26] z-10">
           <button
             onClick={onClose}
             className="p-2 min-h-[44px] min-w-[44px] text-[#8B98A5] hover:text-[#E7E9EA]"
@@ -522,118 +602,271 @@ function ModifyPillarModal({
           <div className="w-[44px]" />
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Pillar Name */}
-          <div>
-            <label className="block text-sm font-medium text-[#8B98A5] mb-2">
-              Pillar Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={50}
-              className="w-full px-4 py-3 min-h-[44px] bg-[#0F1419] border border-[#2A3038] rounded-lg text-[#E7E9EA] focus:border-[#1D9BF0] focus:outline-none"
-            />
-          </div>
+        {/* Tab Switcher */}
+        <div className="flex border-b border-[#2A3038]">
+          <button
+            onClick={() => setActiveTab('manual')}
+            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'manual'
+                ? 'text-[#1D9BF0] border-b-2 border-[#1D9BF0]'
+                : 'text-[#8B98A5] hover:text-[#E7E9EA]'
+            }`}
+          >
+            Manual Edit
+          </button>
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`flex-1 py-3 text-sm font-medium transition-colors ${
+              activeTab === 'chat'
+                ? 'text-[#1D9BF0] border-b-2 border-[#1D9BF0]'
+                : 'text-[#8B98A5] hover:text-[#E7E9EA]'
+            }`}
+          >
+            AI Refine ✨
+          </button>
+        </div>
 
-          {/* Strategy Tags */}
-          <div>
-            <label className="block text-sm font-medium text-[#8B98A5] mb-2">
-              Strategy Focus
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {availableTags.map(tag => (
+        {/* Manual Edit Tab */}
+        {activeTab === 'manual' && (
+          <>
+            <div className="p-6 space-y-6">
+              {/* Pillar Name */}
+              <div>
+                <label className="block text-sm font-medium text-[#8B98A5] mb-2">
+                  Pillar Name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={50}
+                  className="w-full px-4 py-3 min-h-[44px] bg-[#0F1419] border border-[#2A3038] rounded-lg text-[#E7E9EA] focus:border-[#1D9BF0] focus:outline-none"
+                />
+              </div>
+
+              {/* Strategy Tags */}
+              <div>
+                <label className="block text-sm font-medium text-[#8B98A5] mb-2">
+                  Strategy Focus
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => toggleTag(tag)}
+                      className={`px-4 py-2 min-h-[44px] rounded-full text-sm font-medium uppercase tracking-wide transition-colors ${
+                        selectedTags.includes(tag)
+                          ? tag === 'TEACH' ? 'bg-[#1D9BF0] text-white' :
+                            tag === 'ENTERTAIN' ? 'bg-[#F91880] text-white' :
+                            tag === 'ENGINEER' ? 'bg-[#00D26A] text-white' :
+                            tag === 'CHALLENGE' ? 'bg-[#FFAD1F] text-black' :
+                            'bg-[#794BC4] text-white'
+                          : 'bg-[#2A3038] text-[#8B98A5]'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Personal Note with Voice Recording */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-[#8B98A5]">
+                    Your Vision (optional)
+                  </label>
+                  <button
+                    onClick={isRecording ? stopRecording : startRecording}
+                    disabled={isTranscribing}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[36px] ${
+                      isRecording
+                        ? 'bg-[#F4212E] text-white animate-pulse'
+                        : isTranscribing
+                          ? 'bg-[#2A3038] text-[#8B98A5] cursor-wait'
+                          : 'bg-[#2A3038] text-[#E7E9EA] hover:bg-[#3A4048]'
+                    }`}
+                  >
+                    {isTranscribing ? (
+                      <>
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <span>Transcribing...</span>
+                      </>
+                    ) : isRecording ? (
+                      <>
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                          <rect x="6" y="6" width="12" height="12" rx="1" />
+                        </svg>
+                        <span>{recordingTime}s / {MAX_RECORDING_SECONDS}s</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                        <span>Voice Note</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder={isRecording ? "Recording... speak now" : "Tell us what you're thinking, or tap Voice Note"}
+                  className="w-full px-4 py-3 h-24 bg-[#0F1419] border border-[#2A3038] rounded-lg text-[#E7E9EA] focus:border-[#1D9BF0] focus:outline-none resize-none"
+                />
+              </div>
+            </div>
+
+            {/* Manual Edit Actions */}
+            <div className="p-6 border-t border-[#2A3038] space-y-3">
+              <div className="flex gap-3">
                 <button
-                  key={tag}
-                  onClick={() => toggleTag(tag)}
-                  className={`px-4 py-2 min-h-[44px] rounded-full text-sm font-medium uppercase tracking-wide transition-colors ${
-                    selectedTags.includes(tag)
-                      ? tag === 'TEACH' ? 'bg-[#1D9BF0] text-white' :
-                        tag === 'ENTERTAIN' ? 'bg-[#F91880] text-white' :
-                        tag === 'ENGINEER' ? 'bg-[#00D26A] text-white' :
-                        tag === 'CHALLENGE' ? 'bg-[#FFAD1F] text-black' :
-                        'bg-[#794BC4] text-white'
-                      : 'bg-[#2A3038] text-[#8B98A5]'
+                  onClick={handleShowAlternatives}
+                  disabled={alternativesMutation.isPending}
+                  className="flex-1 py-3 min-h-[44px] bg-[#2A3038] text-[#E7E9EA] rounded-lg font-medium hover:bg-[#3A4048] transition-colors disabled:opacity-50"
+                >
+                  {alternativesMutation.isPending ? '...' : 'Show Different'}
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={modifyMutation.isPending}
+                  className="flex-1 py-3 min-h-[44px] bg-[#1D9BF0] text-white rounded-lg font-bold hover:bg-[#1A8CD8] transition-colors disabled:opacity-50"
+                >
+                  {modifyMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* AI Chat Tab */}
+        {activeTab === 'chat' && (
+          <>
+            {/* Chat Messages */}
+            <div className="h-64 overflow-y-auto p-4 space-y-3">
+              {chatMessages.length === 0 && (
+                <div className="text-center text-[#8B98A5] py-8">
+                  <p className="mb-2">Ask me to help refine this pillar!</p>
+                  <p className="text-sm">Try: "Make it more personal" or "Focus on leadership"</p>
+                </div>
+              )}
+              {chatMessages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] px-4 py-2 rounded-2xl ${
+                      msg.role === 'user'
+                        ? 'bg-[#1D9BF0] text-white'
+                        : 'bg-[#2A3038] text-[#E7E9EA]'
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+              {refineMutation.isPending && (
+                <div className="flex justify-start">
+                  <div className="bg-[#2A3038] text-[#8B98A5] px-4 py-2 rounded-2xl">
+                    <span className="animate-pulse">Thinking...</span>
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Before/After Preview */}
+            {showPreview && suggestedRefinement && (
+              <div className="mx-4 mb-4 p-4 bg-[#0F1419] border border-[#1D9BF0] rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-[#1D9BF0]">Suggested Changes</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setSuggestedRefinement(null); setShowPreview(false) }}
+                      className="px-3 py-1 text-xs text-[#8B98A5] hover:text-[#E7E9EA]"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={handleAcceptRefinement}
+                      className="px-3 py-1 text-xs bg-[#00D26A] text-[#0F1419] rounded font-medium"
+                    >
+                      Accept
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2 text-sm">
+                  {suggestedRefinement.suggestedName && (
+                    <div>
+                      <span className="text-[#8B98A5]">Name: </span>
+                      <span className="text-[#F4212E] line-through mr-2">{pillar.name}</span>
+                      <span className="text-[#00D26A]">{suggestedRefinement.suggestedName}</span>
+                    </div>
+                  )}
+                  {suggestedRefinement.suggestedStrategy && (
+                    <div>
+                      <span className="text-[#8B98A5]">Strategy: </span>
+                      <span className="text-[#00D26A]">{suggestedRefinement.suggestedStrategy.join(', ')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Chat Input */}
+            <div className="p-4 border-t border-[#2A3038]">
+              <div className="flex gap-2">
+                <button
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isTranscribing}
+                  className={`p-3 min-h-[44px] min-w-[44px] rounded-full transition-colors ${
+                    isRecording
+                      ? 'bg-[#F4212E] text-white animate-pulse'
+                      : 'bg-[#2A3038] text-[#E7E9EA] hover:bg-[#3A4048]'
                   }`}
                 >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Personal Note with Voice Recording */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-[#8B98A5]">
-                Your Vision (optional)
-              </label>
-              {/* Voice Recording Button */}
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={isTranscribing}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[36px] ${
-                  isRecording
-                    ? 'bg-[#F4212E] text-white animate-pulse'
-                    : isTranscribing
-                      ? 'bg-[#2A3038] text-[#8B98A5] cursor-wait'
-                      : 'bg-[#2A3038] text-[#E7E9EA] hover:bg-[#3A4048]'
-                }`}
-              >
-                {isTranscribing ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  {isTranscribing ? (
+                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    <span>Transcribing...</span>
-                  </>
-                ) : isRecording ? (
-                  <>
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  ) : isRecording ? (
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                       <rect x="6" y="6" width="12" height="12" rx="1" />
                     </svg>
-                    <span>{recordingTime}s / {MAX_RECORDING_SECONDS}s</span>
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                     </svg>
-                    <span>Voice Note</span>
-                  </>
-                )}
-              </button>
+                  )}
+                </button>
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendChat()}
+                  placeholder={isRecording ? `Recording ${recordingTime}s...` : "Ask me to refine..."}
+                  disabled={isRecording || isTranscribing}
+                  className="flex-1 px-4 py-3 min-h-[44px] bg-[#0F1419] border border-[#2A3038] rounded-full text-[#E7E9EA] focus:border-[#1D9BF0] focus:outline-none"
+                />
+                <button
+                  onClick={() => handleSendChat()}
+                  disabled={!chatInput.trim() || refineMutation.isPending}
+                  className="p-3 min-h-[44px] min-w-[44px] bg-[#1D9BF0] text-white rounded-full hover:bg-[#1A8CD8] transition-colors disabled:opacity-50"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder={isRecording ? "Recording... speak now" : "Tell us what you're thinking, or tap Voice Note"}
-              className="w-full px-4 py-3 h-24 bg-[#0F1419] border border-[#2A3038] rounded-lg text-[#E7E9EA] focus:border-[#1D9BF0] focus:outline-none resize-none"
-            />
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="p-6 border-t border-[#2A3038] space-y-3">
-          <div className="flex gap-3">
-            <button
-              onClick={handleShowAlternatives}
-              disabled={alternativesMutation.isPending}
-              className="flex-1 py-3 min-h-[44px] bg-[#2A3038] text-[#E7E9EA] rounded-lg font-medium hover:bg-[#3A4048] transition-colors disabled:opacity-50"
-            >
-              {alternativesMutation.isPending ? '...' : 'Show Different'}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={modifyMutation.isPending}
-              className="flex-1 py-3 min-h-[44px] bg-[#1D9BF0] text-white rounded-lg font-bold hover:bg-[#1A8CD8] transition-colors disabled:opacity-50"
-            >
-              {modifyMutation.isPending ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   )

@@ -16,7 +16,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // Mock the Agent class from agents SDK
 vi.mock('agents', () => ({
   Agent: class MockAgent {
-    sql = vi.fn((strings: TemplateStringsArray, ...values: unknown[]) => {
+    sql = vi.fn((_strings: TemplateStringsArray, ..._values: unknown[]) => {
       // Return empty array by default, tests can override
       return [];
     });
@@ -120,8 +120,8 @@ describe('BrandDNAAgent', () => {
       // Mock existing session (last activity 10 minutes ago)
       const tenMinutesAgo = now - 10 * 60 * 1000;
       vi.spyOn(agent, 'sql' as keyof BrandDNAAgent).mockImplementation(
-        (strings: TemplateStringsArray, ...values: unknown[]) => {
-          const query = strings.join('?');
+        (_strings: TemplateStringsArray, ...values: unknown[]) => {
+          const query = _strings.join('?');
           const keyValue = values[0];
           // Match on key parameter in SELECT query
           if (query.includes('SELECT') && query.includes('session_state')) {
@@ -153,8 +153,8 @@ describe('BrandDNAAgent', () => {
       // Mock expired session (last activity 45 minutes ago)
       const fortyFiveMinutesAgo = now - 45 * 60 * 1000;
       vi.spyOn(agent, 'sql' as keyof BrandDNAAgent).mockImplementation(
-        (strings: TemplateStringsArray, ...values: unknown[]) => {
-          const query = strings.join('?');
+        (_strings: TemplateStringsArray, ..._values: unknown[]) => {
+          const query = _strings.join('?');
           if (query.includes('last_activity_at')) {
             return [{ value: String(fortyFiveMinutesAgo) }];
           }
@@ -180,10 +180,10 @@ describe('BrandDNAAgent', () => {
     it('should allow up to 30 messages per minute', async () => {
       // Mock SQL to return empty rate limits first (allowing), then updating
       let currentTimestamps: number[] = [];
-      
+
       vi.spyOn(agent, 'sql' as keyof BrandDNAAgent).mockImplementation(
-        (strings: TemplateStringsArray, ...values: unknown[]) => {
-          const query = strings.join('?');
+        (_strings: TemplateStringsArray, ...values: unknown[]) => {
+          const query = _strings.join('?');
           if (query.includes('SELECT') && query.includes('rate_limits')) {
             return [{ timestamps: JSON.stringify(currentTimestamps) }];
           }
@@ -215,11 +215,11 @@ describe('BrandDNAAgent', () => {
     it('should rate limit after 30 messages', async () => {
       // Start with 30 timestamps in the last minute
       const now = Date.now();
-      let currentTimestamps: number[] = Array(30).fill(now - 1000);
+      const currentTimestamps: number[] = Array(30).fill(now - 1000);
 
       vi.spyOn(agent, 'sql' as keyof BrandDNAAgent).mockImplementation(
-        (strings: TemplateStringsArray, ...values: unknown[]) => {
-          const query = strings.join('?');
+        (_strings: TemplateStringsArray, ..._values: unknown[]) => {
+          const query = _strings.join('?');
           if (query.includes('SELECT') && query.includes('rate_limits')) {
             return [{ timestamps: JSON.stringify(currentTimestamps) }];
           }
@@ -240,11 +240,11 @@ describe('BrandDNAAgent', () => {
     it('should return retry_after value when rate limited', async () => {
       const now = Date.now();
       // Oldest message was 30 seconds ago
-      let currentTimestamps: number[] = Array(30).fill(now - 30000);
+      const currentTimestamps: number[] = Array(30).fill(now - 30000);
 
       vi.spyOn(agent, 'sql' as keyof BrandDNAAgent).mockImplementation(
-        (strings: TemplateStringsArray, ...values: unknown[]) => {
-          const query = strings.join('?');
+        (_strings: TemplateStringsArray, ..._values: unknown[]) => {
+          const query = _strings.join('?');
           if (query.includes('SELECT') && query.includes('rate_limits')) {
             return [{ timestamps: JSON.stringify(currentTimestamps) }];
           }
@@ -298,11 +298,9 @@ describe('BrandDNAAgent', () => {
       const now = Date.now();
       vi.setSystemTime(now);
 
-      // Track call count to return different values for session check
-      let callCount = 0;
       vi.spyOn(agent, 'sql' as keyof BrandDNAAgent).mockImplementation(
-        (strings: TemplateStringsArray, ...values: unknown[]) => {
-          const query = strings.join('?');
+        (_strings: TemplateStringsArray, ...values: unknown[]) => {
+          const query = _strings.join('?');
           // Check which key is being queried
           const keyValue = values[0];
           if (query.includes('SELECT') && query.includes('session_state')) {

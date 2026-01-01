@@ -33,7 +33,7 @@ interface FeedbackSection {
 }
 
 export function CriticFeedback({
-  spokeId,
+  spokeId: _spokeId,
   content,
   g2Score = 0,
   g2Breakdown,
@@ -131,7 +131,7 @@ export function CriticFeedback({
 
   // Overall status
   const overallPass = g2Status === 'pass' && g4Status === 'pass' && g5Status === 'pass';
-  const hasWarnings = g2Status === 'warning';
+  const _hasWarnings = g2Status === 'warning';
   const hasFails = g2Status === 'fail' || g4Status !== 'pass' || g5Status !== 'pass';
 
   return (

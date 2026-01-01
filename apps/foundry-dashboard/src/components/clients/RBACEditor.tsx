@@ -38,7 +38,7 @@ export function RBACEditor({ isOpen, onClose, client, member }: RBACEditorProps)
     updateRoleMutation.mutate({
       clientId: client.id,
       memberId: member.id,
-      role: selectedRole as any,
+      role: selectedRole as 'agency_owner' | 'account_manager' | 'creator' | 'client_admin' | 'client_viewer',
     });
   };
 

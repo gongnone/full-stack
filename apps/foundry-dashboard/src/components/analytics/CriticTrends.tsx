@@ -21,6 +21,16 @@ export const CriticTrends = memo(function CriticTrends({ periodDays = ANALYTICS_
     { enabled: !!clientId }
   );
 
+  const chartData = useMemo(() =>
+    data?.data?.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })) ?? [],
+    [data?.data]
+  );
+
+  const latest = useMemo(() => data?.data?.[data.data.length - 1] ?? { g2: 0, g4: 0, g5: 0, g7: 0 }, [data?.data]);
+
   if (isLoading) {
     return (
       <div
@@ -50,17 +60,6 @@ export const CriticTrends = memo(function CriticTrends({ periodDays = ANALYTICS_
       </div>
     );
   }
-
-  const chartData = useMemo(() =>
-    data.data.map(d => ({
-      ...d,
-      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    })),
-    [data.data]
-  );
-
-  // Calculate current rates - memoized
-  const latest = useMemo(() => data.data[data.data.length - 1]!, [data.data]);
 
   return (
     <div

@@ -28,7 +28,7 @@ export function CreateFirstClient() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const createClientMutation = trpc.clients.create.useMutation({
-    onSuccess: async (data) => {
+    onSuccess: async (_data) => {
       // R-14 AC4: Invalidate queries and redirect to dashboard
       await utils.invalidate();
       addToast('Welcome to Foundry! Your first client has been created.', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);

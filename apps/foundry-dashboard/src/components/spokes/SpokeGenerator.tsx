@@ -3,7 +3,7 @@
  * Display spoke generation progress with quality gate visualization
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ActionButton, GateBadge } from '@/components/ui';
 import { QUALITY_GATE_CONFIG } from '@/lib/constants';
 import type {
@@ -290,7 +290,7 @@ export function SpokeGenerator({
             Generated Spokes ({generatedSpokes.length})
           </h3>
           <div className="space-y-2">
-            {generatedSpokes.map((spoke, idx) => {
+            {generatedSpokes.map((spoke, _idx) => {
               const g2Score = spoke.g2_score ?? 0;
               const g4Passed = spoke.g4_status === 'pass';
               const g5Passed = spoke.g5_status === 'pass';

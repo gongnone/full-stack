@@ -353,7 +353,7 @@ function StrategyApprovalPage() {
           pillar={modifyingPillar}
           token={token}
           onClose={() => setModifyingPillar(null)}
-          onSave={(modified) => {
+          onSave={(_modified) => {
             // Update the pillar in local state
             setModifyingPillar(null)
           }}

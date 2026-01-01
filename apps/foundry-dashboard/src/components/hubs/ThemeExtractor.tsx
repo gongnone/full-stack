@@ -62,7 +62,7 @@ export function ThemeExtractor({
   // Retry mutation
   const retryMutation = trpc.hubs.retryExtraction.useMutation();
 
-  const handleRetry = useCallback(() => {
+  const _handleRetry = useCallback(() => {
     retryMutation.mutate(
       { sourceId, clientId },
       {

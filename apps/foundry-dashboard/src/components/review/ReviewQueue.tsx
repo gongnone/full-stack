@@ -2,13 +2,11 @@ import { useState, useMemo } from 'react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { 
-  Check, 
-  X, 
-  Share2, 
-  Copy, 
-  Filter, 
-  Clock, 
+import {
+  Check,
+  X,
+  Share2,
+  Clock,
   Star,
   ChevronRight,
   ChevronLeft

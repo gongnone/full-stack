@@ -3,7 +3,7 @@
  * Hub Detail Route - Display Hub with pillars and spoke tree view
  */
 
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
@@ -154,7 +154,7 @@ function HubDetailPage() {
   );
 
   // Fetch spokes for this hub
-  const { data: spokesData, refetch: refetchSpokes, error: spokesError } = trpc.spokes.list.useQuery(
+  const { data: spokesData, refetch: refetchSpokes } = trpc.spokes.list.useQuery(
     { clientId, hubId },
     { enabled: !!clientId && !!hubId && activeTab === 'spokes' }
   );
@@ -356,6 +356,24 @@ function HubDetailPage() {
     return counts;
   }, [spokesData]);
 
+  // Memoize spokes list from query data
+  const spokes = useMemo(() =>
+    (spokesData?.items || []) as unknown as Spoke[],
+    [spokesData?.items]
+  );
+
+  // Memoize filtered spokes for navigation
+  const filteredSpokes = useMemo(() => {
+    return platformFilter === 'all'
+      ? spokes
+      : spokes.filter((s) => s.platform === platformFilter);
+  }, [spokes, platformFilter]);
+
+  const selectedSpokeIndex = useMemo(() => {
+    if (!selectedSpokeId) return -1;
+    return filteredSpokes.findIndex((s) => s.id === selectedSpokeId);
+  }, [filteredSpokes, selectedSpokeId]);
+
   if (isLoading) {
     return <LoadingSkeleton />;
   }
@@ -391,20 +409,7 @@ function HubDetailPage() {
 
   const statusConfig = STATUS_CONFIG[hub.status as keyof typeof STATUS_CONFIG] ?? DEFAULT_STATUS_CONFIG;
   const totalEstimatedSpokes = hub.pillars.reduce((sum: number, p: Pillar) => sum + p.estimatedSpokeCount, 0);
-  const spokes = (spokesData?.items || []) as unknown as Spoke[];
   const hasSpokes = hub.spoke_count > 0 || spokes.length > 0;
-
-  // Memoize filtered spokes for navigation
-  const filteredSpokes = useMemo(() => {
-    return platformFilter === 'all'
-      ? spokes
-      : spokes.filter((s) => s.platform === platformFilter);
-  }, [spokes, platformFilter]);
-
-  const selectedSpokeIndex = useMemo(() => {
-    if (!selectedSpokeId) return -1;
-    return filteredSpokes.findIndex((s) => s.id === selectedSpokeId);
-  }, [filteredSpokes, selectedSpokeId]);
 
   return (
     <div className="space-y-6">

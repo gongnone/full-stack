@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { CloneSpokeModal, CloneOptions } from './CloneSpokeModal';
+import { CloneSpokeModal } from './CloneSpokeModal';
 
 describe('CloneSpokeModal', () => {
   const mockOnClose = vi.fn();

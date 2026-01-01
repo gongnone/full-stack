@@ -51,8 +51,8 @@ interface AgentResponse {
   requestId?: string;
 }
 
-// Rate limit tracking per connection
-interface RateLimitState {
+// Rate limit tracking per connection - reserved for future use
+interface _RateLimitState {
   messageTimestamps: number[];
 }
 
@@ -120,7 +120,7 @@ export class BrandDNAAgent extends Agent {
    * AC2: Send welcome message on connect
    * AC3: Restore session state if reconnecting within 30 minutes
    */
-  async onConnect(connection: Connection, ctx: ConnectionContext): Promise<void> {
+  async onConnect(connection: Connection, _ctx: ConnectionContext): Promise<void> {
     const now = Date.now();
 
     // Check for existing session to determine if resuming
@@ -244,7 +244,7 @@ export class BrandDNAAgent extends Agent {
         await this.handleAction(connection, clientMessage);
         break;
 
-      default:
+      default: {
         const errorResponse: AgentResponse = {
           component: {
             type: 'Error',
@@ -256,13 +256,14 @@ export class BrandDNAAgent extends Agent {
           requestId: clientMessage.requestId,
         };
         connection.send(JSON.stringify(errorResponse));
+      }
     }
   }
 
   /**
    * Handle WebSocket close
    */
-  async onClose(connection: Connection, code: number, reason: string): Promise<void> {
+  async onClose(_connection: Connection, _code: number, _reason: string): Promise<void> {
     // Persist session state for potential reconnection
     this.setSessionValue(SESSION_KEYS.LAST_ACTIVITY_AT, String(Date.now()));
   }
@@ -398,17 +399,17 @@ export class BrandDNAAgent extends Agent {
         break;
 
       // Story 1.5-3: Sync generated pillars from backend
-      case 'sync_pillars':
-        const pillarsData = payload?.data as any; // { pillars: [...] }
+      case 'sync_pillars': {
+        const pillarsData = payload?.data as Record<string, unknown>; // { pillars: [...] }
         if (pillarsData) {
           this.setSessionValue(SESSION_KEYS.PILLARS, JSON.stringify(pillarsData));
-          
+
           // Auto-advance to pillars step if not already there
           const currentStep = this.getSessionValue(SESSION_KEYS.CURRENT_STEP);
           if (currentStep !== 'pillars' && currentStep !== 'complete') {
             this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'pillars');
           }
-          
+
           // Broadcast update
           const response: AgentResponse = {
             component: {
@@ -423,9 +424,10 @@ export class BrandDNAAgent extends Agent {
           connection.send(JSON.stringify(response));
         }
         break;
+      }
 
       // Story 1.5-4-6: Update generation progress via WebSocket
-      case 'update_generation_progress':
+      case 'update_generation_progress': {
         const progressData = payload?.data as { generated: number; total: number; hubId: string };
         if (progressData) {
           const response: AgentResponse = {
@@ -444,8 +446,9 @@ export class BrandDNAAgent extends Agent {
           this.broadcast(JSON.stringify(response));
         }
         break;
+      }
 
-      default:
+      default: {
         const errorResponse: AgentResponse = {
           component: {
             type: 'Error',
@@ -457,6 +460,7 @@ export class BrandDNAAgent extends Agent {
           requestId: message.requestId,
         };
         connection.send(JSON.stringify(errorResponse));
+      }
     }
   }
 
@@ -470,9 +474,11 @@ export class BrandDNAAgent extends Agent {
 
     const fullSteps = ['welcome', 'voice_capture', 'personality', 'audience', 'pillars', 'complete'] as const;
     const expressSteps = ['welcome', 'express_what', 'express_tone', 'express_platform', 'complete'] as const;
-    
+    type FullStep = typeof fullSteps[number];
+    type ExpressStep = typeof expressSteps[number];
+
     const steps = isExpress ? expressSteps : fullSteps;
-    const currentIndex = steps.indexOf(currentStep as any);
+    const currentIndex = steps.indexOf(currentStep as FullStep & ExpressStep);
     const nextStepIndex = Math.min(Math.max(0, currentIndex + 1), steps.length - 1);
     const nextStep: string = steps[nextStepIndex] ?? 'welcome';
 

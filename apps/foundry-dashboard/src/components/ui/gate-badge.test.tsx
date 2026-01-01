@@ -3,8 +3,8 @@
  * Quality gate badge with hover tooltips
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import { GateBadge } from './gate-badge';
 import userEvent from '@testing-library/user-event';
 import type { G2Breakdown, G4Details, G5Details } from './gate-badge';

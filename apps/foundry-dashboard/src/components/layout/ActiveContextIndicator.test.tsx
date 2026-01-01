@@ -131,7 +131,7 @@ describe('ActiveContextIndicator - Story 7-5: Active Context Indicator', () => {
         isLoading: false,
       });
 
-      const { container } = render(<ActiveContextIndicator />);
+      render(<ActiveContextIndicator />);
 
       // Should still render with fallback color
       expect(screen.getByText('Acme Corp')).toBeInTheDocument();

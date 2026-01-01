@@ -41,7 +41,7 @@ const SAMPLE_CONTENT = {
 
 describe('@P1 Quality Gates Integration Tests', () => {
   let ctx: IntegrationContext;
-  let account: { id: string; userId: string; clientId: string };
+  let _account: { id: string; userId: string; clientId: string };
 
   beforeAll(async () => {
     ctx = await createIntegrationContext();
@@ -70,7 +70,7 @@ describe('@P1 Quality Gates Integration Tests', () => {
     `);
 
     const accounts = await seedTestAccounts(ctx.db, ctx);
-    account = accounts.account1;
+    _account = accounts.account1;
   });
 
   afterAll(async () => {

@@ -21,6 +21,26 @@ export const VelocityDashboard = memo(function VelocityDashboard({ periodDays = 
     { enabled: !!clientId }
   );
 
+  const chartData = useMemo(() =>
+    data?.data?.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })) ?? [],
+    [data?.data]
+  );
+
+  const { totalHubs, totalSpokes, totalReviewed, avgReviewTime, reviewRate } = useMemo(() => {
+    if (!data?.data?.length) {
+      return { totalHubs: 0, totalSpokes: 0, totalReviewed: 0, avgReviewTime: 0, reviewRate: 0 };
+    }
+    const hubs = data.data.reduce((sum, d) => sum + d.hubsCreated, 0);
+    const spokes = data.data.reduce((sum, d) => sum + d.spokesGenerated, 0);
+    const reviewed = data.data.reduce((sum, d) => sum + d.spokesReviewed, 0);
+    const avgTime = Math.round(data.data.reduce((sum, d) => sum + d.avgReviewTime, 0) / data.data.length);
+    const rate = spokes > 0 ? Math.round((reviewed / spokes) * 100) : 0;
+    return { totalHubs: hubs, totalSpokes: spokes, totalReviewed: reviewed, avgReviewTime: avgTime, reviewRate: rate };
+  }, [data?.data]);
+
   if (isLoading) {
     return (
       <div
@@ -50,24 +70,6 @@ export const VelocityDashboard = memo(function VelocityDashboard({ periodDays = 
       </div>
     );
   }
-
-  const chartData = useMemo(() =>
-    data.data.map(d => ({
-      ...d,
-      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    })),
-    [data.data]
-  );
-
-  // Calculate totals and averages - memoized
-  const { totalHubs, totalSpokes, totalReviewed, avgReviewTime, reviewRate } = useMemo(() => {
-    const hubs = data.data.reduce((sum, d) => sum + d.hubsCreated, 0);
-    const spokes = data.data.reduce((sum, d) => sum + d.spokesGenerated, 0);
-    const reviewed = data.data.reduce((sum, d) => sum + d.spokesReviewed, 0);
-    const avgTime = Math.round(data.data.reduce((sum, d) => sum + d.avgReviewTime, 0) / data.data.length);
-    const rate = spokes > 0 ? Math.round((reviewed / spokes) * 100) : 0;
-    return { totalHubs: hubs, totalSpokes: spokes, totalReviewed: reviewed, avgReviewTime: avgTime, reviewRate: rate };
-  }, [data.data]);
 
   return (
     <div

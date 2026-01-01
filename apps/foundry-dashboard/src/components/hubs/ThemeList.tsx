@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { ChevronDown, ChevronUp, Quote, Lightbulb, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronUp, Quote, Lightbulb } from 'lucide-react';
 
 interface Theme {
   title: string;

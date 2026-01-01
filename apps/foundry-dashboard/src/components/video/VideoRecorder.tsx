@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '../ui/button';
-import { Camera, StopCircle, RefreshCw, Check, X } from 'lucide-react';
+import { Camera, RefreshCw, Check, X } from 'lucide-react';
 
 interface VideoRecorderProps {
   maxDuration?: number; // seconds

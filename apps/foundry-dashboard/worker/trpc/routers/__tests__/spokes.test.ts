@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SpokePlatform } from '../../../types';
 import { TRPCError } from '@trpc/server';
-import { z } from 'zod'; // Import zod to make it available for schema definitions
 
 // Removed createCallerFactory import and usage, will directly call procedures.
 // import { createCallerFactory } from '@trpc/server/unstable-core-do-not-import';

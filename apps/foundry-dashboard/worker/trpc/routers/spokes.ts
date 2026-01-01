@@ -6,7 +6,6 @@ import { z } from 'zod'; // Import zod to make it available for schema definitio
 
 const t = initTRPC.context<Context>().create();
 const router = t.router;
-const procedure = t.procedure;
 
 // Interface for Durable Object spoke representation
 interface DOSpoke {

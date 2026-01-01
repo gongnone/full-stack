@@ -21,7 +21,7 @@ import {
 const ANALYTICS_CONFIG = {
   DRIFT_THRESHOLD_PERCENT: 15,  // FR36: Alert when similarity drops 15%
   DNA_MATURITY_THRESHOLD: 60,   // FR54: 60% Zero-Edit Rate = DNA maturity
-  HUBS_FOR_MATURITY: 5,         // FR54: After 5 hubs
+  _HUBS_FOR_MATURITY: 5,         // FR54: After 5 hubs
 };
 
 describe('@P1 Analytics Integration Tests', () => {
@@ -172,7 +172,7 @@ describe('@P1 Analytics Integration Tests', () => {
     });
 
     it('No alert when within threshold', async () => {
-      const client2Id = crypto.randomUUID();
+      const _client2Id = crypto.randomUUID();
       const baselineScore = 0.85;
       const currentScore = 0.78; // Only 8.2% drop
 

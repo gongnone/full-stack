@@ -114,12 +114,12 @@ describe('Spoke Generation Integration Tests', () => {
   });
 
   describe.skip('Spoke Status Lifecycle', () => {
-    let hubId: string;
+    let _hubId: string;
     let spokeId: string;
 
     beforeAll(async () => {
       // This uses legacy schema - skip for now
-      hubId = crypto.randomUUID();
+      _hubId = crypto.randomUUID();
       spokeId = crypto.randomUUID();
     });
 
@@ -243,12 +243,12 @@ describe('Spoke Generation Integration Tests', () => {
   });
 
   describe.skip('Cross-Tenant Isolation', () => {
-    let account1HubId: string;
+    let _account1HubId: string;
     let account1SpokeId: string;
 
     beforeAll(async () => {
       // This uses legacy schema - skip for now
-      account1HubId = crypto.randomUUID();
+      _account1HubId = crypto.randomUUID();
       account1SpokeId = crypto.randomUUID();
     });
 

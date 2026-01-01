@@ -1,6 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
-import { Button } from '../ui/button';
-import { Sparkles, Trash2, Info } from 'lucide-react';
+import { Sparkles, Info } from 'lucide-react';
 
 interface GoldenNugget {
   index: number;
@@ -14,7 +12,7 @@ interface GoldenNuggetAnnotatorProps {
   onToggle: (index: number, isGolden: boolean) => void;
 }
 
-export function GoldenNuggetAnnotator({ sourceText, nuggets, onToggle }: GoldenNuggetAnnotatorProps) {
+export function GoldenNuggetAnnotator({ sourceText: _sourceText, nuggets, onToggle }: GoldenNuggetAnnotatorProps) {
   return (
     <div className="space-y-6">
       <div className="bg-[#1D9BF0]/10 border border-[#1D9BF0]/20 rounded-xl p-4 flex gap-3">

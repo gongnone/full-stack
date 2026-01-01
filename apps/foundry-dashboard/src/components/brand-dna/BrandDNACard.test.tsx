@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { BrandDNACard } from './BrandDNACard';
-import type { BrandDNAReport } from '@/../../worker/types';
 
 // Mock child components
 vi.mock('./VoiceMetricsProgress', () => ({
@@ -36,6 +35,7 @@ const mockReport = {
     timestamp: 1672531200, // 2023-01-01
     source: 'manual',
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
 describe('BrandDNACard', () => {
@@ -83,7 +83,7 @@ describe('BrandDNACard', () => {
       writingStyle: undefined,
       targetAudience: undefined,
     };
-    // @ts-ignore
+    // @ts-expect-error - Testing with incomplete report data
     render(<BrandDNACard report={emptyReport} />);
     
     const notDetected = screen.getAllByText('Not detected');

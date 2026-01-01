@@ -48,7 +48,7 @@ interface ConflictCardProps {
   onRewrite: (feedback: string) => void;
 }
 
-function ConflictCard({ spoke, hubTitle, onApprove, onRewrite }: ConflictCardProps) {
+function ConflictCard({ spoke, hubTitle: _hubTitle, onApprove, onRewrite }: ConflictCardProps) {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);

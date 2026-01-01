@@ -17,6 +17,15 @@ module.exports = {
     ],
     // TD-2: Detect 'any' types - error in production code
     '@typescript-eslint/no-explicit-any': 'error',
+    // Allow unused vars if prefixed with underscore
+    '@typescript-eslint/no-unused-vars': [
+      'error',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      },
+    ],
     // TD-3: Detect placeholder tests
     'no-restricted-syntax': [
       'error',

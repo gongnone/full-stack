@@ -189,7 +189,7 @@ export function IngestionProgress({ sourceId, clientId, onComplete, onError }: I
         {STAGES.map((stage, index) => {
           const isCurrentStage = index === currentStageIndex && !isComplete;
           const isStageComplete = completedStages.has(stage.key) || isComplete;
-          const isPending = index > currentStageIndex && !isComplete;
+          const _isPending = index > currentStageIndex && !isComplete;
 
           return (
             <div

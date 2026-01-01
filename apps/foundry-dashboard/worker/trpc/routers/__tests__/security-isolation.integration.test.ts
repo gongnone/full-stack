@@ -17,12 +17,10 @@ import {
   setupTestDatabase,
   seedTestAccounts,
   seedTestHubsAndSpokes,
-  switchToAccount,
   IntegrationContext,
 } from './integration-harness';
 import { hubsRouter } from '../hubs';
 import { clientsRouter } from '../clients';
-import { TRPCError } from '@trpc/server';
 
 describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
   let ctx: IntegrationContext;

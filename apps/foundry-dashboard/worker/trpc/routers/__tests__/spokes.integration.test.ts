@@ -5,7 +5,7 @@ import type { IntegrationContext } from './integration-harness';
 
 const CLIENT_ID = '00000000-0000-0000-0000-000000000000';
 const HUB_ID = '00000000-0000-0000-0000-000000000001';
-const USER_ID = 'user-123';
+const _USER_ID = 'user-123';
 
 // These tests have complex mocking requirements - skipped per TD-4
 describe.skip('spokesRouter - Integration', () => {
@@ -46,7 +46,7 @@ describe.skip('spokesRouter - Integration', () => {
   describe('generate', () => {
     it('triggers generation workflow using real D1 data', async () => {
       const caller = spokesRouter.createCaller(ctx);
-      
+
       // 1. Seed real data into D1
       const sourceId = 'source-1';
       await ctx.db.prepare('INSERT INTO hub_sources (id, client_id, user_id, title, source_type, raw_content, status) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(
@@ -57,9 +57,9 @@ describe.skip('spokesRouter - Integration', () => {
         HUB_ID, CLIENT_ID, ctx.userId, sourceId, 'Hub 1', 'text'
       ).run();
 
-      const pillarId = 'pillar-1';
+      const _pillarId = 'pillar-1';
       await ctx.db.prepare('INSERT INTO extracted_pillars (id, source_id, client_id, hub_id, title, core_claim) VALUES (?, ?, ?, ?, ?, ?)').bind(
-        pillarId, sourceId, CLIENT_ID, HUB_ID, 'Pillar 1', 'Claim 1'
+        _pillarId, sourceId, CLIENT_ID, HUB_ID, 'Pillar 1', 'Claim 1'
       ).run();
 
       // 2. Call generate
@@ -79,11 +79,12 @@ describe.skip('spokesRouter - Integration', () => {
     it('enforces multi-tenant isolation (fails if no access)', async () => {
       const caller = spokesRouter.createCaller(ctx);
       const otherClientId = 'other-client-id';
-      
+      const _account1HubId = HUB_ID;
+
       // Try to generate for a client user doesn't belong to
       await expect(caller.generate({
         clientId: otherClientId,
-        hubId: HUB_ID
+        hubId: _account1HubId
       })).rejects.toThrow(/Access denied|forbidden/i);
     });
   });

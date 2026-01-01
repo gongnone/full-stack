@@ -21,6 +21,38 @@ export const ZeroEditChart = memo(function ZeroEditChart({ periodDays = ANALYTIC
     { enabled: !!clientId }
   );
 
+  const chartData = useMemo(() =>
+    data?.data?.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })) ?? [],
+    [data?.data]
+  );
+
+  const { trend, currentRate } = useMemo(() => {
+    if (!data?.data?.length) {
+      return { trend: 0, currentRate: 0 };
+    }
+    const windowSize = ANALYTICS_CONFIG.TREND_WINDOW_DAYS;
+    const firstWeekAvg = data.data.slice(0, windowSize).reduce((sum, d) => sum + d.rate, 0) / windowSize;
+    const lastWeekAvg = data.data.slice(-windowSize).reduce((sum, d) => sum + d.rate, 0) / windowSize;
+    return {
+      trend: lastWeekAvg - firstWeekAvg,
+      currentRate: data.data[data.data.length - 1]?.rate ?? 0,
+    };
+  }, [data?.data]);
+
+  const { avgRate, bestDay, totalItems } = useMemo(() => {
+    if (!data?.data?.length) {
+      return { avgRate: '0', bestDay: '0', totalItems: 0 };
+    }
+    return {
+      avgRate: (data.data.reduce((sum, d) => sum + d.rate, 0) / data.data.length).toFixed(1),
+      bestDay: Math.max(...data.data.map(d => d.rate)).toFixed(1),
+      totalItems: data.data.reduce((sum, d) => sum + d.count, 0),
+    };
+  }, [data?.data]);
+
   if (isLoading) {
     return (
       <div
@@ -50,32 +82,6 @@ export const ZeroEditChart = memo(function ZeroEditChart({ periodDays = ANALYTIC
       </div>
     );
   }
-
-  const chartData = useMemo(() =>
-    data.data.map(d => ({
-      ...d,
-      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    })),
-    [data.data]
-  );
-
-  // Calculate trend metrics using centralized window size - memoized
-  const { trend, currentRate } = useMemo(() => {
-    const windowSize = ANALYTICS_CONFIG.TREND_WINDOW_DAYS;
-    const firstWeekAvg = data.data.slice(0, windowSize).reduce((sum, d) => sum + d.rate, 0) / windowSize;
-    const lastWeekAvg = data.data.slice(-windowSize).reduce((sum, d) => sum + d.rate, 0) / windowSize;
-    return {
-      trend: lastWeekAvg - firstWeekAvg,
-      currentRate: data.data[data.data.length - 1]?.rate ?? 0,
-    };
-  }, [data.data]);
-
-  // Summary calculations - memoized
-  const { avgRate, bestDay, totalItems } = useMemo(() => ({
-    avgRate: (data.data.reduce((sum, d) => sum + d.rate, 0) / data.data.length).toFixed(1),
-    bestDay: Math.max(...data.data.map(d => d.rate)).toFixed(1),
-    totalItems: data.data.reduce((sum, d) => sum + d.count, 0),
-  }), [data.data]);
 
   return (
     <div

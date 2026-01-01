@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
@@ -18,11 +17,11 @@ interface PlatformSelectorProps {
   secondary: PlatformRecommendation[];
   excluded: PlatformRecommendation[];
   onMove: (id: string, newStatus: 'primary' | 'secondary' | 'excluded') => void;
-  onReorder: (id: string, newPriority: number) => void;
+  onReorder?: (id: string, newPriority: number) => void;
 }
 
-export function PlatformSelector({ primary, secondary, excluded, onMove, onReorder }: PlatformSelectorProps) {
-  const [draggedItem, setDraggedItem] = useState<string | null>(null);
+export function PlatformSelector({ primary, secondary, excluded, onMove }: PlatformSelectorProps) {
+  const [, setDraggedItem] = useState<string | null>(null);
 
   const PlatformCard = ({ item }: { item: PlatformRecommendation }) => (
     <div 

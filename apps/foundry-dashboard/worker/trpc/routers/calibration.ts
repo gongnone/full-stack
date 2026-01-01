@@ -5,11 +5,7 @@ import type { Context } from '../context';
 import type {
   TrainingSample,
   TrainingSampleWithQuality,
-  BrandDNA,
-  BrandDNABreakdown,
   BrandDNAReport,
-  BrandDNAAnalysisResult,
-  SignaturePhrase,
   CalibrationSource,
 } from '../../types';
 import { assertClientAccess } from '../middleware/client-access';
@@ -499,7 +495,7 @@ export const calibrationRouter = t.router({
       const isValid = await validateAudioFile(ctx, input.audioR2Key);
       if (!isValid) {
         // Cleanup invalid file
-        try { await ctx.env.MEDIA.delete(input.audioR2Key); } catch {}
+        try { await ctx.env.MEDIA.delete(input.audioR2Key); } catch { /* Intentionally empty - error handled silently */ }
         
         throw new TRPCError({
           code: 'BAD_REQUEST',
@@ -607,6 +603,7 @@ export const calibrationRouter = t.router({
           stances: entities.stances || [],
         };
       } catch {
+        // Intentionally empty - error handled silently
         return { bannedWords: [], voiceMarkers: [], stances: [] };
       }
     }),
@@ -623,7 +620,7 @@ export const calibrationRouter = t.router({
 
       let entities = { bannedWords: [] as string[], voiceMarkers: [], stances: [] };
       if (dna?.voice_entities) {
-        try { entities = JSON.parse(dna.voice_entities); } catch {}
+        try { entities = JSON.parse(dna.voice_entities); } catch { /* Intentionally empty - error handled silently */ }
       }
 
       const normalizedWord = input.word.toLowerCase().trim();
@@ -702,7 +699,7 @@ export const calibrationRouter = t.router({
 
       let entities = { bannedWords: [], voiceMarkers: [] as string[], stances: [] };
       if (dna?.voice_entities) {
-        try { entities = JSON.parse(dna.voice_entities); } catch {}
+        try { entities = JSON.parse(dna.voice_entities); } catch { /* Intentionally empty - error handled silently */ }
       }
 
       const normalizedPhrase = input.phrase.toLowerCase().trim();
@@ -774,13 +771,13 @@ export const calibrationRouter = t.router({
     .input(z.object({ clientId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      
+
       // Story R-11: AC5, AC6 - Use safeDOSync for graceful failure handling
       const { result, failed } = await safeDOSync<BrandDNAReport>(
-        ctx, 
-        input.clientId, 
-        'getDNAReport', 
-        {}, 
+        ctx,
+        input.clientId,
+        'getDNAReport',
+        {},
         'getBrandDNA'
       );
 
@@ -799,7 +796,7 @@ export const calibrationRouter = t.router({
     .input(z.object({ clientId: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
-      
+
       const samples = await brandQueries.getTrainingSamplesWithExtractedText(ctx.drizzle, input.clientId);
       if (samples.length < 3) {
         throw new TRPCError({
@@ -834,8 +831,11 @@ export const calibrationRouter = t.router({
       if (!dna) return null;
 
       // Story R-11: AC7 - JSON.parse error handling for all DB fields
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let toneProfile: any = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let signaturePhrases: any[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let topicsToAvoid: any[] = [];
 
       try {

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { RefreshCw, Check, AlertCircle } from 'lucide-react';
+import { RefreshCw, Check } from 'lucide-react';
 import { Textarea } from '../ui/textarea';
 import { Input } from '../ui/input';
 

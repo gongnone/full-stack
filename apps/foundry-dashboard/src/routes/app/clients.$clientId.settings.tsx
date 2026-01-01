@@ -117,7 +117,7 @@ function ClientSettingsPage() {
                     </label>
                     <select
                       value={memberRole}
-                      onChange={(e) => setMemberRole(e.target.value as any)}
+                      onChange={(e) => setMemberRole(e.target.value as 'account_manager' | 'creator' | 'client_admin' | 'client_viewer')}
                       className="w-full px-3 py-2 rounded-lg bg-black/20 border"
                       style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
                     >
@@ -171,7 +171,7 @@ function ClientSettingsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-subtle)]">
-                {membersQuery.data?.map((member: any) => (
+                {membersQuery.data?.map((member) => (
                   <tr key={member.id} className="hover:bg-white/[0.02] transition-colors">
                     <td className="px-4 py-4">
                       <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{member.name}</div>

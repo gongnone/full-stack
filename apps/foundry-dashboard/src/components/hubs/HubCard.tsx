@@ -37,7 +37,7 @@ function UrlIcon({ className }: { className?: string }) {
   );
 }
 
-function SourceTypeIcon({ type, className, style }: { type: HubListItem['sourceType']; className?: string; style?: React.CSSProperties }) {
+function SourceTypeIcon({ type, className, style: _style }: { type: HubListItem['sourceType']; className?: string; style?: React.CSSProperties }) {
   switch (type) {
     case 'pdf':
       return <PdfIcon className={className} />;

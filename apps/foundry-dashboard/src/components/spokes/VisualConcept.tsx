@@ -83,9 +83,9 @@ const PLATFORM_VISUAL_TYPES: Record<
 };
 
 export function VisualConcept({
-  spokeId,
+  spokeId: _spokeId,
   platform,
-  content,
+  content: _content,
   visualUrl,
   imagePrompt,
   layoutSuggestion,

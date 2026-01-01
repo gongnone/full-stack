@@ -65,7 +65,7 @@ vi.mock('@/lib/auth-client', () => ({
 
 // Mock TanStack Router
 vi.mock('@tanstack/react-router', () => ({
-  Link: ({ children, to, ...props }: { children: React.ReactNode; to: string; [key: string]: any }) => (
+  Link: ({ children, to, ...props }: { children: React.ReactNode; to: string; [key: string]: unknown }) => (
     <a href={to} {...props}>{children}</a>
   ),
   useRouterState: vi.fn(() => ({

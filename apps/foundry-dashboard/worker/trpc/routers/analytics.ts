@@ -147,8 +147,8 @@ export const analyticsRouter = t.router({
       clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(7),
     }))
-    .query(async ({ ctx, input }) => {
-      const summary = await ctx.db.prepare('SELECT 1').first(); // Dummy for TRPC context
+    .query(async ({ ctx }) => {
+      await ctx.db.prepare('SELECT 1').first(); // Dummy for TRPC context
       // Note: In real app, we'd reuse the summary metrics call from the frontend
       return { rate: 85, total: 100, withoutEdit: 85, trend: 'up' }; // Fallback
     }),
@@ -499,7 +499,7 @@ export const analyticsRouter = t.router({
       }
 
       // Estimate word count from content
-      const totalWords = currentSpokes.reduce((sum, s) => sum + 150, 0);
+      const totalWords = currentSpokes.reduce((sum) => sum + 150, 0);
 
       return {
         totalWords,

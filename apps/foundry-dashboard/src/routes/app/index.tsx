@@ -12,7 +12,7 @@ export const Route = createFileRoute('/app/')({
 function DashboardHome() {
   const { data: session } = useSession();
   const clientId = useClientId();
-  const { addToast } = useToast();
+  const { addToast: _addToast } = useToast();
   
   // R-13 AC3: Include userId in query key
   const clientsQuery = trpc.clients.list.useQuery(

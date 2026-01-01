@@ -624,13 +624,13 @@ Keep responses concise (2-3 sentences + optional JSON).`;
 
       const clientId = tokenRecord.client_id as string;
 
-      // Get research for context
-      const research = await ctx.db.prepare(`
+      // Get research for context (not currently used but may be needed for future enhancements)
+      await ctx.db.prepare(`
         SELECT * FROM client_research_reports WHERE client_id = ? ORDER BY created_at DESC LIMIT 1
       `).bind(clientId).first();
 
       // Generate 3 alternative pillars
-      const alternatives = generateAlternativePillars(research);
+      const alternatives = generateAlternativePillars();
 
       return { alternatives };
     }),
@@ -711,12 +711,9 @@ Keep responses concise (2-3 sentences + optional JSON).`;
 
 async function generateMockResearch(ctx: Context, clientId: string): Promise<ResearchReport> {
   // Get brand DNA for context
-  const brandDna = await ctx.db.prepare(`
+  await ctx.db.prepare(`
     SELECT * FROM brand_dna WHERE client_id = ?
   `).bind(clientId).first();
-
-  const primaryTone = (brandDna?.primary_tone as string) || 'Professional';
-  const targetAudience = (brandDna?.target_audience as string) || 'Business professionals';
 
   // Generate research based on detected patterns
   // In production, this would use Workers AI and web search
@@ -852,7 +849,7 @@ function generatePillars(research: ResearchReport, rejectedThemes?: string[], ro
   return basePillars;
 }
 
-function generateAlternativePillars(research: Record<string, unknown> | null): Pillar[] {
+function generateAlternativePillars(): Pillar[] {
   return [
     {
       id: `alt_${crypto.randomUUID().slice(0, 8)}`,

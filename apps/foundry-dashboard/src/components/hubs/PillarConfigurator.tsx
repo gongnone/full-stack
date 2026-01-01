@@ -4,8 +4,8 @@
  * Provides pillar editing, deletion, undo, and validation
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { EditablePillarCard, UndoToast, type Pillar, type PsychologicalAngle } from '@/components/hub-wizard';
+import { useState, useCallback, useEffect } from 'react';
+import { EditablePillarCard, UndoToast, type Pillar } from '@/components/hub-wizard';
 import { trpc } from '@/lib/trpc-client';
 
 interface PillarConfiguratorProps {
@@ -54,7 +54,7 @@ export function PillarConfigurator({
   clientId,
   onPillarsChange,
   minPillars = 3,
-  maxPillars = 20,
+  maxPillars: _maxPillars = 20,
   showWarnings = true,
 }: PillarConfiguratorProps) {
   const [pillars, setPillars] = useState<Pillar[]>(initialPillars);

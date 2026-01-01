@@ -46,7 +46,7 @@ describe('analyticsRouter', () => {
         { id: '3', createdAt: twentyFiveHoursAgo, status: 'approved' },
       ];
 
-      (mockCtx.callAgent as any).mockImplementation((clientId: string, method: string, params: any) => {
+      (mockCtx.callAgent as any).mockImplementation((_clientId: string, method: string, _params: any) => {
         if (method === 'listSpokes') {
            // Return truncated list to simulate batches if needed, or full list
            // For this test, just return all relevant mocks

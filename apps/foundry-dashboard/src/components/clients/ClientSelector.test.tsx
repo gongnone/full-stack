@@ -257,7 +257,6 @@ describe('ClientSelector - Story 7-3: Multi-Client Workspace Access', () => {
 
     it('redirects to /app/clients when clicking Manage Clients', async () => {
       const user = userEvent.setup();
-      const mockLocationHref = vi.fn();
       Object.defineProperty(window, 'location', {
         value: { href: '' },
         writable: true,

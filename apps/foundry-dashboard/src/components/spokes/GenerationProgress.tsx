@@ -10,7 +10,7 @@ export interface GenerationProgressProps {
   onComplete?: () => void;
 }
 
-export function GenerationProgress({ progress, onComplete }: GenerationProgressProps) {
+export function GenerationProgress({ progress, onComplete: _onComplete }: GenerationProgressProps) {
   if (!progress) return null;
 
   const progressPercent = progress.total_spokes > 0

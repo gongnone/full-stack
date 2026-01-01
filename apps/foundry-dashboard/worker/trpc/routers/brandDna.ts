@@ -76,7 +76,6 @@ function validateAudioMagicBytes(header: Uint8Array): { valid: boolean; format: 
 
 // Constants
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const MAX_DURATION_SECONDS = 300; // 5 minutes
 
 // AC1: Prompt injection patterns to detect and escape (Story 1.5-1-4)
 const INJECTION_PATTERNS = [

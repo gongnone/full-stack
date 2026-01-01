@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ShareLinkModal } from './ShareLinkModal';
 
@@ -69,7 +69,7 @@ describe('ShareLinkModal - Story 7-6: Shareable Review Links', () => {
 
     it('generates link when form is submitted', async () => {
       const user = userEvent.setup();
-      mockGenerateLinkMutation.mockImplementation((data) => {
+      mockGenerateLinkMutation.mockImplementation(() => {
         // Simulate successful generation
         return Promise.resolve();
       });
@@ -136,7 +136,7 @@ describe('ShareLinkModal - Story 7-6: Shareable Review Links', () => {
 
       // Create a component wrapper that triggers the callback
       let successCallback: ((data: any) => void) | undefined;
-      vi.mocked(mockGenerateLinkMutation).mockImplementation((_data: any) => {
+      vi.mocked(mockGenerateLinkMutation).mockImplementation(() => {
         // Simulate async success
         setTimeout(() => {
           if (successCallback) {
@@ -214,7 +214,7 @@ describe('ShareLinkModal - Story 7-6: Shareable Review Links', () => {
 
     it('highlights selected permission option', async () => {
       const user = userEvent.setup();
-      const { container } = render(<ShareLinkModal isOpen={true} onClose={mockOnClose} client={mockClient} />);
+      render(<ShareLinkModal isOpen={true} onClose={mockOnClose} client={mockClient} />);
 
       // View should be selected by default
       // Look for border styling that indicates selection

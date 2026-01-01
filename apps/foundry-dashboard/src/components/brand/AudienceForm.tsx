@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Button } from '../ui/button';
-import { Card } from '../ui/card';
 import { Check } from 'lucide-react';
 
 interface ButtonChoiceProps {
@@ -54,7 +53,9 @@ export function ButtonChoice({ options, selected, multiSelect, onSelect }: Butto
 }
 
 interface AudienceFormProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onSubmit: (data: any) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   initialData?: any;
 }
 
@@ -62,6 +63,7 @@ export function AudienceForm({ onSubmit, initialData = {} }: AudienceFormProps) 
   const [step, setStep] = useState<'age' | 'industry' | 'goals' | 'pain'>('age');
   const [data, setData] = useState(initialData);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateData = (key: string, value: any) => {
     setData({ ...data, [key]: value });
   };

@@ -27,6 +27,20 @@ export const DriftDetector = memo(function DriftDetector({ periodDays = ANALYTIC
     { enabled: !!clientId }
   );
 
+  const chartData = useMemo(() =>
+    data?.data?.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })) ?? [],
+    [data?.data]
+  );
+
+  const { strengthTrend, avgDrift, latestSampleCount } = useMemo(() => ({
+    strengthTrend: (data?.data?.[data.data.length - 1]?.dnaStrength ?? 0) - (data?.data?.[0]?.dnaStrength ?? 0),
+    avgDrift: data?.data?.length ? Math.round(data.data.reduce((sum, d) => sum + d.driftScore, 0) / data.data.length) : 0,
+    latestSampleCount: data?.data?.[data.data.length - 1]?.sampleCount ?? 0,
+  }), [data?.data]);
+
   if (isLoading) {
     return (
       <div
@@ -57,24 +71,9 @@ export const DriftDetector = memo(function DriftDetector({ periodDays = ANALYTIC
     );
   }
 
-  const chartData = useMemo(() =>
-    data.data.map(d => ({
-      ...d,
-      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    })),
-    [data.data]
-  );
-
   const currentStrength = data.currentStrength;
   const driftDetected = data.driftDetected;
   const driftThreshold = data.driftThreshold;
-
-  // Calculate trends - memoized
-  const { strengthTrend, avgDrift, latestSampleCount } = useMemo(() => ({
-    strengthTrend: (data.data[data.data.length - 1]?.dnaStrength ?? 0) - (data.data[0]?.dnaStrength ?? 0),
-    avgDrift: Math.round(data.data.reduce((sum, d) => sum + d.driftScore, 0) / data.data.length),
-    latestSampleCount: data.data[data.data.length - 1]?.sampleCount ?? 0,
-  }), [data.data]);
 
   return (
     <div

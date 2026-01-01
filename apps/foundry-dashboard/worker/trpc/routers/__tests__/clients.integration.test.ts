@@ -6,8 +6,6 @@ import {
   IntegrationContext,
 } from './integration-harness';
 import { TRPCError } from '@trpc/server';
-import * as schema from '../../../db/schema';
-import { eq } from 'drizzle-orm';
 
 describe('clientsRouter', () => {
   let ctx: IntegrationContext;

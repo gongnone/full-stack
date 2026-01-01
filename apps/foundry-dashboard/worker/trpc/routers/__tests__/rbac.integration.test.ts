@@ -126,7 +126,7 @@ describe('@P1 RBAC Integration Tests', () => {
   describe('P1-RBAC-03: Creator client scope', () => {
     it('Creator can only access assigned clients', async () => {
       // Create client assignment table simulation
-      const creatorId = crypto.randomUUID();
+      const _creatorId = crypto.randomUUID();
       const assignedClientId = account.clientId;
       const unassignedClientId = crypto.randomUUID();
 
@@ -195,7 +195,7 @@ describe('@P1 RBAC Integration Tests', () => {
     });
 
     it('No role has undefined permissions', () => {
-      for (const [role, permissions] of Object.entries(RBAC_MATRIX)) {
+      for (const [_role, permissions] of Object.entries(RBAC_MATRIX)) {
         expect(permissions.generate).not.toBeUndefined();
         expect(permissions.review).not.toBeUndefined();
         expect(permissions.settings).not.toBeUndefined();

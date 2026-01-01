@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
-import { Button } from '@/components/ui/button';
 import { Check, ChevronDown, Building2 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
@@ -65,7 +63,7 @@ export function ClientSelector() {
             Switch Client
           </div>
           
-          {clientsQuery.data?.items?.map((client: any) => (
+          {clientsQuery.data?.items?.map((client) => (
             <DropdownMenu.Item
               key={client.id}
               disabled={client.id === activeClientId || switchMutation.isPending}

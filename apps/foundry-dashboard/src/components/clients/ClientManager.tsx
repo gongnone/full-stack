@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc-client';
-import { Button } from '@/components/ui/button';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useToast } from '@/lib/toast';
@@ -55,7 +54,9 @@ export function ClientManager() {
     },
   });
 
-  const createClientMutation = trpc.clients.create.useMutation({
+  // Mutation for future use (e.g., "Add Client" button)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _createClientMutation = trpc.clients.create.useMutation({
     onSuccess: () => {
       utils.clients.list.invalidate();
       addToast('Client created successfully', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
@@ -72,6 +73,7 @@ export function ClientManager() {
       industry: client.industry || '',
       contactEmail: client.contactEmail || '',
       brandColor: client.brandColor || CLIENT_CONFIG.DEFAULT_BRAND_COLOR,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       status: client.status as any,
     });
     setIsEditModalOpen(true);
@@ -290,7 +292,7 @@ export function ClientManager() {
                   <select
                     id="edit-status"
                     value={editForm.status}
-                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value as any })}
+                    onChange={(e) => setEditForm({ ...editForm, status: e.target.value as 'active' | 'paused' | 'archived' })}
                     className="w-full px-3 py-2 rounded-lg bg-black/20 border transition-all focus:ring-2 focus:ring-blue-500/20"
                     style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
                   >

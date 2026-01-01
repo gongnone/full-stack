@@ -8,7 +8,8 @@ import userEvent from '@testing-library/user-event';
 
 // Mock dependencies
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: (path: string) => (routeOptions: any) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createFileRoute: () => (routeOptions: any) => ({
     options: routeOptions,
     useSearch: () => ({ platform: undefined, gate: undefined }),
   }),

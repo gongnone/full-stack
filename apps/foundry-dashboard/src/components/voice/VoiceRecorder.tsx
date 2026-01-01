@@ -88,7 +88,7 @@ export function VoiceRecorder({
   const iosChunkTimerRef = useRef<number | null>(null);
 
   // Resumable upload hook
-  const { upload: resumableUpload } = useResumableUpload({
+  const { upload: _resumableUpload } = useResumableUpload({
     endpoint: activeUploadEndpoint,
     onProgress: (progress) => {
       setUploadProgress(progress);

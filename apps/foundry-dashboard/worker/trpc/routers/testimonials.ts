@@ -1,9 +1,7 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { eq, desc } from 'drizzle-orm';
 import type { Context } from '../context';
 import { assertClientAccess } from '../middleware/client-access';
-import * as schema from '../../db/schema';
 
 const t = initTRPC.context<Context>().create();
 const procedure = t.procedure;
@@ -32,7 +30,7 @@ export const testimonialsRouter = t.router({
       `).bind(input.cursor || Date.now(), input.limit).all();
 
       return {
-        items: (testimonials.results || []).map((row: any) => ({
+        items: (testimonials.results || []).map((row: Record<string, unknown>) => ({
           id: row.id,
           clientId: row.client_id,
           clientName: row.client_name,
@@ -42,8 +40,8 @@ export const testimonialsRouter = t.router({
           permissionPublic: Boolean(row.permission_public),
           createdAt: row.created_at,
         })),
-        nextCursor: testimonials.results.length === input.limit 
-          ? (testimonials.results[testimonials.results.length - 1] as any).created_at 
+        nextCursor: testimonials.results.length === input.limit
+          ? (testimonials.results[testimonials.results.length - 1] as Record<string, unknown>).created_at as number
           : undefined,
       };
     }),

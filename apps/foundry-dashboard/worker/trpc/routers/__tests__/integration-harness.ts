@@ -68,7 +68,7 @@ export function createIntegrationContext(): IntegrationContext {
       }
       return { success: true, method, params, clientId } as T;
     },
-    callEngine: async <T = unknown>(path: string, options?: RequestInit): Promise<T> => {
+    callEngine: async <T = unknown>(path: string, _options?: RequestInit): Promise<T> => {
       // For integration tests, simulate engine responses
       return { success: true, path } as T;
     },

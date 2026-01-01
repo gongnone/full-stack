@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CLIENT_ROLES, ROLE_LABELS, ROLE_DESCRIPTIONS, MENU_VISIBILITY, canAccessMenuItem, type ClientRole, type MenuItemId } from './rbac';
+import { CLIENT_ROLES, ROLE_LABELS, ROLE_DESCRIPTIONS, MENU_VISIBILITY, canAccessMenuItem, type MenuItemId } from './rbac';
 
 describe('RBAC Configuration', () => {
   it('should define all required roles', () => {

@@ -142,7 +142,7 @@ describe('@P1 Brand DNA Integration Tests', () => {
       `).bind(markerId, account.clientId, account.id, 'structure', 'bullet_points', 1.0).run();
 
       // Verify it exists
-      let result = await ctx.db.prepare(`
+      const result = await ctx.db.prepare(`
         SELECT * FROM voice_markers WHERE id = ?
       `).bind(markerId).first();
       expect(result).not.toBeNull();

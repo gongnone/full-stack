@@ -2,7 +2,7 @@ import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
 // Mock ResizeObserver
-(globalThis as any).ResizeObserver = class ResizeObserver {
+(globalThis as { ResizeObserver?: typeof ResizeObserver }).ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}

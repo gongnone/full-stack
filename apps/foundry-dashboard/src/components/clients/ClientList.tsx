@@ -53,7 +53,7 @@ export function ClientList({ clients, onCreateClick }: ClientListProps) {
           <div className="relative">
             <select 
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'paused' | 'archived')}
               className="h-10 pl-3 pr-8 bg-[#1A1F26] border border-[#2A3038] text-[#E7E9EA] text-sm rounded-lg appearance-none cursor-pointer focus:outline-none focus:border-[#1D9BF0]"
             >
               <option value="all">All Status</option>

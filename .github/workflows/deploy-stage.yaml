@@ -112,7 +112,6 @@ jobs:
 
       - name: 🔍 ESLint Check (Foundry)
         run: pnpm run foundry:lint
-        continue-on-error: true  # TODO: Remove once lint errors are fixed
 
       # Uncomment when tests are stable
       # - name: 🧪 Run Tests

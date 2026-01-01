@@ -26,8 +26,6 @@ vi.mock('@/lib/constants', () => ({
 }));
 
 // Mock XMLHttpRequest for progress testing
-let mockXHRInstance: MockXMLHttpRequest | null = null;
-
 class MockXMLHttpRequest {
   status = 200;
   readyState = 4;
@@ -42,8 +40,7 @@ class MockXMLHttpRequest {
   });
   open = vi.fn();
   setRequestHeader = vi.fn();
-  send = vi.fn(() => {
-    mockXHRInstance = this;
+  send = vi.fn(function(this: MockXMLHttpRequest) {
     // Delay the load callback so we can test the intermediate state
     setTimeout(() => {
       if (this.onload) this.onload();
@@ -52,7 +49,7 @@ class MockXMLHttpRequest {
   withCredentials = false;
 }
 
-// @ts-ignore
+// @ts-expect-error - Mocking global XMLHttpRequest for testing
 global.XMLHttpRequest = MockXMLHttpRequest;
 
 describe('SourceDropZone', () => {

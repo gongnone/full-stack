@@ -118,7 +118,7 @@ export function ShareLinkModal({ isOpen, onClose, client }: ShareLinkModalProps)
                     <button
                       key={option.value}
                       type="button"
-                      onClick={() => setPermissions(option.value as any)}
+                      onClick={() => setPermissions(option.value as 'view' | 'approve' | 'comment')}
                       className="p-3 rounded-lg border transition-all text-left"
                       style={{
                         backgroundColor: permissions === option.value ? 'var(--bg-surface)' : 'var(--bg-base)',

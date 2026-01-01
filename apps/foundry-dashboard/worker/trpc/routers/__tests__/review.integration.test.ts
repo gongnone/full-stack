@@ -101,7 +101,7 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
     it('should NOT allow approving another accounts spoke', async () => {
       // Create a spoke for account 2
       const otherAccountSpokeId = randomUUID();
-      const otherAccounts = await seedTestAccounts(ctx.db, {
+      const _otherAccounts = await seedTestAccounts(ctx.db, {
         ...ctx,
         testAccountId: randomUUID(),
         testUserId: randomUUID(),
@@ -283,7 +283,7 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
         secondUserId: randomUUID(),
       } as any);
 
-      const account2Hub = await seedTestHubsAndSpokes(
+      const _account2Hub = await seedTestHubsAndSpokes(
         ctx.db,
         accounts.account2.clientId,
         accounts.account2.userId,

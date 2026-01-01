@@ -41,7 +41,7 @@ function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string
   return <span>{displayed}{suffix}</span>;
 }
 
-export function SprintComplete({ stats, filter, onBackToDashboard, onReviewConflicts }: SprintCompleteProps) {
+export function SprintComplete({ stats, filter: _filter, onBackToDashboard, onReviewConflicts }: SprintCompleteProps) {
   const { addToast } = useToast();
   const hoursSaved = (stats.total * ROI_CONFIG.MINUTES_SAVED_PER_SPOKE) / 60;
   const dollarValue = Math.round(hoursSaved * ROI_CONFIG.HOURLY_RATE_USD);

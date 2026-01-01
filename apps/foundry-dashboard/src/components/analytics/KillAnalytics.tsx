@@ -21,6 +21,30 @@ export const KillAnalytics = memo(function KillAnalytics({ periodDays = ANALYTIC
     { enabled: !!clientId }
   );
 
+  const chartData = useMemo(() =>
+    data?.data?.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })) ?? [],
+    [data?.data]
+  );
+
+  const { totalKills, totalHubKills, totalSpokeKills, trendDirection, trendPercent } = useMemo(() => {
+    if (!data?.data?.length) {
+      return { totalKills: 0, totalHubKills: 0, totalSpokeKills: 0, trendDirection: 'improving' as const, trendPercent: '0' };
+    }
+    const kills = data.data.reduce((sum, d) => sum + d.totalKills, 0);
+    const hubKills = data.data.reduce((sum, d) => sum + d.hubKills, 0);
+    const spokeKills = data.data.reduce((sum, d) => sum + d.spokeKills, 0);
+    const firstWeek = data.data.slice(0, 7).reduce((sum, d) => sum + d.totalKills, 0) / 7;
+    const lastWeek = data.data.slice(-7).reduce((sum, d) => sum + d.totalKills, 0) / 7;
+    const direction = lastWeek < firstWeek ? 'improving' : 'worsening';
+    const percent = firstWeek > 0 ? Math.abs(((lastWeek - firstWeek) / firstWeek) * 100).toFixed(1) : '0';
+    return { totalKills: kills, totalHubKills: hubKills, totalSpokeKills: spokeKills, trendDirection: direction, trendPercent: percent };
+  }, [data?.data]);
+
+  const COLORS = useMemo(() => ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16'], []);
+
   if (isLoading) {
     return (
       <div
@@ -50,28 +74,6 @@ export const KillAnalytics = memo(function KillAnalytics({ periodDays = ANALYTIC
       </div>
     );
   }
-
-  const chartData = useMemo(() =>
-    data.data.map(d => ({
-      ...d,
-      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    })),
-    [data.data]
-  );
-
-  // Aggregation calculations - memoized
-  const { totalKills, totalHubKills, totalSpokeKills, trendDirection, trendPercent } = useMemo(() => {
-    const kills = data.data.reduce((sum, d) => sum + d.totalKills, 0);
-    const hubKills = data.data.reduce((sum, d) => sum + d.hubKills, 0);
-    const spokeKills = data.data.reduce((sum, d) => sum + d.spokeKills, 0);
-    const firstWeek = data.data.slice(0, 7).reduce((sum, d) => sum + d.totalKills, 0) / 7;
-    const lastWeek = data.data.slice(-7).reduce((sum, d) => sum + d.totalKills, 0) / 7;
-    const direction = lastWeek < firstWeek ? 'improving' : 'worsening';
-    const percent = Math.abs(((lastWeek - firstWeek) / firstWeek) * 100).toFixed(1);
-    return { totalKills: kills, totalHubKills: hubKills, totalSpokeKills: spokeKills, trendDirection: direction, trendPercent: percent };
-  }, [data.data]);
-
-  const COLORS = useMemo(() => ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16'], []);
 
   return (
     <div

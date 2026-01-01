@@ -18,7 +18,7 @@ export function SampleStats({
   totalSamples,
   totalWords,
   averageQuality,
-  analyzedCount,
+  analyzedCount: _analyzedCount,
   pendingCount,
   processingCount,
   failedCount,

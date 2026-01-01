@@ -4,7 +4,7 @@
  */
 
 import { memo, useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { ANALYTICS_CONFIG } from '@/lib/constants';
@@ -20,6 +20,21 @@ export const HealingMetrics = memo(function HealingMetrics({ periodDays = ANALYT
     { clientId: clientId!, periodDays },
     { enabled: !!clientId }
   );
+
+  const chartData = useMemo(() =>
+    data?.data?.map(d => ({
+      ...d,
+      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    })) ?? [],
+    [data?.data]
+  );
+
+  const { avgLoops, avgSuccessRate, currentLoops, totalHeals } = useMemo(() => ({
+    avgLoops: data?.data?.length ? (data.data.reduce((sum, d) => sum + d.avgLoops, 0) / data.data.length).toFixed(2) : '0',
+    avgSuccessRate: data?.data?.length ? Math.round(data.data.reduce((sum, d) => sum + d.successRate, 0) / data.data.length) : 0,
+    currentLoops: data?.data?.[data.data.length - 1]?.avgLoops ?? 0,
+    totalHeals: data?.data?.reduce((sum, d) => sum + d.totalHeals, 0) ?? 0,
+  }), [data?.data]);
 
   if (isLoading) {
     return (
@@ -50,22 +65,6 @@ export const HealingMetrics = memo(function HealingMetrics({ periodDays = ANALYT
       </div>
     );
   }
-
-  const chartData = useMemo(() =>
-    data.data.map(d => ({
-      ...d,
-      date: new Date(d.date ?? '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    })),
-    [data.data]
-  );
-
-  // Aggregation calculations - memoized
-  const { avgLoops, avgSuccessRate, currentLoops, totalHeals } = useMemo(() => ({
-    avgLoops: (data.data.reduce((sum, d) => sum + d.avgLoops, 0) / data.data.length).toFixed(2),
-    avgSuccessRate: Math.round(data.data.reduce((sum, d) => sum + d.successRate, 0) / data.data.length),
-    currentLoops: data.data[data.data.length - 1]?.avgLoops ?? 0,
-    totalHeals: data.data.reduce((sum, d) => sum + d.totalHeals, 0),
-  }), [data.data]);
 
   return (
     <div

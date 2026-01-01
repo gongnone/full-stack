@@ -16,7 +16,7 @@
  * - Graceful degradation on failure
  */
 
-import { initTRPC, TRPCError } from '@trpc/server';
+import { initTRPC } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
 import { assertClientAccess } from '../middleware/client-access';
@@ -545,7 +545,7 @@ function generateStrategicPillars(report: ResearchReport): Array<{
 
   // Sort frameworks by fit score
   const sortedFrameworks = Object.entries(frameworks)
-    .filter(([_, score]) => typeof score === 'number')
+    .filter(([, score]) => typeof score === 'number')
     .sort((a, b) => (b[1] as number) - (a[1] as number));
 
   const topFrameworks = sortedFrameworks.slice(0, 3);

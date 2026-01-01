@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SpokeGenerator, type GeneratedSpoke } from './SpokeGenerator';
+import { SpokeGenerator } from './SpokeGenerator';
 import type { SpokePlatform } from '@worker/types';
 
 describe('SpokeGenerator', () => {
@@ -338,7 +338,6 @@ describe('SpokeGenerator', () => {
     });
 
     it('buttons are keyboard accessible', async () => {
-      const user = userEvent.setup();
       render(<SpokeGenerator hubId={mockHubId} platforms={mockPlatforms} />);
 
       const startButton = screen.getByRole('button', { name: /Start Generation/i });

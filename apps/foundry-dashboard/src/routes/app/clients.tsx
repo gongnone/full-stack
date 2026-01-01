@@ -45,7 +45,7 @@ function ClientsPage() {
   };
   
   // R-13 AC3: Include userId for cache isolation
-  const clientsQuery = trpc.clients.list.useQuery(
+  const _clientsQuery = trpc.clients.list.useQuery(
     { userId: session?.user?.id },
     { enabled: !!session?.user?.id }
   );

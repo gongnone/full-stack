@@ -1,7 +1,7 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import type { Context } from '../context';
-import type { HubSource, ExtractionProgress, Pillar, Hub, HubListItem, HubWithPillars, PsychologicalAngle } from '../../types';
+import type { ExtractionProgress, Pillar, HubWithPillars, PsychologicalAngle } from '../../types';
 import { assertClientAccess } from '../middleware/client-access';
 
 const t = initTRPC.context<Context>().create();
@@ -26,10 +26,8 @@ export const hubsRouter = t.router({
     .mutation(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
       const sourceId = crypto.randomUUID();
-      const timestamp = Date.now();
-      const sanitizedFilename = input.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
       const ext = input.filename.split('.').pop()?.toLowerCase() || '';
-      
+
       // AC2: Store in R2: /hubs/{client_id}/{hub_id}/source.*
       const r2Key = `hubs/${input.clientId}/${sourceId}/source.${ext}`;
 
@@ -705,12 +703,12 @@ export const hubsRouter = t.router({
       const existing = await ctx.db.prepare(`
         SELECT COUNT(*) as count FROM spokes WHERE hub_id = ?
       `).bind(input.hubId).first();
-      
+
       const skipCount = (existing?.count as number) || 0;
 
       // Re-trigger workflow passing the skip count
       try {
-        const result = await ctx.callEngine<{ instanceId: string }>('http://internal/api/hubs/generate-spokes', {
+        await ctx.callEngine<{ instanceId: string }>('http://internal/api/hubs/generate-spokes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -748,7 +746,7 @@ export const hubsRouter = t.router({
       `).bind(input.hubId).run();
 
       // 2. Trigger fresh generation
-      const result = await ctx.callEngine<{ instanceId: string }>('http://internal/api/hubs/generate-spokes', {
+      await ctx.callEngine<{ instanceId: string }>('http://internal/api/hubs/generate-spokes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

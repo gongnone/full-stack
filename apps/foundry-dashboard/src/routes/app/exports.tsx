@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useState, useMemo } from 'react';
 import { z } from 'zod';
 import { ActionButton } from '@/components/ui';
-import { ExportModal, ClipboardActions, type ExportConfig } from '@/components/exports';
+import { ExportModal, type ExportConfig } from '@/components/exports';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 import { useToast } from '@/lib/toast';
@@ -34,7 +34,7 @@ function ExportsPage() {
   const clientId = useClientId();
   const { addToast } = useToast();
   const [showExportModal, setShowExportModal] = useState(false);
-  const [selectedExportId, setSelectedExportId] = useState<string | null>(null);
+  const [_selectedExportId, _setSelectedExportId] = useState<string | null>(null);
 
   // tRPC Utils for imperative queries
   const utils = trpc.useUtils();

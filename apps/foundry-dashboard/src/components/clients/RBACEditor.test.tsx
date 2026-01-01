@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RBACEditor } from './RBACEditor';
 
@@ -12,8 +12,6 @@ import { RBACEditor } from './RBACEditor';
 const mockUpdateRole = vi.fn();
 const mockInvalidate = vi.fn();
 const mockAddToast = vi.fn();
-let mockOnSuccess: (() => void) | undefined;
-let mockOnError: ((err: Error) => void) | undefined;
 
 vi.mock('@/lib/trpc-client', () => ({
   trpc: {
@@ -22,9 +20,7 @@ vi.mock('@/lib/trpc-client', () => ({
     }),
     clients: {
       updateMember: {
-        useMutation: ({ onSuccess, onError }: any) => {
-          mockOnSuccess = onSuccess;
-          mockOnError = onError;
+        useMutation: ({ onSuccess }: any) => {
           return {
             mutate: (args: any) => {
               mockUpdateRole(args);

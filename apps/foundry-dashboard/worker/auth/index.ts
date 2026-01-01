@@ -86,37 +86,64 @@ export function createAuth(env: Env) {
       },
     },
 
-    // Session configuration - use default camelCase columns (matches DB schema)
+    // Session configuration - map to actual snake_case DB columns
+    // Note: DB schema uses snake_case despite migration file showing camelCase
     session: {
       expiresIn: 60 * 60 * 24 * 7, // 7 days
       updateAge: 60 * 60 * 24, // Update session every 24 hours
-      // Disable cookie cache - Better Auth 1.4+ uses JWE by default which may cause issues
       cookieCache: {
         enabled: false,
       },
-      // No field mappings - DB uses camelCase columns which is Better Auth's default
+      fields: {
+        token: 'token',
+        expiresAt: 'expires_at',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+        ipAddress: 'ip_address',
+        userAgent: 'user_agent',
+        userId: 'user_id',
+      },
     },
 
-    // Account configuration - use default camelCase columns (matches DB schema)
+    // Account configuration - map to actual snake_case DB columns
     account: {
       accountLinking: {
         enabled: true,
         trustedProviders: ['google', 'github', 'twitter'],
       },
-      // No field mappings - DB uses camelCase columns which is Better Auth's default
+      fields: {
+        accountId: 'account_id',
+        providerId: 'provider_id',
+        userId: 'user_id',
+        accessToken: 'access_token',
+        refreshToken: 'refresh_token',
+        accessTokenExpiresAt: 'expires_at',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+      },
     },
 
-    // Verification configuration - use default camelCase columns (matches DB schema)
-    // No field mappings needed
+    // Verification configuration - map to actual snake_case DB columns
+    verification: {
+      fields: {
+        expiresAt: 'expires_at',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+      },
+    },
 
-    // User configuration with custom fields - use default camelCase columns
+    // User configuration - map to actual snake_case DB columns
     user: {
-      // No field mappings - DB uses camelCase columns which is Better Auth's default
+      fields: {
+        emailVerified: 'email_verified',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+      },
       additionalFields: {
         accountId: {
           type: 'string',
           required: false,
-          // DB column is 'accountId' (camelCase), not 'account_id'
+          fieldName: 'account_id',
         },
         role: {
           type: 'string',
@@ -212,20 +239,47 @@ export function createAuth(env: Env) {
           },
         },
       },
-      // Session hooks disabled - Kysely DateToTimestampPlugin handles date conversion
-      // session: { ... },
+      session: {
+        create: {
+          before: async (session) => {
+            return {
+              data: {
+                ...session,
+                expiresAt: session.expiresAt instanceof Date ? Math.floor(session.expiresAt.getTime() / 1000) : session.expiresAt,
+                createdAt: session.createdAt instanceof Date ? Math.floor(session.createdAt.getTime() / 1000) : session.createdAt,
+                updatedAt: session.updatedAt instanceof Date ? Math.floor(session.updatedAt.getTime() / 1000) : session.updatedAt,
+              } as Record<string, unknown>,
+            };
+          },
+        },
+        update: {
+          before: async (session) => {
+            const data: Record<string, unknown> = { ...session };
+            if (data.expiresAt instanceof Date) data.expiresAt = Math.floor(data.expiresAt.getTime() / 1000);
+            if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
+            if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
+            return { data };
+          },
+        },
+      },
       account: {
         create: {
           before: async (account) => {
-            return {
-              data: {
-                ...account,
-                createdAt: account.createdAt instanceof Date ? Math.floor(account.createdAt.getTime() / 1000) : account.createdAt,
-                updatedAt: account.updatedAt instanceof Date ? Math.floor(account.updatedAt.getTime() / 1000) : account.updatedAt,
-                accessTokenExpiresAt: account.accessTokenExpiresAt instanceof Date ? Math.floor(account.accessTokenExpiresAt.getTime() / 1000) : account.accessTokenExpiresAt,
-                refreshTokenExpiresAt: account.refreshTokenExpiresAt instanceof Date ? Math.floor(account.refreshTokenExpiresAt.getTime() / 1000) : account.refreshTokenExpiresAt,
-              } as Record<string, unknown>,
+            // Note: DB column is 'expiresAt' (maps from accessTokenExpiresAt via field config)
+            // No refreshTokenExpiresAt or idToken columns exist in DB
+            const data: Record<string, unknown> = {
+              ...account,
+              createdAt: account.createdAt instanceof Date ? Math.floor(account.createdAt.getTime() / 1000) : account.createdAt,
+              updatedAt: account.updatedAt instanceof Date ? Math.floor(account.updatedAt.getTime() / 1000) : account.updatedAt,
             };
+            // Convert accessTokenExpiresAt if present (maps to 'expiresAt' DB column)
+            if ((account as Record<string, unknown>).accessTokenExpiresAt instanceof Date) {
+              data.accessTokenExpiresAt = Math.floor(((account as Record<string, unknown>).accessTokenExpiresAt as Date).getTime() / 1000);
+            }
+            // Remove fields that don't exist in DB schema
+            delete data.refreshTokenExpiresAt;
+            delete data.idToken;
+            return { data };
           },
         },
         update: {
@@ -234,7 +288,9 @@ export function createAuth(env: Env) {
             if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
             if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
             if (data.accessTokenExpiresAt instanceof Date) data.accessTokenExpiresAt = Math.floor(data.accessTokenExpiresAt.getTime() / 1000);
-            if (data.refreshTokenExpiresAt instanceof Date) data.refreshTokenExpiresAt = Math.floor(data.refreshTokenExpiresAt.getTime() / 1000);
+            // Remove fields that don't exist in DB schema
+            delete data.refreshTokenExpiresAt;
+            delete data.idToken;
             return { data };
           },
         },

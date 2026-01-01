@@ -383,6 +383,62 @@ export const strategyRouter = t.router({
   // =========================================
 
   /**
+   * Transcribe voice note for pillar refinement (AC5)
+   * Uses Workers AI Whisper for transcription
+   */
+  transcribeVoiceNote: publicProcedure
+    .input(z.object({
+      token: z.string(),
+      audioBase64: z.string(),
+      mimeType: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Validate token
+      const tokenRecord = await ctx.db.prepare(`
+        SELECT * FROM strategy_approval_tokens WHERE token = ? AND expires_at > ? AND locked_at IS NULL
+      `).bind(input.token, Date.now()).first();
+
+      if (!tokenRecord) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid or expired token' });
+      }
+
+      // Decode base64 audio
+      const binaryString = atob(input.audioBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Use Workers AI Whisper for transcription
+      const AI = ctx.env.AI;
+      if (!AI) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'AI service not available',
+        });
+      }
+
+      try {
+        const response = await AI.run('@cf/openai/whisper', {
+          audio: [...bytes],
+        });
+
+        const transcription = response.text || '';
+
+        return {
+          transcription: transcription.trim(),
+          success: true,
+        };
+      } catch (error) {
+        console.error('[Whisper] Voice note transcription failed:', error);
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Transcription failed. Please try again or type your feedback.',
+        });
+      }
+    }),
+
+  /**
    * Modify a pillar
    */
   modifyPillar: publicProcedure

@@ -7,7 +7,7 @@
 
 import { createFileRoute } from '@tanstack/react-router'
 import { trpc } from '@/lib/trpc-client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 
 export const Route = createFileRoute('/strategy/$token')({
   component: StrategyApprovalPage,
@@ -363,7 +363,7 @@ function StrategyApprovalPage() {
   )
 }
 
-// Story 10-5: Modification Modal
+// Story 10-5: Modification Modal with Voice Note Support (AC5)
 function ModifyPillarModal({
   pillar,
   token,
@@ -379,10 +379,98 @@ function ModifyPillarModal({
   const [selectedTags, setSelectedTags] = useState<string[]>(pillar.strategy)
   const [note, setNote] = useState('')
 
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingTime, setRecordingTime] = useState(0)
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const timerRef = useRef<number | null>(null)
+  const MAX_RECORDING_SECONDS = 30
+
   const modifyMutation = trpc.strategy.modifyPillar.useMutation()
   const alternativesMutation = trpc.strategy.getAlternatives.useMutation()
+  const transcribeMutation = trpc.strategy.transcribeVoiceNote.useMutation()
 
   const availableTags = ['TEACH', 'ENTERTAIN', 'ENGINEER', 'CHALLENGE', 'PROVE']
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+      if (mediaRecorder?.state === 'recording') mediaRecorder.stop()
+    }
+  }, [mediaRecorder])
+
+  // Start voice recording
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+      })
+      chunksRef.current = []
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
+      }
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop())
+        if (timerRef.current) clearInterval(timerRef.current)
+
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType })
+        if (blob.size > 0) {
+          setIsTranscribing(true)
+          try {
+            // Convert blob to base64 for transmission
+            const buffer = await blob.arrayBuffer()
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
+
+            const result = await transcribeMutation.mutateAsync({
+              token,
+              audioBase64: base64,
+              mimeType: recorder.mimeType,
+            })
+
+            // Append transcription to note
+            setNote(prev => prev ? `${prev}\n\n${result.transcription}` : result.transcription)
+          } catch (err) {
+            console.error('Transcription failed:', err)
+          } finally {
+            setIsTranscribing(false)
+          }
+        }
+        setRecordingTime(0)
+      }
+
+      recorder.start(1000)
+      setMediaRecorder(recorder)
+      setIsRecording(true)
+
+      // Timer with auto-stop at 30 seconds
+      timerRef.current = window.setInterval(() => {
+        setRecordingTime(prev => {
+          if (prev >= MAX_RECORDING_SECONDS - 1) {
+            recorder.stop()
+            setIsRecording(false)
+            return 0
+          }
+          return prev + 1
+        })
+      }, 1000)
+    } catch (err) {
+      console.error('Microphone access denied:', err)
+    }
+  }
+
+  // Stop voice recording
+  const stopRecording = () => {
+    if (mediaRecorder?.state === 'recording') {
+      mediaRecorder.stop()
+      setIsRecording(false)
+    }
+  }
 
   const toggleTag = (tag: string) => {
     setSelectedTags(prev =>
@@ -475,15 +563,53 @@ function ModifyPillarModal({
             </div>
           </div>
 
-          {/* Personal Note */}
+          {/* Personal Note with Voice Recording */}
           <div>
-            <label className="block text-sm font-medium text-[#8B98A5] mb-2">
-              Your Vision (optional)
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-[#8B98A5]">
+                Your Vision (optional)
+              </label>
+              {/* Voice Recording Button */}
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={isTranscribing}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-colors min-h-[36px] ${
+                  isRecording
+                    ? 'bg-[#F4212E] text-white animate-pulse'
+                    : isTranscribing
+                      ? 'bg-[#2A3038] text-[#8B98A5] cursor-wait'
+                      : 'bg-[#2A3038] text-[#E7E9EA] hover:bg-[#3A4048]'
+                }`}
+              >
+                {isTranscribing ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    <span>Transcribing...</span>
+                  </>
+                ) : isRecording ? (
+                  <>
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <rect x="6" y="6" width="12" height="12" rx="1" />
+                    </svg>
+                    <span>{recordingTime}s / {MAX_RECORDING_SECONDS}s</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                    </svg>
+                    <span>Voice Note</span>
+                  </>
+                )}
+              </button>
+            </div>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Tell us what you're thinking..."
+              placeholder={isRecording ? "Recording... speak now" : "Tell us what you're thinking, or tap Voice Note"}
               className="w-full px-4 py-3 h-24 bg-[#0F1419] border border-[#2A3038] rounded-lg text-[#E7E9EA] focus:border-[#1D9BF0] focus:outline-none resize-none"
             />
           </div>

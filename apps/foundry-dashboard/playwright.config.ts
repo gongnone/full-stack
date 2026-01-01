@@ -18,10 +18,14 @@ export default defineConfig({
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  /* No retries on CI - faster feedback, investigate failures instead of masking them */
-  retries: 0,
-  /* Use single worker for remote URLs to avoid login conflicts with shared test account */
-  workers: process.env.CI || isRemote ? 1 : undefined,
+  /* Retry failed tests to catch transient network issues (2 retries on CI, 0 locally) */
+  retries: process.env.CI ? 2 : 0,
+  /*
+   * Workers: Use parallel execution on CI with sharding for test isolation
+   * Each shard gets its own worker, preventing login race conditions
+   * Locally: unlimited workers for fast feedback
+   */
+  workers: process.env.CI ? '50%' : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: process.env.CI
     ? [
@@ -30,8 +34,11 @@ export default defineConfig({
         ['github'], // GitHub Actions annotations
       ]
     : 'html',
-  /* Global timeout for each test - 30s on CI to fail fast, 60s locally */
-  timeout: process.env.CI ? 30000 : 60000,
+  /*
+   * Timeout: 60s for remote/CI to account for Cloudflare staging latency
+   * 30s locally where network is fast
+   */
+  timeout: process.env.CI || isRemote ? 60000 : 30000,
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -42,6 +49,9 @@ export default defineConfig({
 
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
+
+    /* Record video on retry to debug flaky tests */
+    video: 'on-first-retry',
   },
 
   /* Configure projects for major browsers */

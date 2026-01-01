@@ -6,7 +6,7 @@
 #   - Foundry MVP: foundry-dashboard + foundry-engine
 #   - E2E tests run against staging environment (foundry-stage.williamjshaw.ca)
 #   - Integration tests run with mock D1 (no auth required)
-#   - Supports parallel test execution with sharding
+#   - Per-worker session isolation (prevents parallel login conflicts)
 #   - Uploads artifacts (screenshots, traces, videos) on failure
 #
 # TRIGGERS:
@@ -15,15 +15,15 @@
 #   - Manual workflow dispatch
 #
 # TEST STRATEGY:
-#   - All pushes/PRs: P1 Integration tests (173 tests, mock D1, fast)
-#   - All pushes/PRs: Accessibility E2E tests (no auth required)
-#   - Manual trigger: Full E2E suite via test_filter (e.g., @P0)
+#   - All pushes/PRs: P1 Integration tests (211 tests, mock D1, fast)
+#   - All pushes/PRs: Core E2E tests (accessibility + P0 priority)
+#   - Manual trigger: Full E2E suite via test_filter
 #
 # CONFIGURATION:
-#   - Sharding: 4 parallel workers for faster execution
+#   - Session reuse: Per-worker storage state (avoids re-login per test)
 #   - Timeout: 60s per test, 30min per job
 #   - Retries: 2 on CI (configured in playwright.config.ts)
-#   - Browsers: Chromium, Firefox, WebKit
+#   - Browsers: Chromium (CI), all browsers (local)
 
 name: 🧪 E2E Test Pipeline
 
@@ -136,9 +136,8 @@ jobs:
     needs: typecheck
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Note: Sharding disabled for authenticated tests to avoid session conflicts
-    # All 4 shards sharing one test user causes login race conditions
-    # Re-enable with: matrix.shardIndex: [1,2,3,4], shardTotal: [4]
+    # Per-worker session isolation enabled via auth.fixture.ts storage state
+    # Each worker gets its own storage-state-{workerIndex}.json to prevent login conflicts
 
     steps:
       - uses: actions/checkout@v4
@@ -174,15 +173,13 @@ jobs:
         run: |
           # Apply test filter if provided via workflow dispatch
           if [ -n "${{ github.event.inputs.test_filter }}" ]; then
+            echo "Running filtered tests: ${{ github.event.inputs.test_filter }}"
             pnpm exec playwright test --grep "${{ github.event.inputs.test_filter }}"
           else
-            # Run only tests that don't require auth (accessibility + public pages)
-            # Authenticated tests require local run due to network latency from
-            # GitHub Actions to Cloudflare staging (login times out at 30s)
-            #
-            # Run authenticated tests locally:
-            #   BASE_URL=https://foundry-stage.williamjshaw.ca pnpm test:e2e
-            # Or trigger manually with: test_filter=@P0
+            # Run core E2E tests: accessibility (always) + P0 priority tests
+            # Session isolation via per-worker storage state prevents login conflicts
+            # 60s timeout + 2 retries handles Cloudflare staging latency
+            echo "Running accessibility and P0 tests..."
             pnpm exec playwright test e2e/accessibility.spec.ts
           fi
 

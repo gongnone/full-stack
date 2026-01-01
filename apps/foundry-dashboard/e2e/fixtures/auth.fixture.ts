@@ -7,9 +7,16 @@
  *   test('my authenticated test', async ({ authenticatedPage, dashboardPage }) => {
  *     // Already logged in, page objects ready to use
  *   });
+ *
+ * Features:
+ *   - Session persistence via storage state (avoids re-login per test)
+ *   - Per-worker isolation (prevents parallel shard conflicts)
+ *   - Automatic session recovery on failure
  */
 
 import { test as base, expect, Page, BrowserContext } from '@playwright/test';
+import * as fs from 'fs';
+import * as path from 'path';
 import { DashboardPage } from '../pages/DashboardPage';
 import { ClientPage } from '../pages/ClientPage';
 import { BrandDnaPage } from '../pages/BrandDnaPage';
@@ -27,6 +34,29 @@ const config = {
   baseUrl: process.env.BASE_URL || 'http://localhost:5173',
   testEmail: process.env.TEST_EMAIL || 'e2e-test@foundry.local',
   testPassword: process.env.TEST_PASSWORD || 'TestPassword123!',
+};
+
+// Per-worker storage state file to prevent parallel login conflicts
+const getStorageStatePath = (): string => {
+  const workerIndex = process.env.TEST_PARALLEL_INDEX || '0';
+  const storageDir = path.join(process.cwd(), '.auth');
+  if (!fs.existsSync(storageDir)) {
+    fs.mkdirSync(storageDir, { recursive: true });
+  }
+  return path.join(storageDir, `storage-state-${workerIndex}.json`);
+};
+
+// Check if storage state exists and is valid (not expired)
+const isStorageStateValid = (storagePath: string): boolean => {
+  if (!fs.existsSync(storagePath)) return false;
+  try {
+    const stat = fs.statSync(storagePath);
+    // Storage state expires after 30 minutes
+    const maxAge = 30 * 60 * 1000;
+    return Date.now() - stat.mtimeMs < maxAge;
+  } catch {
+    return false;
+  }
 };
 
 // Fixture types
@@ -47,46 +77,82 @@ type AuthFixtures = {
 };
 
 /**
+ * Perform login and save storage state for session reuse
+ */
+async function performLogin(page: Page, context: BrowserContext, storagePath: string): Promise<void> {
+  // Navigate to login
+  await page.goto(`${config.baseUrl}/login`);
+
+  // Wait for login form to be visible
+  await page.waitForLoadState('domcontentloaded');
+
+  // Fill login form using placeholder-based selectors (most reliable cross-browser)
+  const emailInput = page.getByPlaceholder('you@example.com');
+  const passwordInput = page.getByPlaceholder('••••••••');
+  const signInButton = page.getByRole('button', { name: 'Sign in' });
+
+  await emailInput.waitFor({ state: 'visible', timeout: 15000 });
+  await emailInput.fill(config.testEmail);
+  await passwordInput.fill(config.testPassword);
+  await signInButton.click();
+
+  // Wait for successful login with increased timeout for CI
+  try {
+    await page.waitForURL(/\/app/, { timeout: 45000 });
+  } catch {
+    // Check for error message
+    const error = await page.locator('text=/invalid|error/i').isVisible().catch(() => false);
+    if (error) {
+      throw new Error(
+        'E2E Auth Fixture: Login failed. Ensure test user exists.\n' +
+        'Run: npx tsx scripts/create-e2e-user.ts'
+      );
+    }
+    throw new Error('E2E Auth Fixture: Login timeout');
+  }
+
+  // Wait for page to stabilize
+  await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+
+  // Save storage state for reuse in subsequent tests
+  await context.storageState({ path: storagePath });
+}
+
+/**
  * Extended test with authentication and page objects
  */
 export const test = base.extend<AuthFixtures>({
-  // Authenticated page fixture - logs in before each test
-  authenticatedPage: async ({ page }, use) => {
-    // Navigate to login
-    await page.goto(`${config.baseUrl}/login`);
+  // Authenticated page fixture - reuses session via storage state
+  authenticatedPage: async ({ page, context }, use) => {
+    const storagePath = getStorageStatePath();
 
-    // Wait for login form to be visible
-    await page.waitForLoadState('domcontentloaded');
+    // Try to reuse existing session
+    if (isStorageStateValid(storagePath)) {
+      try {
+        // Load saved storage state
+        const storageState = JSON.parse(fs.readFileSync(storagePath, 'utf-8'));
+        await context.addCookies(storageState.cookies || []);
 
-    // Fill login form using placeholder-based selectors (most reliable cross-browser)
-    const emailInput = page.getByPlaceholder('you@example.com');
-    const passwordInput = page.getByPlaceholder('••••••••');
-    const signInButton = page.getByRole('button', { name: 'Sign in' });
+        // Navigate to app and verify session is valid
+        await page.goto(`${config.baseUrl}/app`);
+        await page.waitForLoadState('domcontentloaded');
 
-    await emailInput.waitFor({ state: 'visible', timeout: 10000 });
-    await emailInput.fill(config.testEmail);
-    await passwordInput.fill(config.testPassword);
-    await signInButton.click();
-
-    // Wait for successful login
-    try {
-      await page.waitForURL(/\/app/, { timeout: 30000 });
-    } catch {
-      // Check for error message
-      const error = await page.locator('text=/invalid|error/i').isVisible().catch(() => false);
-      if (error) {
-        throw new Error(
-          'E2E Auth Fixture: Login failed. Ensure test user exists.\n' +
-          'Run: npx tsx scripts/create-e2e-user.ts'
-        );
+        // Check if we're still authenticated (not redirected to login)
+        const currentUrl = page.url();
+        if (!currentUrl.includes('/login') && !currentUrl.includes('/signup')) {
+          await use(page);
+          return;
+        }
+        // Session expired, fall through to fresh login
+      } catch {
+        // Storage state invalid, fall through to fresh login
       }
-      throw new Error('E2E Auth Fixture: Login timeout');
     }
 
-    // Wait for page to stabilize and verify we're still authenticated
-    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+    // Perform fresh login
+    await performLogin(page, context, storagePath);
 
-    // Double-check we're on an authenticated page (not redirected back to login)
+    // Double-check we're on an authenticated page
     const currentUrl = page.url();
     if (currentUrl.includes('/login') || currentUrl.includes('/signup')) {
       throw new Error(`E2E Auth Fixture: Session not persisted. Current URL: ${currentUrl}`);

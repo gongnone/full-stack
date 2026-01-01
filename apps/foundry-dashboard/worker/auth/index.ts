@@ -118,6 +118,9 @@ export function createAuth(env: Env) {
         accessToken: 'access_token',
         refreshToken: 'refresh_token',
         accessTokenExpiresAt: 'expires_at',
+        refreshTokenExpiresAt: 'refresh_token_expires_at',
+        idToken: 'id_token',
+        scope: 'scope',
         createdAt: 'created_at',
         updatedAt: 'updated_at',
       },
@@ -265,20 +268,19 @@ export function createAuth(env: Env) {
       account: {
         create: {
           before: async (account) => {
-            // Note: DB column is 'expiresAt' (maps from accessTokenExpiresAt via field config)
-            // No refreshTokenExpiresAt or idToken columns exist in DB
             const data: Record<string, unknown> = {
               ...account,
               createdAt: account.createdAt instanceof Date ? Math.floor(account.createdAt.getTime() / 1000) : account.createdAt,
               updatedAt: account.updatedAt instanceof Date ? Math.floor(account.updatedAt.getTime() / 1000) : account.updatedAt,
             };
-            // Convert accessTokenExpiresAt if present (maps to 'expiresAt' DB column)
+            // Convert accessTokenExpiresAt if present (maps to 'expires_at' DB column)
             if ((account as Record<string, unknown>).accessTokenExpiresAt instanceof Date) {
               data.accessTokenExpiresAt = Math.floor(((account as Record<string, unknown>).accessTokenExpiresAt as Date).getTime() / 1000);
             }
-            // Remove fields that don't exist in DB schema
-            delete data.refreshTokenExpiresAt;
-            delete data.idToken;
+            // Convert refreshTokenExpiresAt if present (maps to 'refresh_token_expires_at' DB column)
+            if ((account as Record<string, unknown>).refreshTokenExpiresAt instanceof Date) {
+              data.refreshTokenExpiresAt = Math.floor(((account as Record<string, unknown>).refreshTokenExpiresAt as Date).getTime() / 1000);
+            }
             return { data };
           },
         },
@@ -288,9 +290,7 @@ export function createAuth(env: Env) {
             if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
             if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
             if (data.accessTokenExpiresAt instanceof Date) data.accessTokenExpiresAt = Math.floor(data.accessTokenExpiresAt.getTime() / 1000);
-            // Remove fields that don't exist in DB schema
-            delete data.refreshTokenExpiresAt;
-            delete data.idToken;
+            if (data.refreshTokenExpiresAt instanceof Date) data.refreshTokenExpiresAt = Math.floor(data.refreshTokenExpiresAt.getTime() / 1000);
             return { data };
           },
         },

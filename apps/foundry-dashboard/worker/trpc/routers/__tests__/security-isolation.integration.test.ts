@@ -52,10 +52,10 @@ describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
 
   describe('AC3: No Cross-Client Data Leakage', () => {
     it('Account 1 cannot see Account 2 hubs via direct query', async () => {
-      // User 1 tries to query all hubs (should only see their own)
+      // User 1 queries hubs filtered by their client_id
       const result = await ctx.db.prepare(`
-        SELECT * FROM hubs WHERE account_id = ?
-      `).bind(account1.id).all();
+        SELECT * FROM hubs WHERE client_id = ?
+      `).bind(account1.clientId).all();
 
       const hubIds = result.results?.map((r: any) => r.id) || [];
 
@@ -66,31 +66,33 @@ describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
 
     it('Account 1 cannot access Account 2 hub by ID', async () => {
       // Simulate a malicious query where User 1 knows User 2's hub ID
+      // Client isolation is enforced via client_id, not account_id
       const result = await ctx.db.prepare(`
-        SELECT * FROM hubs WHERE id = ? AND account_id = ?
-      `).bind(account2Hub.hubId, account1.id).first();
+        SELECT * FROM hubs WHERE id = ? AND client_id = ?
+      `).bind(account2Hub.hubId, account1.clientId).first();
 
-      // Should return null because the account_id filter prevents access
+      // Should return null because the client_id filter prevents access
       expect(result).toBeNull();
     });
 
     it('Account 1 cannot access Account 2 spokes by hub ID', async () => {
       // User 1 tries to access User 2's spokes
       const result = await ctx.db.prepare(`
-        SELECT * FROM spokes WHERE hub_id = ? AND account_id = ?
-      `).bind(account2Hub.hubId, account1.id).all();
+        SELECT * FROM spokes WHERE hub_id = ? AND client_id = ?
+      `).bind(account2Hub.hubId, account1.clientId).all();
 
       // Should return empty results
       expect(result.results?.length || 0).toBe(0);
     });
 
-    it('Account 1 cannot access Account 2 client', async () => {
-      // User 1 tries to access User 2's client
+    it('Account 1 cannot access Account 2 client via membership check', async () => {
+      // User 1 tries to verify membership to User 2's client
+      // Access control is via client_members table, not account_id on clients
       const result = await ctx.db.prepare(`
-        SELECT * FROM clients WHERE id = ? AND account_id = ?
-      `).bind(account2.clientId, account1.id).first();
+        SELECT * FROM client_members WHERE client_id = ? AND user_id = ?
+      `).bind(account2.clientId, account1.userId).first();
 
-      // Should return null
+      // Should return null - user1 has no membership to client2
       expect(result).toBeNull();
     });
   });
@@ -148,8 +150,8 @@ describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
       const maliciousClientId = "'; DROP TABLE hubs; --";
 
       const result = await ctx.db.prepare(`
-        SELECT * FROM clients WHERE id = ? AND account_id = ?
-      `).bind(maliciousClientId, account1.id).first();
+        SELECT * FROM client_members WHERE client_id = ? AND user_id = ?
+      `).bind(maliciousClientId, account1.userId).first();
 
       // Should safely return null (not execute the DROP)
       expect(result).toBeNull();
@@ -166,12 +168,12 @@ describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
       // Generate a random UUID that might match account2's data by chance
       const tamperedId = account2Hub.hubId;
 
-      // Account 1 tries to access with tampered ID
+      // Account 1 tries to access with tampered ID using client_id isolation
       const result = await ctx.db.prepare(`
-        SELECT * FROM hubs WHERE id = ? AND account_id = ?
-      `).bind(tamperedId, account1.id).first();
+        SELECT * FROM hubs WHERE id = ? AND client_id = ?
+      `).bind(tamperedId, account1.clientId).first();
 
-      // Should return null because account_id doesn't match
+      // Should return null because client_id doesn't match
       expect(result).toBeNull();
     });
   });
@@ -179,18 +181,18 @@ describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
   describe('Adversarial Attack Scenarios', () => {
     it('ATTACK: Enumerate all hub IDs and access check', async () => {
       // Attacker gets list of all hub IDs somehow
-      const allHubs = await ctx.db.prepare(`SELECT id FROM hubs`).all();
+      const allHubs = await ctx.db.prepare(`SELECT id, client_id FROM hubs`).all();
       const allHubIds = allHubs.results?.map((r: any) => r.id) || [];
 
-      // Attacker tries to access each hub as Account 1
+      // Attacker tries to access each hub as Account 1 (using client_id filter)
       for (const hubId of allHubIds) {
         const result = await ctx.db.prepare(`
-          SELECT * FROM hubs WHERE id = ? AND account_id = ?
-        `).bind(hubId, account1.id).first();
+          SELECT * FROM hubs WHERE id = ? AND client_id = ?
+        `).bind(hubId, account1.clientId).first();
 
         if (result) {
-          // If we can access it, it must be our own hub
-          expect((result as any).account_id).toBe(account1.id);
+          // If we can access it, it must be our own client's hub
+          expect((result as any).client_id).toBe(account1.clientId);
         }
       }
     });
@@ -201,14 +203,14 @@ describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
 
       const start1 = performance.now();
       await ctx.db.prepare(`
-        SELECT * FROM hubs WHERE id = ? AND account_id = ?
-      `).bind(account1Hub.hubId, account1.id).first();
+        SELECT * FROM hubs WHERE id = ? AND client_id = ?
+      `).bind(account1Hub.hubId, account1.clientId).first();
       const time1 = performance.now() - start1;
 
       const start2 = performance.now();
       await ctx.db.prepare(`
-        SELECT * FROM hubs WHERE id = ? AND account_id = ?
-      `).bind(account2Hub.hubId, account1.id).first();
+        SELECT * FROM hubs WHERE id = ? AND client_id = ?
+      `).bind(account2Hub.hubId, account1.clientId).first();
       const time2 = performance.now() - start2;
 
       // Times should be within reasonable variance (not orders of magnitude different)
@@ -221,8 +223,8 @@ describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
       const hubIds = [account1Hub.hubId, account2Hub.hubId];
 
       const result = await ctx.db.prepare(`
-        SELECT * FROM hubs WHERE id IN (?, ?) AND account_id = ?
-      `).bind(hubIds[0], hubIds[1], account1.id).all();
+        SELECT * FROM hubs WHERE id IN (?, ?) AND client_id = ?
+      `).bind(hubIds[0], hubIds[1], account1.clientId).all();
 
       // Should only return account1's hub
       const returnedIds = result.results?.map((r: any) => r.id) || [];
@@ -233,19 +235,19 @@ describe('Story 7.4: Cross-Tenant Security Integration Tests', () => {
   });
 
   describe('Audit Trail', () => {
-    it('All security-sensitive queries should include account_id', async () => {
-      // This is a code review check - ensure all queries filter by account
+    it('All security-sensitive queries should include client_id for isolation', async () => {
+      // This is a code review check - ensure all queries filter by client
       // In production, you'd use a query logger to verify this
 
-      // Simulate logging all queries
+      // Simulate logging all queries - in the actual schema, client_id is used for isolation
       const queries = [
-        'SELECT * FROM hubs WHERE id = ? AND account_id = ?',
-        'SELECT * FROM spokes WHERE hub_id = ? AND account_id = ?',
-        'SELECT * FROM clients WHERE id = ? AND account_id = ?',
+        'SELECT * FROM hubs WHERE id = ? AND client_id = ?',
+        'SELECT * FROM spokes WHERE hub_id = ? AND client_id = ?',
+        'SELECT * FROM client_members WHERE client_id = ? AND user_id = ?',
       ];
 
       for (const query of queries) {
-        expect(query).toContain('account_id');
+        expect(query).toContain('client_id');
       }
     });
   });

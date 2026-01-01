@@ -93,12 +93,14 @@ export async function seedTestAccounts(
 }> {
   const client1Id = randomUUID();
   const client2Id = randomUUID();
+  // Use unique emails per context to avoid UNIQUE constraint violations
+  const uniqueSuffix = ctx.testUserId.substring(0, 8);
 
   // Create first user and client
   await db.prepare(`
     INSERT INTO user (id, email, emailVerified, name, createdAt, updatedAt)
     VALUES (?, ?, 0, ?, ?, ?)
-  `).bind(ctx.testUserId, 'user1@test.local', 'User One', Date.now(), Date.now()).run();
+  `).bind(ctx.testUserId, `user1-${uniqueSuffix}@test.local`, 'User One', Date.now(), Date.now()).run();
 
   await db.prepare(`
     INSERT INTO clients (id, name, status)
@@ -115,7 +117,7 @@ export async function seedTestAccounts(
   await db.prepare(`
     INSERT INTO user (id, email, emailVerified, name, createdAt, updatedAt)
     VALUES (?, ?, 0, ?, ?, ?)
-  `).bind(ctx.secondUserId, 'user2@test.local', 'User Two', Date.now(), Date.now()).run();
+  `).bind(ctx.secondUserId, `user2-${uniqueSuffix}@test.local`, 'User Two', Date.now(), Date.now()).run();
 
   await db.prepare(`
     INSERT INTO clients (id, name, status)
@@ -142,9 +144,10 @@ export async function seedTestHubsAndSpokes(
   clientId: string,
   userId: string,
   count: number = 5
-): Promise<{ hubId: string; spokeIds: string[] }> {
+): Promise<{ hubId: string; spokeIds: string[]; pillarId: string }> {
   const hubId = randomUUID();
   const sourceId = randomUUID();
+  const pillarId = randomUUID();
   const spokeIds: string[] = [];
 
   // Create hub_source first (required FK for hubs)
@@ -159,18 +162,29 @@ export async function seedTestHubsAndSpokes(
     VALUES (?, ?, ?, ?, ?, ?)
   `).bind(hubId, clientId, userId, sourceId, 'Test Hub', 'text').run();
 
-  // Create spokes
+  // Create pillar (required FK for spokes)
+  await db.prepare(`
+    INSERT INTO extracted_pillars (id, source_id, client_id, title, core_claim, psychological_angle)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(pillarId, sourceId, clientId, 'Test Pillar', 'Test claim for integration testing', 'Authority').run();
+
+  // Create spokes with all required fields
+  const platforms = ['twitter', 'linkedin', 'tiktok', 'instagram', 'newsletter', 'thread', 'carousel'];
+  const angles = ['Contrarian', 'Authority', 'Urgency', 'Aspiration', 'Fear', 'Curiosity', 'Transformation', 'Rebellion'];
+
   for (let i = 0; i < count; i++) {
     const spokeId = randomUUID();
     spokeIds.push(spokeId);
+    const platform = platforms[i % platforms.length];
+    const angle = angles[i % angles.length];
 
     await db.prepare(`
-      INSERT INTO spokes (id, client_id, hub_id, content, status)
-      VALUES (?, ?, ?, ?, ?)
-    `).bind(spokeId, clientId, hubId, `Test spoke content ${i + 1}`, 'pending').run();
+      INSERT INTO spokes (id, client_id, hub_id, pillar_id, platform, content, psychological_angle, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(spokeId, clientId, hubId, pillarId, platform, `Test spoke content ${i + 1}`, angle, 'pending').run();
   }
 
-  return { hubId, spokeIds };
+  return { hubId, spokeIds, pillarId };
 }
 
 /**

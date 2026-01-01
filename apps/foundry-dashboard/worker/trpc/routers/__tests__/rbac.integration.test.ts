@@ -51,19 +51,25 @@ describe('@P1 RBAC Integration Tests', () => {
 
   describe('P1-RBAC-01: Creator restrictions', () => {
     it('Creator cannot access client settings via direct query', async () => {
-      // Create a user with 'creator' role
+      // Create a user with 'creator' role via client_members table
       const creatorUserId = crypto.randomUUID();
       await ctx.db.prepare(`
-        INSERT INTO users (id, account_id, email, name, role)
-        VALUES (?, ?, ?, ?, ?)
-      `).bind(creatorUserId, account.id, 'creator@test.local', 'Creator User', 'creator').run();
+        INSERT INTO user (id, email, emailVerified, name, createdAt, updatedAt)
+        VALUES (?, ?, 0, ?, ?, ?)
+      `).bind(creatorUserId, 'creator@test.local', 'Creator User', Date.now(), Date.now()).run();
 
-      // Verify the role is stored correctly
-      const user = await ctx.db.prepare(`
-        SELECT role FROM users WHERE id = ?
-      `).bind(creatorUserId).first() as { role: string } | null;
+      // Add creator role via client_members
+      await ctx.db.prepare(`
+        INSERT INTO client_members (id, client_id, user_id, role)
+        VALUES (?, ?, ?, ?)
+      `).bind(crypto.randomUUID(), account.clientId, creatorUserId, 'creator').run();
 
-      expect(user?.role).toBe('creator');
+      // Verify the role is stored correctly in client_members
+      const membership = await ctx.db.prepare(`
+        SELECT role FROM client_members WHERE user_id = ? AND client_id = ?
+      `).bind(creatorUserId, account.clientId).first() as { role: string } | null;
+
+      expect(membership?.role).toBe('creator');
 
       // Verify RBAC matrix for creator
       expect(RBAC_MATRIX.creator.settings).toBe(false);
@@ -99,15 +105,21 @@ describe('@P1 RBAC Integration Tests', () => {
     it('Client Admin stored in database with correct role', async () => {
       const clientAdminId = crypto.randomUUID();
       await ctx.db.prepare(`
-        INSERT INTO users (id, account_id, email, name, role)
-        VALUES (?, ?, ?, ?, ?)
-      `).bind(clientAdminId, account.id, 'client-admin@test.local', 'Client Admin', 'client_admin').run();
+        INSERT INTO user (id, email, emailVerified, name, createdAt, updatedAt)
+        VALUES (?, ?, 0, ?, ?, ?)
+      `).bind(clientAdminId, 'client-admin@test.local', 'Client Admin', Date.now(), Date.now()).run();
 
-      const user = await ctx.db.prepare(`
-        SELECT role FROM users WHERE id = ?
+      // Add client_admin role via client_members
+      await ctx.db.prepare(`
+        INSERT INTO client_members (id, client_id, user_id, role)
+        VALUES (?, ?, ?, ?)
+      `).bind(crypto.randomUUID(), account.clientId, clientAdminId, 'client_admin').run();
+
+      const membership = await ctx.db.prepare(`
+        SELECT role FROM client_members WHERE user_id = ?
       `).bind(clientAdminId).first() as { role: string } | null;
 
-      expect(user?.role).toBe('client_admin');
+      expect(membership?.role).toBe('client_admin');
     });
   });
 
@@ -158,12 +170,13 @@ describe('@P1 RBAC Integration Tests', () => {
     });
 
     it('Agency Owner has no client scope restrictions', async () => {
-      // Agency Owner should be able to access all clients in their account
+      // Agency Owner should be able to access all clients they have membership in
+      // In the schema, access is controlled via client_members table, not account_id
       const allClientsQuery = await ctx.db.prepare(`
-        SELECT COUNT(*) as count FROM clients WHERE account_id = ?
-      `).bind(account.id).first() as { count: number } | null;
+        SELECT COUNT(*) as count FROM client_members WHERE user_id = ? AND role = 'agency_owner'
+      `).bind(account.userId).first() as { count: number } | null;
 
-      // Agency Owner can see all clients (no filtering by assignment)
+      // Agency Owner can see all clients they're assigned to with agency_owner role
       expect(allClientsQuery?.count).toBeGreaterThanOrEqual(1);
     });
   });

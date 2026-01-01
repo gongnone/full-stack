@@ -47,8 +47,9 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
 
   beforeEach(async () => {
     // Reset spoke statuses before each test
+    // Note: spokes schema uses status column, not approved_at/rejected_at
     await ctx.db.prepare(`
-      UPDATE spokes SET status = 'pending', approved_at = NULL, rejected_at = NULL
+      UPDATE spokes SET status = 'pending'
       WHERE hub_id = ?
     `).bind(testHub.hubId).run();
   });
@@ -59,11 +60,10 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
 
       // Verify initial state
       const beforeApproval = await ctx.db.prepare(`
-        SELECT status, approved_at FROM spokes WHERE id = ?
-      `).bind(spokeId).first() as { status: string; approved_at: string | null } | null;
+        SELECT status, updated_at FROM spokes WHERE id = ?
+      `).bind(spokeId).first() as { status: string; updated_at: number } | null;
 
       expect(beforeApproval?.status).toBe('pending');
-      expect(beforeApproval?.approved_at).toBeNull();
 
       // Create caller with proper context
       const caller = reviewRouter.createCaller({
@@ -84,17 +84,18 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
       // The actual status update would happen in the Durable Object
       // For this integration test, we simulate what the DO should do
       await ctx.db.prepare(`
-        UPDATE spokes SET status = 'approved', approved_at = datetime('now')
-        WHERE id = ? AND account_id = ?
-      `).bind(spokeId, account.id).run();
+        UPDATE spokes SET status = 'approved', updated_at = unixepoch()
+        WHERE id = ? AND client_id = ?
+      `).bind(spokeId, account.clientId).run();
 
       // Verify state after approval
       const afterApproval = await ctx.db.prepare(`
-        SELECT status, approved_at FROM spokes WHERE id = ?
-      `).bind(spokeId).first() as { status: string; approved_at: string | null } | null;
+        SELECT status, updated_at FROM spokes WHERE id = ?
+      `).bind(spokeId).first() as { status: string; updated_at: number } | null;
 
       expect(afterApproval?.status).toBe('approved');
-      expect(afterApproval?.approved_at).not.toBeNull();
+      // Note: In fast execution, updated_at may be the same or slightly newer
+      expect(afterApproval?.updated_at).toBeGreaterThanOrEqual(beforeApproval?.updated_at || 0);
     });
 
     it('should NOT allow approving another accounts spoke', async () => {
@@ -126,10 +127,10 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
       // The key is that it doesn't actually approve a spoke from another account
       expect(result.success).toBe(true); // Agent returns success but operation is no-op
 
-      // Verify no spoke was actually approved in our account
+      // Verify no spoke was actually approved in our client
       const ourSpokes = await ctx.db.prepare(`
-        SELECT * FROM spokes WHERE id = ? AND account_id = ?
-      `).bind(otherAccountSpokeId, account.id).first();
+        SELECT * FROM spokes WHERE id = ? AND client_id = ?
+      `).bind(otherAccountSpokeId, account.clientId).first();
 
       expect(ourSpokes).toBeNull(); // We shouldn't see this spoke
     });
@@ -156,17 +157,16 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
 
       // Simulate DO behavior
       await ctx.db.prepare(`
-        UPDATE spokes SET status = 'rejected', rejected_at = datetime('now')
-        WHERE id = ? AND account_id = ?
-      `).bind(spokeId, account.id).run();
+        UPDATE spokes SET status = 'rejected', updated_at = unixepoch()
+        WHERE id = ? AND client_id = ?
+      `).bind(spokeId, account.clientId).run();
 
       // Verify state after rejection
       const afterRejection = await ctx.db.prepare(`
-        SELECT status, rejected_at FROM spokes WHERE id = ?
-      `).bind(spokeId).first() as { status: string; rejected_at: string | null } | null;
+        SELECT status FROM spokes WHERE id = ?
+      `).bind(spokeId).first() as { status: string } | null;
 
       expect(afterRejection?.status).toBe('rejected');
-      expect(afterRejection?.rejected_at).not.toBeNull();
     });
   });
 
@@ -190,9 +190,9 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
       // Simulate DO bulk approval
       for (const spokeId of spokeIdsToApprove) {
         await ctx.db.prepare(`
-          UPDATE spokes SET status = 'approved', approved_at = datetime('now')
-          WHERE id = ? AND account_id = ?
-        `).bind(spokeId, account.id).run();
+          UPDATE spokes SET status = 'approved', updated_at = unixepoch()
+          WHERE id = ? AND client_id = ?
+        `).bind(spokeId, account.clientId).run();
       }
 
       // Verify all were approved
@@ -225,9 +225,9 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
       // Simulate DO bulk rejection
       for (const spokeId of spokeIdsToReject) {
         await ctx.db.prepare(`
-          UPDATE spokes SET status = 'rejected', rejected_at = datetime('now')
-          WHERE id = ? AND account_id = ?
-        `).bind(spokeId, account.id).run();
+          UPDATE spokes SET status = 'rejected', updated_at = unixepoch()
+          WHERE id = ? AND client_id = ?
+        `).bind(spokeId, account.clientId).run();
       }
 
       // Verify all were rejected
@@ -259,11 +259,11 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
 
       // Simulate DO cascade rejection
       await ctx.db.prepare(`
-        UPDATE spokes SET status = 'rejected', rejected_at = datetime('now')
-        WHERE hub_id = ? AND account_id = ?
-      `).bind(testHub.hubId, account.id).run();
+        UPDATE spokes SET status = 'killed', updated_at = unixepoch()
+        WHERE hub_id = ? AND client_id = ?
+      `).bind(testHub.hubId, account.clientId).run();
 
-      // Verify all spokes are rejected
+      // Verify all spokes are killed
       const remainingPending = await ctx.db.prepare(`
         SELECT COUNT(*) as count FROM spokes WHERE hub_id = ? AND status = 'pending'
       `).bind(testHub.hubId).first() as { count: number } | null;
@@ -290,16 +290,16 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
         3
       );
 
-      // Approve all of account 1's spokes
+      // Approve all of account 1's spokes using client_id
       await ctx.db.prepare(`
         UPDATE spokes SET status = 'approved'
-        WHERE account_id = ?
-      `).bind(account.id).run();
+        WHERE client_id = ?
+      `).bind(account.clientId).run();
 
       // Verify account 2's spokes are unaffected
       const account2Spokes = await ctx.db.prepare(`
-        SELECT status FROM spokes WHERE account_id = ?
-      `).bind(accounts.account2.id).all();
+        SELECT status FROM spokes WHERE client_id = ?
+      `).bind(accounts.account2.clientId).all();
 
       const allPending = account2Spokes.results?.every(
         (s: any) => s.status === 'pending'
@@ -311,30 +311,37 @@ describe('Story 5.3: Review Approval Integration Tests', () => {
     it('regeneration_count should increment on re-review', async () => {
       const spokeId = testHub.spokeIds[0];
 
-      // Reject spoke (triggers regeneration in real system)
+      // First ensure spoke has generation_attempt = 0 initially
+      const initialSpoke = await ctx.db.prepare(`
+        SELECT generation_attempt FROM spokes WHERE id = ?
+      `).bind(spokeId).first() as { generation_attempt: number } | null;
+
+      const initialCount = initialSpoke?.generation_attempt || 0;
+
+      // Reject spoke and increment generation_attempt (regeneration counter in actual schema)
       await ctx.db.prepare(`
-        UPDATE spokes SET status = 'rejected', regeneration_count = regeneration_count + 1
+        UPDATE spokes SET status = 'rejected', generation_attempt = generation_attempt + 1
         WHERE id = ?
       `).bind(spokeId).run();
 
       // Verify count incremented
       const spoke = await ctx.db.prepare(`
-        SELECT regeneration_count FROM spokes WHERE id = ?
-      `).bind(spokeId).first() as { regeneration_count: number } | null;
+        SELECT generation_attempt FROM spokes WHERE id = ?
+      `).bind(spokeId).first() as { generation_attempt: number } | null;
 
-      expect(spoke?.regeneration_count).toBe(1);
+      expect(spoke?.generation_attempt).toBe(initialCount + 1);
 
       // Reject again
       await ctx.db.prepare(`
-        UPDATE spokes SET regeneration_count = regeneration_count + 1
+        UPDATE spokes SET generation_attempt = generation_attempt + 1
         WHERE id = ?
       `).bind(spokeId).run();
 
       const spokeAfter = await ctx.db.prepare(`
-        SELECT regeneration_count FROM spokes WHERE id = ?
-      `).bind(spokeId).first() as { regeneration_count: number } | null;
+        SELECT generation_attempt FROM spokes WHERE id = ?
+      `).bind(spokeId).first() as { generation_attempt: number } | null;
 
-      expect(spokeAfter?.regeneration_count).toBe(2);
+      expect(spokeAfter?.generation_attempt).toBe(initialCount + 2);
     });
   });
 });

@@ -400,3 +400,63 @@ export interface SpokeTreeNode {
   status?: SpokeStatus;
   children?: SpokeTreeNode[];
 }
+
+// Epic 12-2: Hook Database types for G7 engagement prediction
+export type HookPlatform =
+  | 'twitter'
+  | 'linkedin'
+  | 'instagram'
+  | 'tiktok'
+  | 'newsletter'
+  | 'thread'
+  | 'carousel';
+
+export type HookCategory =
+  | 'business'
+  | 'tech'
+  | 'finance'
+  | 'health'
+  | 'lifestyle'
+  | 'marketing'
+  | 'creative'
+  | 'education';
+
+export type HookPerformanceTier = 'viral' | 'high' | 'curated' | 'community';
+
+export interface HookDbRow {
+  id: string;
+  content: string;
+  platform: string;
+  category: string;
+  engagement_rate: number | null;
+  performance_tier: string;
+  word_count: number;
+  character_count: number;
+  has_question: number;
+  has_numbers: number;
+  has_cta: number;
+  emotional_intensity: string | null;
+  psychological_angle: string | null;
+  source: string;
+  source_url: string | null;
+  vectorize_id: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface HookSimilarityMatch {
+  hookId: string;
+  content: string;
+  platform: HookPlatform;
+  category: HookCategory;
+  performanceTier: HookPerformanceTier;
+  similarity: number;
+  engagementRate: number | null;
+}
+
+export interface HookDatabaseStats {
+  totalHooks: number;
+  byPlatform: Record<string, number>;
+  byCategory: Record<string, number>;
+  byTier: Record<string, number>;
+}

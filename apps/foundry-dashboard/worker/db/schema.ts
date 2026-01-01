@@ -517,3 +517,64 @@ export type VoiceRecording = typeof voice_recordings.$inferSelect;
 export type VoiceRecordingInsert = typeof voice_recordings.$inferInsert;
 export type EngagementTrainingData = typeof engagement_training_data.$inferSelect;
 export type EngagementTrainingDataInsert = typeof engagement_training_data.$inferInsert;
+
+// === HOOKS DATABASE (Epic 12-2) ===
+
+export const hooks = sqliteTable('hooks', {
+  id: text('id').primaryKey(),
+  content: text('content').notNull(),
+  platform: text('platform').notNull(), // twitter, linkedin, instagram, tiktok, etc.
+  category: text('category').notNull(), // business, lifestyle, tech, health, finance, etc.
+
+  // Performance metrics (from training data)
+  engagementRate: integer('engagement_rate'), // likes+comments+shares / impressions * 10000 (for integer storage)
+  performanceTier: text('performance_tier').notNull().default('curated'), // viral, high, curated, community
+
+  // Content analysis
+  wordCount: integer('word_count').notNull(),
+  characterCount: integer('character_count').notNull(),
+  hasQuestion: integer('has_question').notNull().default(0),
+  hasNumbers: integer('has_numbers').notNull().default(0),
+  hasCta: integer('has_cta').notNull().default(0),
+  emotionalIntensity: text('emotional_intensity'), // high, medium, low
+  psychologicalAngle: text('psychological_angle'), // Contrarian, Authority, Urgency, etc.
+
+  // Source tracking
+  source: text('source'), // external, user_approved, generated
+  sourceUrl: text('source_url'),
+  contributorId: text('contributor_id'), // user who contributed (if applicable)
+
+  // Vectorize reference
+  vectorizeId: text('vectorize_id').notNull(), // ID in Vectorize index for lookups
+  embeddingModel: text('embedding_model').notNull().default('bge-base-en-v1.5'),
+
+  // Timestamps
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+export const hookCategories = sqliteTable('hook_categories', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  displayName: text('display_name').notNull(),
+  description: text('description'),
+  hookCount: integer('hook_count').notNull().default(0),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+export const hookSimilarityLog = sqliteTable('hook_similarity_log', {
+  id: text('id').primaryKey(),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  queryContent: text('query_content').notNull(),
+  queryPlatform: text('query_platform'),
+  topMatchId: text('top_match_id'),
+  topMatchScore: integer('top_match_score'), // Stored as score * 10000 for integer storage
+  matchCount: integer('match_count').notNull(),
+  latencyMs: integer('latency_ms').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+export type Hook = typeof hooks.$inferSelect;
+export type HookInsert = typeof hooks.$inferInsert;
+export type HookCategory = typeof hookCategories.$inferSelect;
+export type HookSimilarityLog = typeof hookSimilarityLog.$inferSelect;

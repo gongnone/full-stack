@@ -382,9 +382,7 @@ export function predictEngagement(input: PredictionInput): EngagementPrediction 
 /**
  * Batch predict engagement for multiple pieces of content
  */
-export function predictEngagementBatch(
-  inputs: PredictionInput[]
-): EngagementPrediction[] {
+export function predictEngagementBatch(inputs: PredictionInput[]): EngagementPrediction[] {
   return inputs.map(predictEngagement);
 }
 
@@ -401,4 +399,148 @@ export function predictionToDbFormat(prediction: EngagementPrediction): {
     engagement_confidence: prediction.confidence,
     engagement_factors: JSON.stringify(prediction.factors),
   };
+}
+
+// =============================================================================
+// Epic 12-2: Enhanced G7 with Vectorize Hook Similarity
+// =============================================================================
+
+import type { HookDatabaseService, HookPlatform } from './hook-database';
+
+export interface EnhancedEngagementFactors extends EngagementFactors {
+  vectorSimilarity: number; // 0-2.5: Similarity to top performers in Vectorize
+}
+
+export interface EnhancedEngagementPrediction extends EngagementPrediction {
+  factors: EnhancedEngagementFactors;
+  vectorMatch?: {
+    content: string;
+    similarity: number;
+    tier: string;
+  };
+}
+
+export interface EnhancedPredictionInput extends PredictionInput {
+  hookService?: HookDatabaseService;
+}
+
+/**
+ * Enhanced G7 prediction using Vectorize hook similarity
+ *
+ * G7 = (0.25 * hook_similarity_to_winners) +
+ *      (0.30 * hook_heuristics) +
+ *      (0.20 * platform_optimization) +
+ *      (0.15 * signals) +
+ *      (0.10 * emotional_drivers)
+ *
+ * This weights hook similarity heavily since matching top performers
+ * is the strongest predictor of engagement.
+ */
+export async function predictEngagementEnhanced(
+  input: EnhancedPredictionInput
+): Promise<EnhancedEngagementPrediction> {
+  // Start with heuristic calculation
+  const heuristicFactors: EngagementFactors = {
+    hook: calculateHookFactor(input.content, input.g2HookScore),
+    platform: calculatePlatformFactor(input.content, input.platform),
+    signals: calculateSignalsFactor(input.content),
+    emotional: calculateEmotionalFactor(input.content),
+    drivers: calculateDriversFactor(input.content, input.psychologicalAngle),
+  };
+
+  // Get Vectorize similarity if service is available
+  let vectorSimilarity = 0;
+  let vectorMatch: EnhancedEngagementPrediction['vectorMatch'] = undefined;
+  let vectorConfidence: 'low' | 'medium' | 'high' = 'low';
+
+  if (input.hookService) {
+    try {
+      // Map platform string to HookPlatform type
+      const platformMap: Record<string, HookPlatform> = {
+        twitter: 'twitter',
+        linkedin: 'linkedin',
+        instagram: 'instagram',
+        tiktok: 'tiktok',
+        newsletter: 'newsletter',
+        thread: 'thread',
+        carousel: 'carousel',
+        youtube_thumbnail: 'carousel', // Map to closest
+      };
+
+      const hookPlatform = platformMap[input.platform] || 'twitter';
+      const result = await input.hookService.getG7SimilarityScore(input.content, hookPlatform);
+
+      // Scale similarity score to 0-2.5 factor range
+      vectorSimilarity = result.score * 2.5;
+      vectorConfidence = result.confidence;
+
+      if (result.topMatch) {
+        vectorMatch = {
+          content: result.topMatch.content,
+          similarity: result.topMatch.similarity,
+          tier: result.topMatch.performanceTier,
+        };
+      }
+    } catch (error) {
+      console.error('Vectorize similarity failed, using heuristics only:', error);
+    }
+  }
+
+  // Build enhanced factors
+  const factors: EnhancedEngagementFactors = {
+    ...heuristicFactors,
+    vectorSimilarity,
+  };
+
+  // Calculate weighted score with Vectorize factor
+  // Total possible: 2.5 + 2.5 + 2.5 + 2.0 + 1.5 + 1.5 = 12.5 (normalized to 10)
+  const rawScore =
+    factors.vectorSimilarity +
+    factors.hook +
+    factors.platform +
+    factors.signals +
+    factors.emotional +
+    factors.drivers;
+
+  // Normalize to 0-10 scale (max raw is 12.5)
+  const score = Math.min(10, Math.round((rawScore / 12.5) * 10 * 10) / 10);
+
+  // Confidence is higher when we have Vectorize matches
+  let confidence: 'low' | 'medium' | 'high' = 'low';
+  if (vectorConfidence === 'high') {
+    confidence = 'high';
+  } else if (vectorConfidence === 'medium' || vectorSimilarity >= 1.5) {
+    confidence = 'medium';
+  }
+
+  return {
+    score,
+    confidence,
+    factors,
+    isGoldenNugget: score >= 9,
+    feedback: generateEnhancedFeedback(factors, score, vectorMatch),
+    vectorMatch,
+  };
+}
+
+/**
+ * Generate feedback including Vectorize match info
+ */
+function generateEnhancedFeedback(
+  factors: EnhancedEngagementFactors,
+  score: number,
+  vectorMatch?: EnhancedEngagementPrediction['vectorMatch']
+): string {
+  const baseFeedback = generateFeedback(factors, score);
+
+  if (vectorMatch && vectorMatch.similarity >= 0.75) {
+    const tierLabel = vectorMatch.tier === 'viral' ? '🔥 viral' : '⭐ high-performing';
+    return `${baseFeedback} (Similar to ${tierLabel} content)`;
+  }
+
+  if (factors.vectorSimilarity < 1.0) {
+    return `${baseFeedback} (More unique style - test with audience)`;
+  }
+
+  return baseFeedback;
 }

@@ -114,6 +114,65 @@ export const spokeEvaluations = sqliteTable('spoke_evaluations', {
 });
 
 // ==========================================
+// HOOKS DATABASE (G7 Training - Epic 12-2)
+// ==========================================
+
+export const hooks = sqliteTable('hooks', {
+  id: text('id').primaryKey(),
+  content: text('content').notNull(),
+  platform: text('platform').notNull(), // twitter, linkedin, instagram, tiktok
+  category: text('category').notNull(), // business, lifestyle, tech, health, finance, etc.
+
+  // Performance metrics
+  engagementRate: real('engagement_rate'), // likes+comments+shares / impressions
+  performanceTier: text('performance_tier', {
+    enum: ['viral', 'high', 'curated', 'community']
+  }).notNull().default('curated'),
+
+  // Content analysis
+  wordCount: integer('word_count').notNull(),
+  characterCount: integer('character_count').notNull(),
+  hasQuestion: integer('has_question', { mode: 'boolean' }).notNull().default(false),
+  hasNumbers: integer('has_numbers', { mode: 'boolean' }).notNull().default(false),
+  hasCta: integer('has_cta', { mode: 'boolean' }).notNull().default(false),
+  emotionalIntensity: text('emotional_intensity', { enum: ['high', 'medium', 'low'] }),
+  psychologicalAngle: text('psychological_angle'), // Contrarian, Authority, Urgency, etc.
+
+  // Source tracking
+  source: text('source'), // external, user_approved, generated
+  sourceUrl: text('source_url'),
+  contributorId: text('contributor_id'),
+
+  // Vectorize reference
+  vectorizeId: text('vectorize_id').notNull(),
+  embeddingModel: text('embedding_model').notNull().default('bge-base-en-v1.5'),
+
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+export const hookCategories = sqliteTable('hook_categories', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  displayName: text('display_name').notNull(),
+  description: text('description'),
+  hookCount: integer('hook_count').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const hookSimilarityLog = sqliteTable('hook_similarity_log', {
+  id: text('id').primaryKey(),
+  clientId: text('client_id').notNull().references(() => clients.id),
+  queryContent: text('query_content').notNull(),
+  queryPlatform: text('query_platform'),
+  topMatchId: text('top_match_id'),
+  topMatchScore: real('top_match_score'),
+  matchCount: integer('match_count').notNull(),
+  latencyMs: integer('latency_ms').notNull(),
+  createdAt: integer('created_at').notNull(),
+});
+
+// ==========================================
 // GLOBAL METRICS (Aggregated from DOs)
 // ==========================================
 
@@ -310,6 +369,13 @@ export const spokeEvaluationsRelations = relations(spokeEvaluations, ({ one }) =
 export const clientOnboardTokensRelations = relations(clientOnboardTokens, ({ one }) => ({
   client: one(clients, {
     fields: [clientOnboardTokens.clientId],
+    references: [clients.id],
+  }),
+}));
+
+export const hookSimilarityLogRelations = relations(hookSimilarityLog, ({ one }) => ({
+  client: one(clients, {
+    fields: [hookSimilarityLog.clientId],
     references: [clients.id],
   }),
 }));

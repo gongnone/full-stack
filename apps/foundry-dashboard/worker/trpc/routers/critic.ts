@@ -16,10 +16,7 @@ import type { Context } from '../context';
 import { assertClientAccess } from '../middleware/client-access';
 import {
   predictEngagement,
-  predictEngagementBatch,
   predictionToDbFormat,
-  type PredictionInput,
-  type EngagementPrediction,
 } from '../../lib/engagement-prediction';
 
 const t = initTRPC.context<Context>().create();
@@ -220,8 +217,8 @@ Respond with JSON: { "score": number, "feedback": "explanation", "markersFound":
         score -= (hashtagCount - requirements.hashtagLimit) * 5;
       }
 
-      // Check emoji usage (using surrogate pairs for ES5 compatibility)
-      const emojiPattern = /[\uD83C-\uDBFF\uDC00-\uDFFF]+|[\u2600-\u27FF]|[\uFE00-\uFEFF]/g;
+      // Check emoji usage
+      const emojiPattern = /[\uD83C-\uDBFF\uDC00-\uDFFF]+|[\u2600-\u27FF]|[\uFE00-\uFEFF]/gu;
       const emojiCount = (input.content.match(emojiPattern) || []).length;
       if (requirements.emojiPolicy === 'minimal' && emojiCount > 2) {
         issues.push(`Too many emojis for ${input.platform} (${emojiCount})`);

@@ -194,7 +194,7 @@ function calculatePlatformFactor(content: string, platform: string): number {
   // Platform-specific format bonuses
   const hashtagCount = (content.match(/#\w+/g) || []).length;
   // Simple emoji detection using common emoji patterns
-  const emojiPattern = /[\uD83C-\uDBFF\uDC00-\uDFFF]+|[\u2600-\u27FF]|[\uFE00-\uFEFF]/g;
+  const emojiPattern = /[\uD83C-\uDBFF\uDC00-\uDFFF]+|[\u2600-\u27FF]|[\uFE00-\uFEFF]/gu;
   const emojiCount = (content.match(emojiPattern) || []).length;
   const lineBreaks = (content.match(/\n/g) || []).length;
 

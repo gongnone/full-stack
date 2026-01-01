@@ -216,6 +216,35 @@ wrangler secret put AWS_SECRET_ACCESS_KEY --env stage
 - When `AWS_ACCESS_KEY_ID` is not set, emails log to console instead of sending
 - Verification is only required in production (`ENVIRONMENT === 'production'`)
 
+### Database Migrations
+
+**ALWAYS run migrations proactively with wrangler** - don't ask the user to run them manually:
+
+```bash
+# Stage
+cd apps/foundry-dashboard
+npx wrangler d1 execute foundry-global-stage --remote --command "YOUR SQL HERE"
+
+# Production
+npx wrangler d1 execute foundry-global --remote --command "YOUR SQL HERE"
+```
+
+If wrangler fails with authentication error (API token lacks D1 permissions), then inform user they need to run in Cloudflare Dashboard.
+
 ### Known Issues
 - **Queue Consumer Conflict**: If `foundry-engine` deploy fails with "queue already has consumer" (code 11004), delete consumers in Cloudflare Dashboard → Queues → [queue] → Consumers → Delete, then redeploy.
 - **Legacy TypeScript Errors**: The Legacy frontend has pre-existing type errors that show as warnings but don't block deployment.
+- **D1 API Token Permissions**: The CLOUDFLARE_API_TOKEN may lack D1 execute permissions. If `wrangler d1 execute` fails, user must run SQL in Cloudflare Dashboard → D1 → [database] → Console.
+
+## Browser Environment
+
+- Running on GCP VM (headless)
+- Chrome DevTools MCP available for browser automation
+- Use `--headless` mode for all browser operations
+
+### Browser Usage Guidelines
+- Always use isolated sessions for sensitive operations
+- Screenshots will be base64 encoded in responses
+- Network requests are logged and inspectable
+- Maximum viewport: 1920x1080
+- **Use Chrome DevTools MCP for testing** - agents should use browser automation to verify UI changes

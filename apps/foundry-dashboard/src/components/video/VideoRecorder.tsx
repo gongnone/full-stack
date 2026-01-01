@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Camera, RefreshCw, Check, X } from 'lucide-react';
 
@@ -13,22 +13,26 @@ export function VideoRecorder({ maxDuration = 30, onComplete, onCancel }: VideoR
   const [timeLeft, setTimeLeft] = useState(maxDuration);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    startCamera();
-    return () => stopCamera();
+  const stopCamera = useCallback(() => {
+    setStream((currentStream) => {
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
+      return null;
+    });
   }, []);
 
-  const startCamera = async () => {
+  const startCamera = useCallback(async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: 720, height: 1280 }, // Mobile portrait preferred
-        audio: true 
+        audio: true
       });
       setStream(mediaStream);
       if (videoRef.current) {
@@ -38,14 +42,12 @@ export function VideoRecorder({ maxDuration = 30, onComplete, onCancel }: VideoR
       console.error('Camera access denied:', err);
       // Fallback UI would go here
     }
-  };
+  }, []);
 
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-  };
+  useEffect(() => {
+    startCamera();
+    return () => stopCamera();
+  }, [startCamera, stopCamera]);
 
   const startRecording = () => {
     if (!stream) return;

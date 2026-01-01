@@ -27,7 +27,7 @@ export function FileDropZone({
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const validateFile = (file: File): string | null => {
+  const validateFile = useCallback((file: File): string | null => {
     // Check file size
     if (file.size > maxSizeMB * 1024 * 1024) {
       return `File too large. Maximum size is ${maxSizeMB}MB.`;
@@ -40,7 +40,7 @@ export function FileDropZone({
     }
 
     return null;
-  };
+  }, [acceptedTypes, maxSizeMB]);
 
   const handleFile = useCallback((file: File) => {
     setError(null);
@@ -50,7 +50,7 @@ export function FileDropZone({
       return;
     }
     onFileSelect(file);
-  }, [onFileSelect, acceptedTypes, maxSizeMB]);
+  }, [onFileSelect, validateFile]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();

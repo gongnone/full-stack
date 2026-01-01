@@ -27,12 +27,7 @@ export function VoiceRecorder({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Check for microphone permission on mount (with Safari fallback)
-  useEffect(() => {
-    checkMicrophonePermission();
-  }, []);
-
-  const checkMicrophonePermission = async () => {
+  const checkMicrophonePermission = useCallback(async () => {
     // Safari doesn't fully support navigator.permissions.query for microphone
     // Check if we're on Safari and skip the permissions check
     const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -55,7 +50,28 @@ export function VoiceRecorder({
       // Permissions API not supported or blocked, will request on first use
       setHasPermission(null);
     }
-  };
+  }, []);
+
+  // Check for microphone permission on mount (with Safari fallback)
+  useEffect(() => {
+    checkMicrophonePermission();
+  }, [checkMicrophonePermission]);
+
+  const stopRecording = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  }, []);
 
   const startRecording = useCallback(async () => {
     setError(null);
@@ -106,23 +122,7 @@ export function VoiceRecorder({
       addToast(message, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
       console.error('Error accessing microphone:', err);
     }
-  }, [maxDuration, onRecordingComplete, addToast]);
-
-  const stopRecording = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-
-    if (mediaRecorderRef.current && recordingState === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-  }, [recordingState]);
+  }, [maxDuration, onRecordingComplete, addToast, stopRecording]);
 
   const resetRecording = useCallback(() => {
     setRecordingState('idle');

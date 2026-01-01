@@ -23,6 +23,7 @@ import { Route as AppHubsRouteImport } from './routes/app/hubs'
 import { Route as AppExportsRouteImport } from './routes/app/exports'
 import { Route as AppCreativeConflictsRouteImport } from './routes/app/creative-conflicts'
 import { Route as AppClientsRouteImport } from './routes/app/clients'
+import { Route as AppCalendarRouteImport } from './routes/app/calendar'
 import { Route as AppBrandDnaRouteImport } from './routes/app/brand-dna'
 import { Route as AppAnalyticsRouteImport } from './routes/app/analytics'
 import { Route as AppHubsNewRouteImport } from './routes/app/hubs.new'
@@ -99,6 +100,11 @@ const AppClientsRoute = AppClientsRouteImport.update({
   path: '/clients',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCalendarRoute = AppCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppBrandDnaRoute = AppBrandDnaRouteImport.update({
   id: '/brand-dna',
   path: '/brand-dna',
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
+  '/app/calendar': typeof AppCalendarRoute
   '/app/clients': typeof AppClientsRouteWithChildren
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
   '/app/exports': typeof AppExportsRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
+  '/app/calendar': typeof AppCalendarRoute
   '/app/clients': typeof AppClientsRouteWithChildren
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
   '/app/exports': typeof AppExportsRoute
@@ -175,6 +183,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
+  '/app/calendar': typeof AppCalendarRoute
   '/app/clients': typeof AppClientsRouteWithChildren
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
   '/app/exports': typeof AppExportsRoute
@@ -198,6 +207,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/analytics'
     | '/app/brand-dna'
+    | '/app/calendar'
     | '/app/clients'
     | '/app/creative-conflicts'
     | '/app/exports'
@@ -218,6 +228,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/analytics'
     | '/app/brand-dna'
+    | '/app/calendar'
     | '/app/clients'
     | '/app/creative-conflicts'
     | '/app/exports'
@@ -239,6 +250,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/analytics'
     | '/app/brand-dna'
+    | '/app/calendar'
     | '/app/clients'
     | '/app/creative-conflicts'
     | '/app/exports'
@@ -364,6 +376,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/calendar': {
+      id: '/app/calendar'
+      path: '/calendar'
+      fullPath: '/app/calendar'
+      preLoaderRoute: typeof AppCalendarRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/brand-dna': {
       id: '/app/brand-dna'
       path: '/brand-dna'
@@ -430,6 +449,7 @@ const AppHubsRouteWithChildren =
 interface AppRouteChildren {
   AppAnalyticsRoute: typeof AppAnalyticsRoute
   AppBrandDnaRoute: typeof AppBrandDnaRoute
+  AppCalendarRoute: typeof AppCalendarRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
   AppCreativeConflictsRoute: typeof AppCreativeConflictsRoute
   AppExportsRoute: typeof AppExportsRoute
@@ -442,6 +462,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAnalyticsRoute: AppAnalyticsRoute,
   AppBrandDnaRoute: AppBrandDnaRoute,
+  AppCalendarRoute: AppCalendarRoute,
   AppClientsRoute: AppClientsRouteWithChildren,
   AppCreativeConflictsRoute: AppCreativeConflictsRoute,
   AppExportsRoute: AppExportsRoute,

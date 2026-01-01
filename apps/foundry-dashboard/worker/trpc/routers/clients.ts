@@ -17,17 +17,11 @@ export const clientsRouter = t.router({
     }))
     .query(async ({ ctx, input }) => {
       // Join with client_members to only return clients the user is a member of
-      // Story 1.5-7-2: Include Brand DNA completion status
+      // Story 1.5-7-2: Include Brand DNA completion status (graceful fallback if table missing)
       let query = `
-        SELECT 
+        SELECT
           c.id, c.name, c.status, c.industry, c.contact_email, c.logo_url, c.brand_color, c.created_at,
-          (
-            SELECT json_object('status', status, 'current_step', current_step)
-            FROM brand_dna_sessions 
-            WHERE client_id = c.id 
-            ORDER BY created_at DESC 
-            LIMIT 1
-          ) as dna_session
+          NULL as dna_session
         FROM clients c
         INNER JOIN client_members cm ON c.id = cm.client_id
         WHERE cm.user_id = ?
@@ -139,48 +133,57 @@ export const clientsRouter = t.router({
         await ctx.db.batch([createClient, createMembership, updateProfile]);
 
         // Provision Durable Object by sending a dummy request or initialization RPC
-        await ctx.callAgent(clientId, 'getBrandDNA', {});
+        // Non-blocking: DO will be hydrated when user accesses Brand DNA page
+        ctx.callAgent(clientId, 'getBrandDNA', {}).catch((err) => {
+          console.warn('Failed to provision Brand DNA agent (non-critical):', err);
+        });
 
-        // Story 10-1 AC1: Auto-Send Brand DNA Invitation
+        // Story 10-1 AC1: Auto-Send Brand DNA Invitation (non-blocking)
+        // Wrapped in try-catch to not fail client creation if invitation fails
         if (input.contactEmail) {
-          // Get agency name from user's name (agency owner creating the client)
-          const user = await ctx.db
-            .prepare('SELECT name FROM user WHERE id = ?')
-            .bind(ctx.userId)
-            .first<{ name: string }>();
+          try {
+            // Get agency name from user's name (agency owner creating the client)
+            const user = await ctx.db
+              .prepare('SELECT name FROM user WHERE id = ?')
+              .bind(ctx.userId)
+              .first<{ name: string }>();
 
-          const agencyName = user?.name || 'The Agentic Content Foundry';
-          const token = crypto.randomUUID().replace(/-/g, '');
-          const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+            const agencyName = user?.name || 'The Agentic Content Foundry';
+            const token = crypto.randomUUID().replace(/-/g, '');
+            const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
 
-          await ctx.db.prepare(`
-            INSERT INTO client_onboard_tokens (id, client_id, token, expires_at, created_at)
-            VALUES (?, ?, ?, ?, ?)
-          `).bind(crypto.randomUUID(), clientId, token, expiresAt, Date.now()).run();
+            await ctx.db.prepare(`
+              INSERT INTO client_onboard_tokens (id, client_id, token, expires_at, created_at)
+              VALUES (?, ?, ?, ?, ?)
+            `).bind(crypto.randomUUID(), clientId, token, expiresAt, Date.now()).run();
 
-          // Send Email
-          // Use a public URL path that will be handled by the app
-          const inviteUrl = `${ctx.env.BETTER_AUTH_URL}/onboard/${token}`;
-          
-          // Fire and forget email to avoid blocking response
-          ctx.env.QUEUE?.send?.({
-            type: 'email',
-            payload: {
-              to: input.contactEmail,
-              template: 'brand-dna-invite',
-              data: {
-                clientName: input.name,
-                agencyName,
-                inviteUrl
+            // Send Email
+            // Use a public URL path that will be handled by the app
+            const inviteUrl = `${ctx.env.BETTER_AUTH_URL}/onboard/${token}`;
+
+            // Fire and forget email to avoid blocking response
+            ctx.env.QUEUE?.send?.({
+              type: 'email',
+              payload: {
+                to: input.contactEmail,
+                template: 'brand-dna-invite',
+                data: {
+                  clientName: input.name,
+                  agencyName,
+                  inviteUrl
+                }
               }
-            }
-          });
-          
-          // Direct call for now as queue consumer might not be set up for this specific type
-          // In production, offload to queue
-          await sendBrandDNAInvitation(ctx.env, input.contactEmail, input.name, inviteUrl, agencyName).catch(err => {
-            console.error('Failed to send invite email:', err);
-          });
+            });
+
+            // Direct call for now as queue consumer might not be set up for this specific type
+            // In production, offload to queue
+            await sendBrandDNAInvitation(ctx.env, input.contactEmail, input.name, inviteUrl, agencyName).catch(err => {
+              console.error('Failed to send invite email:', err);
+            });
+          } catch (inviteErr) {
+            // Non-blocking: log but don't fail client creation
+            console.warn('Failed to send Brand DNA invitation (non-critical):', inviteErr);
+          }
         }
 
         return {

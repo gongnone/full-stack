@@ -25,7 +25,17 @@ app.use('*', cors({
       'https://foundry-stage.williamjshaw.ca',
       'https://foundry.williamjshaw.ca',
     ];
-    return allowedOrigins.includes(origin || '') ? origin : allowedOrigins[0];
+    // If origin is present and in allowed list, return it
+    if (origin && allowedOrigins.includes(origin)) {
+      return origin;
+    }
+    // For same-origin requests (no Origin header), return null to skip CORS headers
+    // This is safe because same-origin requests don't need CORS
+    if (!origin) {
+      return null;
+    }
+    // Reject unknown origins by returning null (no CORS headers)
+    return null;
   },
   credentials: true,
   allowHeaders: ['Content-Type', 'Authorization'],

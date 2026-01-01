@@ -40,6 +40,7 @@ function toMilliseconds(value: unknown): number {
 /**
  * Kysely plugin to convert Date objects to Unix timestamps for D1/SQLite
  * This intercepts ALL queries and transforms Date values before execution
+ * IMPORTANT: Better Auth expects milliseconds for timestamp comparisons
  */
 class DateToTimestampPlugin implements KyselyPlugin {
   transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
@@ -49,9 +50,10 @@ class DateToTimestampPlugin implements KyselyPlugin {
   private transformNode(node: unknown): unknown {
     if (node === null || node === undefined) return node;
 
-    // Handle Date objects - convert to Unix timestamp
+    // Handle Date objects - convert to milliseconds timestamp (NOT seconds!)
+    // Better Auth compares timestamps with Date.now() which uses milliseconds
     if (node instanceof Date) {
-      return Math.floor(node.getTime() / 1000);
+      return node.getTime();
     }
 
     // Handle arrays
@@ -248,7 +250,8 @@ export function createAuth(env: Env) {
       },
     },
 
-    // Database hooks to convert Date objects to Unix timestamps for D1/SQLite
+    // Database hooks to convert Date objects to millisecond timestamps for D1/SQLite
+    // IMPORTANT: Better Auth expects milliseconds for timestamp comparisons (Date.now())
     // Using 'as any' to satisfy TypeScript while returning numeric timestamps for SQLite
     databaseHooks: {
       user: {

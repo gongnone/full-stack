@@ -34,13 +34,16 @@ function StrategyApprovalPage() {
   const approveMutation = trpc.strategy.approvePillar.useMutation()
   const lockMutation = trpc.strategy.lockStrategy.useMutation()
 
-  const pillars = data?.pillars || []
+  // Type guard for valid data with pillars
+  const isValidData = data && data.valid && 'pillars' in data
+  const pillars: Pillar[] = isValidData ? data.pillars : []
   const currentPillar = pillars[currentIndex]
   const approvedCount = Object.values(decisions).filter(d => d === 'approved').length
+  const clientName = isValidData ? data.clientName : ''
 
   // Initialize decisions from existing approvals
   useState(() => {
-    if (data?.approvedPillars) {
+    if (isValidData && data.approvedPillars) {
       const existing: Record<string, 'approved' | 'skipped'> = {}
       data.approvedPillars.forEach((name: string) => {
         const pillar = pillars.find((p: Pillar) => p.name === name)
@@ -128,10 +131,10 @@ function StrategyApprovalPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold mb-2">
-            {data?.locked ? 'Strategy Already Locked' : 'Invalid Link'}
+            {data && 'locked' in data && data.locked ? 'Strategy Already Locked' : 'Invalid Link'}
           </h1>
           <p className="text-[#8B98A5]">
-            {data?.locked
+            {data && 'locked' in data && data.locked
               ? 'Your brand strategy has already been finalized.'
               : 'This link is invalid or has expired. Please ask your agency for a new link.'}
           </p>
@@ -191,7 +194,7 @@ function StrategyApprovalPage() {
                   ) : (
                     <button
                       onClick={() => {
-                        const idx = pillars.findIndex(p => p.id === pillar.id)
+                        const idx = pillars.findIndex((p: Pillar) => p.id === pillar.id)
                         setCurrentIndex(idx)
                         setShowSummary(false)
                       }}
@@ -237,7 +240,7 @@ function StrategyApprovalPage() {
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold mb-1">Your Brand Strategy</h1>
-          <p className="text-[#8B98A5]">Hi {data.clientName}! Review your personalized pillars.</p>
+          <p className="text-[#8B98A5]">Hi {clientName}! Review your personalized pillars.</p>
         </div>
 
         {/* Progress indicator */}
@@ -311,7 +314,7 @@ function StrategyApprovalPage() {
         <div className="space-y-3 pb-8">
           <div className="flex gap-3">
             <button
-              onClick={() => setModifyingPillar(currentPillar)}
+              onClick={() => currentPillar && setModifyingPillar(currentPillar)}
               className="flex-1 py-3 min-h-[44px] bg-[#2A3038] text-[#E7E9EA] rounded-lg font-medium hover:bg-[#3A4048] active:bg-[#4A5058] transition-colors"
             >
               Modify

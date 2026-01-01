@@ -14,7 +14,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app/index'
+import { Route as StrategyTokenRouteImport } from './routes/strategy.$token'
 import { Route as ReviewTokenRouteImport } from './routes/review.$token'
+import { Route as OnboardTokenRouteImport } from './routes/onboard.$token'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppReviewRouteImport } from './routes/app/review'
 import { Route as AppHubsRouteImport } from './routes/app/hubs'
@@ -52,9 +54,19 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
+const StrategyTokenRoute = StrategyTokenRouteImport.update({
+  id: '/strategy/$token',
+  path: '/strategy/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReviewTokenRoute = ReviewTokenRouteImport.update({
   id: '/review/$token',
   path: '/review/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardTokenRoute = OnboardTokenRouteImport.update({
+  id: '/onboard/$token',
+  path: '/onboard/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -127,7 +139,9 @@ export interface FileRoutesByFullPath {
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
+  '/onboard/$token': typeof OnboardTokenRoute
   '/review/$token': typeof ReviewTokenRoute
+  '/strategy/$token': typeof StrategyTokenRoute
   '/app/': typeof AppIndexRoute
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
@@ -145,7 +159,9 @@ export interface FileRoutesByTo {
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
+  '/onboard/$token': typeof OnboardTokenRoute
   '/review/$token': typeof ReviewTokenRoute
+  '/strategy/$token': typeof StrategyTokenRoute
   '/app': typeof AppIndexRoute
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
@@ -165,7 +181,9 @@ export interface FileRoutesById {
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
+  '/onboard/$token': typeof OnboardTokenRoute
   '/review/$token': typeof ReviewTokenRoute
+  '/strategy/$token': typeof StrategyTokenRoute
   '/app/': typeof AppIndexRoute
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
@@ -186,7 +204,9 @@ export interface FileRouteTypes {
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
+    | '/onboard/$token'
     | '/review/$token'
+    | '/strategy/$token'
     | '/app/'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
@@ -204,7 +224,9 @@ export interface FileRouteTypes {
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
+    | '/onboard/$token'
     | '/review/$token'
+    | '/strategy/$token'
     | '/app'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
@@ -223,7 +245,9 @@ export interface FileRouteTypes {
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
+    | '/onboard/$token'
     | '/review/$token'
+    | '/strategy/$token'
     | '/app/'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
@@ -235,7 +259,9 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
   SignupRoute: typeof SignupRoute
+  OnboardTokenRoute: typeof OnboardTokenRoute
   ReviewTokenRoute: typeof ReviewTokenRoute
+  StrategyTokenRoute: typeof StrategyTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -275,11 +301,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/strategy/$token': {
+      id: '/strategy/$token'
+      path: '/strategy/$token'
+      fullPath: '/strategy/$token'
+      preLoaderRoute: typeof StrategyTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/review/$token': {
       id: '/review/$token'
       path: '/review/$token'
       fullPath: '/review/$token'
       preLoaderRoute: typeof ReviewTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboard/$token': {
+      id: '/onboard/$token'
+      path: '/onboard/$token'
+      fullPath: '/onboard/$token'
+      preLoaderRoute: typeof OnboardTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/settings': {
@@ -418,7 +458,9 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
   SignupRoute: SignupRoute,
+  OnboardTokenRoute: OnboardTokenRoute,
   ReviewTokenRoute: ReviewTokenRoute,
+  StrategyTokenRoute: StrategyTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -15,7 +15,11 @@ export function CreateFirstClient() {
   const { addToast } = useToast();
   const utils = trpc.useUtils();
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    name: string;
+    industry: string;
+    brandColor: string;
+  }>({
     name: '',
     industry: '',
     brandColor: CLIENT_CONFIG.DEFAULT_BRAND_COLOR,

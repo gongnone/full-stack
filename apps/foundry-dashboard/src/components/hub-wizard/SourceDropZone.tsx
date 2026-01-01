@@ -37,7 +37,7 @@ export function SourceDropZone({ clientId, onSourceCreated, disabled }: SourceDr
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getUploadUrl = trpc.hubs.getSourceUploadUrl.useMutation();
-  const registerPdf = trpc.hubs.registerPdfSource.useMutation();
+  const registerSource = trpc.hubs.registerSource.useMutation();
 
   // Real upload progress using XMLHttpRequest
   const uploadWithProgress = useCallback((url: string, file: File, contentType: string): Promise<void> => {
@@ -101,6 +101,7 @@ export function SourceDropZone({ clientId, onSourceCreated, disabled }: SourceDr
       const { sourceId, r2Key, uploadEndpoint } = await getUploadUrl.mutateAsync({
         clientId,
         filename: file.name,
+        fileType: 'pdf',
       });
 
       setUploadProgress(10);
@@ -111,11 +112,12 @@ export function SourceDropZone({ clientId, onSourceCreated, disabled }: SourceDr
       setUploadProgress(85);
 
       // Step 3: Register in database (85% → 100%)
-      await registerPdf.mutateAsync({
+      await registerSource.mutateAsync({
         clientId,
         sourceId,
         r2Key,
         filename: file.name.replace(/\.pdf$/i, ''),
+        sourceType: 'pdf',
       });
 
       setUploadProgress(100);
@@ -129,7 +131,7 @@ export function SourceDropZone({ clientId, onSourceCreated, disabled }: SourceDr
       setUploadProgress(null);
       setSelectedFile(null);
     }
-  }, [clientId, getUploadUrl, registerPdf, onSourceCreated, uploadWithProgress]);
+  }, [clientId, getUploadUrl, registerSource, onSourceCreated, uploadWithProgress]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

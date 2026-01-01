@@ -89,7 +89,7 @@ export function ClientList({ clients, onCreateClick }: ClientListProps) {
                   </div>
                   <div>
                     <CardTitle className="text-lg font-bold text-[#E7E9EA] group-hover:text-[#1D9BF0] transition-colors">
-                      <Link to={`/app/clients/${client.id}`}>{client.name}</Link>
+                      <Link to="/app/clients/$clientId/settings" params={{ clientId: client.id }}>{client.name}</Link>
                     </CardTitle>
                     <p className="text-xs text-[#8B98A5]">{client.industry || 'No industry set'}</p>
                   </div>

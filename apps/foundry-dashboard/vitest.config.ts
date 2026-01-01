@@ -6,8 +6,7 @@ export default defineWorkersConfig({
   plugins: [react()],
   test: {
     globals: true,
-    setupFiles: ['./src/test/setup.tsx'],
-    include: [
+    setupFiles: ['./test/setup.ts', './src/test/setup.tsx'],    include: [
       'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
       'worker/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
     ],
@@ -15,13 +14,13 @@ export default defineWorkersConfig({
     pool: 'forks',
     poolOptions: {
       workers: {
-        wrangler: { configPath: './wrangler.jsonc' },
+        wrangler: {
+          configPath: './wrangler.jsonc',
+          main: './worker/index.ts',
+        },
         miniflare: {
           compatibilityDate: '2024-04-05',
           compatibilityFlags: ['nodejs_compat'],
-          d1Databases: ['DB'],
-          r2Buckets: ['ASSETS'],
-          kvNamespaces: ['KV'],
         },
       },
     },

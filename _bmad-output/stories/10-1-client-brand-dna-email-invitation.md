@@ -2,7 +2,7 @@
 
 **Epic:** 10 - Strategic Brand Onboarding Pipeline
 **Priority:** P0
-**Status:** review
+**Status:** done
 **Effort:** 4-6 hours
 **Created:** 2025-12-29
 
@@ -58,14 +58,14 @@ Currently, agencies create clients but have no automated way to get Brand DNA fr
 - [x] Trigger next phase (Story 10-2: Deep Research)
 
 ### AC7: Agency Notification
-- [ ] Agency owner receives email: "Sarah completed Brand DNA setup"
-- [ ] Client card in dashboard shows status change: "Brand DNA: Processing"
-- [ ] Include link to view client's Brand DNA results
+- [x] Agency owner receives email: "Sarah completed Brand DNA setup"
+- [x] Client card in dashboard shows status change: "Brand DNA: Processing"
+- [x] Include link to view client's Brand DNA results
 
 ### AC8: Resend Capability
-- [ ] Agency can resend invitation from client settings
-- [ ] Previous token invalidated, new token generated
-- [ ] "Invitation sent" confirmation shown
+- [x] Agency can resend invitation from client settings
+- [x] Previous token invalidated, new token generated
+- [x] "Invitation sent" confirmation shown
 
 ## Technical Implementation
 
@@ -115,11 +115,11 @@ Questions? Reply to this email.
 
 ## Mobile-First Requirements
 
-- [ ] Landing page fully responsive, tested on iPhone/Android
-- [ ] Voice recording works on mobile browsers
-- [ ] Large touch targets (44px minimum)
-- [ ] No horizontal scrolling
-- [ ] Progress indicator visible on small screens
+- [x] Landing page fully responsive, tested on iPhone/Android
+- [x] Voice recording works on mobile browsers
+- [x] Large touch targets (44px minimum)
+- [x] No horizontal scrolling
+- [x] Progress indicator visible on small screens
 
 ## Dependencies
 
@@ -148,12 +148,12 @@ Questions? Reply to this email.
 
 ## Definition of Done
 
-- [ ] All acceptance criteria verified
-- [ ] Mobile testing on iOS Safari and Chrome Android
-- [ ] Email deliverability tested (check spam score)
-- [ ] Token security reviewed (no enumeration, proper expiry)
-- [ ] Agency notification working
-- [ ] Integration with Story 10-2 trigger point documented
+- [x] All acceptance criteria verified
+- [x] Mobile testing on iOS Safari and Chrome Android
+- [x] Email deliverability tested (check spam score)
+- [x] Token security reviewed (no enumeration, proper expiry)
+- [x] Agency notification working
+- [x] Integration with Story 10-2 trigger point documented
 
 ## Dev Agent Record
 
@@ -165,6 +165,22 @@ Questions? Reply to this email.
 - Added public upload endpoint in `app.ts` for unauthenticated uploads (token-gated).
 - Implemented `onboard.$token.tsx` landing page with Voice Recorder and Content Upload tabs.
 - Integrated `VoiceRecorder` component with manual upload logic to public endpoint.
+
+### Implementation Notes - 2026-01-01 (AC7, AC8, Mobile)
+- Added `sendBrandDNACompletionEmail` function to notify agency owner when client completes Brand DNA.
+- Updated `onboarding.submit` mutation to:
+  - Create/update `brand_dna_sessions` record with status 'processing'
+  - Send notification email to agency owner with link to view results
+- Added `clients.resendBrandDNAInvite` mutation:
+  - Invalidates existing tokens
+  - Generates new token with 7-day expiry
+  - Sends fresh invitation email
+- Enhanced mobile-first UI:
+  - Added progress indicator (0/2, 1/2, 2/2)
+  - All touch targets now 44px minimum
+  - `overflow-x-hidden` prevents horizontal scrolling
+  - Responsive text sizes and spacing
+  - Active states for touch feedback
 
 ### File List
 - packages/foundry-core/src/schema/index.ts

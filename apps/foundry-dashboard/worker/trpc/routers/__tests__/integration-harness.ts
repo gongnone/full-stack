@@ -1,27 +1,3 @@
-/**
- * Integration Test Harness with Real D1
- * INFRA-04: Creates a test context with actual D1 database operations
- *
- * This harness uses the native @cloudflare/vitest-pool-workers env
- * to provide real database operations without manual mocking.
- *
- * Usage:
- *   import { createIntegrationContext } from './integration-harness';
- *
- *   describe('My Integration Test', () => {
- *     let ctx: IntegrationContext;
- *
- *     beforeAll(async () => {
- *       ctx = await createIntegrationContext();
- *     });
- *
- *     it('should write to real D1', async () => {
- *       const result = await ctx.db.prepare('SELECT 1').first();
- *       expect(result).toBeDefined();
- *     });
- *   });
- */
-
 import { env } from 'cloudflare:test';
 import type { Context } from '../../context';
 import { initDatabase } from '../../../db';
@@ -39,7 +15,7 @@ export interface IntegrationContext extends Context {
 /**
  * Create an integration test context with real D1 database via native test env
  */
-export async function createIntegrationContext(): Promise<IntegrationContext> {
+export function createIntegrationContext(): IntegrationContext {
   const db = env.DB;
   const drizzle = initDatabase(db);
 
@@ -96,97 +72,6 @@ export async function createIntegrationContext(): Promise<IntegrationContext> {
 }
 
 /**
- * Set up the test database with schema and seed data
- */
-export async function setupTestDatabase(db: D1Database): Promise<void> {
-  // In a real environment, we'd read migration files
-  // For now, we apply the core schema needed for tests
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS user (
-      id TEXT PRIMARY KEY,
-      email TEXT NOT NULL UNIQUE,
-      name TEXT,
-      email_verified INTEGER DEFAULT 0,
-      image TEXT,
-      created_at INTEGER,
-      updated_at INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS accounts (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      plan TEXT DEFAULT 'starter',
-      created_at INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS clients (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      status TEXT DEFAULT 'active',
-      industry TEXT,
-      contact_email TEXT,
-      brand_color TEXT,
-      drift_threshold INTEGER DEFAULT 25,
-      created_at INTEGER,
-      updated_at INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS client_members (
-      id TEXT PRIMARY KEY,
-      client_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'member',
-      created_at INTEGER,
-      FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
-      UNIQUE(client_id, user_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS hubs (
-      id TEXT PRIMARY KEY,
-      client_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      source_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      source_type TEXT NOT NULL,
-      pillar_count INTEGER DEFAULT 0,
-      spoke_count INTEGER DEFAULT 0,
-      status TEXT DEFAULT 'ready',
-      created_at INTEGER,
-      updated_at INTEGER,
-      FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
-      FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS extracted_pillars (
-      id TEXT PRIMARY KEY,
-      source_id TEXT NOT NULL,
-      client_id TEXT NOT NULL,
-      hub_id TEXT,
-      title TEXT NOT NULL,
-      core_claim TEXT,
-      psychological_angle TEXT,
-      supporting_points TEXT DEFAULT '[]',
-      created_at INTEGER,
-      FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
-      FOREIGN KEY (hub_id) REFERENCES hubs(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS hub_sources (
-      id TEXT PRIMARY KEY,
-      client_id TEXT NOT NULL,
-      user_id TEXT NOT NULL,
-      title TEXT,
-      source_type TEXT NOT NULL,
-      raw_content TEXT,
-      status TEXT DEFAULT 'pending',
-      created_at INTEGER,
-      updated_at INTEGER
-    );
-  `);
-}
-
-/**
  * Seed test accounts for cross-tenant testing
  */
 export async function seedTestAccounts(
@@ -199,47 +84,39 @@ export async function seedTestAccounts(
   const client1Id = randomUUID();
   const client2Id = randomUUID();
 
-  // Create first account
+  // Create first user and client
   await db.prepare(`
-    INSERT INTO accounts (id, name, plan) VALUES (?, ?, ?)
-  `).bind(ctx.testAccountId, 'Test Account 1', 'pro').run();
+    INSERT INTO user (id, email, emailVerified, name, createdAt, updatedAt)
+    VALUES (?, ?, 0, ?, ?, ?)
+  `).bind(ctx.testUserId, 'user1@test.local', 'User One', Date.now(), Date.now()).run();
 
   await db.prepare(`
-    INSERT INTO users (id, account_id, email, name, role)
-    VALUES (?, ?, ?, ?, ?)
-  `).bind(ctx.testUserId, ctx.testAccountId, 'user1@test.local', 'User One', 'admin').run();
-
-  await db.prepare(`
-    INSERT INTO clients (id, account_id, name, durable_object_id, vectorize_namespace, r2_path_prefix, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).bind(client1Id, ctx.testAccountId, 'Client 1', 'do-1', 'ns-1', 'r2/1', 'active').run();
+    INSERT INTO clients (id, name, status)
+    VALUES (?, ?, ?)
+  `).bind(client1Id, 'Client 1', 'active').run();
 
   // Add user1 as agency_owner of client1 (grants full access)
   await db.prepare(`
     INSERT INTO client_members (id, client_id, user_id, role)
     VALUES (?, ?, ?, ?)
-  `).bind(randomUUID(), client1Id, ctx.testUserId, 'agency_owner').run();
+  `).bind(randomUUID(), client1Id, ctx.testUserId, 'admin').run();
 
-  // Create second account (for cross-tenant testing)
+  // Create second user (for cross-tenant testing)
   await db.prepare(`
-    INSERT INTO accounts (id, name, plan) VALUES (?, ?, ?)
-  `).bind(ctx.secondAccountId, 'Test Account 2', 'pro').run();
-
-  await db.prepare(`
-    INSERT INTO users (id, account_id, email, name, role)
-    VALUES (?, ?, ?, ?, ?)
-  `).bind(ctx.secondUserId, ctx.secondAccountId, 'user2@test.local', 'User Two', 'admin').run();
+    INSERT INTO user (id, email, emailVerified, name, createdAt, updatedAt)
+    VALUES (?, ?, 0, ?, ?, ?)
+  `).bind(ctx.secondUserId, 'user2@test.local', 'User Two', Date.now(), Date.now()).run();
 
   await db.prepare(`
-    INSERT INTO clients (id, account_id, name, durable_object_id, vectorize_namespace, r2_path_prefix, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).bind(client2Id, ctx.secondAccountId, 'Client 2', 'do-2', 'ns-2', 'r2/2', 'active').run();
+    INSERT INTO clients (id, name, status)
+    VALUES (?, ?, ?)
+  `).bind(client2Id, 'Client 2', 'active').run();
 
   // Add user2 as agency_owner of client2 (grants full access)
   await db.prepare(`
     INSERT INTO client_members (id, client_id, user_id, role)
     VALUES (?, ?, ?, ?)
-  `).bind(randomUUID(), client2Id, ctx.secondUserId, 'agency_owner').run();
+  `).bind(randomUUID(), client2Id, ctx.secondUserId, 'admin').run();
 
   return {
     account1: { id: ctx.testAccountId, userId: ctx.testUserId, clientId: client1Id },
@@ -252,18 +129,19 @@ export async function seedTestAccounts(
  */
 export async function seedTestHubsAndSpokes(
   db: D1Database,
-  accountId: string,
   clientId: string,
+  userId: string,
   count: number = 5
 ): Promise<{ hubId: string; spokeIds: string[] }> {
   const hubId = randomUUID();
+    const sourceId = randomUUID();
   const spokeIds: string[] = [];
 
   // Create hub
   await db.prepare(`
-    INSERT INTO hubs (id, account_id, client_id, name, status)
-    VALUES (?, ?, ?, ?, ?)
-  `).bind(hubId, accountId, clientId, 'Test Hub', 'active').run();
+    INSERT INTO hubs (id, client_id, user_id, source_id, title, source_type)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).bind(hubId, clientId, userId, sourceId, 'Test Hub', 'text').run();
 
   // Create spokes
   for (let i = 0; i < count; i++) {
@@ -271,9 +149,9 @@ export async function seedTestHubsAndSpokes(
     spokeIds.push(spokeId);
 
     await db.prepare(`
-      INSERT INTO spokes (id, account_id, client_id, hub_id, content, status, regeneration_count)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).bind(spokeId, accountId, clientId, hubId, `Test spoke content ${i + 1}`, 'pending', 0).run();
+      INSERT INTO spokes (id, client_id, hub_id, content, status)
+      VALUES (?, ?, ?, ?, ?)
+    `).bind(spokeId, clientId, hubId, `Test spoke content ${i + 1}`, 'pending').run();
   }
 
   return { hubId, spokeIds };

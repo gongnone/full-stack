@@ -16,6 +16,7 @@ import { testimonialsRouter } from './routers/testimonials';
 import { complianceRouter } from './routers/compliance';
 import { operationsRouter } from './routers/operations';
 import { onboardingRouter } from './routers/onboarding';
+import { strategyRouter } from './routers/strategy';
 import type { Context } from './context';
 
 const t = initTRPC.context<Context>().create();
@@ -38,6 +39,7 @@ export const appRouter = t.router({
   compliance: complianceRouter,
   operations: operationsRouter,
   onboarding: onboardingRouter,
+  strategy: strategyRouter,
 });
 
 export type AppRouter = typeof appRouter;

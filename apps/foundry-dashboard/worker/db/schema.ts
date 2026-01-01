@@ -7,6 +7,22 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
+// === USER PROFILES ===
+
+export const userProfiles = sqliteTable('user_profiles', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().unique(),
+  displayName: text('display_name'),
+  avatarUrl: text('avatar_url'),
+  avatarColor: text('avatar_color').default('#1D9BF0'),
+  timezone: text('timezone').default('UTC'),
+  emailNotifications: integer('email_notifications').default(1),
+  preferencesJson: text('preferences_json'),
+  activeClientId: text('active_client_id'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
 // === CLIENTS ===
 
 export const clients = sqliteTable('clients', {
@@ -18,6 +34,17 @@ export const clients = sqliteTable('clients', {
   logoUrl: text('logo_url'),
   brandColor: text('brand_color').default('#1D9BF0'),
   drift_threshold: integer('drift_threshold').default(25),
+  createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+});
+
+// === CLIENT MEMBERS ===
+
+export const clientMembers = sqliteTable('client_members', {
+  id: text('id').primaryKey(),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
+  role: text('role').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
 });

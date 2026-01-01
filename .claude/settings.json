@@ -1,4 +1,14 @@
 {
+  "permissions": {
+    "allow": [
+      "WebFetch",
+      "WebSearch",
+      "Task",
+      "Bash(pnpm:*)",
+      "Bash(git:*)",
+      "Skill(*)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {

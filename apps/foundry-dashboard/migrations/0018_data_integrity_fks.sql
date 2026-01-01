@@ -35,7 +35,8 @@ CREATE TABLE training_samples_new (
   FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE
 );
 
-INSERT INTO training_samples_new SELECT * FROM training_samples;
+INSERT INTO training_samples_new (id, client_id, user_id, title, source_type, r2_key, extracted_text, quality_score, status, word_count, character_count, created_at, updated_at)
+SELECT id, client_id, user_id, title, source_type, r2_key, extracted_text, quality_score, status, word_count, character_count, created_at, updated_at FROM training_samples;
 DROP TABLE training_samples;
 ALTER TABLE training_samples_new RENAME TO training_samples;
 
@@ -59,7 +60,8 @@ CREATE TABLE brand_dna_new (
   FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
 );
 
-INSERT INTO brand_dna_new SELECT * FROM brand_dna;
+INSERT INTO brand_dna_new (id, client_id, strength_score, tone_profile, signature_patterns, primary_tone, writing_style, target_audience, last_calibration_at, calibration_source, sample_count, created_at, updated_at, voice_entities, last_voice_recording_at)
+SELECT id, client_id, strength_score, tone_profile, signature_patterns, primary_tone, writing_style, target_audience, last_calibration_at, calibration_source, sample_count, created_at, updated_at, voice_entities, last_voice_recording_at FROM brand_dna;
 DROP TABLE brand_dna;
 ALTER TABLE brand_dna_new RENAME TO brand_dna;
 
@@ -81,7 +83,8 @@ CREATE TABLE hubs_new (
   FOREIGN KEY (source_id) REFERENCES hub_sources(id) ON DELETE CASCADE
 );
 
-INSERT INTO hubs_new SELECT * FROM hubs;
+INSERT INTO hubs_new (id, client_id, user_id, source_id, title, source_type, pillar_count, spoke_count, status, created_at, updated_at)
+SELECT id, client_id, user_id, source_id, title, source_type, pillar_count, spoke_count, status, created_at, updated_at FROM hubs;
 DROP TABLE hubs;
 ALTER TABLE hubs_new RENAME TO hubs;
 
@@ -102,7 +105,8 @@ CREATE TABLE extracted_pillars_new (
   FOREIGN KEY (hub_id) REFERENCES hubs(id) ON DELETE CASCADE
 );
 
-INSERT INTO extracted_pillars_new SELECT * FROM extracted_pillars;
+INSERT INTO extracted_pillars_new (id, source_id, client_id, hub_id, title, core_claim, psychological_angle, estimated_spoke_count, supporting_points, created_at)
+SELECT id, source_id, client_id, hub_id, title, core_claim, psychological_angle, estimated_spoke_count, supporting_points, created_at FROM extracted_pillars;
 DROP TABLE extracted_pillars;
 ALTER TABLE extracted_pillars_new RENAME TO extracted_pillars;
 

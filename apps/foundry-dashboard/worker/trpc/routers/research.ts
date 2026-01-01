@@ -129,18 +129,17 @@ async function runAIWithTimeout(
   prompt: string,
   timeoutMs: number = 60000
 ): Promise<string> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  // Workers AI doesn't support AbortController, so use Promise.race
+  const aiPromise = ai.run('@cf/meta/llama-3.1-8b-instruct', {
+    prompt,
+    max_tokens: 800,
+  }).then(result => (result as { response: string }).response);
 
-  try {
-    const result = await ai.run('@cf/meta/llama-3.1-8b-instruct', {
-      prompt,
-      max_tokens: 800,
-    });
-    return (result as { response: string }).response;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`AI timeout after ${timeoutMs}ms`)), timeoutMs)
+  );
+
+  return Promise.race([aiPromise, timeoutPromise]);
 }
 
 export const researchRouter = t.router({
@@ -651,10 +650,17 @@ export async function triggerResearchFromOnboarding(
     }),
   });
 
-  // After research completes, create strategy approval token and send email
-  await createStrategyApprovalAndNotify(ctx, clientId);
+  // Check actual status after pipeline completes
+  const finalStatus = await ctx.db.prepare(
+    `SELECT status FROM client_research_reports WHERE id = ?`
+  ).bind(reportId).first<{ status: string }>();
 
-  return { reportId, status: 'complete' };
+  // Only trigger strategy approval if research succeeded
+  if (finalStatus?.status === 'complete') {
+    await createStrategyApprovalAndNotify(ctx, clientId);
+  }
+
+  return { reportId, status: finalStatus?.status || 'failed' };
 }
 
 // Helper: Create strategy approval token and send email (Story 10-4)

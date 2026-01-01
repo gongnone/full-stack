@@ -20,7 +20,7 @@ vi.mock('@aws-sdk/client-ses', () => {
 });
 
 // Now import after mocking
-import { sendVerificationEmail, sendPasswordResetEmail } from '../index';
+import { sendVerificationEmail, sendPasswordResetEmail, sendBrandDNAInvitation } from '../index';
 
 describe('Email Service', () => {
   let mockEnv: Partial<Env>;
@@ -272,6 +272,136 @@ describe('Email Service', () => {
       const commandArg = mockSend.mock.calls[0]?.[0];
       const htmlContent = commandArg?.input.Message.Body.Html.Data;
       expect(htmlContent).toContain("didn't request a password reset");
+    });
+  });
+
+  describe('sendBrandDNAInvitation', () => {
+    it('should skip sending in dev mode when SES is not configured', async () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const envWithoutSES = { ENVIRONMENT: 'local' } as Env;
+
+      const result = await sendBrandDNAInvitation(
+        envWithoutSES,
+        'client@test.com',
+        'Acme Corp',
+        'https://foundry.example.com/brand-dna/abc123',
+        'Super Agency'
+      );
+
+      expect(result.success).toBe(true);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[Email Mock] Sending Brand DNA Invite'),
+        expect.anything()
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should call SES send when credentials are configured', async () => {
+      await sendBrandDNAInvitation(
+        mockEnv as Env,
+        'client@test.com',
+        'Acme Corp',
+        'https://foundry.example.com/brand-dna/abc123',
+        'Super Agency'
+      );
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+    });
+
+    it('should use correct subject line with agency name', async () => {
+      await sendBrandDNAInvitation(
+        mockEnv as Env,
+        'client@test.com',
+        'Acme Corp',
+        'https://foundry.example.com/brand-dna/abc123',
+        'Super Agency'
+      );
+
+      const commandArg = mockSend.mock.calls[0]?.[0];
+      expect(commandArg?.input.Message.Subject.Data).toBe('Super Agency invited you to set up your brand voice');
+    });
+
+    it('should include client name in email content', async () => {
+      await sendBrandDNAInvitation(
+        mockEnv as Env,
+        'client@test.com',
+        'Acme Corp',
+        'https://foundry.example.com/brand-dna/abc123',
+        'Super Agency'
+      );
+
+      const commandArg = mockSend.mock.calls[0]?.[0];
+      expect(commandArg?.input.Message.Body.Html.Data).toContain('Acme Corp');
+    });
+
+    it('should include agency name in email content', async () => {
+      await sendBrandDNAInvitation(
+        mockEnv as Env,
+        'client@test.com',
+        'Acme Corp',
+        'https://foundry.example.com/brand-dna/abc123',
+        'Super Agency'
+      );
+
+      const commandArg = mockSend.mock.calls[0]?.[0];
+      expect(commandArg?.input.Message.Body.Html.Data).toContain('Super Agency');
+    });
+
+    it('should include invite URL in email content', async () => {
+      const inviteUrl = 'https://foundry.example.com/brand-dna/abc123';
+      await sendBrandDNAInvitation(
+        mockEnv as Env,
+        'client@test.com',
+        'Acme Corp',
+        inviteUrl,
+        'Super Agency'
+      );
+
+      const commandArg = mockSend.mock.calls[0]?.[0];
+      expect(commandArg?.input.Message.Body.Html.Data).toContain(inviteUrl);
+      expect(commandArg?.input.Message.Body.Text.Data).toContain(inviteUrl);
+    });
+
+    it('should send to correct recipient email', async () => {
+      await sendBrandDNAInvitation(
+        mockEnv as Env,
+        'client@test.com',
+        'Acme Corp',
+        'https://foundry.example.com/brand-dna/abc123',
+        'Super Agency'
+      );
+
+      const commandArg = mockSend.mock.calls[0]?.[0];
+      expect(commandArg?.input.Destination.ToAddresses).toContain('client@test.com');
+    });
+
+    it('should escape HTML in client and agency names', async () => {
+      await sendBrandDNAInvitation(
+        mockEnv as Env,
+        'client@test.com',
+        '<script>alert("xss")</script>',
+        'https://foundry.example.com/brand-dna/abc123',
+        '<b>Malicious</b> Agency'
+      );
+
+      const commandArg = mockSend.mock.calls[0]?.[0];
+      const htmlContent = commandArg?.input.Message.Body.Html.Data;
+      expect(htmlContent).not.toContain('<script>');
+      expect(htmlContent).toContain('&lt;script&gt;');
+    });
+
+    it('should include voice recording instruction in content', async () => {
+      await sendBrandDNAInvitation(
+        mockEnv as Env,
+        'client@test.com',
+        'Acme Corp',
+        'https://foundry.example.com/brand-dna/abc123',
+        'Super Agency'
+      );
+
+      const commandArg = mockSend.mock.calls[0]?.[0];
+      expect(commandArg?.input.Message.Body.Html.Data).toContain('voice note');
     });
   });
 

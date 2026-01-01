@@ -5,6 +5,7 @@ import { ActionButton } from '@/components/ui';
 import { ExportModal, type ExportConfig } from '@/components/exports';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { useClientRole } from '@/lib/use-client-role';
 import { useToast } from '@/lib/toast';
 import { EXPORT_CONFIG, UI_CONFIG } from '@/lib/constants';
 
@@ -35,6 +36,9 @@ function ExportsPage() {
   const { addToast } = useToast();
   const [showExportModal, setShowExportModal] = useState(false);
   const [_selectedExportId, _setSelectedExportId] = useState<string | null>(null);
+
+  // RBAC: Check if user can create exports (creators+ can export, reviewers can view history only)
+  const { canCreateContent } = useClientRole();
 
   // tRPC Utils for imperative queries
   const utils = trpc.useUtils();
@@ -118,26 +122,29 @@ function ExportsPage() {
             Export your approved content for publishing across platforms
           </p>
         </div>
-        <ActionButton
-          variant="approve"
-          onClick={() => setShowExportModal(true)}
-          data-testid="create-export-button"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
+        {/* RBAC: Only creators+ can create exports */}
+        {canCreateContent && (
+          <ActionButton
+            variant="approve"
+            onClick={() => setShowExportModal(true)}
+            data-testid="create-export-button"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          New Export
-        </ActionButton>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            New Export
+          </ActionButton>
+        )}
       </div>
 
       {/* Quick Export Options */}
@@ -259,14 +266,19 @@ function ExportsPage() {
               No Exports Yet
             </h3>
             <p className="text-sm text-[var(--text-secondary)] mb-6">
-              Create your first export to download your approved content
+              {canCreateContent
+                ? 'Create your first export to download your approved content'
+                : 'Export history will appear here once exports are created'}
             </p>
-            <ActionButton
-              variant="approve"
-              onClick={() => setShowExportModal(true)}
-            >
-              Create Export
-            </ActionButton>
+            {/* RBAC: Only creators+ can create exports */}
+            {canCreateContent && (
+              <ActionButton
+                variant="approve"
+                onClick={() => setShowExportModal(true)}
+              >
+                Create Export
+              </ActionButton>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

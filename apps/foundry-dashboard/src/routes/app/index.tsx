@@ -57,7 +57,7 @@ function DashboardHome() {
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Welcome back, {session?.user.name?.split(' ')[0] || 'there'}
+          Welcome back, {session?.user?.name?.split(' ')[0] || 'there'}
         </h1>
         <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
           Here's what's happening with your content today.

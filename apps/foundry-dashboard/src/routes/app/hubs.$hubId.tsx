@@ -7,6 +7,7 @@ import { useState, useMemo, useRef, useCallback } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
+import { useClientRole } from '@/lib/use-client-role';
 import { formatDate } from '@/lib/date-utils';
 import { SpokeTreeView, GenerationProgress, PlatformFilter, SpokeDetailModal } from '@/components/spokes';
 import type { Pillar, Spoke, SpokePlatform, SpokeGenerationProgress } from '@worker/types';
@@ -146,6 +147,9 @@ function HubDetailPage() {
 
   // Get client ID using shared hook for consistency with hub creation wizard
   const clientId = useClientId() || '';
+
+  // RBAC: Check if user can generate spokes (creators+ can generate, reviewers cannot)
+  const { canCreateContent } = useClientRole();
 
   // Fetch Hub data
   const { data: hub, isLoading, error, refetch: refetchHub } = trpc.hubs.get.useQuery(
@@ -445,9 +449,9 @@ function HubDetailPage() {
           </div>
         </div>
 
-        {/* Actions */}
+        {/* Actions - RBAC: Only creators+ can generate spokes */}
         <div className="flex items-center gap-2">
-          {hub.status === 'ready' && !isGenerating && (
+          {hub.status === 'ready' && !isGenerating && canCreateContent && (
             <button
               className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
               style={{ backgroundColor: 'var(--approve)', color: '#fff' }}

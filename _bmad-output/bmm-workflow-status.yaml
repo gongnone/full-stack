@@ -1,9 +1,30 @@
 # BMM Workflow Status Tracker
-# Tracks completed workflows and their output artifacts
+# Project: Agentic Content Foundry
+# Updated: 2026-01-01
 
-project_name: 'full-stack'
-product_name: 'The Agentic Content Foundry'
-last_updated: '2025-12-20'
+project_name: 'Agentic Content Foundry'
+project_type: brownfield
+level: mvp
+owner: Williamshaw
+last_updated: '2026-01-01'
+
+current_phase: implementation
+current_milestone: 'Phase 2A - AI Chat Refinement'
+production_url: 'https://foundry.williamjshaw.ca'
+
+phases:
+  discovery:
+    status: complete
+    completed_at: '2025-12-20'
+  solutioning:
+    status: complete
+    completed_at: '2025-12-21'
+  planning:
+    status: complete
+    completed_at: '2025-12-22'
+  implementation:
+    status: in_progress
+    tracking_file: sprint-status.yaml
 
 workflows:
   brainstorming:
@@ -27,14 +48,35 @@ workflows:
       - 'MVP Scope'
       - 'Future Vision'
 
-  # Recommended next workflows
   prd:
-    status: 'not_started'
-    depends_on: 'product-brief'
+    status: 'complete'
+    output: 'prd.md'
+    completed_at: '2025-12-21'
 
-  ux-design:
-    status: 'not_started'
-    depends_on: 'product-brief'
+  architecture:
+    status: 'complete'
+    output: 'architecture.md'
+    completed_at: '2025-12-21'
+
+  epics-and-stories:
+    status: 'complete'
+    output: 'epic-1.md through epic-10.md'
+    completed_at: '2025-12-22'
+
+  sprint-planning:
+    status: 'complete'
+    output: 'sprint-status.yaml'
+    completed_at: '2025-12-22'
+
+completed_milestones:
+  - name: 'Phase 1 MVP - Core Platform'
+    epics: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    status: verified
+  - name: 'Phase 1.5 MVF - Minimum Viable Flywheel'
+    epics: [11, 12]
+    status: verified
+
+next_action: 'Run /sprint-status to see Phase 2A work items'
 
 # Key artifacts for downstream workflows
 key_artifacts:

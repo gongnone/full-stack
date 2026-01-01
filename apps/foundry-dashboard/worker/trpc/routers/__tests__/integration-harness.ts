@@ -95,11 +95,11 @@ export async function seedTestAccounts(
     VALUES (?, ?, ?)
   `).bind(client1Id, 'Client 1', 'active').run();
 
-  // Add user1 as agency_owner of client1 (grants full access)
+  // Add user1 as agency_owner of client1 (grants full access for addMember, etc.)
   await db.prepare(`
     INSERT INTO client_members (id, client_id, user_id, role)
     VALUES (?, ?, ?, ?)
-  `).bind(randomUUID(), client1Id, ctx.testUserId, 'admin').run();
+  `).bind(randomUUID(), client1Id, ctx.testUserId, 'agency_owner').run();
 
   // Create second user (for cross-tenant testing)
   await db.prepare(`
@@ -116,7 +116,7 @@ export async function seedTestAccounts(
   await db.prepare(`
     INSERT INTO client_members (id, client_id, user_id, role)
     VALUES (?, ?, ?, ?)
-  `).bind(randomUUID(), client2Id, ctx.secondUserId, 'admin').run();
+  `).bind(randomUUID(), client2Id, ctx.secondUserId, 'agency_owner').run();
 
   return {
     account1: { id: ctx.testAccountId, userId: ctx.testUserId, clientId: client1Id },

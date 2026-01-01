@@ -47,15 +47,16 @@ describe('clientsRouter', () => {
       const member = await ctx.drizzle.query.clientMembers.findFirst({
         where: (cm, { and, eq }) => and(eq(cm.clientId, result.clientId!), eq(cm.userId, ctx.testUserId)),
       });
-      expect(member?.role).toBe('admin');
+      expect(member?.role).toBe('agency_owner');
     });
   });
 
   describe('addMember', () => {
     it('adds a member if user has permissions', async () => {
       const caller = clientsRouter.createCaller(ctx);
-      const newUser = { id: 'new-member-id', email: 'new.member@test.com', name: 'New Member'};
-      await ctx.db.prepare('INSERT INTO user (id, email, name) VALUES (?, ?, ?)').bind(newUser.id, newUser.email, newUser.name).run();
+      const now = Date.now();
+      const newUser = { id: crypto.randomUUID(), email: `new.member.${now}@test.com`, name: 'New Member'};
+      await ctx.db.prepare('INSERT INTO user (id, email, emailVerified, name, createdAt, updatedAt) VALUES (?, ?, 0, ?, ?, ?)').bind(newUser.id, newUser.email, newUser.name, now, now).run();
 
       const input = {
         clientId: seededData.account1.clientId,
@@ -73,17 +74,22 @@ describe('clientsRouter', () => {
     });
 
     it('throws forbidden if user is not an owner', async () => {
-        const nonOwnerCtx = createIntegrationContext();
-        await seedTestAccounts(nonOwnerCtx.db, nonOwnerCtx);
-        // Manually set a different role
-        await nonOwnerCtx.drizzle.update(schema.clientMembers).set({ role: 'creator' }).where(
-            eq(schema.clientMembers.userId, nonOwnerCtx.testUserId)
-        );
+      // Use the existing context but with a non-owner role
+      // The seeded user is admin on their client, but we'll test with a creator role
+      const nonOwnerId = crypto.randomUUID();
+      const now = Date.now();
 
+      // Create a user with 'creator' role on account1's client
+      await ctx.db.prepare('INSERT INTO user (id, email, emailVerified, name, createdAt, updatedAt) VALUES (?, ?, 0, ?, ?, ?)').bind(nonOwnerId, `creator.${now}@test.com`, 'Creator User', now, now).run();
+      await ctx.db.prepare('INSERT INTO client_members (id, client_id, user_id, role) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), seededData.account1.clientId, nonOwnerId, 'creator').run();
+
+      // Create context for this non-owner user
+      const nonOwnerCtx = { ...ctx, userId: nonOwnerId, testUserId: nonOwnerId };
       const caller = clientsRouter.createCaller(nonOwnerCtx);
+
       const input = {
-        clientId: 'any-client-id',
-        email: 'test@example.com',
+        clientId: seededData.account1.clientId,
+        email: 'another.user@example.com',
         role: 'creator' as const,
       };
 
@@ -93,8 +99,17 @@ describe('clientsRouter', () => {
 
   describe('switch', () => {
     it('updates active client in profile', async () => {
+      // First, create a second client that the test user is a member of
+      const secondClientId = crypto.randomUUID();
+      const now = Date.now();
+      await ctx.db.prepare('INSERT INTO clients (id, name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').bind(secondClientId, 'Second Client', 'active', now, now).run();
+      await ctx.db.prepare('INSERT INTO client_members (id, client_id, user_id, role) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), secondClientId, ctx.testUserId, 'admin').run();
+
+      // Create user profile if it doesn't exist
+      await ctx.db.prepare('INSERT OR IGNORE INTO user_profiles (id, user_id, created_at, updated_at) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), ctx.testUserId, now, now).run();
+
       const caller = clientsRouter.createCaller(ctx);
-      const input = { clientId: seededData.account2.clientId };
+      const input = { clientId: secondClientId };
 
       const result = await caller.switch(input);
       expect(result.success).toBe(true);
@@ -102,7 +117,7 @@ describe('clientsRouter', () => {
       const profile = await ctx.drizzle.query.userProfiles.findFirst({
           where: (up, { eq }) => eq(up.userId, ctx.testUserId)
       });
-      expect(profile?.activeClientId).toBe(seededData.account2.clientId);
+      expect(profile?.activeClientId).toBe(secondClientId);
     });
   });
 

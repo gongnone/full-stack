@@ -143,12 +143,13 @@ export const clientsRouter = t.router({
 
         // Story 10-1 AC1: Auto-Send Brand DNA Invitation
         if (input.contactEmail) {
-          const account = await ctx.db
-            .prepare('SELECT name FROM accounts WHERE id = ?')
-            .bind(ctx.accountId)
+          // Get agency name from user's name (agency owner creating the client)
+          const user = await ctx.db
+            .prepare('SELECT name FROM user WHERE id = ?')
+            .bind(ctx.userId)
             .first<{ name: string }>();
-          
-          const agencyName = account?.name || 'The Agentic Content Foundry';
+
+          const agencyName = user?.name || 'The Agentic Content Foundry';
           const token = crypto.randomUUID().replace(/-/g, '');
           const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -721,12 +722,12 @@ export const clientsRouter = t.router({
         VALUES (?, ?, ?, ?, ?)
       `).bind(crypto.randomUUID(), input.clientId, token, expiresAt, now).run();
 
-      // Get agency name
-      const account = await ctx.db
-        .prepare('SELECT name FROM accounts WHERE id = ?')
-        .bind(ctx.accountId)
+      // Get agency name from user's name (agency owner resending the invite)
+      const user = await ctx.db
+        .prepare('SELECT name FROM user WHERE id = ?')
+        .bind(ctx.userId)
         .first<{ name: string }>();
-      const agencyName = account?.name || 'The Agentic Content Foundry';
+      const agencyName = user?.name || 'The Agentic Content Foundry';
 
       // Send new invitation email
       const inviteUrl = `${ctx.env.BETTER_AUTH_URL}/onboard/${token}`;

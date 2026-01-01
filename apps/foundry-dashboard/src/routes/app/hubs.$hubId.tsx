@@ -10,6 +10,7 @@ import { useClientId } from '@/lib/use-client-id';
 import { useClientRole } from '@/lib/use-client-role';
 import { formatDate } from '@/lib/date-utils';
 import { SpokeTreeView, GenerationProgress, PlatformFilter, SpokeDetailModal } from '@/components/spokes';
+import { PerformanceEntryModal } from '@/components/review';
 import type { Pillar, Spoke, SpokePlatform, SpokeGenerationProgress } from '@worker/types';
 
 // Types for workflow polling
@@ -142,6 +143,7 @@ function HubDetailPage() {
   const [generationProgress, setGenerationProgress] = useState<SpokeGenerationProgress | null>(null);
   const [activeTab, setActiveTab] = useState<'pillars' | 'spokes'>('pillars');
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null);
+  const [performanceSpokeId, setPerformanceSpokeId] = useState<string | null>(null);
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const workflowStartTimeRef = useRef<number>(0);
 
@@ -324,6 +326,20 @@ function HubDetailPage() {
     onError: (error) => {
       alert(`Generation failed: ${error.message}`);
       setIsGenerating(false);
+    },
+  });
+
+  // Record performance mutation (Story 11-6: Manual Metric Entry)
+  const recordPerformanceMutation = trpc.platforms.recordManualMetrics.useMutation({
+    onSuccess: (result) => {
+      setPerformanceSpokeId(null);
+      // Show feedback about the performance tier
+      if (result.performanceTier) {
+        console.log(`Performance recorded: ${result.performanceTier} (${result.engagementRate?.toFixed(2)}%)`);
+      }
+    },
+    onError: (error) => {
+      alert(`Failed to record performance: ${error.message}`);
     },
   });
 
@@ -601,9 +617,56 @@ function HubDetailPage() {
           const nextSpoke = filteredSpokes[nextIndex];
           if (nextSpoke) setSelectedSpokeId(nextSpoke.id);
         }}
+        onRecordPerformance={(spokeId) => {
+          setPerformanceSpokeId(spokeId);
+          setSelectedSpokeId(null); // Close the detail modal
+        }}
         hasNext={selectedSpokeIndex < filteredSpokes.length - 1}
         hasPrev={selectedSpokeIndex > 0}
       />
+
+      {/* Performance Entry Modal (Story 11-6: Manual Metric Entry) */}
+      {performanceSpokeId && (() => {
+        const performanceSpoke = spokes.find((s) => s.id === performanceSpokeId);
+        if (!performanceSpoke) return null;
+
+        // Map spoke platform to platforms router enum (twitter, linkedin, instagram, tiktok)
+        const platformMap: Record<string, 'twitter' | 'linkedin' | 'instagram' | 'tiktok'> = {
+          twitter: 'twitter',
+          linkedin: 'linkedin',
+          instagram: 'instagram',
+          tiktok: 'tiktok',
+          thread: 'twitter', // Threads map to Twitter
+          carousel: 'instagram', // Carousels map to Instagram
+          newsletter: 'linkedin', // Newsletters closest to LinkedIn
+          youtube_thumbnail: 'tiktok', // YouTube closest to TikTok format
+        };
+
+        return (
+          <PerformanceEntryModal
+            isOpen={true}
+            onClose={() => setPerformanceSpokeId(null)}
+            onSubmit={(data) => {
+              recordPerformanceMutation.mutate({
+                clientId,
+                spokeId: performanceSpokeId,
+                platform: platformMap[performanceSpoke.platform] || 'twitter',
+                metrics: {
+                  impressions: data.metrics.impressions,
+                  likes: data.metrics.likes,
+                  comments: data.metrics.comments,
+                  shares: data.metrics.shares,
+                },
+                performedWell: data.performedWell,
+                notes: data.notes,
+              });
+            }}
+            spokeContent={performanceSpoke.content}
+            platform={performanceSpoke.platform}
+            isLoading={recordPerformanceMutation.isPending}
+          />
+        );
+      })()}
     </div>
   );
 }

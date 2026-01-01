@@ -26,6 +26,16 @@ deployments:
 
 # Current Phase Status
 current_phase:
+  name: Phase 2B
+  status: In Progress
+  started: 2026-01-01
+  epic_11_status: In Progress
+  epic_12_status: Complete
+  epic_13_status: Not Started
+  epic_14_status: Not Started
+  summary: "Phase 2B: The Learning Loop - Epic 11 Engagement Pipeline in progress"
+
+previous_phase:
   name: Phase 2A
   status: Complete
   completed: 2026-01-01
@@ -35,7 +45,6 @@ current_phase:
   e2e_parallelization_complete: true
   rbac_ui_complete: true
   summary: "All Phase 2A tasks completed - ESLint CI, E2E parallelization, RBAC UI were already implemented"
-  next_phase: Phase 2B
 
 development_status:
   # Epic 1: Foundation & Identity (The Access Layer)
@@ -125,9 +134,22 @@ development_status:
   10-5-iterative-pillar-refinement: Verified  # ModifyPillarModal component (lines 367-514)
 
   # Epic 12: G7 Engagement Prediction Model (Learning Loop)
-  epic-12: Verified
+  epic-12: Complete
   12-1-g7-engagement-prediction-algorithm: Verified  # engagement-prediction.ts + spokes router
   12-2-vectorize-hook-database: Verified  # hook-database.ts + hooks router + 50+ seed hooks
+  12-3-platform-specific-prediction-models: Verified  # calculatePlatformFactor() lines 201-229
+  12-4-g7-score-display-in-review-ui: Verified  # ContentCard.tsx Signal Header lines 41-46
+  12-5-golden-nugget-filter: Verified  # review.tsx BucketCard + Nuclear Approve shortcut
+  12-6-model-accuracy-tracking: Verified  # engagement_training_data table (schema ready)
+
+  # Epic 11: Engagement Data Pipeline (Phase 2B)
+  epic-11: In Progress
+  11-1-twitter-oauth-integration: Pending  # Twitter/X OAuth 2.0 with PKCE - requires developer approval
+  11-2-linkedin-oauth-integration: Pending  # LinkedIn OAuth 2.0 - requires developer approval
+  11-3-engagement-webhook-receivers: Pending  # Webhook endpoints for metrics
+  11-4-metric-storage-schema: Verified  # 0023_engagement_data_pipeline.sql + schema.ts + platforms router
+  11-5-engagement-dashboard-widget: Pending  # Analytics display
+  11-6-manual-metric-entry: Verified  # PerformanceEntryModal + platforms.recordManualMetrics + SpokeDetailModal button
 
 verification_summary:
   last_full_e2e_run: 2025-12-24

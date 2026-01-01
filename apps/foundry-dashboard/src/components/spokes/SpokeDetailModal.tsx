@@ -39,6 +39,7 @@ interface SpokeDetailModalProps {
   onApprove?: (spokeId: string) => void;
   onEdit?: (spokeId: string) => void;
   onReject?: (spokeId: string) => void;
+  onRecordPerformance?: (spokeId: string) => void;
   hasNext?: boolean;
   hasPrev?: boolean;
 }
@@ -51,6 +52,7 @@ export function SpokeDetailModal({
   onApprove,
   onEdit,
   onReject,
+  onRecordPerformance,
   hasNext = true,
   hasPrev = true,
 }: SpokeDetailModalProps) {
@@ -250,6 +252,19 @@ export function SpokeDetailModal({
                   style={{ backgroundColor: 'var(--approve)', color: '#fff' }}
                 >
                   Approve
+                </button>
+              )}
+              {/* Record Performance - only for approved spokes (Story 11-6) */}
+              {onRecordPerformance && spoke.status === 'approved' && (
+                <button
+                  onClick={() => onRecordPerformance(spoke.id)}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
+                  style={{ backgroundColor: 'var(--bg-surface)', color: 'var(--warning)', border: '1px solid var(--warning)' }}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Record Performance
                 </button>
               )}
             </div>

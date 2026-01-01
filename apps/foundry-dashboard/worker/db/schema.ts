@@ -578,3 +578,147 @@ export type Hook = typeof hooks.$inferSelect;
 export type HookInsert = typeof hooks.$inferInsert;
 export type HookCategory = typeof hookCategories.$inferSelect;
 export type HookSimilarityLog = typeof hookSimilarityLog.$inferSelect;
+
+// === EPIC 11: ENGAGEMENT DATA PIPELINE ===
+
+// Platform OAuth connections (11-1, 11-2)
+export const platformConnections = sqliteTable('platform_connections', {
+  id: text('id').primaryKey(),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull(),
+  platform: text('platform').notNull(), // 'twitter', 'linkedin', 'instagram', 'tiktok'
+
+  // OAuth credentials
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token'),
+  tokenExpiresAt: integer('token_expires_at'),
+
+  // Platform identifiers
+  platformUserId: text('platform_user_id').notNull(),
+  platformUsername: text('platform_username'),
+  platformDisplayName: text('platform_display_name'),
+  platformAvatarUrl: text('platform_avatar_url'),
+
+  // Connection metadata
+  scopes: text('scopes'), // JSON array
+  status: text('status').notNull().default('active'), // 'active', 'expired', 'revoked', 'error'
+  lastSyncAt: integer('last_sync_at'),
+  syncError: text('sync_error'),
+
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull(),
+});
+
+// Published posts (11-4)
+export const publishedPosts = sqliteTable('published_posts', {
+  id: text('id').primaryKey(),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  spokeId: text('spoke_id').notNull(),
+  connectionId: text('connection_id').notNull().references(() => platformConnections.id, { onDelete: 'cascade' }),
+
+  platform: text('platform').notNull(),
+  platformPostId: text('platform_post_id').notNull(),
+  postUrl: text('post_url'),
+
+  contentSnapshot: text('content_snapshot').notNull(),
+  mediaUrls: text('media_urls'), // JSON array
+
+  publishedAt: integer('published_at').notNull(),
+});
+
+// Engagement metrics (11-3, 11-4)
+export const engagementMetrics = sqliteTable('engagement_metrics', {
+  id: text('id').primaryKey(),
+  publishedPostId: text('published_post_id').notNull().references(() => publishedPosts.id, { onDelete: 'cascade' }),
+
+  // Core metrics
+  impressions: integer('impressions'),
+  engagements: integer('engagements'),
+  engagementRate: integer('engagement_rate'), // * 100 for storage
+
+  // Reaction metrics
+  likes: integer('likes').default(0),
+  comments: integer('comments').default(0),
+  shares: integer('shares').default(0),
+  saves: integer('saves').default(0),
+
+  // Reach metrics
+  reach: integer('reach'),
+  profileVisits: integer('profile_visits'),
+  linkClicks: integer('link_clicks'),
+
+  // Video metrics
+  videoViews: integer('video_views'),
+  videoWatchTime: integer('video_watch_time'),
+
+  // Platform-specific
+  platformMetrics: text('platform_metrics'), // JSON
+
+  recordedAt: integer('recorded_at').notNull(),
+  metricsUpdatedAt: integer('metrics_updated_at').notNull(),
+});
+
+// Manual metrics (11-6)
+export const manualMetrics = sqliteTable('manual_metrics', {
+  id: text('id').primaryKey(),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
+  spokeId: text('spoke_id').notNull(),
+  userId: text('user_id').notNull(),
+
+  platform: text('platform').notNull(),
+
+  impressions: integer('impressions'),
+  likes: integer('likes'),
+  comments: integer('comments'),
+  shares: integer('shares'),
+
+  performedWell: integer('performed_well'),
+  notes: text('notes'),
+
+  publishedAt: integer('published_at'),
+  recordedAt: integer('recorded_at').notNull(),
+});
+
+// Webhook events (11-3)
+export const webhookEvents = sqliteTable('webhook_events', {
+  id: text('id').primaryKey(),
+  platform: text('platform').notNull(),
+  eventType: text('event_type').notNull(),
+  payload: text('payload').notNull(),
+  processed: integer('processed').notNull().default(0),
+  error: text('error'),
+  receivedAt: integer('received_at').notNull(),
+  processedAt: integer('processed_at'),
+});
+
+// API rate limits
+export const apiRateLimits = sqliteTable('api_rate_limits', {
+  id: text('id').primaryKey(),
+  platform: text('platform').notNull(),
+  endpoint: text('endpoint').notNull(),
+  limitCount: integer('limit_count').notNull(),
+  remainingCount: integer('remaining_count').notNull(),
+  resetAt: integer('reset_at').notNull(),
+  lastRequestAt: integer('last_request_at').notNull(),
+});
+
+// Engagement sync queue
+export const engagementSyncQueue = sqliteTable('engagement_sync_queue', {
+  id: text('id').primaryKey(),
+  publishedPostId: text('published_post_id').notNull().references(() => publishedPosts.id, { onDelete: 'cascade' }),
+  priority: integer('priority').notNull().default(0),
+  status: text('status').notNull().default('pending'),
+  retryCount: integer('retry_count').notNull().default(0),
+  lastAttemptAt: integer('last_attempt_at'),
+  nextAttemptAt: integer('next_attempt_at'),
+  error: text('error'),
+});
+
+export type PlatformConnection = typeof platformConnections.$inferSelect;
+export type PlatformConnectionInsert = typeof platformConnections.$inferInsert;
+export type PublishedPost = typeof publishedPosts.$inferSelect;
+export type PublishedPostInsert = typeof publishedPosts.$inferInsert;
+export type EngagementMetric = typeof engagementMetrics.$inferSelect;
+export type EngagementMetricInsert = typeof engagementMetrics.$inferInsert;
+export type ManualMetric = typeof manualMetrics.$inferSelect;
+export type ManualMetricInsert = typeof manualMetrics.$inferInsert;

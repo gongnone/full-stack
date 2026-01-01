@@ -4,3 +4,4 @@ export { KillConfirmationModal } from './KillConfirmationModal';
 export { CloneSpokeModal } from './CloneSpokeModal';
 export type { CloneOptions, CloneMode } from './CloneSpokeModal';
 export { ContentCard } from './ContentCard';
+export { PerformanceEntryModal } from './PerformanceEntryModal';

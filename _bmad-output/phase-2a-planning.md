@@ -42,16 +42,20 @@ All core Epic 10 stories are live:
 
 These are nice-to-haves deferred from initial implementation:
 
-### 1.1 AI Chat-Based Refinement (Story 10-5 AC3)
-**Priority:** P1 | **Effort:** 3-4 hours
+### 1.1 AI Chat-Based Refinement (Story 10-5 AC3) ✅ DONE
+**Priority:** P1 | **Effort:** 3-4 hours | **Completed:** 2026-01-01
 
-**Current State:** Text note input only
-**Enhancement:** Add conversational AI refinement chat UI
+**What was done:**
+- Added tabbed UI to ModifyPillarModal (Manual Edit / AI Refine tabs)
+- Created `strategy.refinePillarWithAI` tRPC endpoint using Workers AI Llama 3.1
+- Implemented multi-turn conversational chat with message history
+- AI suggests pillar refinements with structured JSON for names/strategy tags
+- Added before/after preview with Accept/Reject buttons
+- Voice recording works in both tabs (appends to note or sends as chat message)
 
-**Implementation:**
-- Add chat interface in ModifyPillarModal
-- Create `strategy.chatRefine` tRPC endpoint
-- Stream responses for better UX
+**Files changed:**
+- `src/routes/strategy.$token.tsx` - Chat UI, tab switcher, preview component
+- `worker/trpc/routers/strategy.ts` - refinePillarWithAI endpoint
 
 ---
 
@@ -179,7 +183,7 @@ BASE_URL=https://foundry-stage.williamjshaw.ca pnpm exec playwright test e2e/cre
 
 ### Priority 2 (Do Second)
 4. ✅ Voice Note Refinement (2-3 hrs) - **DONE** (2026-01-01)
-5. AI Chat Refinement (3-4 hrs) - Enhances existing flow
+5. ✅ AI Chat Refinement (3-4 hrs) - **DONE** (2026-01-01)
 6. Global Start Over (1 hr) - Edge case handling
 
 ### Priority 3 (Later)
@@ -198,7 +202,7 @@ BASE_URL=https://foundry-stage.williamjshaw.ca pnpm exec playwright test e2e/cre
 
 ### Not Required for Phase 2A:
 - SMS notifications (P2)
-- AI chat refinement (nice-to-have)
+- Global Start Over (edge case, P2)
 
 ---
 
@@ -224,3 +228,4 @@ BASE_URL=https://foundry-stage.williamjshaw.ca pnpm exec playwright test e2e/cre
 *Document updated: 2026-01-01*
 *Stories 10-3, 10-4, 10-5 verified as complete in production*
 *RBAC UI implemented 2026-01-01: role-based menu visibility in Sidebar*
+*AI Chat Refinement implemented 2026-01-01: conversational pillar refinement with Workers AI*

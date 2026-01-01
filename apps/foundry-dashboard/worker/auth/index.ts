@@ -47,8 +47,11 @@ class DateToTimestampPlugin implements KyselyPlugin {
  * Create Better Auth instance for Cloudflare Workers
  * Uses D1 as the database backend via Kysely
  */
+// Better Auth database schema - using Record for Kysely compatibility
+type AuthDatabase = Record<string, Record<string, unknown>>;
+
 export function createAuth(env: Env) {
-  const db = new Kysely<any>({
+  const db = new Kysely<AuthDatabase>({
     dialect: new D1Dialect({ database: env.DB }),
     plugins: [new DateToTimestampPlugin()],
   });
@@ -214,13 +217,13 @@ export function createAuth(env: Env) {
                 createdAt: user.createdAt instanceof Date ? Math.floor(user.createdAt.getTime() / 1000) : user.createdAt,
                 updatedAt: user.updatedAt instanceof Date ? Math.floor(user.updatedAt.getTime() / 1000) : user.updatedAt,
                 emailVerified: emailVerifiedValue,
-              } as any,
+              } as Record<string, unknown>,
             };
           },
         },
         update: {
           before: async (user) => {
-            const data: any = { ...user };
+            const data: Record<string, unknown> = { ...user };
             if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
             if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
             if (data.emailVerified instanceof Date) data.emailVerified = Math.floor(data.emailVerified.getTime() / 1000);
@@ -241,13 +244,13 @@ export function createAuth(env: Env) {
                 updatedAt: account.updatedAt instanceof Date ? Math.floor(account.updatedAt.getTime() / 1000) : account.updatedAt,
                 accessTokenExpiresAt: account.accessTokenExpiresAt instanceof Date ? Math.floor(account.accessTokenExpiresAt.getTime() / 1000) : account.accessTokenExpiresAt,
                 refreshTokenExpiresAt: account.refreshTokenExpiresAt instanceof Date ? Math.floor(account.refreshTokenExpiresAt.getTime() / 1000) : account.refreshTokenExpiresAt,
-              } as any,
+              } as Record<string, unknown>,
             };
           },
         },
         update: {
           before: async (account) => {
-            const data: any = { ...account };
+            const data: Record<string, unknown> = { ...account };
             if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
             if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
             if (data.accessTokenExpiresAt instanceof Date) data.accessTokenExpiresAt = Math.floor(data.accessTokenExpiresAt.getTime() / 1000);
@@ -265,7 +268,7 @@ export function createAuth(env: Env) {
                 expiresAt: verification.expiresAt instanceof Date ? Math.floor(verification.expiresAt.getTime() / 1000) : verification.expiresAt,
                 createdAt: verification.createdAt instanceof Date ? Math.floor(verification.createdAt.getTime() / 1000) : verification.createdAt,
                 updatedAt: verification.updatedAt instanceof Date ? Math.floor(verification.updatedAt.getTime() / 1000) : verification.updatedAt,
-              } as any,
+              } as Record<string, unknown>,
             };
           },
         },

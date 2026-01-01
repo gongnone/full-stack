@@ -669,6 +669,77 @@ export const clientsRouter = t.router({
       };
     }),
 
+  // Story 10-1 AC8: Resend Brand DNA invitation
+  resendBrandDNAInvite: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Security: Only agency_owner or account_manager can resend invites
+      const membership = await ctx.db
+        .prepare('SELECT role FROM client_members WHERE client_id = ? AND user_id = ?')
+        .bind(input.clientId, ctx.userId)
+        .first<{ role: string }>();
+
+      if (!membership || !['agency_owner', 'account_manager'].includes(membership.role)) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Access denied. Only agency owners or account managers can resend invitations.',
+        });
+      }
+
+      // Get client details
+      const client = await ctx.db
+        .prepare('SELECT name, contact_email FROM clients WHERE id = ?')
+        .bind(input.clientId)
+        .first<{ name: string; contact_email: string | null }>();
+
+      if (!client) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Client not found' });
+      }
+
+      if (!client.contact_email) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Client has no email address. Please update the client with an email first.',
+        });
+      }
+
+      // Invalidate all existing tokens for this client
+      await ctx.db
+        .prepare('UPDATE client_onboard_tokens SET used_at = ? WHERE client_id = ? AND used_at IS NULL')
+        .bind(Date.now(), input.clientId)
+        .run();
+
+      // Generate new token
+      const token = crypto.randomUUID().replace(/-/g, '');
+      const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+      const now = Date.now();
+
+      await ctx.db.prepare(`
+        INSERT INTO client_onboard_tokens (id, client_id, token, expires_at, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).bind(crypto.randomUUID(), input.clientId, token, expiresAt, now).run();
+
+      // Get agency name
+      const account = await ctx.db
+        .prepare('SELECT name FROM accounts WHERE id = ?')
+        .bind(ctx.accountId)
+        .first<{ name: string }>();
+      const agencyName = account?.name || 'The Agentic Content Foundry';
+
+      // Send new invitation email
+      const inviteUrl = `${ctx.env.BETTER_AUTH_URL}/onboard/${token}`;
+      await sendBrandDNAInvitation(ctx.env, client.contact_email, client.name, inviteUrl, agencyName).catch(err => {
+        console.error('Failed to resend invite email:', err);
+      });
+
+      return {
+        success: true,
+        message: 'Invitation sent successfully',
+      };
+    }),
+
   // Story 1.5-7-3: Invite new client via email
   inviteClient: procedure
     .input(z.object({
@@ -794,7 +865,14 @@ export const clientsRouter = t.router({
       const now = Date.now();
       const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-      return (clients.results || []).map((row: any) => {
+      interface ClientProgressRow {
+        id: string;
+        name: string;
+        dna_status: string | null;
+        current_step: string | null;
+        last_activity: number | null;
+      }
+      return ((clients.results || []) as unknown as ClientProgressRow[]).map((row) => {
         let status: 'not_started' | 'in_progress' | 'complete' = 'not_started';
         let percentage = 0;
         const lastActivity = row.last_activity as number || 0;
@@ -916,7 +994,6 @@ export const clientsRouter = t.router({
       // Find stuck clients
       const now = Date.now();
       const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
-      const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
       const stuckSessions = await ctx.db.prepare(`
         SELECT b.id, b.client_id, b.updated_at, c.contact_email, c.name

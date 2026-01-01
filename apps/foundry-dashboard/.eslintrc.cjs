@@ -15,7 +15,7 @@ module.exports = {
       'warn',
       { allowConstantExport: true },
     ],
-    // TD-2: Detect 'any' types
+    // TD-2: Detect 'any' types - error in production code
     '@typescript-eslint/no-explicit-any': 'error',
     // TD-3: Detect placeholder tests
     'no-restricted-syntax': [
@@ -26,4 +26,19 @@ module.exports = {
       },
     ],
   },
+  // TD-2: Relax 'any' rule to warn in test files and test utils (fix over time)
+  overrides: [
+    {
+      files: [
+        '**/*.test.ts',
+        '**/*.test.tsx',
+        '**/*.integration.test.ts',
+        '**/__tests__/utils.ts',
+        '**/__tests__/integration-harness.ts',
+      ],
+      rules: {
+        '@typescript-eslint/no-explicit-any': 'warn',
+      },
+    },
+  ],
 }

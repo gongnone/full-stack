@@ -77,6 +77,26 @@ function safeParseJSON<T>(text: string, fallback: T): T {
   }
 }
 
+// Type for extracted persona from AI response (TD-2 fix)
+interface ExtractedPersona {
+  name?: string;
+  summary?: string;
+  age_range?: string | null;
+  gender?: string | null;
+  location?: string | null;
+  income_level?: string | null;
+  education?: string | null;
+  occupation?: string | null;
+  values?: string[];
+  interests?: string[];
+  pain_points?: string[];
+  goals?: string[];
+  preferred_platforms?: string[];
+  content_types?: string[];
+  consumption_time?: string | null;
+  engagement_style?: string | null;
+}
+
 // Helper: Calculate weekly posts from frequency string
 function calculateWeeklyPosts(frequency: string): number {
   const lower = frequency.toLowerCase();
@@ -216,9 +236,9 @@ export const audienceRouter = t.router({
         });
 
         // Parse extracted persona safely
-        const extracted = safeParseJSON(result.response || '', { 
-          name: 'Imported Persona' 
-        } as any);
+        const extracted = safeParseJSON<ExtractedPersona>(result.response || '', {
+          name: 'Imported Persona'
+        });
 
         // Create persona record
         const now = Date.now();
@@ -284,9 +304,9 @@ export const audienceRouter = t.router({
           max_tokens: 1000,
         });
 
-        const extracted = safeParseJSON(result.response || '', { 
-          name: input.name || 'Imported Persona' 
-        } as any);
+        const extracted = safeParseJSON<ExtractedPersona>(result.response || '', {
+          name: input.name || 'Imported Persona'
+        });
 
         const personaId = crypto.randomUUID();
         const now = Date.now();
@@ -1544,10 +1564,10 @@ Respond ONLY with valid JSON:
         });
 
         // Story 1.5-2-10: Use standardized safe parsing
-        const extracted = safeParseJSON(result.response || '', {
+        const extracted = safeParseJSON<ExtractedPersona>(result.response || '', {
           name: 'Target Audience',
           summary: input.description,
-        } as any);
+        });
 
         const personaId = crypto.randomUUID();
         const now = Date.now();

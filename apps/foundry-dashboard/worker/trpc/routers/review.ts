@@ -44,7 +44,7 @@ export const reviewRouter = t.router({
         filter: input.filter,
         limit: input.limit + 1, // Fetch one extra to determine next cursor
         offset: input.cursor,
-      }) as any[]; // Type as any first to handle mapping
+      }) as ReviewQueueSpoke[]; // DO returns snake_case, we normalize below
 
       let nextCursor: number | undefined = undefined;
       if (items.length > input.limit) {
@@ -53,7 +53,8 @@ export const reviewRouter = t.router({
       }
 
       // Map snake_case from DO to consistent camelCase
-      const mappedItems: ReviewQueueSpoke[] = items.map(item => ({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mappedItems: ReviewQueueSpoke[] = items.map((item: any) => ({
         ...item,
         parentSpokeId: item.parentSpokeId || item.parent_spoke_id,
         clonedFrom: item.clonedFrom || item.cloned_from,

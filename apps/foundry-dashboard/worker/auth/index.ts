@@ -5,6 +5,39 @@ import type { Env } from '../index';
 import { sendVerificationEmail as sendVerificationEmailViaService, sendPasswordResetEmail as sendPasswordResetEmailViaService } from '../email';
 
 /**
+ * Convert any date-like value to milliseconds since epoch
+ * Better Auth uses JavaScript Date.getTime() internally (milliseconds, not seconds)
+ *
+ * Handles: Date objects, ISO strings, existing timestamps (seconds or milliseconds)
+ */
+function toMilliseconds(value: unknown): number {
+  if (value instanceof Date) {
+    return value.getTime(); // Already milliseconds
+  }
+  if (typeof value === 'string') {
+    // ISO string like "2026-01-08T17:14:15.553Z"
+    const parsed = Date.parse(value);
+    if (!isNaN(parsed)) {
+      return parsed; // Date.parse returns milliseconds
+    }
+  }
+  if (typeof value === 'number') {
+    // Detect if already milliseconds (13+ digits) or seconds (10 digits)
+    // Timestamps before year 2001 in ms: 978307200000 (12 digits)
+    // Timestamps after year 2001 in seconds: 978307200 (9 digits)
+    // Year 3000 in seconds: 32503680000 (11 digits)
+    // Year 3000 in milliseconds: 32503680000000 (14 digits)
+    // If value has 10 or fewer digits, it's likely seconds
+    if (value < 10000000000) {
+      return value * 1000; // Convert seconds to milliseconds
+    }
+    return value; // Already milliseconds
+  }
+  // Fallback: current time
+  return Date.now();
+}
+
+/**
  * Kysely plugin to convert Date objects to Unix timestamps for D1/SQLite
  * This intercepts ALL queries and transforms Date values before execution
  */
@@ -53,13 +86,17 @@ type AuthDatabase = Record<string, Record<string, unknown>>;
 export function createAuth(env: Env) {
   const db = new Kysely<AuthDatabase>({
     dialect: new D1Dialect({ database: env.DB }),
-    plugins: [new DateToTimestampPlugin()],
+    // Removed DateToTimestampPlugin - using databaseHooks instead for explicit timestamp conversion
   });
 
   return betterAuth({
     database: {
       db,
       type: 'sqlite',
+      // Enable debug logs to trace queries
+      debugLogs: true,
+      // D1 doesn't support transactions well via kysely-d1
+      transaction: false,
     },
 
     // Email + Password authentication
@@ -117,7 +154,7 @@ export function createAuth(env: Env) {
         userId: 'user_id',
         accessToken: 'access_token',
         refreshToken: 'refresh_token',
-        accessTokenExpiresAt: 'expires_at',
+        accessTokenExpiresAt: 'access_token_expires_at',
         refreshTokenExpiresAt: 'refresh_token_expires_at',
         idToken: 'id_token',
         scope: 'scope',
@@ -218,14 +255,15 @@ export function createAuth(env: Env) {
         create: {
           before: async (user) => {
             // emailVerified can be boolean or Date depending on Better Auth version
+            // If Date, use milliseconds for consistency with Better Auth
             const emailVerifiedValue = (user.emailVerified as unknown) instanceof Date
-              ? Math.floor((user.emailVerified as unknown as Date).getTime() / 1000)
+              ? (user.emailVerified as unknown as Date).getTime()
               : (user.emailVerified ? 1 : 0);
             return {
               data: {
                 ...user,
-                createdAt: user.createdAt instanceof Date ? Math.floor(user.createdAt.getTime() / 1000) : user.createdAt,
-                updatedAt: user.updatedAt instanceof Date ? Math.floor(user.updatedAt.getTime() / 1000) : user.updatedAt,
+                createdAt: toMilliseconds(user.createdAt),
+                updatedAt: toMilliseconds(user.updatedAt),
                 emailVerified: emailVerifiedValue,
               } as Record<string, unknown>,
             };
@@ -234,9 +272,9 @@ export function createAuth(env: Env) {
         update: {
           before: async (user) => {
             const data: Record<string, unknown> = { ...user };
-            if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
-            if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
-            if (data.emailVerified instanceof Date) data.emailVerified = Math.floor(data.emailVerified.getTime() / 1000);
+            if (data.updatedAt !== undefined) data.updatedAt = toMilliseconds(data.updatedAt);
+            if (data.createdAt !== undefined) data.createdAt = toMilliseconds(data.createdAt);
+            if (data.emailVerified instanceof Date) data.emailVerified = data.emailVerified.getTime();
             else if (typeof data.emailVerified === 'boolean') data.emailVerified = data.emailVerified ? 1 : 0;
             return { data };
           },
@@ -245,22 +283,33 @@ export function createAuth(env: Env) {
       session: {
         create: {
           before: async (session) => {
-            return {
-              data: {
-                ...session,
-                expiresAt: session.expiresAt instanceof Date ? Math.floor(session.expiresAt.getTime() / 1000) : session.expiresAt,
-                createdAt: session.createdAt instanceof Date ? Math.floor(session.createdAt.getTime() / 1000) : session.createdAt,
-                updatedAt: session.updatedAt instanceof Date ? Math.floor(session.updatedAt.getTime() / 1000) : session.updatedAt,
-              } as Record<string, unknown>,
-            };
+            console.log('[AUTH DB] Session create - raw input:', JSON.stringify(session));
+            // Only transform timestamp fields, preserve everything else
+            const sessionRecord = session as Record<string, unknown>;
+            const transformed: Record<string, unknown> = {};
+
+            for (const [key, value] of Object.entries(sessionRecord)) {
+              if (key === 'expiresAt' || key === 'createdAt' || key === 'updatedAt') {
+                transformed[key] = toMilliseconds(value);
+              } else {
+                transformed[key] = value;
+              }
+            }
+
+            console.log('[AUTH DB] Session create - transformed:', JSON.stringify(transformed));
+            return { data: transformed };
+          },
+          after: async (session) => {
+            console.log('[AUTH DB] Session after hook - id:', session.id, 'token:', (session as Record<string, unknown>).token);
+            return session;
           },
         },
         update: {
           before: async (session) => {
             const data: Record<string, unknown> = { ...session };
-            if (data.expiresAt instanceof Date) data.expiresAt = Math.floor(data.expiresAt.getTime() / 1000);
-            if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
-            if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
+            if (data.expiresAt !== undefined) data.expiresAt = toMilliseconds(data.expiresAt);
+            if (data.createdAt !== undefined) data.createdAt = toMilliseconds(data.createdAt);
+            if (data.updatedAt !== undefined) data.updatedAt = toMilliseconds(data.updatedAt);
             return { data };
           },
         },
@@ -270,16 +319,17 @@ export function createAuth(env: Env) {
           before: async (account) => {
             const data: Record<string, unknown> = {
               ...account,
-              createdAt: account.createdAt instanceof Date ? Math.floor(account.createdAt.getTime() / 1000) : account.createdAt,
-              updatedAt: account.updatedAt instanceof Date ? Math.floor(account.updatedAt.getTime() / 1000) : account.updatedAt,
+              createdAt: toMilliseconds(account.createdAt),
+              updatedAt: toMilliseconds(account.updatedAt),
             };
-            // Convert accessTokenExpiresAt if present (maps to 'expires_at' DB column)
-            if ((account as Record<string, unknown>).accessTokenExpiresAt instanceof Date) {
-              data.accessTokenExpiresAt = Math.floor(((account as Record<string, unknown>).accessTokenExpiresAt as Date).getTime() / 1000);
+            // Convert accessTokenExpiresAt if present (maps to 'access_token_expires_at' DB column)
+            const accRecord = account as Record<string, unknown>;
+            if (accRecord.accessTokenExpiresAt !== undefined) {
+              data.accessTokenExpiresAt = toMilliseconds(accRecord.accessTokenExpiresAt);
             }
             // Convert refreshTokenExpiresAt if present (maps to 'refresh_token_expires_at' DB column)
-            if ((account as Record<string, unknown>).refreshTokenExpiresAt instanceof Date) {
-              data.refreshTokenExpiresAt = Math.floor(((account as Record<string, unknown>).refreshTokenExpiresAt as Date).getTime() / 1000);
+            if (accRecord.refreshTokenExpiresAt !== undefined) {
+              data.refreshTokenExpiresAt = toMilliseconds(accRecord.refreshTokenExpiresAt);
             }
             return { data };
           },
@@ -287,10 +337,10 @@ export function createAuth(env: Env) {
         update: {
           before: async (account) => {
             const data: Record<string, unknown> = { ...account };
-            if (data.createdAt instanceof Date) data.createdAt = Math.floor(data.createdAt.getTime() / 1000);
-            if (data.updatedAt instanceof Date) data.updatedAt = Math.floor(data.updatedAt.getTime() / 1000);
-            if (data.accessTokenExpiresAt instanceof Date) data.accessTokenExpiresAt = Math.floor(data.accessTokenExpiresAt.getTime() / 1000);
-            if (data.refreshTokenExpiresAt instanceof Date) data.refreshTokenExpiresAt = Math.floor(data.refreshTokenExpiresAt.getTime() / 1000);
+            if (data.createdAt !== undefined) data.createdAt = toMilliseconds(data.createdAt);
+            if (data.updatedAt !== undefined) data.updatedAt = toMilliseconds(data.updatedAt);
+            if (data.accessTokenExpiresAt !== undefined) data.accessTokenExpiresAt = toMilliseconds(data.accessTokenExpiresAt);
+            if (data.refreshTokenExpiresAt !== undefined) data.refreshTokenExpiresAt = toMilliseconds(data.refreshTokenExpiresAt);
             return { data };
           },
         },
@@ -301,9 +351,9 @@ export function createAuth(env: Env) {
             return {
               data: {
                 ...verification,
-                expiresAt: verification.expiresAt instanceof Date ? Math.floor(verification.expiresAt.getTime() / 1000) : verification.expiresAt,
-                createdAt: verification.createdAt instanceof Date ? Math.floor(verification.createdAt.getTime() / 1000) : verification.createdAt,
-                updatedAt: verification.updatedAt instanceof Date ? Math.floor(verification.updatedAt.getTime() / 1000) : verification.updatedAt,
+                expiresAt: toMilliseconds(verification.expiresAt),
+                createdAt: toMilliseconds(verification.createdAt),
+                updatedAt: toMilliseconds(verification.updatedAt),
               } as Record<string, unknown>,
             };
           },

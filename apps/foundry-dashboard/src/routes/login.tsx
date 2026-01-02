@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { createFileRoute, Link, useNavigate, useSearch } from '@tanstack/react-router';
+import { useState, useEffect } from 'react';
 import { signIn } from '@/lib/auth-client';
 import { clearSessionCache } from '@/lib/query-client';
 import { Button } from '@/components/ui/button';
@@ -11,14 +11,27 @@ import { SocialLoginButtons } from '@/components/auth';
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
+  validateSearch: (search: Record<string, unknown>) => {
+    return {
+      error: typeof search.error === 'string' ? search.error : undefined,
+    };
+  },
 });
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { error: urlError } = useSearch({ from: '/login' });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // Display error from URL (OAuth callback errors)
+  useEffect(() => {
+    if (urlError) {
+      setError(decodeURIComponent(urlError));
+    }
+  }, [urlError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -53,10 +53,10 @@ export const authRouter = t.router({
     }
 
     // Get user from Better Auth user table
-    // Note: Better Auth uses camelCase columns in SQLite
+    // Note: D1 user table uses snake_case columns
     const userResult = await ctx.db
-      .prepare(`SELECT id, email, name, emailVerified,
-                createdAt, updatedAt FROM user WHERE id = ?`)
+      .prepare(`SELECT id, email, name, email_verified as emailVerified,
+                created_at as createdAt, updated_at as updatedAt FROM user WHERE id = ?`)
       .bind(ctx.userId)
       .first<User>();
 

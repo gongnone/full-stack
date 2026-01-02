@@ -101,9 +101,22 @@ app.get('/api/health/db', async (c) => {
 // Better Auth routes - handles all /api/auth/* endpoints
 app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
   const auth = createAuth(c.env);
+  const path = c.req.path;
+
+  // Debug logging for OAuth callbacks
+  if (path.includes('/callback/')) {
+    console.log('[AUTH] OAuth callback received:', path);
+    console.log('[AUTH] Query params:', c.req.url);
+  }
 
   try {
     const response = await auth.handler(c.req.raw);
+
+    // Debug logging for callback responses
+    if (path.includes('/callback/')) {
+      console.log('[AUTH] Callback response status:', response.status);
+      console.log('[AUTH] Callback response headers:', Object.fromEntries(response.headers.entries()));
+    }
 
     // Fix: Better Auth 1.4+ forces SameSite=None which Chrome blocks
     // Rewrite cookies to use SameSite=Lax for same-origin deployment
@@ -116,6 +129,7 @@ app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
         // Replace SameSite=None with SameSite=Lax
         const fixedCookie = cookie.replace(/SameSite=None/gi, 'SameSite=Lax');
         newHeaders.append('Set-Cookie', fixedCookie);
+        console.log('[AUTH] Setting cookie:', fixedCookie.substring(0, 100) + '...');
       }
 
       return new Response(response.body, {
@@ -129,9 +143,11 @@ app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown auth error';
     const stack = error instanceof Error ? error.stack : undefined;
-    console.error('Auth handler error:', message, stack);
+    console.error('[AUTH] Handler error:', message);
+    console.error('[AUTH] Stack:', stack);
     // For callbacks, redirect with error instead of returning JSON
-    if (c.req.path.includes('/callback/')) {
+    if (path.includes('/callback/')) {
+      console.log('[AUTH] Redirecting to login with error:', message);
       return c.redirect(`/login?error=${encodeURIComponent(message)}`);
     }
     return c.json({ error: message }, 500);

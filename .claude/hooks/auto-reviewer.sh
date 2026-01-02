@@ -98,11 +98,11 @@ send_response() {
     local response="$1"
     log "Sending reviewed response: $response"
 
-    # Send the response text
-    tmux send-keys -t "$TMUX_SESSION" "$response"
+    # Send the response text LITERALLY (-l flag is critical)
+    tmux send-keys -t "$TMUX_SESSION" -l "$response"
 
     # Small delay to ensure text is registered
-    sleep 0.2
+    sleep 0.3
 
     # Send Enter using C-m (Ctrl+M = Enter/Return)
     tmux send-keys -t "$TMUX_SESSION" C-m

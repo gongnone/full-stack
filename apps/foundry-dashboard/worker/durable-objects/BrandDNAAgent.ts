@@ -56,6 +56,7 @@ const FULL_STEPS = [
 
 const EXPRESS_STEPS = [
   'welcome',
+  'voice_capture',  // FR-1.5.1: Voice capture is P0 for ALL paths
   'express_brand',
   'express_audience',
   'express_platform',
@@ -469,6 +470,13 @@ Return as JSON:
       if (personality) {
         this.setSessionValue(SESSION_KEYS.BRAND_PERSONALITY, JSON.stringify(personality));
 
+        // Determine next step based on Express vs Full path
+        const isExpress = this.getSessionValue(SESSION_KEYS.IS_EXPRESS) === 'true';
+        const nextStep = isExpress ? 'express_brand' : 'audience_questions';
+        const nextStepMessage = isExpress
+          ? "Now let's quickly capture your brand essence."
+          : "Now let's understand your audience better.";
+
         const response: AgentResponse = {
           component: {
             type: 'TextMessage',
@@ -477,30 +485,40 @@ Return as JSON:
                 `**Tone:** ${personality.tone || 'Authentic'}\n` +
                 `**Style:** ${personality.style || 'Engaging'}\n\n` +
                 `${personality.summary || 'Your unique voice is coming through clearly!'}\n\n` +
-                `Now let's understand your audience better.`,
+                nextStepMessage,
               variant: 'agent',
             },
           },
           sessionState: {
-            currentStep: 'audience_questions',
-            progress: this.calculateProgress('audience_questions'),
+            currentStep: nextStep,
+            progress: this.calculateProgress(nextStep),
           },
           requestId,
         };
 
-        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'audience_questions');
-        this.setSessionValue(SESSION_KEYS.CURRENT_QUESTION_INDEX, '0');
+        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, nextStep);
         connection.send(JSON.stringify(response));
         this.addToHistory('agent', response.component.props.content as string, 'TextMessage');
 
-        // Send first audience question
-        await this.sendAudienceQuestion(connection, 0);
+        // Route to correct next step
+        if (isExpress) {
+          await this.sendExpressBrandPrompt(connection, requestId);
+        } else {
+          this.setSessionValue(SESSION_KEYS.CURRENT_QUESTION_INDEX, '0');
+          await this.sendAudienceQuestion(connection, 0);
+        }
       }
     } catch (error) {
       console.error('Voice analysis failed:', error);
-      // Proceed anyway
-      this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'audience_questions');
-      await this.sendAudienceQuestion(connection, 0);
+      // Proceed anyway - route based on path
+      const isExpress = this.getSessionValue(SESSION_KEYS.IS_EXPRESS) === 'true';
+      if (isExpress) {
+        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'express_brand');
+        await this.sendExpressBrandPrompt(connection);
+      } else {
+        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'audience_questions');
+        await this.sendAudienceQuestion(connection, 0);
+      }
     }
   }
 
@@ -553,13 +571,10 @@ Return as JSON:
       const isExpress = payload.selection === 'express';
       this.setSessionValue(SESSION_KEYS.IS_EXPRESS, isExpress ? 'true' : 'false');
 
-      if (isExpress) {
-        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'express_brand');
-        await this.sendExpressBrandPrompt(connection, message.requestId);
-      } else {
-        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'voice_capture');
-        await this.sendVoiceCapturePrompt(connection, message.requestId);
-      }
+      // FR-1.5.1: Voice capture is P0 for BOTH paths
+      // Express path uses shorter voice prompt, Full path uses comprehensive prompt
+      this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'voice_capture');
+      await this.sendVoiceCapturePrompt(connection, message.requestId, isExpress);
       return;
     }
 
@@ -583,15 +598,16 @@ Return as JSON:
 
     switch (action) {
       case 'start_express':
+        // FR-1.5.1: Voice capture is P0 for ALL paths
         this.setSessionValue(SESSION_KEYS.IS_EXPRESS, 'true');
-        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'express_brand');
-        await this.sendExpressBrandPrompt(connection, message.requestId);
+        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'voice_capture');
+        await this.sendVoiceCapturePrompt(connection, message.requestId, true);
         break;
 
       case 'start_full':
         this.setSessionValue(SESSION_KEYS.IS_EXPRESS, 'false');
         this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'voice_capture');
-        await this.sendVoiceCapturePrompt(connection, message.requestId);
+        await this.sendVoiceCapturePrompt(connection, message.requestId, false);
         break;
 
       case 'skip_voice':
@@ -647,13 +663,21 @@ Return as JSON:
   // Flow Step Handlers
   // =====================================
 
-  private async sendVoiceCapturePrompt(connection: Connection, requestId?: string): Promise<void> {
+  private async sendVoiceCapturePrompt(connection: Connection, requestId?: string, isExpress: boolean = false): Promise<void> {
+    // FR-1.5.1a: Users can record a 2-minute voice note (P0 for ALL paths)
+    // Express path uses a shorter, more focused prompt
+    const prompt = isExpress
+      ? "Quick voice intro: In 30-60 seconds, tell me what your brand does and who you help. Speak naturally!"
+      : "Tell me about your brand in your own words. What makes you unique? What do you stand for? Speak naturally - I'm listening for your authentic voice.";
+
+    const maxDuration = isExpress ? 60 : 120;
+
     const response: AgentResponse = {
       component: {
         type: 'VoiceRecorder',
         props: {
-          prompt: "Tell me about your brand in your own words. What makes you unique? What do you stand for? Speak naturally - I'm listening for your authentic voice.",
-          maxDuration: 120,
+          prompt,
+          maxDuration,
           skipOption: true,
           skipText: "I'd rather type",
         },
@@ -665,7 +689,7 @@ Return as JSON:
       requestId,
     };
     connection.send(JSON.stringify(response));
-    this.addToHistory('agent', response.component.props.prompt as string, 'VoiceRecorder');
+    this.addToHistory('agent', prompt, 'VoiceRecorder');
   }
 
   private async sendBrandDescriptionPrompt(connection: Connection, requestId?: string): Promise<void> {
@@ -702,9 +726,16 @@ Return as JSON:
     if (this.env.AI) {
       await this.analyzeVoicePersonality(connection, text, requestId);
     } else {
-      this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'audience_questions');
-      this.setSessionValue(SESSION_KEYS.CURRENT_QUESTION_INDEX, '0');
-      await this.sendAudienceQuestion(connection, 0);
+      // Route based on Express vs Full path
+      const isExpress = this.getSessionValue(SESSION_KEYS.IS_EXPRESS) === 'true';
+      if (isExpress) {
+        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'express_brand');
+        await this.sendExpressBrandPrompt(connection, requestId);
+      } else {
+        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'audience_questions');
+        this.setSessionValue(SESSION_KEYS.CURRENT_QUESTION_INDEX, '0');
+        await this.sendAudienceQuestion(connection, 0);
+      }
     }
   }
 

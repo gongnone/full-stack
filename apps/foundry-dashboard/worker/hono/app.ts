@@ -532,6 +532,45 @@ app.use('/trpc/*', trpcServer({
   }),
 }));
 
+// ===== WebSocket Route for BrandDNA Agent (Story 1.5-1-1) =====
+// Handles WebSocket upgrade for client onboarding conversations
+app.get('/ws/brand-dna/:clientId', async (c) => {
+  const clientId = c.req.param('clientId');
+  console.log('[WS] BrandDNA WebSocket request for client:', clientId);
+
+  if (!clientId) {
+    return c.json({ error: 'Client ID required' }, 400);
+  }
+
+  // Check for WebSocket upgrade
+  const upgradeHeader = c.req.header('Upgrade');
+  console.log('[WS] Upgrade header:', upgradeHeader);
+  if (upgradeHeader?.toLowerCase() !== 'websocket') {
+    return c.json({ error: 'WebSocket upgrade required' }, 426);
+  }
+
+  try {
+    // Get the Durable Object for this client
+    const doId = c.env.BRAND_DNA_AGENT.idFromName(clientId);
+    const stub = c.env.BRAND_DNA_AGENT.get(doId);
+    console.log('[WS] Created DO stub, forwarding request...');
+
+    // The Agent SDK (partyserver) requires x-partykit-room header
+    // Clone the request and add the required header
+    const modifiedRequest = new Request(c.req.raw);
+    modifiedRequest.headers.set('x-partykit-room', clientId);
+    modifiedRequest.headers.set('x-partykit-namespace', 'brand-dna-agent');
+
+    // Forward the request to the Durable Object
+    const response = await stub.fetch(modifiedRequest);
+    console.log('[WS] DO response status:', response.status, 'webSocket:', !!response.webSocket);
+    return response;
+  } catch (error) {
+    console.error('[WS] Error forwarding to DO:', error);
+    return c.json({ error: 'WebSocket connection failed' }, 500);
+  }
+});
+
 // SPA fallback - serve static assets
 app.get('*', async (c) => {
   const url = new URL(c.req.url);

@@ -161,22 +161,7 @@ export const clientsRouter = t.router({
             // Use a public URL path that will be handled by the app
             const inviteUrl = `${ctx.env.BETTER_AUTH_URL}/onboard/${token}`;
 
-            // Fire and forget email to avoid blocking response
-            ctx.env.QUEUE?.send?.({
-              type: 'email',
-              payload: {
-                to: input.contactEmail,
-                template: 'brand-dna-invite',
-                data: {
-                  clientName: input.name,
-                  agencyName,
-                  inviteUrl
-                }
-              }
-            });
-
-            // Direct call for now as queue consumer might not be set up for this specific type
-            // In production, offload to queue
+            // Send invitation email directly (queue-based delivery removed to prevent duplicates)
             await sendBrandDNAInvitation(ctx.env, input.contactEmail, input.name, inviteUrl, agencyName).catch(err => {
               console.error('Failed to send invite email:', err);
             });

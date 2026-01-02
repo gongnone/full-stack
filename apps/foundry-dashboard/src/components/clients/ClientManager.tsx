@@ -4,7 +4,7 @@ import { trpc } from '@/lib/trpc-client';
 import * as Dialog from '@radix-ui/react-dialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useToast } from '@/lib/toast';
-import { Building2, MoreVertical, Edit, Users, Share2, Trash2 } from 'lucide-react';
+import { Building2, MoreVertical, Edit, Users, Share2, Trash2, Send } from 'lucide-react';
 import { TeamAssignment } from './TeamAssignment';
 import { ShareLinkModal } from './ShareLinkModal';
 import { UI_CONFIG, CLIENT_CONFIG } from '@/lib/constants';
@@ -69,6 +69,23 @@ export function ClientManager({ canManageTeam = false }: ClientManagerProps) {
       addToast(`Creation failed: ${err.message}`, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
     },
   });
+
+  const sendBrandDNAInviteMutation = trpc.clients.resendBrandDNAInvite.useMutation({
+    onSuccess: () => {
+      addToast('Brand DNA invitation sent successfully!', 'success', UI_CONFIG.TOAST_DURATION.SUCCESS);
+    },
+    onError: (err) => {
+      addToast(`Failed to send invite: ${err.message}`, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
+    },
+  });
+
+  const handleSendBrandDNAInvite = (client: Client) => {
+    if (!client.contactEmail) {
+      addToast('Client has no email address. Please add an email first.', 'error', UI_CONFIG.TOAST_DURATION.ERROR);
+      return;
+    }
+    sendBrandDNAInviteMutation.mutate({ clientId: client.id });
+  };
 
   const handleEditClient = (client: Client) => {
     setSelectedClient(client);
@@ -182,6 +199,15 @@ export function ClientManager({ canManageTeam = false }: ClientManagerProps) {
                         >
                           <Users className="w-4 h-4" />
                           Manage Team
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                          onClick={() => handleSendBrandDNAInvite(client)}
+                          disabled={sendBrandDNAInviteMutation.isPending}
+                          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer outline-none hover:bg-white/5 transition-colors disabled:opacity-50"
+                          style={{ color: 'var(--edit)' }}
+                        >
+                          <Send className="w-4 h-4" />
+                          {sendBrandDNAInviteMutation.isPending ? 'Sending...' : 'Send Brand DNA Invite'}
                         </DropdownMenu.Item>
                         <DropdownMenu.Item
                           onClick={() => handleShare(client)}

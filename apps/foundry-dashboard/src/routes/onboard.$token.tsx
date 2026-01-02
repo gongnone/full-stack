@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { trpc } from '@/lib/trpc-client'
 import { useState } from 'react'
 import { VoiceRecorder } from '@/components/voice/VoiceRecorder'
+import { BrandDNAConversation } from '@/components/brand-dna/BrandDNAConversation'
 
 export const Route = createFileRoute('/onboard/$token')({
   component: OnboardingPage,
@@ -10,6 +11,7 @@ export const Route = createFileRoute('/onboard/$token')({
 function OnboardingPage() {
   const { token } = Route.useParams()
   const { data, isLoading, error } = trpc.onboarding.validateInvite.useQuery({ token })
+  const [useAgentFlow] = useState(true) // WebSocket Agent flow for BrandDNA conversation
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [recordingKey, setRecordingKey] = useState<string | null>(null)
@@ -130,6 +132,17 @@ function OnboardingPage() {
           <p className="text-[#8B98A5] mt-2">Please ask your agency for a new invitation.</p>
         </div>
       </div>
+    )
+  }
+
+  // New agentic conversation flow - WebSocket connection FIXED
+  if (useAgentFlow && data?.clientId) {
+    return (
+      <BrandDNAConversation
+        clientId={data.clientId}
+        clientName={data.clientName}
+        onComplete={() => setIsSubmitted(true)}
+      />
     )
   }
 

@@ -117,6 +117,10 @@ main() {
     log "║  Context: ${CONTEXT_LINES} lines"
     log "╚════════════════════════════════════════════╝"
 
+    # Wait for Claude to fully start before monitoring
+    log "Waiting 10s for Claude to start..."
+    sleep 10
+
     local waiting_since=0
 
     while true; do

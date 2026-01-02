@@ -339,6 +339,10 @@ main() {
     # Validate session exists
     validate_tmux_session
 
+    # Wait for Claude to fully start before monitoring
+    log "Waiting 10s for Claude to start..."
+    sleep 10
+
     # Rotate log if needed
     rotate_log_if_needed
 

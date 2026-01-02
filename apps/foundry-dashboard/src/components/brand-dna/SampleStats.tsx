@@ -8,6 +8,8 @@ interface SampleStatsProps {
   failedCount: number;
   recommendation: string;
   isLoading?: boolean;
+  /** Optional: Use actual Brand DNA strength from report instead of calculating locally */
+  brandDNAStrength?: number | null;
 }
 
 /**
@@ -24,6 +26,7 @@ export function SampleStats({
   failedCount,
   recommendation,
   isLoading = false,
+  brandDNAStrength,
 }: SampleStatsProps) {
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -31,7 +34,7 @@ export function SampleStats({
     return num.toString();
   };
 
-  // Calculate DNA Strength based on samples and quality
+  // Calculate DNA Strength based on samples and quality (fallback when no report data)
   const getDNAStrength = () => {
     if (totalSamples === 0) return 0;
     if (totalSamples < 3) return Math.min(30, totalSamples * 10);
@@ -41,7 +44,8 @@ export function SampleStats({
     return Math.min(60, totalSamples * 5);
   };
 
-  const dnaStrength = getDNAStrength();
+  // FIX: Use actual Brand DNA strength from report when available, otherwise calculate locally
+  const dnaStrength = brandDNAStrength ?? getDNAStrength();
 
   const getStrengthColor = (strength: number) => {
     if (strength >= 80) return 'var(--approve)';

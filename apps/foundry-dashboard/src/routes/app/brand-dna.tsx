@@ -535,6 +535,7 @@ function BrandDNAPage() {
           failedCount={statsQuery.data?.failedCount ?? 0}
           recommendation={statsQuery.data?.recommendation ?? 'Add samples to get started'}
           isLoading={statsQuery.isLoading}
+          brandDNAStrength={brandDNAReportQuery.data?.strengthScore}
         />
       </section>
 

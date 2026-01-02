@@ -64,6 +64,7 @@ export const training_samples = sqliteTable('training_samples', {
   character_count: integer('character_count'),
   quality_score: integer('quality_score'),
   created_at: integer('created_at', { mode: 'timestamp' }).default(sql`(unixepoch())`),
+  analyzed_at: integer('analyzed_at', { mode: 'timestamp' }), // P3: Track when sample was analyzed
 });
 
 // === BRAND DNA ===

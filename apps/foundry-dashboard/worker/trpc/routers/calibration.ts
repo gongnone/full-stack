@@ -42,6 +42,10 @@ function getQualityBadge(sample: TrainingSample): TrainingSampleWithQuality['qua
   if (sample.status === 'pending' || sample.status === 'processing') {
     return 'pending';
   }
+  // If analyzed but no quality score yet, show as "good" (analyzed successfully)
+  if (sample.status === 'analyzed' && sample.quality_score === null) {
+    return 'good';
+  }
   if (sample.quality_score === null) {
     return 'pending';
   }
@@ -290,6 +294,7 @@ export const calibrationRouter = t.router({
             clientId: input.clientId,
             contentType: 'transcripts',
             content: [sanitizeForLLM(input.content)],
+            sampleIds: [id], // Pass sample ID for workflow to mark as analyzed
           }),
         });
       } catch (error: unknown) {
@@ -394,6 +399,7 @@ export const calibrationRouter = t.router({
             clientId: input.clientId,
             contentType: input.sourceType,
             r2Key: input.r2Key,
+            sampleIds: [id], // Pass sample ID for workflow to mark as analyzed
           }),
         });
       } catch (error: unknown) {
@@ -503,7 +509,35 @@ export const calibrationRouter = t.router({
         });
       }
 
-      // Trigger CalibrationWorkflow on Engine
+      // Create sample record FIRST so we have the ID for the workflow
+      const recordingId = crypto.randomUUID();
+      try {
+        await brandQueries.createTrainingSample(ctx.drizzle, {
+          id: recordingId,
+          client_id: input.clientId,
+          user_id: ctx.userId,
+          title: `Voice Note ${new Date().toLocaleDateString()}`,
+          source_type: 'voice',
+          r2_key: input.audioR2Key,
+          status: 'processing'
+        });
+
+        // Story R-11: AC8 - Update rate limit timestamp
+        await brandQueries.updateLastVoiceRecordingTime(ctx.drizzle, input.clientId);
+      } catch (dbError) {
+        // Story R-11: AC10 - Attempt R2 cleanup if DB insert fails
+        try {
+          await ctx.env.MEDIA.delete(input.audioR2Key);
+        } catch (cleanupError) {
+          console.error(`[R2 Cleanup] Failed to delete ${input.audioR2Key}:`, cleanupError);
+        }
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to create voice recording record',
+        });
+      }
+
+      // Trigger CalibrationWorkflow on Engine with sample ID
       let response: Response;
       try {
         response = await ctx.env.CONTENT_ENGINE.fetch('http://engine/api/calibration/start', {
@@ -512,6 +546,7 @@ export const calibrationRouter = t.router({
             clientId: input.clientId,
             contentType: 'voice',
             r2Key: input.audioR2Key,
+            sampleIds: [recordingId], // Pass sample ID for workflow to mark as analyzed
           }),
         });
       } catch (error) {
@@ -541,34 +576,6 @@ export const calibrationRouter = t.router({
       }
 
       const result = await response.json() as { instanceId: string };
-
-      // Create a pending sample record
-      const recordingId = crypto.randomUUID();
-      try {
-        await brandQueries.createTrainingSample(ctx.drizzle, {
-          id: recordingId,
-          client_id: input.clientId,
-          user_id: ctx.userId,
-          title: `Voice Note ${new Date().toLocaleDateString()}`,
-          source_type: 'voice',
-          r2_key: input.audioR2Key,
-          status: 'processing'
-        });
-
-        // Story R-11: AC8 - Update rate limit timestamp
-        await brandQueries.updateLastVoiceRecordingTime(ctx.drizzle, input.clientId);
-      } catch (dbError) {
-        // Story R-11: AC10 - Attempt R2 cleanup if DB insert fails
-        try {
-          await ctx.env.MEDIA.delete(input.audioR2Key);
-        } catch (cleanupError) {
-          console.error(`[R2 Cleanup] Failed to delete ${input.audioR2Key}:`, cleanupError);
-        }
-        throw new TRPCError({
-          code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to create voice recording record',
-        });
-      }
 
       return {
         calibrationId: result.instanceId,
@@ -767,27 +774,53 @@ export const calibrationRouter = t.router({
     }),
 
   // Get Brand DNA for a client (basic stats)
+  // FIX: Changed to read from D1 instead of DO to match getBrandDNAReport source
   getBrandDNA: procedure
     .input(z.object({ clientId: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
 
-      // Story R-11: AC5, AC6 - Use safeDOSync for graceful failure handling
-      const { result, failed } = await safeDOSync<BrandDNAReport>(
-        ctx,
-        input.clientId,
-        'getDNAReport',
-        {},
-        'getBrandDNA'
-      );
+      // Read from D1 (source of truth after CalibrationWorkflow syncs)
+      const dna = await brandQueries.getBrandDNA(ctx.drizzle, input.clientId);
 
-      if (failed || !result) {
-        // Return a minimal valid response or throw a specific error
-        // For this UI query, we return null to let the frontend handle the empty state
-        return null;
+      if (!dna) {
+        // Return minimal valid response for empty state
+        return {
+          strengthScore: 0, // UI expects strengthScore for header display
+          dnaStrength: 0,
+          currentZER: 0,
+          voiceBaseline: null,
+          movingAverageSimilarity: null,
+          voiceDrift: false,
+          timeToDNA: null,
+          recentHubs: [],
+        };
       }
 
-      return result;
+      // Parse tone_profile for voice baseline if available
+      let voiceBaseline: number | null = null;
+      try {
+        const toneProfile = JSON.parse(dna.tone_profile || '{}');
+        // Calculate baseline as average of tone dimensions
+        const values = Object.values(toneProfile).filter((v): v is number => typeof v === 'number');
+        if (values.length > 0) {
+          voiceBaseline = values.reduce((a, b) => a + b, 0) / values.length / 100;
+        }
+      } catch {
+        // Ignore parse errors
+      }
+
+      const strengthScore = dna.strength_score || 0;
+      return {
+        strengthScore, // UI expects this for header display
+        dnaStrength: strengthScore, // Alias for backwards compatibility
+        currentZER: 0, // TODO: Calculate from approved spokes if needed
+        voiceBaseline,
+        movingAverageSimilarity: null,
+        voiceDrift: false,
+        timeToDNA: null,
+        recentHubs: [],
+      };
     }),
 
   // Analyze training samples and generate Brand DNA profile
@@ -805,12 +838,16 @@ export const calibrationRouter = t.router({
         });
       }
 
+      // Extract sample IDs to pass to workflow for D1 status updates
+      const sampleIds = samples.map(s => s.id);
+
       const response = await ctx.env.CONTENT_ENGINE.fetch('http://engine/api/calibration/start', {
         method: 'POST',
         body: JSON.stringify({
           clientId: input.clientId,
           contentType: 'posts', // Mixed content
-          content: samples.map(s => sanitizeForLLM(s.extracted_text || '')).filter(Boolean)
+          content: samples.map(s => sanitizeForLLM(s.extracted_text || '')).filter(Boolean),
+          sampleIds, // Pass sample IDs for workflow to mark as analyzed
         }),
       });
 
@@ -845,7 +882,14 @@ export const calibrationRouter = t.router({
       }
 
       try {
-        signaturePhrases = JSON.parse(dna.signature_patterns || '[]');
+        const parsedPatterns = JSON.parse(dna.signature_patterns || '[]');
+        // Normalize: Convert plain strings to SignaturePhrase objects if needed
+        signaturePhrases = parsedPatterns.map((item: string | { phrase: string; example?: string }) => {
+          if (typeof item === 'string') {
+            return { phrase: item, example: '' };
+          }
+          return item;
+        });
       } catch (e) {
         console.error(`[JSON Parse] Failed to parse signature_patterns for client ${input.clientId}`);
       }
@@ -856,6 +900,16 @@ export const calibrationRouter = t.router({
         console.error(`[JSON Parse] Failed to parse topics_to_avoid for client ${input.clientId}`);
       }
 
+      // FIX: Map CalibrationWorkflow toneProfile keys to UI breakdown keys
+      // Workflow stores: formal_casual, serious_playful, technical_accessible, reserved_expressive
+      // UI expects: tone_match, vocabulary, structure, topics
+      const breakdown = {
+        tone_match: toneProfile.formal_casual ?? toneProfile.tone_match ?? 0,
+        vocabulary: toneProfile.technical_accessible ?? toneProfile.vocabulary ?? 0,
+        structure: toneProfile.serious_playful ?? toneProfile.structure ?? 0,
+        topics: toneProfile.reserved_expressive ?? toneProfile.topics ?? 0,
+      };
+
       const report: BrandDNAReport = {
         strengthScore: dna.strength_score || 0,
         status: (dna.strength_score || 0) >= 80 ? 'strong' : (dna.strength_score || 0) >= 70 ? 'good' : 'needs_training',
@@ -864,12 +918,7 @@ export const calibrationRouter = t.router({
         targetAudience: dna.target_audience,
         signaturePhrases,
         topicsToAvoid,
-        breakdown: {
-          tone_match: toneProfile.tone_match ?? 0,
-          vocabulary: toneProfile.vocabulary ?? 0,
-          structure: toneProfile.structure ?? 0,
-          topics: toneProfile.topics ?? 0,
-        },
+        breakdown,
         recommendations: [],
         sampleCount: dna.sample_count || 0,
         lastCalibration: {

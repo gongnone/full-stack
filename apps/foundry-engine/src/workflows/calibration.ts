@@ -10,6 +10,7 @@ interface Env {
   AI: Ai;
   VECTORIZE: VectorizeIndex;
   MEDIA_BUCKET: R2Bucket;
+  DB: D1Database;
 }
 
 // Constants
@@ -31,6 +32,7 @@ interface CalibrationParams {
   content?: string[];
   r2Key?: string;
   audioR2Key?: string; // Legacy field for voice
+  sampleIds?: string[]; // IDs of training samples to mark as analyzed
 }
 
 // Story 9.8: Define Zod schemas for AI response validation
@@ -62,7 +64,7 @@ type ExtractedEntities = z.infer<typeof ExtractedEntitiesSchema>;
 
 export class CalibrationWorkflow extends WorkflowEntrypoint<Env, CalibrationParams> {
   async run(event: WorkflowEvent<CalibrationParams>, step: WorkflowStep) {
-    const { clientId, contentType, content, r2Key, audioR2Key } = event.payload;
+    const { clientId, contentType, content, r2Key, audioR2Key, sampleIds } = event.payload;
 
     // Step 1: Get current Brand DNA for comparison
     const currentDNA = await step.do('get-current-dna', async () => {
@@ -330,6 +332,85 @@ Output JSON:
       if (Object.keys(mergedDNA.toneProfile).length > 0) score += 10;
 
       return Math.min(score, 100);
+    });
+
+    // Step 9: Sync results to D1 database (critical for data flow)
+    await step.do('sync-to-d1', async () => {
+      const db = this.env.DB;
+      const now = Math.floor(Date.now() / 1000);
+
+      // 9a: Mark training samples as analyzed with timestamp
+      if (sampleIds && sampleIds.length > 0) {
+        // Use batch updates for efficiency
+        const placeholders = sampleIds.map(() => '?').join(',');
+        await db.prepare(
+          `UPDATE training_samples SET status = 'analyzed', analyzed_at = ? WHERE id IN (${placeholders}) AND client_id = ?`
+        ).bind(now, ...sampleIds, clientId).run();
+      }
+
+      // 9b: Upsert brand_dna table with extracted data
+      const voiceEntitiesJson = JSON.stringify({
+        voiceMarkers: mergedDNA.voiceMarkers,
+        bannedWords: mergedDNA.bannedWords,
+        stances: mergedDNA.stances,
+      });
+      const toneProfileJson = JSON.stringify(mergedDNA.toneProfile);
+      const signaturePatternsJson = JSON.stringify(mergedDNA.signaturePatterns);
+
+      // Check if brand_dna record exists
+      const existing = await db.prepare(
+        `SELECT id FROM brand_dna WHERE client_id = ?`
+      ).bind(clientId).first();
+
+      if (existing) {
+        // Update existing record
+        await db.prepare(`
+          UPDATE brand_dna SET
+            strength_score = ?,
+            voice_entities = ?,
+            tone_profile = ?,
+            signature_patterns = ?,
+            sample_count = (SELECT COUNT(*) FROM training_samples WHERE client_id = ? AND status = 'analyzed'),
+            last_calibration_at = ?,
+            calibration_source = ?,
+            updated_at = ?
+          WHERE client_id = ?
+        `).bind(
+          scoreAfter,
+          voiceEntitiesJson,
+          toneProfileJson,
+          signaturePatternsJson,
+          clientId,
+          now,
+          contentType,
+          now,
+          clientId
+        ).run();
+      } else {
+        // Insert new record
+        const newId = crypto.randomUUID();
+        await db.prepare(`
+          INSERT INTO brand_dna (
+            id, client_id, strength_score, voice_entities, tone_profile,
+            signature_patterns, sample_count, last_calibration_at,
+            calibration_source, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?,
+            (SELECT COUNT(*) FROM training_samples WHERE client_id = ? AND status = 'analyzed'),
+            ?, ?, ?
+          )
+        `).bind(
+          newId,
+          clientId,
+          scoreAfter,
+          voiceEntitiesJson,
+          toneProfileJson,
+          signaturePatternsJson,
+          clientId,
+          now,
+          contentType,
+          now
+        ).run();
+      }
     });
 
     return {

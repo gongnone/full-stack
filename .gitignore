@@ -104,3 +104,7 @@ playwright/.cache/
 *\ 2
 *\ 3.*
 *\ 3
+
+# Python
+.venv/
+get-pip.py

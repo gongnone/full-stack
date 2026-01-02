@@ -165,6 +165,7 @@ function OnboardingPage() {
         clientId={data.clientId}
         clientName={data.clientName}
         onComplete={handleAgentFlowComplete}
+        onboardingToken={token}
       />
     )
   }

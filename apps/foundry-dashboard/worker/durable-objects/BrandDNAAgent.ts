@@ -383,18 +383,48 @@ export class BrandDNAAgent extends Agent<AgentEnv> {
    * Handle voice sample upload with Whisper transcription (FR-1.5.1)
    */
   private async handleVoiceSample(connection: Connection, message: ClientMessage): Promise<void> {
-    const payload = message.payload as { r2Key?: string; audioData?: ArrayBuffer; durationMs?: number } | undefined;
+    const payload = message.payload as { r2Key?: string; audioData?: ArrayBuffer; durationMs?: number; transcript?: string } | undefined;
     const now = Date.now();
 
-    let transcript = '';
+    let transcript = payload?.transcript || '';
     let r2Key = payload?.r2Key;
 
-    // If we have audio data, transcribe with Whisper
-    if (payload?.audioData && this.env.AI) {
-      try {
-        // Send processing message
-        this.sendTextMessage(connection, "Got it! Processing your voice recording...", message.requestId);
+    // Send processing message immediately
+    this.sendTextMessage(connection, "Got it! Processing your voice recording...", message.requestId);
 
+    // If we have r2Key but no transcript, fetch from R2 and transcribe
+    if (r2Key && !transcript && this.env.MEDIA && this.env.AI) {
+      try {
+        console.log(`[BrandDNAAgent] Fetching audio from R2: ${r2Key}`);
+        const audioObject = await this.env.MEDIA.get(r2Key);
+
+        if (audioObject) {
+          const audioBuffer = await audioObject.arrayBuffer();
+          console.log(`[BrandDNAAgent] Audio fetched, size: ${audioBuffer.byteLength} bytes`);
+
+          // Transcribe using Whisper
+          const whisperResult = await this.env.AI.run('@cf/openai/whisper', {
+            audio: new Uint8Array(audioBuffer),
+          }) as { text: string };
+
+          transcript = whisperResult.text || '';
+          console.log(`[BrandDNAAgent] Transcription complete: ${transcript.substring(0, 100)}...`);
+        } else {
+          console.error(`[BrandDNAAgent] Audio not found in R2: ${r2Key}`);
+          this.sendError(connection, 'audio_not_found',
+            'Could not find your recording. Please try again.');
+          return;
+        }
+      } catch (error) {
+        console.error('[BrandDNAAgent] R2 fetch/transcription failed:', error);
+        this.sendError(connection, 'transcription_failed',
+          'Voice transcription failed. Please try recording again or use text input.');
+        return;
+      }
+    }
+    // If we have audioData directly (legacy path), transcribe it
+    else if (payload?.audioData && this.env.AI) {
+      try {
         // Transcribe using Whisper
         const whisperResult = await this.env.AI.run('@cf/openai/whisper', {
           audio: new Uint8Array(payload.audioData as ArrayBuffer),
@@ -415,7 +445,7 @@ export class BrandDNAAgent extends Agent<AgentEnv> {
       }
     }
 
-    // Store voice sample
+    // Store voice sample with transcript
     this.sql`
       INSERT INTO voice_samples (r2_key, transcript, duration_ms, analyzed, created_at)
       VALUES (${r2Key ?? null}, ${transcript}, ${payload?.durationMs ?? null}, FALSE, ${now})
@@ -423,9 +453,15 @@ export class BrandDNAAgent extends Agent<AgentEnv> {
 
     this.addToHistory('user', transcript || '[Voice sample received]', undefined);
 
-    // Analyze voice for personality markers
+    // Analyze voice for personality markers - CRITICAL: this advances the flow
     if (transcript && this.env.AI) {
       await this.analyzeVoicePersonality(connection, transcript, message.requestId);
+    } else if (!transcript) {
+      // If still no transcript, inform user and offer alternatives
+      console.warn('[BrandDNAAgent] No transcript available, offering alternatives');
+      this.sendTextMessage(connection,
+        "I couldn't transcribe your recording clearly. Could you try speaking a bit louder, or use the text input below to describe your brand voice?",
+        message.requestId);
     }
   }
 

@@ -18,12 +18,15 @@ interface BrandDNAConversationProps {
   clientId: string;
   clientName?: string;
   onComplete?: () => void;
+  /** Token for unauthenticated onboarding uploads */
+  onboardingToken?: string;
 }
 
 export function BrandDNAConversation({
   clientId,
   clientName,
   onComplete,
+  onboardingToken,
 }: BrandDNAConversationProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputText, setInputText] = useState('');
@@ -76,7 +79,10 @@ export function BrandDNAConversation({
     const uploadVoice = async () => {
       try {
         const filename = `voice-${Date.now()}.webm`;
-        const url = `${import.meta.env.VITE_API_URL || ''}/api/upload/voice-samples/${clientId}/${encodeURIComponent(filename)}`;
+        // Use onboarding endpoint if token provided (unauthenticated), else use standard auth endpoint
+        const url = onboardingToken
+          ? `${import.meta.env.VITE_API_URL || ''}/api/upload/onboarding/${onboardingToken}/${encodeURIComponent(filename)}`
+          : `${import.meta.env.VITE_API_URL || ''}/api/upload/voice-samples/${clientId}/${encodeURIComponent(filename)}`;
 
         const response = await fetch(url, {
           method: 'POST',
@@ -88,6 +94,8 @@ export function BrandDNAConversation({
         if (response.ok) {
           const { r2Key } = await response.json();
           sendVoiceSample(r2Key, undefined, blob.size);
+        } else {
+          console.error('Voice upload failed:', response.status, await response.text());
         }
       } catch (e) {
         console.error('Voice upload failed:', e);

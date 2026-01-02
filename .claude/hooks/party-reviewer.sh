@@ -217,6 +217,8 @@ RULES:
 6. Only block for: security vulnerabilities, data loss, breaking production
 7. Output ONLY the final response - no meta-commentary
 8. NEVER output the literal words "SKIP_RESPONSE" or "RETRY_RESPONSE"
+9. Response must be SINGLE LINE, max 200 characters - no newlines, no markdown
+10. Be professional and BMAD-aligned but concise
 
 ANTI-PATTERNS TO AVOID:
 - "Merge to main" - NO, use stage
@@ -307,13 +309,17 @@ FINAL RESPONSE TO SEND (action-oriented, unblocking, no meta-text):"
 
 send_response() {
     local response="$1"
+
+    # Sanitize: single line, max 200 chars, no special chars that break tmux
+    response=$(echo "$response" | tr '\n\r' ' ' | sed 's/  */ /g' | cut -c1-200)
+
     log "Sending party-reviewed response:"
     log ">>> $response"
 
-    # Send each character with tiny delay for reliability
+    # Send the response literally
     tmux send-keys -t "$TMUX_SESSION" -l "$response"
 
-    sleep 0.3
+    sleep 0.5
 
     # Send Enter
     tmux send-keys -t "$TMUX_SESSION" C-m

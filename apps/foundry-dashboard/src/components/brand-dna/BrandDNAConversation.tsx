@@ -27,6 +27,7 @@ export function BrandDNAConversation({
 }: BrandDNAConversationProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputText, setInputText] = useState('');
+  const hasCompletedRef = useRef(false); // Guard against multiple completion calls
 
   const {
     isConnected,
@@ -48,9 +49,10 @@ export function BrandDNAConversation({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Handle completion
+  // Handle completion - only call onComplete once to prevent duplicate emails
   useEffect(() => {
-    if (sessionState?.currentStep === 'complete') {
+    if (sessionState?.currentStep === 'complete' && !hasCompletedRef.current) {
+      hasCompletedRef.current = true;
       onComplete?.();
     }
   }, [sessionState, onComplete]);

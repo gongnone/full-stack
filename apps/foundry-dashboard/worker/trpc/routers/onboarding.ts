@@ -66,8 +66,19 @@ export const onboardingRouter = t.router({
         used_at: number | null
       }>();
 
-      if (!invite || invite.expires_at < Date.now() || invite.used_at) {
-        throw new TRPCError({ code: 'FORBIDDEN', message: 'Invalid or expired token' });
+      if (!invite) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid invitation token' });
+      }
+
+      if (invite.expires_at < Date.now()) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Invitation has expired' });
+      }
+
+      // Idempotency: If token is already used, return success without re-processing
+      // This prevents duplicate emails if submit is called multiple times
+      if (invite.used_at) {
+        console.log(`[Onboarding] Token already used for client ${invite.client_id}, returning success`);
+        return { success: true, alreadyProcessed: true };
       }
 
       const now = Date.now();

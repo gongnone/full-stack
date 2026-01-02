@@ -135,13 +135,36 @@ function OnboardingPage() {
     )
   }
 
+  // Handle completion of WebSocket BrandDNA conversation flow
+  const handleAgentFlowComplete = async () => {
+    // Call onboarding.submit to:
+    // 1. Mark invite token as used
+    // 2. Send completion notification email to agency
+    // 3. Trigger research agent
+    try {
+      await submitMutation.mutateAsync({
+        token,
+        // WebSocket flow stores data in BrandDNAAgent, not as R2 uploads
+        recordingKey: undefined,
+        contentKey: undefined,
+      })
+      setIsSubmitted(true)
+    } catch (e) {
+      console.error('[Onboarding] Submit after agent flow failed:', e)
+      // Still show success screen - the conversation data is already captured
+      // in the BrandDNAAgent. The submit failure just means notifications
+      // may not have been sent.
+      setIsSubmitted(true)
+    }
+  }
+
   // New agentic conversation flow - WebSocket connection FIXED
   if (useAgentFlow && data?.clientId) {
     return (
       <BrandDNAConversation
         clientId={data.clientId}
         clientName={data.clientName}
-        onComplete={() => setIsSubmitted(true)}
+        onComplete={handleAgentFlowComplete}
       />
     )
   }

@@ -1028,13 +1028,71 @@ Return JSON array:
     // Sync to ClientAgent via CONTENT_ENGINE
     if (this.clientId && this.env.CONTENT_ENGINE) {
       try {
-        const brandData = {
-          personality: JSON.parse(this.getSessionValue(SESSION_KEYS.BRAND_PERSONALITY) || '{}'),
-          description: this.getSessionValue(SESSION_KEYS.BRAND_DESCRIPTION),
-          audienceAnswers: JSON.parse(this.getSessionValue(SESSION_KEYS.AUDIENCE_ANSWERS) || '{}'),
-          platforms: JSON.parse(this.getSessionValue(SESSION_KEYS.PLATFORM_STRATEGY) || '[]'),
-          pillars: JSON.parse(this.getSessionValue(SESSION_KEYS.PILLARS) || '[]'),
-          competitors: this.getSessionValue(SESSION_KEYS.COMPETITORS),
+        // Get raw session data
+        const personality = JSON.parse(this.getSessionValue(SESSION_KEYS.BRAND_PERSONALITY) || '{}');
+        const description = this.getSessionValue(SESSION_KEYS.BRAND_DESCRIPTION) || '';
+        const audienceAnswers = JSON.parse(this.getSessionValue(SESSION_KEYS.AUDIENCE_ANSWERS) || '{}');
+        const platforms = JSON.parse(this.getSessionValue(SESSION_KEYS.PLATFORM_STRATEGY) || '[]');
+        const pillars = JSON.parse(this.getSessionValue(SESSION_KEYS.PILLARS) || '[]');
+        const competitors = this.getSessionValue(SESSION_KEYS.COMPETITORS) || '';
+
+        // Transform to ClientAgent's expected format
+        // Map personality_markers and vocabulary to voiceMarkers
+        const voiceMarkers: Array<{ phrase: string; source: string; confidence: number }> = [];
+
+        if (personality.personality_markers && Array.isArray(personality.personality_markers)) {
+          personality.personality_markers.forEach((marker: string) => {
+            if (marker && typeof marker === 'string') {
+              voiceMarkers.push({ phrase: marker, source: 'voice', confidence: 0.9 });
+            }
+          });
+        }
+
+        if (personality.vocabulary && Array.isArray(personality.vocabulary)) {
+          personality.vocabulary.forEach((word: string) => {
+            if (word && typeof word === 'string') {
+              voiceMarkers.push({ phrase: word, source: 'voice', confidence: 0.8 });
+            }
+          });
+        }
+
+        // Convert tone string to toneProfile scores
+        const toneProfile: Record<string, number> = {};
+        if (personality.tone) {
+          const toneLower = personality.tone.toLowerCase();
+          toneProfile.formal_casual = toneLower.includes('casual') ? 75 : toneLower.includes('formal') ? 25 : 50;
+          toneProfile.serious_playful = toneLower.includes('playful') ? 75 : toneLower.includes('serious') ? 25 : 50;
+          toneProfile.technical_accessible = toneLower.includes('accessible') ? 75 : toneLower.includes('technical') ? 25 : 50;
+          toneProfile.reserved_expressive = toneLower.includes('expressive') ? 75 : toneLower.includes('reserved') ? 25 : 50;
+        }
+
+        // Convert pillars to signature patterns
+        const signaturePatterns: string[] = pillars
+          .filter((p: { title?: string }) => p.title)
+          .map((p: { title: string }) => p.title);
+
+        // Convert audience data to brand stances
+        const stances: Array<{ topic: string; position: string; source: string }> = [];
+        if (audienceAnswers.pain_points) {
+          stances.push({ topic: 'Audience Pain Points', position: audienceAnswers.pain_points, source: 'voice' });
+        }
+        if (audienceAnswers.aspirations) {
+          stances.push({ topic: 'Audience Goals', position: audienceAnswers.aspirations, source: 'voice' });
+        }
+        if (description) {
+          stances.push({ topic: 'Brand Mission', position: description, source: 'voice' });
+        }
+        if (competitors) {
+          stances.push({ topic: 'Competitive Positioning', position: competitors, source: 'voice' });
+        }
+
+        const brandDNAPayload = {
+          voiceMarkers,
+          stances,
+          signaturePatterns,
+          toneProfile,
+          // Also include raw data for future reference
+          _rawData: { personality, description, audienceAnswers, platforms, pillars, competitors },
         };
 
         await this.env.CONTENT_ENGINE.fetch(
@@ -1043,12 +1101,12 @@ Return JSON array:
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               method: 'updateBrandDNA',
-              params: brandData,
+              params: brandDNAPayload,
             }),
           })
         );
 
-        // Trigger brand DNA analysis
+        // Trigger brand DNA analysis to calculate strength score and embeddings
         await this.env.CONTENT_ENGINE.fetch(
           new Request(`http://internal/api/client/${this.clientId}/rpc`, {
             method: 'POST',

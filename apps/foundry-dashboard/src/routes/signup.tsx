@@ -4,6 +4,7 @@ import { signUp } from '@/lib/auth-client';
 import { clearSessionCache } from '@/lib/query-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';

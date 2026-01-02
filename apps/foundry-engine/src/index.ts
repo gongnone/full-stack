@@ -222,10 +222,10 @@ app.post('/api/spokes/variations', async (c) => {
 
 // Trigger Calibration Workflow
 app.post('/api/calibration/start', async (c) => {
-  const { clientId, contentType, content } = await c.req.json();
+  const { clientId, contentType, content, r2Key, sampleIds } = await c.req.json();
 
   const instance = await c.env.CALIBRATION.create({
-    params: { clientId, contentType, content },
+    params: { clientId, contentType, content, r2Key, sampleIds },
   });
 
   return c.json({

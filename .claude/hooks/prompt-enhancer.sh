@@ -2,18 +2,24 @@
 # Enhances the current input line in tmux using Claude
 # Usage: triggered via tmux keybinding
 
+exec > /tmp/enhancer.log 2>&1
+echo "Enhancer triggered at $(date)"
+
 TMUX_SESSION="${CLAUDE_TMUX_SESSION:-claude}"
 MODEL="${CLAUDE_MODEL:-claude-3-haiku-20240307}" # Use Haiku for speed, or default if unset
 
-# 1. Capture the current line (the user's draft)
-# We look at the very last line of the pane
-CURRENT_LINE=$(tmux capture-pane -t "$TMUX_SESSION" -p -S -1 | tail -n 1)
+# 1. Capture the entire pane and find the last line containing a prompt
+# We look for lines with >, ❯, or 'claude'
+CURRENT_LINE=$(tmux capture-pane -t "$TMUX_SESSION" -p | grep -E '>|❯|claude' | tail -n 1)
+echo "Captured line (prompt-search): '$CURRENT_LINE'"
 
-# Remove standard prompts like "> " or "claude>"
-CLEAN_INPUT=$(echo "$CURRENT_LINE" | sed 's/^.*> //')
+# Remove standard prompts like "> " or "claude>" or just ">"
+CLEAN_INPUT=$(echo "$CURRENT_LINE" | sed 's/^[[:space:]]*>//' | sed 's/^[[:space:]]*//')
+echo "Clean input: '$CLEAN_INPUT'"
 
 # If empty, do nothing
 if [[ -z "$CLEAN_INPUT" || "$CLEAN_INPUT" =~ ^[[:space:]]*$ ]]; then
+    echo "Input empty, exiting"
     exit 0
 fi
 
@@ -33,17 +39,31 @@ Optimized Prompt:"
 
 # 3. Call Claude to rewrite it
 # We use -p for print mode
+echo "Calling Claude..."
 NEW_PROMPT=$(echo "$SYSTEM_PROMPT" | claude -p 2>/dev/null)
+echo "Claude response: '$NEW_PROMPT'"
 
 # Clean up output
 NEW_PROMPT=$(echo "$NEW_PROMPT" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^"//' | sed 's/"$//')
 
 if [[ -n "$NEW_PROMPT" && "$NEW_PROMPT" != "$CLEAN_INPUT" ]]; then
+    echo "Replacing prompt..."
     # 4. Replace the text in tmux
-    # Send Backspaces (Ctrl+U usually kills the line, but let's be safe with Backspace if Ctrl+U fails in some shells)
-    # Actually, Ctrl+U (Delete Line) is standard in bash/zsh
-    tmux send-keys -t "$TMUX_SESSION" C-u
-    
+    # Claude Code doesn't respond to Ctrl+U, so we send backspaces
+    INPUT_LEN=${#CLEAN_INPUT}
+    echo "Clearing $INPUT_LEN characters..."
+
+    # Send backspaces to clear the current input
+    for ((i=0; i<INPUT_LEN; i++)); do
+        tmux send-keys -t "$TMUX_SESSION" BSpace
+    done
+
+    # Small delay to let the UI catch up
+    sleep 0.1
+
     # Type the new prompt
     tmux send-keys -t "$TMUX_SESSION" "$NEW_PROMPT"
+    echo "Done."
+else
+    echo "No change needed."
 fi

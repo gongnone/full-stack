@@ -33,8 +33,24 @@ echo ""
 # Kill existing session if any
 tmux kill-session -t "$SESSION" 2>/dev/null
 
+# Kill stale reviewer processes
+pkill -f "party-reviewer.sh" 2>/dev/null
+
 # Create new tmux session
 tmux new-session -d -s "$SESSION" -x 200 -y 50
+
+# Bind 'e' key to run the Prompt Enhancer
+tmux bind-key e run-shell "$SCRIPT_DIR/prompt-enhancer.sh"
+
+# Enable mouse support (clickable selection, scrolling)
+tmux set-option -t "$SESSION" mouse on
+
+# Enable Vi-style keybindings
+tmux set-window-option -g mode-keys vi
+tmux set-option -g status-keys vi
+
+# Clear previous log
+echo "" > /tmp/claude-party-reviewer.log
 
 # Start party reviewer in background
 CLAUDE_TMUX_SESSION="$SESSION" \

@@ -1,5 +1,5 @@
 import { betterAuth } from 'better-auth';
-import { Kysely, KyselyPlugin, PluginTransformQueryArgs, PluginTransformResultArgs, QueryResult, RootOperationNode, UnknownRow } from 'kysely';
+import { Kysely } from 'kysely';
 import { D1Dialect } from 'kysely-d1';
 import type { Env } from '../index';
 import { sendVerificationEmail as sendVerificationEmailViaService, sendPasswordResetEmail as sendPasswordResetEmailViaService } from '../email';
@@ -37,46 +37,7 @@ function toMilliseconds(value: unknown): number {
   return Date.now();
 }
 
-/**
- * Kysely plugin to convert Date objects to Unix timestamps for D1/SQLite
- * This intercepts ALL queries and transforms Date values before execution
- * IMPORTANT: Better Auth expects milliseconds for timestamp comparisons
- */
-class DateToTimestampPlugin implements KyselyPlugin {
-  transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
-    return this.transformNode(args.node) as RootOperationNode;
-  }
-
-  private transformNode(node: unknown): unknown {
-    if (node === null || node === undefined) return node;
-
-    // Handle Date objects - convert to milliseconds timestamp (NOT seconds!)
-    // Better Auth compares timestamps with Date.now() which uses milliseconds
-    if (node instanceof Date) {
-      return node.getTime();
-    }
-
-    // Handle arrays
-    if (Array.isArray(node)) {
-      return node.map(item => this.transformNode(item));
-    }
-
-    // Handle objects (including Kysely nodes)
-    if (typeof node === 'object') {
-      const result: Record<string, unknown> = {};
-      for (const key of Object.keys(node)) {
-        result[key] = this.transformNode((node as Record<string, unknown>)[key]);
-      }
-      return result;
-    }
-
-    return node;
-  }
-
-  async transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
-    return args.result;
-  }
-}
+// NOTE: DateToTimestampPlugin was removed - using databaseHooks instead for explicit timestamp conversion
 
 /**
  * Create Better Auth instance for Cloudflare Workers

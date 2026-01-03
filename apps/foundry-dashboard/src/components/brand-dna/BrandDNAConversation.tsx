@@ -375,7 +375,7 @@ interface QuestionCardProps {
 function QuestionCardComponent({
   question,
   placeholder,
-  maxLength,
+  maxLength: _maxLength,
   questionIndex,
   totalQuestions,
   skipOption,
@@ -540,7 +540,7 @@ function BrandDNAReportComponent({
   tone,
   platforms,
   pillars,
-  audienceSnapshot,
+  audienceSnapshot: _audienceSnapshot,
   strengthScore,
   actions,
   onAction,

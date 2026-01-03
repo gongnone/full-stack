@@ -28,7 +28,7 @@ import {
  * AC4: View samples with: source icon, title, word count, quality badge
  *
  * Story 2.2 ACs:
- * AC1: Microphone icon → recording interface with timer (max 60s)
+ * AC1: Microphone icon → recording interface with timer (max 120s per FR-1.5.1a)
  * AC2: Audio stored in R2, Whisper transcribes, display for review
  * AC3: Entity extraction: voice markers, banned words, brand stances
  * AC4: Example: "Stop using corporate jargon like synergy" → synergy banned

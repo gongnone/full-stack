@@ -386,6 +386,7 @@ export const testimonial_requests = sqliteTable('testimonial_requests', {
   id: text('id').primaryKey(),
   client_id: text('client_id').notNull().references(() => clients.id, { onDelete: 'cascade' }),
   trigger: text('trigger').notNull(), // 'batch_approval', 'milestone', 'manual'
+  // FR-1.5.16c: 'snoozed' = "ask me later" option in PRD (functionally equivalent)
   status: text('status').default('sent').notNull(), // 'sent', 'accepted', 'declined', 'snoozed'
   response_at: integer('response_at'),
   remind_at: integer('remind_at'),

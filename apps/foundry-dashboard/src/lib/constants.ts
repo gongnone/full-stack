@@ -117,8 +117,8 @@ export const CLIENT_CONFIG = {
 export const BRAND_DNA_CONFIG = {
   /** Minimum number of training samples required for analysis */
   MIN_SAMPLES_FOR_ANALYSIS: 3,
-  /** Maximum voice recording duration in seconds */
-  MAX_VOICE_DURATION_SECONDS: 60,
+  /** Maximum voice recording duration in seconds (FR-1.5.1a: 2-minute voice note) */
+  MAX_VOICE_DURATION_SECONDS: 120,
   /** Status color thresholds for DNA strength */
   STRENGTH_THRESHOLDS: {
     STRONG: 80,

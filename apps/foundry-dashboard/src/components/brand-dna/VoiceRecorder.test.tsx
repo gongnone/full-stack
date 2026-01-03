@@ -90,13 +90,13 @@ describe('VoiceRecorder', () => {
     });
 
     it('shows max duration hint', async () => {
-      render(<VoiceRecorder onRecordingComplete={vi.fn()} maxDuration={60} />);
+      render(<VoiceRecorder onRecordingComplete={vi.fn()} maxDuration={120} />);
 
       await act(async () => {
         vi.runAllTimers();
       });
 
-      expect(screen.getByText(/Recording is limited to 60 seconds/)).toBeInTheDocument();
+      expect(screen.getByText(/Recording is limited to 120 seconds/)).toBeInTheDocument();
     });
 
     it('disables button when disabled prop is true', async () => {

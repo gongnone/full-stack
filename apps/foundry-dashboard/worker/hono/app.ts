@@ -164,8 +164,43 @@ app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
   }
 });
 
+// Public tRPC procedures that don't require authentication
+// These are for onboarding flows where users don't have accounts yet
+const PUBLIC_TRPC_PROCEDURES = [
+  'onboarding.validateInvite',
+  'onboarding.submit',
+  'strategy.validateStrategyToken',
+  'strategy.approvePillar',
+  'strategy.lockStrategy',
+  'strategy.transcribeVoiceNote',
+  'strategy.modifyPillar',
+  'strategy.refinePillarWithAI',
+  'strategy.getAlternatives',
+];
+
 // Auth middleware for protected routes
 const authMiddleware = async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) => {
+  // Check if this is a public tRPC procedure
+  const url = new URL(c.req.url);
+  const input = url.searchParams.get('input');
+
+  // For batched requests, check the path after /trpc/
+  const pathParts = url.pathname.split('/trpc/');
+  const procedureName = pathParts[1]?.split('?')[0];
+
+  // Check if procedure is public (handles both single and batch requests)
+  const isPublicProcedure = procedureName && PUBLIC_TRPC_PROCEDURES.some(pub =>
+    procedureName === pub || procedureName.startsWith(pub)
+  );
+
+  if (isPublicProcedure) {
+    // For public procedures, set guest context and continue
+    c.set('userId', 'guest');
+    c.set('accountId', '');
+    c.set('userRole', 'guest');
+    return next();
+  }
+
   const auth = createAuth(c.env);
 
   try {

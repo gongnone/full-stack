@@ -165,6 +165,7 @@ export function VoiceRecorder({
 
     try {
       // Request microphone access
+      // iOS Safari requires explicit user gesture - this should be triggered by button click
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -175,8 +176,15 @@ export function VoiceRecorder({
       streamRef.current = stream;
 
       // Set up audio context for waveform
+      // iOS Safari: AudioContext starts suspended and must be resumed within user gesture
       const audioContext = new AudioContext();
       audioContextRef.current = audioContext;
+
+      // iOS Safari fix: Resume AudioContext if suspended
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+
       const source = audioContext.createMediaStreamSource(stream);
       const analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;

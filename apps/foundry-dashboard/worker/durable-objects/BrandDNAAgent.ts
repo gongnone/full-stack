@@ -614,7 +614,8 @@ Return as JSON:
       return;
     }
 
-    if (payload?.type === 'platforms' && currentStep === 'platform_selection') {
+    // Handle platform selection for BOTH Full path (platform_selection) AND Express path (express_platform)
+    if (payload?.type === 'platforms' && (currentStep === 'platform_selection' || currentStep === 'express_platform')) {
       await this.handlePlatformSelection(connection, payload.selection as string[], message.requestId);
       return;
     }
@@ -902,6 +903,17 @@ Return JSON array of exactly 3 platform IDs with rationale:
     }
 
     this.setSessionValue(SESSION_KEYS.PLATFORM_STRATEGY, JSON.stringify(platforms));
+
+    // Check if Express path - if so, go directly to completion
+    const isExpress = this.getSessionValue(SESSION_KEYS.IS_EXPRESS) === 'true';
+
+    if (isExpress) {
+      // Express path: Skip competitor input and pillars, go directly to completion
+      await this.completeSession(connection, requestId);
+      return;
+    }
+
+    // Full path: Continue to competitor input
     this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'competitor_input');
 
     const response: AgentResponse = {

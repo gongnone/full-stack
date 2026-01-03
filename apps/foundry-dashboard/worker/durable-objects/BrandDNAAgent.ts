@@ -666,6 +666,17 @@ Return as JSON:
         await this.completeSession(connection, message.requestId);
         break;
 
+      case 'edit_session':
+        // User wants to make changes before completing - restart from voice capture
+        // This preserves their data but lets them go through the flow again
+        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'voice_capture');
+        await this.sendVoiceCapturePrompt(
+          connection,
+          message.requestId,
+          this.getSessionValue(SESSION_KEYS.IS_EXPRESS) === 'true'
+        );
+        break;
+
       case 'get_state':
         await this.sendCurrentState(connection, message.requestId);
         break;

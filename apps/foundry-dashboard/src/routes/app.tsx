@@ -111,7 +111,7 @@ function AppLayout() {
   }
 
   if (!session) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" search={{ error: undefined }} />;
   }
 
   if (!clientsQuery.isLoading && clientsQuery.error) {

@@ -20,5 +20,5 @@ function IndexPage() {
     return <Navigate to="/app" />;
   }
 
-  return <Navigate to="/login" />;
+  return <Navigate to="/login" search={{ error: undefined }} />;
 }

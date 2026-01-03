@@ -108,19 +108,23 @@ export function createAuth(env: Env) {
       minPasswordLength: 12,
       maxPasswordLength: 128,
       // Password must contain: uppercase, lowercase, number, special char
-      async sendVerificationEmail({ user, url }: { user: { email: string; name: string }; url: string }) {
+      sendResetPassword: async ({ user, url }: { user: { email: string; name: string }; url: string }) => {
+        const result = await sendPasswordResetEmailViaService(env, { email: user.email, name: user.name }, url);
+        if (!result.success) {
+          console.error('Failed to send password reset email:', result.error);
+          throw new Error('Failed to send password reset email. Please try again.');
+        }
+      },
+    },
+
+    // Email verification configuration
+    emailVerification: {
+      sendVerificationEmail: async ({ user, url }: { user: { email: string; name: string }; url: string }) => {
         const result = await sendVerificationEmailViaService(env, { email: user.email, name: user.name }, url);
         if (!result.success) {
           console.error('Failed to send verification email:', result.error);
           // Don't throw - Better Auth will still create the user
           // They can request a new verification email later
-        }
-      },
-      async sendResetPassword({ user, url }: { user: { email: string; name: string }; url: string }) {
-        const result = await sendPasswordResetEmailViaService(env, { email: user.email, name: user.name }, url);
-        if (!result.success) {
-          console.error('Failed to send password reset email:', result.error);
-          throw new Error('Failed to send password reset email. Please try again.');
         }
       },
     },
@@ -304,7 +308,7 @@ export function createAuth(env: Env) {
           },
           after: async (session) => {
             console.log('[AUTH DB] Session after hook - id:', session.id, 'token:', (session as Record<string, unknown>).token);
-            return session;
+            // after hook must return void
           },
         },
         update: {

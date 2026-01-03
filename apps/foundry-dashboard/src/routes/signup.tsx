@@ -173,7 +173,7 @@ function SignupPage() {
         <CardFooter>
           <p className="text-sm text-center w-full" style={{ color: 'var(--text-secondary)' }}>
             Already have an account?{' '}
-            <Link to="/login" className="underline" style={{ color: 'var(--edit)' }}>
+            <Link to="/login" search={{ error: undefined }} className="underline" style={{ color: 'var(--edit)' }}>
               Sign in
             </Link>
           </p>

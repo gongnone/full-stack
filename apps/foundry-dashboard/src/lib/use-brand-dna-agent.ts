@@ -71,8 +71,8 @@ export function useBrandDNAAgent({
   const [isConnecting, setIsConnecting] = useState(false);
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [sessionState, setSessionState] = useState<{ currentStep: string; progress: number } | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const MAX_RECONNECT_ATTEMPTS = 5;
 

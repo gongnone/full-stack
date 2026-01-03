@@ -92,8 +92,8 @@ export function BrandDNAConversation({
         });
 
         if (response.ok) {
-          const { r2Key } = await response.json();
-          sendVoiceSample(r2Key, undefined, blob.size);
+          const data = await response.json() as { r2Key: string };
+          sendVoiceSample(data.r2Key, undefined, blob.size);
         } else {
           console.error('Voice upload failed:', response.status, await response.text());
         }
@@ -305,7 +305,7 @@ function ComponentRenderer({
             onError={(err) => console.error(err)}
             maxDuration={props.maxDuration as number || 120}
           />
-          {props.skipOption && (
+          {Boolean(props.skipOption) && (
             <button
               onClick={() => onAction('skip_voice')}
               className="mt-4 text-sm text-[#1D9BF0] hover:underline"
@@ -317,16 +317,16 @@ function ComponentRenderer({
       );
 
     case 'QuestionCard':
-      return <QuestionCardComponent {...(props as QuestionCardProps)} onAction={onAction} />;
+      return <QuestionCardComponent {...(props as unknown as QuestionCardProps)} onAction={onAction} />;
 
     case 'PlatformSelector':
-      return <PlatformSelectorComponent {...(props as PlatformSelectorProps)} onSelection={onSelection} />;
+      return <PlatformSelectorComponent {...(props as unknown as PlatformSelectorProps)} onSelection={onSelection} />;
 
     case 'PillarProposal':
-      return <PillarProposalComponent {...(props as PillarProposalProps)} onAction={onAction} />;
+      return <PillarProposalComponent {...(props as unknown as PillarProposalProps)} onAction={onAction} />;
 
     case 'BrandDNAReport':
-      return <BrandDNAReportComponent {...(props as BrandDNAReportProps)} onAction={onAction} />;
+      return <BrandDNAReportComponent {...(props as unknown as BrandDNAReportProps)} onAction={onAction} />;
 
     case 'ProgressIndicator':
       return (

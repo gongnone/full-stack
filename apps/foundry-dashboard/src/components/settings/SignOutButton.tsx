@@ -24,7 +24,7 @@ export function SignOutButton() {
       // Clear session user tracking for cache guard
       sessionStorage.removeItem('foundry_session_user_id');
       // SPA navigation to login page after signout (preserves React state, faster)
-      navigate({ to: '/login' });
+      navigate({ to: '/login', search: { error: undefined } });
     } catch (error) {
       setIsLoading(false);
       addToast('Failed to sign out. Please try again.', 'error', 4000);

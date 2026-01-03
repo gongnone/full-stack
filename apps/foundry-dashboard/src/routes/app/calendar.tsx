@@ -70,7 +70,7 @@ function CalendarPage() {
     const map = new Map<string, CalendarSpoke[]>();
     const spokes = spokesQuery.data?.items || [];
 
-    spokes.forEach(spoke => {
+    spokes.forEach((spoke: CalendarSpoke) => {
       // Use scheduledFor if available, otherwise approvedAt
       const timestamp = spoke.scheduledFor || spoke.approvedAt;
       if (!timestamp) return;

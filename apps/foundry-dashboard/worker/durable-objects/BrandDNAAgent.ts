@@ -404,7 +404,7 @@ export class BrandDNAAgent extends Agent<AgentEnv> {
 
           // Transcribe using Whisper
           const whisperResult = await this.env.AI.run('@cf/openai/whisper', {
-            audio: new Uint8Array(audioBuffer),
+            audio: Array.from(new Uint8Array(audioBuffer)),
           }) as { text: string };
 
           transcript = whisperResult.text || '';
@@ -427,7 +427,7 @@ export class BrandDNAAgent extends Agent<AgentEnv> {
       try {
         // Transcribe using Whisper
         const whisperResult = await this.env.AI.run('@cf/openai/whisper', {
-          audio: new Uint8Array(payload.audioData as ArrayBuffer),
+          audio: Array.from(new Uint8Array(payload.audioData as ArrayBuffer)),
         }) as { text: string };
 
         transcript = whisperResult.text || '';
@@ -1357,8 +1357,8 @@ Return JSON array:
 
   private calculateProgress(step: string): number {
     const isExpress = this.getSessionValue(SESSION_KEYS.IS_EXPRESS) === 'true';
-    const steps = isExpress ? EXPRESS_STEPS : FULL_STEPS;
-    const index = steps.indexOf(step as typeof steps[number]);
+    const steps: readonly string[] = isExpress ? EXPRESS_STEPS : FULL_STEPS;
+    const index = steps.indexOf(step);
     if (index === -1) return 0;
     return Math.round((index / (steps.length - 1)) * 100);
   }

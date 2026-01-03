@@ -101,7 +101,7 @@ export function Sidebar() {
     clearSessionCache();
     // Clear session user tracking for cache guard
     sessionStorage.removeItem('foundry_session_user_id');
-    navigate({ to: '/login' });
+    navigate({ to: '/login', search: { error: undefined } });
   };
 
   const isActive = (href: string) => {

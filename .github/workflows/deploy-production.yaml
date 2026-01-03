@@ -167,6 +167,14 @@ jobs:
           cache: 'pnpm'
 
       - run: pnpm install
+
+      - name: 🗄️ Run D1 Migrations
+        run: |
+          cd apps/foundry-dashboard
+          npx wrangler d1 migrations apply DB --env production --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
       - name: 🚀 Deploy to Cloudflare
         run: pnpm --filter foundry-dashboard run production:deploy
         env:

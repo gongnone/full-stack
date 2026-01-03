@@ -249,7 +249,29 @@ export function VoiceRecorder({
       }
     } catch (error) {
       console.error('Failed to start recording:', error);
-      setErrorMessage('Could not access microphone. Please allow microphone access and try again.');
+
+      // Provide iOS-specific instructions for enabling microphone
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const errorMsg = error instanceof Error ? error.message : '';
+      const isPermissionDenied = errorMsg.includes('Permission') || errorMsg.includes('NotAllowed') || errorMsg.includes('denied');
+
+      if (isIOS && isPermissionDenied) {
+        setErrorMessage(
+          'Microphone access is blocked. To enable:\n\n' +
+          '1. Open iPhone Settings\n' +
+          '2. Scroll down and tap Safari\n' +
+          '3. Tap "Microphone" under Privacy\n' +
+          '4. Enable access for this website\n' +
+          '5. Return here and tap "Try Again"'
+        );
+      } else if (isPermissionDenied) {
+        setErrorMessage(
+          'Microphone access denied. Please click the lock/camera icon in your browser\'s address bar and allow microphone access, then try again.'
+        );
+      } else {
+        setErrorMessage('Could not access microphone. Please check your device has a working microphone and try again.');
+      }
+
       setState('error');
       onError(error instanceof Error ? error : new Error('Recording failed'));
     }
@@ -445,8 +467,10 @@ export function VoiceRecorder({
     );
   }
 
-  // Error state
+  // Error state - with iOS-specific instructions support
   if (state === 'error') {
+    const isPermissionError = errorMessage?.includes('access') || errorMessage?.includes('blocked');
+
     return (
       <div className="flex flex-col items-center justify-center p-6 bg-[#1A1F26] rounded-lg border border-[#F4212E] text-center">
         <div className="w-16 h-16 mb-4 rounded-full bg-[#F4212E]/10 flex items-center justify-center">
@@ -460,25 +484,44 @@ export function VoiceRecorder({
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
+              d={isPermissionError ? "M12 15v2m0 0v2m0-2h2m-2 0H10m10-6a8 8 0 11-16 0 8 8 0 0116 0z" : "M6 18L18 6M6 6l12 12"}
             />
           </svg>
         </div>
         <h3 className="text-lg font-medium text-[#E7E9EA] mb-2">
-          Recording Error
+          {isPermissionError ? 'Microphone Access Needed' : 'Recording Error'}
         </h3>
-        <p className="text-[#8B98A5] mb-4">
+        <div className="text-[#8B98A5] mb-4 whitespace-pre-line text-left max-w-sm">
           {errorMessage || 'Something went wrong. Please try again.'}
-        </p>
-        <button
-          onClick={() => {
-            setErrorMessage(null);
-            setState('idle');
-          }}
-          className="px-4 py-3 bg-[#1D9BF0] text-white rounded-lg min-h-[44px] min-w-[44px] hover:bg-[#1A8CD8] transition-colors"
-        >
-          Try Again
-        </button>
+        </div>
+        <div className="flex flex-col gap-2 w-full max-w-xs">
+          <button
+            onClick={() => {
+              setErrorMessage(null);
+              setState('idle');
+            }}
+            className="px-4 py-3 bg-[#1D9BF0] text-white rounded-lg min-h-[44px] min-w-[44px] hover:bg-[#1A8CD8] transition-colors"
+          >
+            Try Again
+          </button>
+          {/* Fallback: Allow file upload when microphone fails */}
+          <label className="px-4 py-3 bg-[#2A3038] text-[#E7E9EA] rounded-lg min-h-[44px] cursor-pointer hover:bg-[#3A4048] transition-colors text-center">
+            <input
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  setErrorMessage(null);
+                  setState('idle');
+                  onComplete(file, 0);
+                }
+              }}
+            />
+            Upload Audio Instead
+          </label>
+        </div>
       </div>
     );
   }

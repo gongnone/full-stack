@@ -651,10 +651,11 @@ Return as JSON:
         await this.sendBrandDescriptionPrompt(connection, message.requestId);
         break;
 
-      case 'next_question':
+      case 'next_question': {
         const currentIndex = parseInt(this.getSessionValue(SESSION_KEYS.CURRENT_QUESTION_INDEX) || '0', 10);
         await this.sendAudienceQuestion(connection, currentIndex + 1);
         break;
+      }
 
       case 'generate_pillars':
         await this.generatePillars(connection, message.requestId);
@@ -672,7 +673,7 @@ Return as JSON:
         await this.resetSession(connection, message.requestId);
         break;
 
-      case 'sync_pillars':
+      case 'sync_pillars': {
         const pillarsData = payload?.data as Record<string, unknown>;
         if (pillarsData) {
           this.setSessionValue(SESSION_KEYS.PILLARS, JSON.stringify(pillarsData));
@@ -689,6 +690,7 @@ Return as JSON:
           connection.send(JSON.stringify(response));
         }
         break;
+      }
 
       default:
         this.sendError(connection, 'unknown_action', `Unknown action: ${action}`);

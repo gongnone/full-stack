@@ -142,34 +142,37 @@ export const clientsRouter = t.router({
         // Wrapped in try-catch to not fail client creation if invitation fails
         if (input.contactEmail) {
           try {
-            // IDEMPOTENCY GUARD: Check if we recently sent an invite to this email (within 60 seconds)
-            // This prevents duplicate emails from race conditions or double-clicks
-            const recentInvite = await ctx.db.prepare(`
-              SELECT t.id FROM client_onboard_tokens t
-              JOIN clients c ON c.id = t.client_id
-              WHERE c.contact_email = ? AND t.created_at > ?
-            `).bind(input.contactEmail, Date.now() - 60000).first();
+            // ATOMIC IDEMPOTENCY: Insert token only if no recent invite exists for this email
+            // Uses INSERT...SELECT WHERE NOT EXISTS to prevent race conditions
+            // Previous check-then-insert pattern allowed 3 concurrent requests to all pass the check
+            const token = crypto.randomUUID().replace(/-/g, '');
+            const tokenId = crypto.randomUUID();
+            const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+            const now = Date.now();
+            const recentWindow = now - 60000; // 60 seconds
 
-            if (recentInvite) {
+            // Atomic insert - only succeeds if no token was created for this email in last 60 seconds
+            const insertResult = await ctx.db.prepare(`
+              INSERT INTO client_onboard_tokens (id, client_id, token, expires_at, created_at)
+              SELECT ?, ?, ?, ?, ?
+              WHERE NOT EXISTS (
+                SELECT 1 FROM client_onboard_tokens t
+                JOIN clients c ON c.id = t.client_id
+                WHERE c.contact_email = ? AND t.created_at > ?
+              )
+            `).bind(tokenId, clientId, token, expiresAt, now, input.contactEmail, recentWindow).run();
+
+            if (insertResult.meta.changes === 0) {
+              // Token insert was skipped due to recent invite - don't send email
               console.log(`[Clients] Skipping duplicate invite email to ${input.contactEmail} - sent within last 60 seconds`);
             } else {
-              // Get agency name from user's name (agency owner creating the client)
+              // Token was inserted - safe to send email
               const user = await ctx.db
                 .prepare('SELECT name FROM user WHERE id = ?')
                 .bind(ctx.userId)
                 .first<{ name: string }>();
 
               const agencyName = user?.name || 'The Agentic Content Foundry';
-              const token = crypto.randomUUID().replace(/-/g, '');
-              const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
-
-              await ctx.db.prepare(`
-                INSERT INTO client_onboard_tokens (id, client_id, token, expires_at, created_at)
-                VALUES (?, ?, ?, ?, ?)
-              `).bind(crypto.randomUUID(), clientId, token, expiresAt, Date.now()).run();
-
-              // Send Email
-              // Use a public URL path that will be handled by the app
               const inviteUrl = `${ctx.env.BETTER_AUTH_URL}/onboard/${token}`;
 
               // Send invitation email directly (queue-based delivery removed to prevent duplicates)

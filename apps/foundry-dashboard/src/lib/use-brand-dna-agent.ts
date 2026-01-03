@@ -208,7 +208,11 @@ export function useBrandDNAAgent({
 
   const sendMessage = useCallback((message: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(message));
+      try {
+        wsRef.current.send(JSON.stringify(message));
+      } catch (error) {
+        console.error('[WS] Failed to send message:', error);
+      }
     }
   }, []);
 

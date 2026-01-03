@@ -336,29 +336,39 @@ export class BrandDNAAgent extends Agent<AgentEnv> {
       return;
     }
 
-    switch (clientMessage.type) {
-      case 'ping':
-        connection.send(JSON.stringify({ type: 'pong', timestamp: now }));
-        break;
+    // Wrap all handlers in try/catch to ensure errors are sent to client
+    try {
+      switch (clientMessage.type) {
+        case 'ping':
+          connection.send(JSON.stringify({ type: 'pong', timestamp: now }));
+          break;
 
-      case 'voice_sample':
-        await this.handleVoiceSample(connection, clientMessage);
-        break;
+        case 'voice_sample':
+          await this.handleVoiceSample(connection, clientMessage);
+          break;
 
-      case 'text_input':
-        await this.handleTextInput(connection, clientMessage);
-        break;
+        case 'text_input':
+          await this.handleTextInput(connection, clientMessage);
+          break;
 
-      case 'selection':
-        await this.handleSelection(connection, clientMessage);
-        break;
+        case 'selection':
+          await this.handleSelection(connection, clientMessage);
+          break;
 
-      case 'action':
-        await this.handleAction(connection, clientMessage);
-        break;
+        case 'action':
+          await this.handleAction(connection, clientMessage);
+          break;
 
-      default:
-        this.sendError(connection, 'unknown_message_type', `Unknown message type: ${clientMessage.type}`);
+        default:
+          this.sendError(connection, 'unknown_message_type', `Unknown message type: ${clientMessage.type}`);
+      }
+    } catch (error) {
+      console.error('[BrandDNAAgent] Handler error:', error);
+      this.sendError(
+        connection,
+        'handler_error',
+        'An error occurred processing your request. Please try again.'
+      );
     }
   }
 
@@ -1156,7 +1166,7 @@ Return JSON array:
           _rawData: { personality, description, audienceAnswers, platforms, pillars, competitors },
         };
 
-        await this.env.CONTENT_ENGINE.fetch(
+        const updateResponse = await this.env.CONTENT_ENGINE.fetch(
           new Request(`http://internal/api/client/${this.clientId}/rpc`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1167,8 +1177,12 @@ Return JSON array:
           })
         );
 
+        if (!updateResponse.ok) {
+          console.error('[BrandDNAAgent] updateBrandDNA failed:', updateResponse.status, await updateResponse.text().catch(() => ''));
+        }
+
         // Trigger brand DNA analysis to calculate strength score and embeddings
-        await this.env.CONTENT_ENGINE.fetch(
+        const analyzeResponse = await this.env.CONTENT_ENGINE.fetch(
           new Request(`http://internal/api/client/${this.clientId}/rpc`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1178,8 +1192,12 @@ Return JSON array:
             }),
           })
         );
+
+        if (!analyzeResponse.ok) {
+          console.error('[BrandDNAAgent] analyzeBrandDNA failed:', analyzeResponse.status, await analyzeResponse.text().catch(() => ''));
+        }
       } catch (error) {
-        console.error('Failed to sync to ClientAgent:', error);
+        console.error('[BrandDNAAgent] Failed to sync to ClientAgent:', error);
       }
     }
 

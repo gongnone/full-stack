@@ -175,11 +175,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
-      - name: 🚀 Deploy to Cloudflare
-        run: pnpm --filter foundry-dashboard run production:deploy
+      - name: 🏗️ Build React App
+        run: pnpm --filter foundry-dashboard run build
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          # Sentry configuration for error tracking
+          # Sentry configuration for error tracking (build-time)
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_ENVIRONMENT: production
           VITE_SENTRY_RELEASE: ${{ github.sha }}
@@ -187,6 +186,13 @@ jobs:
           SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
           SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+
+      - name: 🚀 Deploy to Cloudflare
+        run: |
+          cd apps/foundry-dashboard
+          npx wrangler deploy --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
   deploy-foundry-backend:
     name: 🚀 Foundry Backend (engine)

@@ -139,34 +139,36 @@ export const clientsRouter = t.router({
         });
 
         // Story 10-1 AC1: Auto-Send Brand DNA Invitation (non-blocking)
-        // Wrapped in try-catch to not fail client creation if invitation fails
+        // Fix for triple-send bug: Use invite_email_sent flag + email_send_log for idempotency
+        // Pattern: Set flag BEFORE sending, reset if send fails (Fix Issue #1)
         if (input.contactEmail) {
           try {
-            // ATOMIC IDEMPOTENCY: Insert token only if no recent invite exists for this email
-            // Uses INSERT...SELECT WHERE NOT EXISTS to prevent race conditions
-            // Previous check-then-insert pattern allowed 3 concurrent requests to all pass the check
             const token = crypto.randomUUID().replace(/-/g, '');
             const tokenId = crypto.randomUUID();
             const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
             const now = Date.now();
             const recentWindow = now - 60000; // 60 seconds
 
-            // Atomic insert - only succeeds if no token was created for this email in last 60 seconds
+            // ATOMIC IDEMPOTENCY: Insert token with invite_email_sent=1 in single operation
+            // This ensures:
+            // 1. Only one token is created per email within 60 seconds (race condition prevention)
+            // 2. Flag is set BEFORE email send (optimistic locking prevents duplicates)
+            // 3. If insert fails, no email is sent
             const insertResult = await ctx.db.prepare(`
-              INSERT INTO client_onboard_tokens (id, client_id, token, expires_at, created_at)
-              SELECT ?, ?, ?, ?, ?
+              INSERT INTO client_onboard_tokens (id, client_id, token, expires_at, created_at, invite_email_sent, invite_email_sent_at)
+              SELECT ?, ?, ?, ?, ?, 1, ?
               WHERE NOT EXISTS (
                 SELECT 1 FROM client_onboard_tokens t
                 JOIN clients c ON c.id = t.client_id
                 WHERE c.contact_email = ? AND t.created_at > ?
               )
-            `).bind(tokenId, clientId, token, expiresAt, now, input.contactEmail, recentWindow).run();
+            `).bind(tokenId, clientId, token, expiresAt, now, now, input.contactEmail, recentWindow).run();
 
             if (insertResult.meta.changes === 0) {
               // Token insert was skipped due to recent invite - don't send email
               console.log(`[Clients] Skipping duplicate invite email to ${input.contactEmail} - sent within last 60 seconds`);
             } else {
-              // Token was inserted - safe to send email
+              // Token was inserted with invite_email_sent=1 - now attempt to send email
               const user = await ctx.db
                 .prepare('SELECT name FROM user WHERE id = ?')
                 .bind(ctx.userId)
@@ -175,10 +177,29 @@ export const clientsRouter = t.router({
               const agencyName = user?.name || 'The Agentic Content Foundry';
               const inviteUrl = `${ctx.env.BETTER_AUTH_URL}/onboard/${token}`;
 
-              // Send invitation email directly (queue-based delivery removed to prevent duplicates)
-              await sendBrandDNAInvitation(ctx.env, input.contactEmail, input.name, inviteUrl, agencyName).catch(err => {
+              // Send invitation email with db for idempotency tracking (Fix Issue #1 & #3)
+              const emailResult = await sendBrandDNAInvitation(
+                ctx.env,
+                ctx.db,
+                input.contactEmail,
+                input.name,
+                inviteUrl,
+                agencyName,
+                token // Fix Issue #6: Use token directly as idempotency key
+              ).catch(err => {
                 console.error('Failed to send invite email:', err);
+                return { success: false, error: err.message };
               });
+
+              // FIX ISSUE #1: Reset flag if email failed (prevents silent failure)
+              if (!emailResult.success) {
+                await ctx.db.prepare(`
+                  UPDATE client_onboard_tokens
+                  SET invite_email_sent = 0, invite_email_sent_at = NULL
+                  WHERE id = ?
+                `).bind(tokenId).run();
+                console.warn(`[Clients] Email failed, reset invite_email_sent flag for token ${tokenId}`);
+              }
             }
           } catch (inviteErr) {
             // Non-blocking: log but don't fail client creation
@@ -709,21 +730,23 @@ export const clientsRouter = t.router({
         });
       }
 
-      // Invalidate all existing tokens for this client
+      // FIX ISSUE #7: Only invalidate unused onboard tokens (not all token types)
+      // This is safer if we add other token types in the future
       await ctx.db
         .prepare('UPDATE client_onboard_tokens SET used_at = ? WHERE client_id = ? AND used_at IS NULL')
         .bind(Date.now(), input.clientId)
         .run();
 
-      // Generate new token
+      // Generate new token with invite_email_sent=1 (set BEFORE sending)
       const token = crypto.randomUUID().replace(/-/g, '');
+      const tokenId = crypto.randomUUID();
       const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
       const now = Date.now();
 
       await ctx.db.prepare(`
-        INSERT INTO client_onboard_tokens (id, client_id, token, expires_at, created_at)
-        VALUES (?, ?, ?, ?, ?)
-      `).bind(crypto.randomUUID(), input.clientId, token, expiresAt, now).run();
+        INSERT INTO client_onboard_tokens (id, client_id, token, expires_at, created_at, invite_email_sent, invite_email_sent_at)
+        VALUES (?, ?, ?, ?, ?, 1, ?)
+      `).bind(tokenId, input.clientId, token, expiresAt, now, now).run();
 
       // Get agency name from user's name (agency owner resending the invite)
       const user = await ctx.db
@@ -732,11 +755,35 @@ export const clientsRouter = t.router({
         .first<{ name: string }>();
       const agencyName = user?.name || 'The Agentic Content Foundry';
 
-      // Send new invitation email
+      // Send new invitation email with db for idempotency tracking
       const inviteUrl = `${ctx.env.BETTER_AUTH_URL}/onboard/${token}`;
-      await sendBrandDNAInvitation(ctx.env, client.contact_email, client.name, inviteUrl, agencyName).catch(err => {
+      const emailResult = await sendBrandDNAInvitation(
+        ctx.env,
+        ctx.db,
+        client.contact_email,
+        client.name,
+        inviteUrl,
+        agencyName,
+        token // Use token directly as idempotency key
+      ).catch(err => {
         console.error('Failed to resend invite email:', err);
+        return { success: false, error: err.message };
       });
+
+      // FIX ISSUE #1: Reset flag if email failed
+      if (!emailResult.success) {
+        await ctx.db.prepare(`
+          UPDATE client_onboard_tokens
+          SET invite_email_sent = 0, invite_email_sent_at = NULL
+          WHERE id = ?
+        `).bind(tokenId).run();
+        console.warn(`[Clients] Resend email failed, reset invite_email_sent flag for token ${tokenId}`);
+
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: `Failed to send invitation email: ${emailResult.error}`,
+        });
+      }
 
       return {
         success: true,

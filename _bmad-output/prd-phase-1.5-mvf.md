@@ -135,13 +135,49 @@ The BrandDNA Agent is an **agentic conversation** that guides users through defi
 - WebSocket connection for real-time UI updates
 - Structured JSON responses that render as interactive UI components
 
+#### Path Options
+
+BrandDNA offers two completion paths to accommodate different user needs:
+
+| Path | Duration | Steps | Best For |
+|------|----------|-------|----------|
+| Full Path | 10-15 minutes | 9 steps | Comprehensive brand capture, detailed audience analysis |
+| Express Path | 2-3 minutes | 6 steps | Quick setup, time-constrained users, initial onboarding |
+
+##### Full Path Steps
+1. Welcome + Path Selection
+2. Voice Capture (120 seconds max)
+3. Brand Description
+4. Audience Questions (5 questions)
+5. Platform Selection
+6. Competitor Input
+7. Pillar Proposal + Approval
+8. Review Summary
+9. Complete
+
+##### Express Path Steps
+1. Welcome + Path Selection
+2. Voice Capture (60 seconds max)
+3. Express Brand Question (single text input)
+4. Express Audience Question (single text input)
+5. Express Platform Selection (streamlined)
+6. Complete
+
+**Note:** Express Path triggers the same async research and pillar synthesis pipeline, but pillars are generated asynchronously and presented via separate Strategy Approval flow (FR-1.5.12).
+
+##### Voice Recording Duration by Path
+- **Full Path:** 120 seconds maximum (FR-1.5.1a)
+- **Express Path:** 60 seconds maximum
+
+Both paths support re-record and skip-to-text options.
+
 #### Feature Requirements
 
 ##### FR-1.5.1: Voice Capture & Analysis
 
 | Requirement | Description | Priority |
 |-------------|-------------|----------|
-| **FR-1.5.1a** | Users can record a 2-minute voice note describing their brand on mobile | P0 |
+| **FR-1.5.1a** | Users can record a voice note with path-appropriate duration: Full Path (120s) / Express Path (60s) | P0 |
 | **FR-1.5.1b** | System transcribes voice note using Workers AI Whisper integration | P0 |
 | **FR-1.5.1c** | System extracts tone, vocabulary, and personality markers from transcription | P0 |
 | **FR-1.5.1d** | Users can re-record if not satisfied with initial capture | P0 |

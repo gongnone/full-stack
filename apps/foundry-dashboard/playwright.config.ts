@@ -14,6 +14,8 @@ const isRemote = !!process.env.BASE_URL && !process.env.BASE_URL.includes('local
 
 export default defineConfig({
   testDir: './e2e',
+  /* Ignore draft test specifications until features are implemented */
+  testIgnore: /.*\.spec\.draft\.ts$/,
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */

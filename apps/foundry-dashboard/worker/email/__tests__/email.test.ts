@@ -1,8 +1,31 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Env } from '../../index';
+import type { D1Database } from '@cloudflare/workers-types';
 
 // Create mock send function that we can control in tests
 const mockSend = vi.fn();
+
+// Mock D1 database
+const mockDbPrepare = vi.fn();
+const mockDbFirst = vi.fn();
+const mockDbRun = vi.fn();
+
+const createMockDb = (): D1Database => {
+  const mockDb = {
+    prepare: mockDbPrepare,
+  } as unknown as D1Database;
+
+  // Chain methods for query building
+  mockDbPrepare.mockReturnValue({
+    bind: vi.fn().mockReturnValue({
+      first: mockDbFirst,
+      run: mockDbRun,
+      all: vi.fn().mockResolvedValue({ results: [] }),
+    }),
+  });
+
+  return mockDb;
+};
 
 // Mock the entire AWS SDK module before importing the email module
 vi.mock('@aws-sdk/client-ses', () => {
@@ -24,6 +47,7 @@ import { sendVerificationEmail, sendPasswordResetEmail, sendBrandDNAInvitation }
 
 describe('Email Service', () => {
   let mockEnv: Partial<Env>;
+  let mockDb: D1Database;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -34,7 +58,13 @@ describe('Email Service', () => {
       EMAIL_FROM: 'test@foundry.example.com',
       ENVIRONMENT: 'test',
     };
-    // Default successful response
+    mockDb = createMockDb();
+
+    // Default: no existing email log (idempotency check returns null)
+    mockDbFirst.mockResolvedValue(null);
+    // Default: database operations succeed
+    mockDbRun.mockResolvedValue({ success: true, meta: { changes: 1 } });
+    // Default successful SES response
     mockSend.mockResolvedValue({ MessageId: 'test-message-id' });
   });
 
@@ -146,24 +176,11 @@ describe('Email Service', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should retry on failure with exponential backoff', async () => {
-      mockSend
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockRejectedValueOnce(new Error('Rate limit'))
-        .mockResolvedValueOnce({ MessageId: 'success-on-third' });
-
-      const result = await sendVerificationEmail(
-        mockEnv as Env,
-        { email: 'user@test.com' },
-        'https://foundry.example.com/verify'
-      );
-
-      expect(mockSend).toHaveBeenCalledTimes(3);
-      expect(result.success).toBe(true);
-    }, 15000); // Longer timeout for retry delays
-
-    it('should return error after all retries fail', async () => {
-      mockSend.mockRejectedValue(new Error('Persistent failure'));
+    it('should NOT retry on failure - returns error immediately', async () => {
+      // IMPORTANT: We removed retry logic to fix the triple-send bug.
+      // Retrying email sends is dangerous because if SES accepts the request
+      // but the response times out, retrying sends duplicate emails.
+      mockSend.mockRejectedValueOnce(new Error('Network error'));
 
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -173,12 +190,32 @@ describe('Email Service', () => {
         'https://foundry.example.com/verify'
       );
 
-      expect(mockSend).toHaveBeenCalledTimes(3);
+      // Should only call once - no retries!
+      expect(mockSend).toHaveBeenCalledTimes(1);
       expect(result.success).toBe(false);
-      expect(result.error).toBe('Persistent failure');
+      expect(result.error).toBe('Network error');
 
       consoleSpy.mockRestore();
-    }, 15000);
+    });
+
+    it('should log error when send fails (no retry)', async () => {
+      mockSend.mockRejectedValue(new Error('SES timeout'));
+
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      await sendVerificationEmail(
+        mockEnv as Env,
+        { email: 'user@test.com' },
+        'https://foundry.example.com/verify'
+      );
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Email send failed (no retry):',
+        expect.objectContaining({ error: 'SES timeout' })
+      );
+
+      consoleSpy.mockRestore();
+    });
 
     it('should send to correct recipient email', async () => {
       await sendVerificationEmail(
@@ -290,8 +327,46 @@ describe('Email Service', () => {
 
       expect(result.success).toBe(true);
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('[Email Mock] Sending Brand DNA Invite'),
-        expect.anything()
+        expect.stringContaining('[Email Mock] Sending Brand DNA Invite')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should include tokenId in mock log when provided', async () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const envWithoutSES = { ENVIRONMENT: 'local' } as Env;
+
+      await sendBrandDNAInvitation(
+        envWithoutSES,
+        'client@test.com',
+        'Acme Corp',
+        'https://foundry.example.com/brand-dna/abc123',
+        'Super Agency',
+        'test-token-123'
+      );
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('test-token-123')
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should log tokenId when sending email for traceability', async () => {
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await sendBrandDNAInvitation(
+        mockEnv as Env,
+        'client@test.com',
+        'Acme Corp',
+        'https://foundry.example.com/brand-dna/abc123',
+        'Super Agency',
+        'trace-token-456'
+      );
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Email] Sending Brand DNA Invite - token: trace-token-456'
       );
 
       consoleSpy.mockRestore();

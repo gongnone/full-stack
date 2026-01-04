@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { ActionButton } from '@/components/ui';
 import { ROI_CONFIG, QUALITY_GATE_CONFIG, UI_CONFIG } from '@/lib/constants';
 import { useToast } from '@/lib/toast';
+import { trpc } from '@/lib/trpc-client';
+import { TestimonialRequestModal } from '@/components/testimonials/TestimonialRequestModal';
 
 interface SprintStats {
   total: number;
@@ -14,6 +16,7 @@ interface SprintStats {
 interface SprintCompleteProps {
   stats: SprintStats;
   filter: string;
+  clientId: string;
   onBackToDashboard: () => void;
   onReviewConflicts: () => void;
 }
@@ -41,13 +44,34 @@ function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string
   return <span>{displayed}{suffix}</span>;
 }
 
-export function SprintComplete({ stats, filter: _filter, onBackToDashboard, onReviewConflicts }: SprintCompleteProps) {
+export function SprintComplete({ stats, filter: _filter, clientId, onBackToDashboard, onReviewConflicts }: SprintCompleteProps) {
   const { addToast } = useToast();
+  const [showTestimonialModal, setShowTestimonialModal] = useState(false);
+  const [hasCheckedTestimonial, setHasCheckedTestimonial] = useState(false);
+
   const hoursSaved = (stats.total * ROI_CONFIG.MINUTES_SAVED_PER_SPOKE) / 60;
   const dollarValue = Math.round(hoursSaved * ROI_CONFIG.HOURLY_RATE_USD);
   const zeroEditRate = stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
   const approvalRate = stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
   const killRate = stats.total > 0 ? Math.round((stats.killed / stats.total) * 100) : 0;
+
+  // FR-1.5.16: Check if testimonial should be triggered
+  const testimonialTriggerQuery = trpc.testimonials.checkTrigger.useQuery(
+    { clientId },
+    { enabled: !!clientId && !hasCheckedTestimonial }
+  );
+
+  // Show testimonial modal after a short delay when trigger conditions are met
+  useEffect(() => {
+    if (testimonialTriggerQuery.data?.shouldTrigger && !hasCheckedTestimonial) {
+      setHasCheckedTestimonial(true);
+      // Delay to let user see celebration first
+      const timer = setTimeout(() => {
+        setShowTestimonialModal(true);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [testimonialTriggerQuery.data, hasCheckedTestimonial]);
 
   const copyShareSummary = async () => {
     const summary = `Sprint Complete!
@@ -151,6 +175,14 @@ Zero-Edit Rate: ${zeroEditRate}%`;
           Share Summary
         </ActionButton>
       </div>
+
+      {/* FR-1.5.16: Testimonial Request Modal */}
+      <TestimonialRequestModal
+        clientId={clientId}
+        isOpen={showTestimonialModal}
+        onClose={() => setShowTestimonialModal(false)}
+        approvedCount={'approvedCount' in (testimonialTriggerQuery.data || {}) ? (testimonialTriggerQuery.data as { approvedCount: number }).approvedCount : stats.approved}
+      />
     </div>
   );
 }

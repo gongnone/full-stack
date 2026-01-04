@@ -98,7 +98,7 @@ export async function seedTestAccounts(
 
   // Create first user and client
   await db.prepare(`
-    INSERT INTO user (id, email, emailVerified, name, createdAt, updatedAt)
+    INSERT INTO user (id, email, email_verified, name, created_at, updated_at)
     VALUES (?, ?, 0, ?, ?, ?)
   `).bind(ctx.testUserId, `user1-${uniqueSuffix}@test.local`, 'User One', Date.now(), Date.now()).run();
 
@@ -115,7 +115,7 @@ export async function seedTestAccounts(
 
   // Create second user (for cross-tenant testing)
   await db.prepare(`
-    INSERT INTO user (id, email, emailVerified, name, createdAt, updatedAt)
+    INSERT INTO user (id, email, email_verified, name, created_at, updated_at)
     VALUES (?, ?, 0, ?, ?, ?)
   `).bind(ctx.secondUserId, `user2-${uniqueSuffix}@test.local`, 'User Two', Date.now(), Date.now()).run();
 

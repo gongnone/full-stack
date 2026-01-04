@@ -1,5 +1,6 @@
 import { SESClient, SendEmailCommand, type SendEmailCommandInput } from '@aws-sdk/client-ses';
 import type { Env } from '../index';
+import type { D1Database } from '@cloudflare/workers-types';
 
 /**
  * Email service for The Agentic Content Foundry
@@ -18,6 +19,11 @@ interface SendEmailOptions {
   text: string;
 }
 
+interface SendEmailWithIdempotencyOptions extends SendEmailOptions {
+  emailType: string; // 'brand_invite', 'verification', 'password_reset', etc.
+  idempotencyKey: string; // Unique key to prevent duplicate sends
+}
+
 /**
  * Create SES client from environment configuration
  */
@@ -32,35 +38,107 @@ function createSESClient(env: Env): SESClient {
 }
 
 /**
- * Send an email via AWS SES
- * Includes retry logic with exponential backoff
+ * Send an email via AWS SES (simple version, no idempotency)
+ *
+ * Use this for emails that don't need idempotency protection:
+ * - Verification emails (triggered by Better Auth, has its own dedup)
+ * - Password reset emails (user-initiated, one-time)
+ * - Notification emails (one-time events)
+ *
+ * For emails that can be triggered by race conditions (like brand invites),
+ * use sendEmailWithIdempotency instead.
  */
 async function sendEmail(
   env: Env,
-  options: SendEmailOptions,
-  retries = 3
+  options: SendEmailOptions
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const { to, subject, html, text } = options;
   const client = createSESClient(env);
   const fromEmail = env.EMAIL_FROM || 'noreply@foundry.williamjshaw.ca';
 
   const params: SendEmailCommandInput = {
     Destination: {
-      ToAddresses: [options.to],
+      ToAddresses: [to],
+    },
+    Message: {
+      Body: {
+        Html: { Charset: 'UTF-8', Data: html },
+        Text: { Charset: 'UTF-8', Data: text },
+      },
+      Subject: { Charset: 'UTF-8', Data: subject },
+    },
+    Source: fromEmail,
+  };
+
+  try {
+    const command = new SendEmailCommand(params);
+    const response = await client.send(command);
+    return { success: true, messageId: response.MessageId };
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error('Email send failed:', { error: err.message });
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Send an email via AWS SES with idempotency and smart retry
+ *
+ * CRITICAL DESIGN DECISIONS:
+ * 1. Database-level idempotency check BEFORE sending (prevents duplicate sends)
+ * 2. Retry on transient errors (network timeouts, rate limits) BUT re-check idempotency before each retry
+ * 3. Log all attempts to email_send_log for monitoring and debugging
+ * 4. If an email was already sent successfully (found in log), return success immediately
+ *
+ * This fixes the triple-send bug by ensuring:
+ * - Only one successful send per idempotency key
+ * - Retries check if a previous attempt succeeded before sending again
+ * - All attempts are tracked for observability
+ */
+async function sendEmailWithIdempotency(
+  env: Env,
+  db: D1Database,
+  options: SendEmailWithIdempotencyOptions,
+  maxRetries = 3
+): Promise<{ success: boolean; messageId?: string; error?: string; alreadySent?: boolean }> {
+  const { to, subject, html, text, emailType, idempotencyKey } = options;
+
+  // STEP 1: Check if email already sent successfully (idempotency check)
+  const existingLog = await db
+    .prepare('SELECT ses_message_id, status FROM email_send_log WHERE idempotency_key = ? AND status = ?')
+    .bind(idempotencyKey, 'success')
+    .first<{ ses_message_id: string; status: string }>();
+
+  if (existingLog) {
+    console.log(`[Email] Idempotency: Email already sent for key ${idempotencyKey}`);
+    return {
+      success: true,
+      messageId: existingLog.ses_message_id,
+      alreadySent: true,
+    };
+  }
+
+  const client = createSESClient(env);
+  const fromEmail = env.EMAIL_FROM || 'noreply@foundry.williamjshaw.ca';
+
+  const params: SendEmailCommandInput = {
+    Destination: {
+      ToAddresses: [to],
     },
     Message: {
       Body: {
         Html: {
           Charset: 'UTF-8',
-          Data: options.html,
+          Data: html,
         },
         Text: {
           Charset: 'UTF-8',
-          Data: options.text,
+          Data: text,
         },
       },
       Subject: {
         Charset: 'UTF-8',
-        Data: options.subject,
+        Data: subject,
       },
     },
     Source: fromEmail,
@@ -68,10 +146,50 @@ async function sendEmail(
 
   let lastError: Error | undefined;
 
-  for (let attempt = 1; attempt <= retries; attempt++) {
+  // STEP 2: Attempt send with smart retry
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // Re-check idempotency before each retry (in case another request succeeded)
+    if (attempt > 1) {
+      const recheckLog = await db
+        .prepare('SELECT ses_message_id FROM email_send_log WHERE idempotency_key = ? AND status = ?')
+        .bind(idempotencyKey, 'success')
+        .first<{ ses_message_id: string }>();
+
+      if (recheckLog) {
+        console.log(`[Email] Retry prevented: Another request succeeded for key ${idempotencyKey}`);
+        return {
+          success: true,
+          messageId: recheckLog.ses_message_id,
+          alreadySent: true,
+        };
+      }
+    }
+
     try {
+      // Log attempt
+      const logId = crypto.randomUUID();
+      const now = Date.now();
+      await db
+        .prepare(`
+          INSERT INTO email_send_log (id, email_type, recipient_email, idempotency_key, status, attempt_number, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'retrying', ?, ?, ?)
+        `)
+        .bind(logId, emailType, to, idempotencyKey, attempt, now, now)
+        .run();
+
+      // Send email
       const command = new SendEmailCommand(params);
       const response = await client.send(command);
+
+      // Update log with success
+      await db
+        .prepare(`
+          UPDATE email_send_log
+          SET status = 'success', ses_message_id = ?, updated_at = ?
+          WHERE id = ?
+        `)
+        .bind(response.MessageId, Date.now(), logId)
+        .run();
 
       return {
         success: true,
@@ -80,18 +198,30 @@ async function sendEmail(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
-      // Log error without PII (email address or subject)
-      console.error(`Email send attempt ${attempt}/${retries} failed:`, {
+      console.error(`Email send attempt ${attempt}/${maxRetries} failed:`, {
+        emailType,
         error: lastError.message,
+        idempotencyKey,
       });
 
-      if (attempt < retries) {
+      if (attempt < maxRetries) {
         // Exponential backoff: 1s, 2s, 4s
         const delay = Math.pow(2, attempt - 1) * 1000;
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
   }
+
+  // STEP 3: All retries failed - log final failure
+  const logId = crypto.randomUUID();
+  const now = Date.now();
+  await db
+    .prepare(`
+      INSERT INTO email_send_log (id, email_type, recipient_email, idempotency_key, status, attempt_number, error_message, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'failed', ?, ?, ?, ?)
+    `)
+    .bind(logId, emailType, to, idempotencyKey, maxRetries, lastError?.message || 'Unknown error', now, now)
+    .run();
 
   return {
     success: false,
@@ -281,17 +411,21 @@ The Agentic Content Foundry
 
 /**
  * Send Brand DNA invitation email (Story 10-1)
+ *
+ * @param token - The onboarding token, used as idempotency key (Fix Issue #6: Simplified from separate tokenId)
  */
 export async function sendBrandDNAInvitation(
   env: Env,
+  db: D1Database,
   email: string,
   clientName: string,
   inviteUrl: string,
-  agencyName: string
+  agencyName: string,
+  token: string
 ): Promise<{ success: boolean; error?: string }> {
   // Silent fallback for dev mode
   if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
-    console.log(`[Email Mock] Sending Brand DNA Invite to ${email}: ${inviteUrl}`);
+    console.log(`[Email Mock] Sending Brand DNA Invite to ${email}: ${inviteUrl} (token: ${token})`);
     return { success: true };
   }
 
@@ -334,11 +468,13 @@ You'll:
 The more you share, the better your content will be.
 `;
 
-  return sendEmail(env, {
+  return sendEmailWithIdempotency(env, db, {
     to: email,
     subject,
     html: htmlBody,
     text: textContent.trim(),
+    emailType: 'brand_invite',
+    idempotencyKey: `brand-invite-${token}`, // Use token as idempotency key
   });
 }/**
  * Send Brand DNA completion notification to agency owner (Story 10-1 AC7)

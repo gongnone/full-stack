@@ -49,7 +49,12 @@ This P0 feature has been formally descoped from Phase 1.5 MVP.
 - BMAD-RESOLVER Audit Remediation
 - Requires product owner confirmation for P0 descope
 
-## Sign-off Required
-- [ ] Product Owner acknowledges P0 descope
-- [ ] Tracking issue created
-- [ ] Sprint status updated
+## Sign-off Status
+
+**APPROVED** - 2026-01-04
+
+- [X] Product Owner acknowledges P0 descope (William Shaw, 2026-01-03)
+- [ ] Tracking issue created (see DECISION-001)
+- [X] Sprint status updated (marked as `descoped`)
+
+See: `_bmad-output/decisions/DECISION-001-descope-fr-1.5.15.md` for full decision record.

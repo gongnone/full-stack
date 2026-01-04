@@ -349,6 +349,7 @@ function ReviewPage() {
       <SprintComplete
         stats={stats}
         filter={rawFilter}
+        clientId={clientId || ''}
         onBackToDashboard={() => navigate({ to: '/app/review' })}
         onReviewConflicts={() => navigate({ to: '/app/review', search: { filter: 'conflicts' } })}
       />

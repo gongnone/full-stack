@@ -197,4 +197,248 @@ export const testimonialsRouter = t.router({
         jobId: crypto.randomUUID(),
       };
     }),
+
+  // =========================================
+  // FR-1.5.16: Testimonial Request Flow
+  // Sprint Item: testimonial-flow-completion
+  // =========================================
+
+  /**
+   * Check if testimonial should be triggered for client
+   * AC-1: After 10+ spokes approved, trigger testimonial flow (once per client)
+   */
+  checkTrigger: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+    }))
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // Check if already requested/declined
+      const existingRequest = await ctx.db.prepare(`
+        SELECT status, snooze_count FROM testimonials
+        WHERE client_id = ? AND trigger_event = 'batch_approval'
+        ORDER BY created_at DESC LIMIT 1
+      `).bind(input.clientId).first();
+
+      if (existingRequest) {
+        // Already have a request - don't trigger again if declined or accepted
+        const status = existingRequest.status as string;
+        if (status === 'declined' || status === 'approved' || status === 'public') {
+          return { shouldTrigger: false, reason: 'already_responded', status };
+        }
+        // If snoozed, check snooze count (max 2 reminders then auto-decline)
+        if (status === 'snoozed') {
+          const snoozeCount = (existingRequest.snooze_count as number) || 0;
+          if (snoozeCount >= 2) {
+            return { shouldTrigger: false, reason: 'max_snoozes', status };
+          }
+          // For snoozed, allow trigger again
+        }
+        // If pending, allow showing the prompt
+        return { shouldTrigger: true, reason: 'pending_request', status };
+      }
+
+      // Count approved spokes for client
+      const approvedCount = await ctx.callAgent(input.clientId, 'getApprovedSpokeCount', {}) as { count: number };
+
+      if (approvedCount.count >= 10) {
+        return { shouldTrigger: true, reason: 'threshold_met', approvedCount: approvedCount.count };
+      }
+
+      return { shouldTrigger: false, reason: 'threshold_not_met', approvedCount: approvedCount.count };
+    }),
+
+  /**
+   * Get current testimonial request status for client
+   * Returns: 'none' | 'pending' | 'snoozed' | 'accepted' | 'declined'
+   */
+  requestStatus: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+    }))
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      const request = await ctx.db.prepare(`
+        SELECT id, status, snooze_count, created_at, approved_at
+        FROM testimonials
+        WHERE client_id = ? AND trigger_event = 'batch_approval'
+        ORDER BY created_at DESC LIMIT 1
+      `).bind(input.clientId).first();
+
+      if (!request) {
+        return { status: 'none' as const, requestId: null };
+      }
+
+      return {
+        status: request.status as 'pending' | 'snoozed' | 'approved' | 'declined' | 'public',
+        requestId: request.id as string,
+        snoozeCount: request.snooze_count as number || 0,
+        createdAt: request.created_at as number,
+        approvedAt: request.approved_at as number | null,
+      };
+    }),
+
+  /**
+   * Record user's response to testimonial request
+   * AC-2: Sentiment check (handled by frontend, we receive the response)
+   * AC-3, AC-5, AC-6: Accept/Decline/Snooze options
+   */
+  respond: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      response: z.enum(['accept', 'decline', 'snooze']),
+      sentiment: z.enum(['excited', 'solid', 'needs_work']).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+      const now = Date.now();
+
+      // Check for existing request
+      const existingRequest = await ctx.db.prepare(`
+        SELECT id, status, snooze_count FROM testimonials
+        WHERE client_id = ? AND trigger_event = 'batch_approval'
+        ORDER BY created_at DESC LIMIT 1
+      `).bind(input.clientId).first();
+
+      if (existingRequest) {
+        // Update existing request
+        const newStatus = input.response === 'accept' ? 'pending' :
+                          input.response === 'decline' ? 'declined' : 'snoozed';
+        const snoozeCount = input.response === 'snooze'
+          ? ((existingRequest.snooze_count as number) || 0) + 1
+          : existingRequest.snooze_count;
+
+        await ctx.db.prepare(`
+          UPDATE testimonials SET
+            status = ?,
+            snooze_count = ?,
+            approved_at = ?,
+            sentiment = ?
+          WHERE id = ?
+        `).bind(
+          newStatus,
+          snoozeCount,
+          input.response === 'accept' ? now : null,
+          input.sentiment || null,
+          existingRequest.id
+        ).run();
+
+        return {
+          success: true,
+          requestId: existingRequest.id as string,
+          status: newStatus,
+          snoozeCount: snoozeCount as number,
+        };
+      }
+
+      // Create new request
+      const requestId = crypto.randomUUID();
+      const status = input.response === 'accept' ? 'pending' :
+                     input.response === 'decline' ? 'declined' : 'snoozed';
+
+      await ctx.db.prepare(`
+        INSERT INTO testimonials (id, client_id, type, status, trigger_event, sentiment, snooze_count, created_at, approved_at)
+        VALUES (?, ?, 'video', ?, 'batch_approval', ?, ?, ?, ?)
+      `).bind(
+        requestId,
+        input.clientId,
+        status,
+        input.sentiment || null,
+        input.response === 'snooze' ? 1 : 0,
+        now,
+        input.response === 'accept' ? now : null
+      ).run();
+
+      return {
+        success: true,
+        requestId,
+        status,
+        snoozeCount: input.response === 'snooze' ? 1 : 0,
+      };
+    }),
+
+  /**
+   * Submit testimonial video
+   * AC-4: Store with permission_public flag
+   */
+  submit: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      requestId: z.string().uuid().optional(),
+      r2Key: z.string().min(1),
+      duration: z.number().min(1).max(180), // Max 3 minutes
+      permissionPublic: z.boolean().default(false),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+      const now = Date.now();
+
+      if (input.requestId) {
+        // Update existing request with video details
+        await ctx.db.prepare(`
+          UPDATE testimonials SET
+            r2_key = ?,
+            duration = ?,
+            public_permission = ?,
+            status = ?,
+            approved_at = ?
+          WHERE id = ? AND client_id = ?
+        `).bind(
+          input.r2Key,
+          input.duration,
+          input.permissionPublic ? 1 : 0,
+          input.permissionPublic ? 'public' : 'approved',
+          now,
+          input.requestId,
+          input.clientId
+        ).run();
+
+        return { success: true, testimonialId: input.requestId };
+      }
+
+      // Create new testimonial record (direct submission)
+      const testimonialId = crypto.randomUUID();
+      await ctx.db.prepare(`
+        INSERT INTO testimonials (id, client_id, type, r2_key, duration, status, public_permission, trigger_event, created_at, approved_at)
+        VALUES (?, ?, 'video', ?, ?, ?, ?, 'manual', ?, ?)
+      `).bind(
+        testimonialId,
+        input.clientId,
+        input.r2Key,
+        input.duration,
+        input.permissionPublic ? 'public' : 'approved',
+        input.permissionPublic ? 1 : 0,
+        now,
+        now
+      ).run();
+
+      return { success: true, testimonialId };
+    }),
+
+  /**
+   * Get upload URL for testimonial video
+   */
+  getUploadUrl: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      fileName: z.string().min(1),
+      contentType: z.string().default('video/webm'),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // Generate R2 key
+      const timestamp = Date.now();
+      const r2Key = `testimonials/${input.clientId}/${timestamp}-${input.fileName}`;
+
+      // For MVP, return a direct upload path
+      // In production, generate presigned URL
+      return {
+        uploadUrl: `/api/upload/testimonial`,
+        r2Key,
+        expiresAt: new Date(Date.now() + 3600000), // 1 hour
+      };
+    }),
 });

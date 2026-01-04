@@ -501,7 +501,7 @@ app.post('/api/upload/:path{.+}', async (c) => {
   }
 
   // Validate the r2Key starts with allowed prefixes
-  const allowedPrefixes = ['brand-samples/', 'voice-samples/', 'sources/'];
+  const allowedPrefixes = ['brand-samples/', 'voice-samples/', 'sources/', 'testimonials/'];
   if (!allowedPrefixes.some(prefix => r2Key.startsWith(prefix))) {
     return c.json({ error: 'Invalid upload path' }, 400);
   }
@@ -533,9 +533,13 @@ app.post('/api/upload/:path{.+}', async (c) => {
       return c.json({ error: 'Empty file' }, 400);
     }
 
-    // Max file size: 10MB
-    if (body.byteLength > 10 * 1024 * 1024) {
-      return c.json({ error: 'File too large (max 10MB)' }, 400);
+    // Max file size: 10MB for most files, 20MB for testimonial videos
+    const isTestimonial = r2Key.startsWith('testimonials/');
+    const maxSize = isTestimonial ? 20 * 1024 * 1024 : 10 * 1024 * 1024;
+    const maxSizeLabel = isTestimonial ? '20MB' : '10MB';
+
+    if (body.byteLength > maxSize) {
+      return c.json({ error: `File too large (max ${maxSizeLabel})` }, 400);
     }
 
     // Upload to R2

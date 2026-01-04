@@ -12,6 +12,17 @@ vi.mock('@/lib/toast', () => ({
   useToast: () => ({ addToast: mockAddToast }),
 }));
 
+// Mock tRPC client
+vi.mock('@/lib/trpc-client', () => ({
+  trpc: {
+    testimonials: {
+      checkTrigger: {
+        useQuery: () => ({ data: null, isLoading: false }),
+      },
+    },
+  },
+}));
+
 describe('SprintComplete', () => {
   const defaultStats = {
     total: 100,
@@ -24,6 +35,7 @@ describe('SprintComplete', () => {
   const defaultProps = {
     stats: defaultStats,
     filter: 'all',
+    clientId: 'test-client-123',
     onBackToDashboard: vi.fn(),
     onReviewConflicts: vi.fn(),
   };

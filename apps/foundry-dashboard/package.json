@@ -61,6 +61,7 @@
     "@trpc/react-query": "^11.0.0-rc.648",
     "@trpc/server": "^11.0.0-rc.648",
     "agents": "^0.3.3",
+    "aws4fetch": "^1.0.20",
     "better-auth": "^1.4.7",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

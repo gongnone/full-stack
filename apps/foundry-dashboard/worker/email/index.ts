@@ -1,6 +1,6 @@
-import { SESClient, SendEmailCommand, type SendEmailCommandInput } from '@aws-sdk/client-ses';
 import type { Env } from '../index';
 import type { D1Database } from '@cloudflare/workers-types';
+import { sendSESEmail } from './ses-cloudflare';
 
 /**
  * Email service for The Agentic Content Foundry
@@ -24,18 +24,8 @@ interface SendEmailWithIdempotencyOptions extends SendEmailOptions {
   idempotencyKey: string; // Unique key to prevent duplicate sends
 }
 
-/**
- * Create SES client from environment configuration
- */
-function createSESClient(env: Env): SESClient {
-  return new SESClient({
-    region: env.AWS_REGION || 'us-east-1',
-    credentials: {
-      accessKeyId: env.AWS_ACCESS_KEY_ID || '',
-      secretAccessKey: env.AWS_SECRET_ACCESS_KEY || '',
-    },
-  });
-}
+// Removed createSESClient - now using Cloudflare Workers-compatible sendSESEmail from ses-cloudflare.ts
+// This fixes the "DOMParser is not defined" error that occurred with @aws-sdk/client-ses
 
 /**
  * Send an email via AWS SES (simple version, no idempotency)
@@ -53,32 +43,14 @@ async function sendEmail(
   options: SendEmailOptions
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const { to, subject, html, text } = options;
-  const client = createSESClient(env);
-  const fromEmail = env.EMAIL_FROM || 'noreply@foundry.williamjshaw.ca';
 
-  const params: SendEmailCommandInput = {
-    Destination: {
-      ToAddresses: [to],
-    },
-    Message: {
-      Body: {
-        Html: { Charset: 'UTF-8', Data: html },
-        Text: { Charset: 'UTF-8', Data: text },
-      },
-      Subject: { Charset: 'UTF-8', Data: subject },
-    },
-    Source: fromEmail,
-  };
-
-  try {
-    const command = new SendEmailCommand(params);
-    const response = await client.send(command);
-    return { success: true, messageId: response.MessageId };
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error(String(error));
-    console.error('Email send failed:', { error: err.message });
-    return { success: false, error: err.message };
-  }
+  // Use Cloudflare Workers-compatible SES client (fixes DOMParser error)
+  return sendSESEmail(env, {
+    to,
+    subject,
+    htmlBody: html,
+    textBody: text,
+  });
 }
 
 /**
@@ -118,32 +90,6 @@ async function sendEmailWithIdempotency(
     };
   }
 
-  const client = createSESClient(env);
-  const fromEmail = env.EMAIL_FROM || 'noreply@foundry.williamjshaw.ca';
-
-  const params: SendEmailCommandInput = {
-    Destination: {
-      ToAddresses: [to],
-    },
-    Message: {
-      Body: {
-        Html: {
-          Charset: 'UTF-8',
-          Data: html,
-        },
-        Text: {
-          Charset: 'UTF-8',
-          Data: text,
-        },
-      },
-      Subject: {
-        Charset: 'UTF-8',
-        Data: subject,
-      },
-    },
-    Source: fromEmail,
-  };
-
   let lastError: Error | undefined;
 
   // STEP 2: Attempt send with smart retry
@@ -177,9 +123,17 @@ async function sendEmailWithIdempotency(
         .bind(logId, emailType, to, idempotencyKey, attempt, now, now)
         .run();
 
-      // Send email
-      const command = new SendEmailCommand(params);
-      const response = await client.send(command);
+      // Send email using Cloudflare Workers-compatible SES client (fixes DOMParser error)
+      const response = await sendSESEmail(env, {
+        to,
+        subject,
+        htmlBody: html,
+        textBody: text,
+      });
+
+      if (!response.success) {
+        throw new Error(response.error || 'Email send failed');
+      }
 
       // Update log with success
       await db
@@ -188,12 +142,12 @@ async function sendEmailWithIdempotency(
           SET status = 'success', ses_message_id = ?, updated_at = ?
           WHERE id = ?
         `)
-        .bind(response.MessageId, Date.now(), logId)
+        .bind(response.messageId, Date.now(), logId)
         .run();
 
       return {
         success: true,
-        messageId: response.MessageId,
+        messageId: response.messageId,
       };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));

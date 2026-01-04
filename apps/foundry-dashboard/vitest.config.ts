@@ -1,29 +1,23 @@
-import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
-export default defineWorkersConfig({
+export default defineConfig({
   plugins: [react()],
   test: {
     globals: true,
-    setupFiles: ['./test/setup.ts', './src/test/setup.tsx'],    include: [
+    // Use jsdom for React component tests
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.tsx'],
+    include: [
       'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
-      'worker/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
     ],
-    // Default to 'forks' pool for unit tests (fast, no worker runtime needed)
+    exclude: [
+      'worker/**/*',
+      'node_modules/**',
+    ],
+    // Default to 'forks' pool for unit tests (fast)
     pool: 'forks',
-    poolOptions: {
-      workers: {
-        wrangler: {
-          configPath: './wrangler.jsonc',
-          main: './worker/index.ts',
-        },
-        miniflare: {
-          compatibilityDate: '2024-04-05',
-          compatibilityFlags: ['nodejs_compat'],
-        },
-      },
-    },
     // Isolate tests to prevent memory leaks between files
     isolate: true,
     // Retry flaky tests once

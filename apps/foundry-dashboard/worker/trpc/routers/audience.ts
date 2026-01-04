@@ -63,9 +63,14 @@ const EXTRACTION_SUFFIX = `
 
 Respond with JSON only:`;
 
-// Helper: Safely parse JSON from AI response (Story 1.5-2-0)
+// Helper: Safely parse JSON from AI response or database (Story 1.5-2-0)
 function safeParseJSON<T>(text: string, fallback: T): T {
   try {
+    // First try to parse directly (for clean JSON from database - arrays or objects)
+    if (text.startsWith('[') || text.startsWith('{')) {
+      return JSON.parse(text) as T;
+    }
+    // Otherwise try to extract JSON object from AI response text
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]) as T;

@@ -533,12 +533,15 @@ describe('brandDnaRouter', () => {
   });
 
   describe('getSessionWithContext', () => {
+    const testSessionId = '11111111-1111-1111-1111-111111111111';
+    const testClientId = '22222222-2222-2222-2222-222222222222';
+
     it('returns session with context summary for voice analysis', async () => {
       const { ctx, mockDb } = createMockContext();
 
       ctx.drizzle.get = vi.fn().mockResolvedValue({
-        id: 'session-123',
-        client_id: 'client-123',
+        id: testSessionId,
+        client_id: testClientId,
         status: 'active',
         voice_analysis: JSON.stringify({ tone: 'Warm and approachable' }),
         total_transcription: 'Test transcription',
@@ -555,8 +558,8 @@ describe('brandDnaRouter', () => {
       const caller = brandDnaRouter.createCaller(ctx);
 
       const result = await caller.getSessionWithContext({
-        clientId: 'client-123',
-        sessionId: 'session-123',
+        clientId: testClientId,
+        sessionId: testSessionId,
       });
 
       expect(result.contextSummary).toContain('Warm and approachable');
@@ -568,8 +571,8 @@ describe('brandDnaRouter', () => {
       const { ctx, mockDb } = createMockContext();
 
       ctx.drizzle.get = vi.fn().mockResolvedValue({
-        id: 'session-123',
-        client_id: 'client-123',
+        id: testSessionId,
+        client_id: testClientId,
         status: 'active',
         voice_analysis: null,
         total_transcription: 'Some transcription text',
@@ -584,8 +587,8 @@ describe('brandDnaRouter', () => {
       const caller = brandDnaRouter.createCaller(ctx);
 
       const result = await caller.getSessionWithContext({
-        clientId: 'client-123',
-        sessionId: 'session-123',
+        clientId: testClientId,
+        sessionId: testSessionId,
       });
 
       expect(result.contextSummary).toContain('Ready to analyze your personality');
@@ -593,20 +596,23 @@ describe('brandDnaRouter', () => {
   });
 
   describe('archiveExpiredSession', () => {
+    const archiveSessionId = '33333333-3333-3333-3333-333333333333';
+    const archiveClientId = '44444444-4444-4444-4444-444444444444';
+
     it('marks session as abandoned', async () => {
       const { ctx } = createMockContext();
 
       ctx.drizzle.get = vi.fn().mockResolvedValue({
-        id: 'session-123',
-        client_id: 'client-123',
+        id: archiveSessionId,
+        client_id: archiveClientId,
         status: 'active',
       });
 
       const caller = brandDnaRouter.createCaller(ctx);
 
       const result = await caller.archiveExpiredSession({
-        clientId: 'client-123',
-        sessionId: 'session-123',
+        clientId: archiveClientId,
+        sessionId: archiveSessionId,
       });
 
       expect(result.status).toBe('abandoned');
@@ -622,7 +628,7 @@ describe('brandDnaRouter', () => {
 
       await expect(
         caller.archiveExpiredSession({
-          clientId: 'client-123',
+          clientId: archiveClientId,
           sessionId: '550e8400-e29b-41d4-a716-446655440000',
         })
       ).rejects.toThrow('Brand DNA session not found');

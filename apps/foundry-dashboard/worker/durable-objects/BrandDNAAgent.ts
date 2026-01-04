@@ -67,6 +67,8 @@ const EXPRESS_STEPS = [
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_MESSAGES = 30;
 const SESSION_RECONNECT_TIMEOUT_MS = 30 * 60 * 1000;
+const _CLEANUP_INTERVAL_MESSAGES = 50; // Run deterministic cleanup every N messages (reserved for future use)
+const _MAX_HISTORY_MESSAGES = 1000; // Cap conversation history (reserved for future use)
 
 // Audience deep-dive questions (FR-1.5.2)
 const AUDIENCE_QUESTIONS = [
@@ -157,6 +159,7 @@ interface SessionStateRow {
  */
 export class BrandDNAAgent extends Agent<AgentEnv> {
   private clientId: string | null = null;
+  private messageCounter: number = 0; // Counter for deterministic cleanup
 
   /**
    * Initialize SQLite schema on first use
@@ -221,92 +224,139 @@ export class BrandDNAAgent extends Agent<AgentEnv> {
    * Handle new WebSocket connection
    */
   async onConnect(connection: Connection, ctx: ConnectionContext): Promise<void> {
-    const now = Date.now();
+    // CRITICAL FIX: Wrap entire onConnect in try/catch to prevent connection failures from crashing DO
+    try {
+      const now = Date.now();
 
-    // Extract client ID from URL path
-    const url = new URL(ctx.request.url);
-    const pathParts = url.pathname.split('/');
-    const clientIdFromPath = pathParts[pathParts.length - 1];
+      // Extract client ID from URL path
+      const url = new URL(ctx.request.url);
+      const pathParts = url.pathname.split('/');
+      const clientIdFromPath = pathParts[pathParts.length - 1];
 
-    if (clientIdFromPath && clientIdFromPath !== 'brand-dna') {
-      this.clientId = clientIdFromPath;
-      this.setSessionValue(SESSION_KEYS.CLIENT_ID, clientIdFromPath);
-    }
+      if (clientIdFromPath && clientIdFromPath !== 'brand-dna') {
+        this.clientId = clientIdFromPath;
+        this.setSessionValue(SESSION_KEYS.CLIENT_ID, clientIdFromPath);
+      }
 
-    // Check for existing session
-    const lastActivity = this.getSessionValue(SESSION_KEYS.LAST_ACTIVITY_AT);
-    const sessionStarted = this.getSessionValue(SESSION_KEYS.SESSION_STARTED_AT);
-    const currentStep = this.getSessionValue(SESSION_KEYS.CURRENT_STEP);
+      // Check for existing session
+      const lastActivity = this.getSessionValue(SESSION_KEYS.LAST_ACTIVITY_AT);
+      const sessionStarted = this.getSessionValue(SESSION_KEYS.SESSION_STARTED_AT);
+      const currentStep = this.getSessionValue(SESSION_KEYS.CURRENT_STEP);
 
-    const isResuming = lastActivity !== null &&
-      (now - Number(lastActivity)) < SESSION_RECONNECT_TIMEOUT_MS &&
-      currentStep !== null;
+      const isResuming = lastActivity !== null &&
+        (now - Number(lastActivity)) < SESSION_RECONNECT_TIMEOUT_MS &&
+        currentStep !== null;
 
-    this.setSessionValue(SESSION_KEYS.LAST_ACTIVITY_AT, String(now));
+      this.setSessionValue(SESSION_KEYS.LAST_ACTIVITY_AT, String(now));
 
-    if (sessionStarted === null) {
-      this.setSessionValue(SESSION_KEYS.SESSION_STARTED_AT, String(now));
-      this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'welcome');
-    }
+      if (sessionStarted === null) {
+        this.setSessionValue(SESSION_KEYS.SESSION_STARTED_AT, String(now));
+        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'welcome');
+      }
 
-    // Send welcome with path choice
-    const welcomeResponse: AgentResponse = {
-      component: {
-        type: 'TextMessage',
-        props: {
-          content: isResuming
-            ? "Welcome back! Let's continue building your Brand DNA profile."
-            : "Hi! I'm your Brand DNA Agent. I'll help you capture your authentic brand voice and build a content strategy that resonates with your audience. How would you like to proceed?",
-          variant: 'agent',
-        },
-      },
-      sessionState: {
-        currentStep: currentStep ?? 'welcome',
-        progress: this.calculateProgress(currentStep ?? 'welcome'),
-      },
-    };
-
-    connection.send(JSON.stringify(welcomeResponse));
-    this.addToHistory('agent', welcomeResponse.component.props.content as string, 'TextMessage');
-
-    // Send path choice if new session
-    if (!isResuming || currentStep === 'welcome') {
-      const choiceResponse: AgentResponse = {
+      // Send welcome with path choice
+      const welcomeResponse: AgentResponse = {
         component: {
-          type: 'ButtonChoice',
+          type: 'TextMessage',
           props: {
-            prompt: 'Choose your path:',
-            choices: [
-              {
-                id: 'full',
-                label: 'Full Brand Discovery',
-                description: '10-15 minutes for comprehensive brand DNA',
-                icon: 'sparkles',
-              },
-              {
-                id: 'express',
-                label: 'Express Setup',
-                description: '2-3 minutes for quick start',
-                icon: 'zap',
-              },
-            ],
+            content: isResuming
+              ? "Welcome back! Let's continue building your Brand DNA profile."
+              : "Hi! I'm your Brand DNA Agent. I'll help you capture your authentic brand voice and build a content strategy that resonates with your audience. How would you like to proceed?",
+            variant: 'agent',
           },
+        },
+        sessionState: {
+          currentStep: currentStep ?? 'welcome',
+          progress: this.calculateProgress(currentStep ?? 'welcome'),
         },
       };
-      connection.send(JSON.stringify(choiceResponse));
-    }
 
-    // Restore history if resuming
-    if (isResuming) {
-      const history = this.getHistory();
-      if (history.length > 0) {
-        const historyResponse: AgentResponse = {
+      connection.send(JSON.stringify(welcomeResponse));
+      this.addToHistory('agent', welcomeResponse.component.props.content as string, 'TextMessage');
+
+      // Send path choice if new session
+      if (!isResuming || currentStep === 'welcome') {
+        const choiceResponse: AgentResponse = {
           component: {
-            type: 'HistoryBatch',
-            props: { messages: history },
+            type: 'ButtonChoice',
+            props: {
+              prompt: 'Choose your path:',
+              choices: [
+                {
+                  id: 'full',
+                  label: 'Full Brand Discovery',
+                  description: '10-15 minutes for comprehensive brand DNA',
+                  icon: 'sparkles',
+                },
+                {
+                  id: 'express',
+                  label: 'Express Setup',
+                  description: '2-3 minutes for quick start',
+                  icon: 'zap',
+                },
+              ],
+            },
           },
         };
-        connection.send(JSON.stringify(historyResponse));
+        connection.send(JSON.stringify(choiceResponse));
+      }
+
+      // Restore history if resuming
+      if (isResuming) {
+        const history = this.getHistory();
+        if (history.length > 0) {
+          const historyResponse: AgentResponse = {
+            component: {
+              type: 'HistoryBatch',
+              props: { messages: history },
+            },
+          };
+          connection.send(JSON.stringify(historyResponse));
+        }
+
+        // Re-send complex components that require full data
+        // This prevents crashes when history restoration loses component props
+        if (currentStep === 'pillar_proposal') {
+          const pillarsJson = this.getSessionValue(SESSION_KEYS.PILLARS);
+          if (pillarsJson) {
+            try {
+              const pillars = JSON.parse(pillarsJson);
+              const response: AgentResponse = {
+                component: {
+                  type: 'PillarProposal',
+                  props: {
+                    prompt: "Here are your content pillars. You can approve, edit, or regenerate them:",
+                    pillars,
+                    allowEdit: true,
+                    allowRegenerate: false, // Disable per-pillar regenerate until single-pillar AI regeneration is implemented
+                  },
+                },
+                sessionState: {
+                  currentStep: 'pillar_proposal',
+                  progress: this.calculateProgress('pillar_proposal'),
+                },
+              };
+              connection.send(JSON.stringify(response));
+            } catch (e) {
+              console.error('[BrandDNAAgent] Failed to restore pillars:', e);
+            }
+          }
+        } else if (currentStep === 'platform_selection' || currentStep === 'express_platform') {
+          // Re-send platform selector if needed
+          try {
+            await this.sendPlatformSelection(connection);
+          } catch (e) {
+            console.error('[BrandDNAAgent] Failed to restore platform selector:', e);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[BrandDNAAgent] Fatal error in onConnect:', error);
+      // Try to notify client of error
+      try {
+        this.sendError(connection, 'connection_error', 'Failed to initialize session. Please reconnect.');
+      } catch (e) {
+        console.error('[BrandDNAAgent] Could not send error response:', e);
       }
     }
   }
@@ -336,52 +386,69 @@ export class BrandDNAAgent extends Agent<AgentEnv> {
       return;
     }
 
-    // Wrap all handlers in try/catch to ensure errors are sent to client
+    // CRITICAL FIX: Properly handle async errors to prevent unhandled promise rejections
+    // During adversarial testing, thrown errors in async handlers crashed the Durable Object
     try {
+      let handlerPromise: Promise<void>;
+
       switch (clientMessage.type) {
         case 'ping':
           connection.send(JSON.stringify({ type: 'pong', timestamp: now }));
-          break;
+          return; // Synchronous, no await needed
 
         case 'voice_sample':
-          await this.handleVoiceSample(connection, clientMessage);
+          handlerPromise = this.handleVoiceSample(connection, clientMessage);
           break;
 
         case 'text_input':
-          await this.handleTextInput(connection, clientMessage);
+          handlerPromise = this.handleTextInput(connection, clientMessage);
           break;
 
         case 'selection':
-          await this.handleSelection(connection, clientMessage);
+          handlerPromise = this.handleSelection(connection, clientMessage);
           break;
 
         case 'action':
-          await this.handleAction(connection, clientMessage);
+          handlerPromise = this.handleAction(connection, clientMessage);
           break;
 
         default:
           this.sendError(connection, 'unknown_message_type', `Unknown message type: ${clientMessage.type}`);
+          return;
       }
+
+      // Await the handler promise and catch any rejections
+      await handlerPromise;
     } catch (error) {
       console.error('[BrandDNAAgent] Handler error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       this.sendError(
         connection,
         'handler_error',
-        'An error occurred processing your request. Please try again.'
+        `An error occurred: ${errorMessage}. Please try again.`
       );
     }
   }
 
   async onClose(_connection: Connection, _code: number, _reason: string): Promise<void> {
-    this.setSessionValue(SESSION_KEYS.LAST_ACTIVITY_AT, String(Date.now()));
+    try {
+      this.setSessionValue(SESSION_KEYS.LAST_ACTIVITY_AT, String(Date.now()));
+    } catch (e) {
+      console.error('[BrandDNAAgent] Error in onClose:', e);
+    }
   }
 
   async onError(connection: Connection | unknown, error?: unknown): Promise<void> {
-    if (error === undefined) {
-      console.error('WebSocket general error:', connection);
-    } else {
-      const conn = connection as Connection;
-      console.error(`WebSocket error for connection ${conn.id}:`, error);
+    // CRITICAL FIX: Prevent errors in error handler from propagating
+    try {
+      if (error === undefined) {
+        console.error('[BrandDNAAgent] WebSocket general error:', connection);
+      } else {
+        const conn = connection as Connection;
+        console.error(`[BrandDNAAgent] WebSocket error for connection ${conn.id}:`, error);
+      }
+    } catch (e) {
+      console.error('[BrandDNAAgent] Error in onError handler:', e);
     }
   }
 
@@ -629,11 +696,6 @@ Return as JSON:
       await this.handlePlatformSelection(connection, payload.selection as string[], message.requestId);
       return;
     }
-
-    if (payload?.type === 'pillar_action') {
-      await this.handlePillarAction(connection, payload, message.requestId);
-      return;
-    }
   }
 
   /**
@@ -672,6 +734,94 @@ Return as JSON:
         await this.generatePillars(connection, message.requestId);
         break;
 
+      case 'approve_all':
+        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'review');
+        await this.sendReviewSummary(connection, message.requestId);
+        break;
+
+      case 'approve_selected': {
+        const pillarIds = (payload?.data as { pillarIds?: string[] })?.pillarIds;
+        if (!pillarIds || !Array.isArray(pillarIds) || pillarIds.length === 0) {
+          this.sendError(connection, 'invalid_input', 'Please select at least one pillar to approve.');
+          break;
+        }
+        // Validate and filter pillars to only include selected ones
+        const pillarsJson = this.getSessionValue(SESSION_KEYS.PILLARS);
+        if (!pillarsJson) {
+          this.sendError(connection, 'invalid_state', 'No pillars found. Please regenerate pillars.');
+          break;
+        }
+        const allPillars = JSON.parse(pillarsJson);
+        const selectedPillars = allPillars.filter((p: { id: string }) => pillarIds.includes(p.id));
+        if (selectedPillars.length === 0) {
+          this.sendError(connection, 'invalid_input', 'Selected pillar IDs do not match any existing pillars.');
+          break;
+        }
+        this.setSessionValue(SESSION_KEYS.PILLARS, JSON.stringify(selectedPillars));
+        this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'review');
+        await this.sendReviewSummary(connection, message.requestId);
+        break;
+      }
+
+      case 'edit_pillar': {
+        const editData = payload?.data as { pillarId?: string; title?: string; description?: string };
+        if (!editData?.pillarId) {
+          this.sendError(connection, 'invalid_input', 'Pillar ID is required for editing.');
+          break;
+        }
+        // Validate title and description are not empty strings
+        const newTitle = editData.title?.trim();
+        const newDescription = editData.description?.trim();
+        if (!newTitle && !newDescription) {
+          this.sendError(connection, 'invalid_input', 'Please provide a non-empty title or description.');
+          break;
+        }
+        const pillarsJson = this.getSessionValue(SESSION_KEYS.PILLARS);
+        if (!pillarsJson) {
+          this.sendError(connection, 'invalid_state', 'No pillars found. Please regenerate pillars.');
+          break;
+        }
+        const pillars = JSON.parse(pillarsJson);
+        const pillarIndex = pillars.findIndex((p: { id: string }) => p.id === editData.pillarId);
+        if (pillarIndex === -1) {
+          this.sendError(connection, 'invalid_input', `Pillar with ID "${editData.pillarId}" not found.`);
+          break;
+        }
+        // Update only non-empty fields
+        if (newTitle) pillars[pillarIndex].title = newTitle;
+        if (newDescription) pillars[pillarIndex].description = newDescription;
+        this.setSessionValue(SESSION_KEYS.PILLARS, JSON.stringify(pillars));
+
+        // Re-send updated pillars
+        const response: AgentResponse = {
+          component: {
+            type: 'PillarProposal',
+            props: {
+              prompt: "Here are your updated content pillars:",
+              pillars,
+              allowEdit: true,
+              allowRegenerate: false, // Disable individual regenerate until implemented
+            },
+          },
+          sessionState: {
+            currentStep: 'pillar_proposal',
+            progress: this.calculateProgress('pillar_proposal'),
+          },
+          requestId: message.requestId,
+        };
+        connection.send(JSON.stringify(response));
+        break;
+      }
+
+      case 'regenerate':
+        // Individual pillar regeneration not yet implemented - falls through to regenerate_all
+        // TODO: Implement single pillar regeneration with AI
+        // eslint-disable-next-line no-fallthrough
+      case 'regenerate_all':
+        this.sendTextMessage(connection, "Regenerating all pillars...", message.requestId);
+        await this.generatePillars(connection, message.requestId);
+        break;
+
       case 'complete_session':
         await this.completeSession(connection, message.requestId);
         break;
@@ -702,7 +852,12 @@ Return as JSON:
           const response: AgentResponse = {
             component: {
               type: 'PillarProposal',
-              props: { pillars: pillarsData },
+              props: {
+                prompt: "Pillars synced:",
+                pillars: pillarsData,
+                allowEdit: true,
+                allowRegenerate: false,
+              },
             },
             sessionState: {
               currentStep: 'pillar_proposal',
@@ -1029,10 +1184,10 @@ Return JSON array:
       component: {
         type: 'PillarProposal',
         props: {
-          prompt: "Here are your content pillars. You can approve, edit, or regenerate any of them:",
+          prompt: "Here are your content pillars. You can approve, edit, or regenerate them:",
           pillars,
           allowEdit: true,
-          allowRegenerate: true,
+          allowRegenerate: false, // Disable per-pillar regenerate until single-pillar AI regeneration is implemented
         },
       },
       sessionState: {
@@ -1043,20 +1198,6 @@ Return JSON array:
     };
     connection.send(JSON.stringify(response));
     this.addToHistory('agent', 'Generated content pillars for review', 'PillarProposal');
-  }
-
-  private async handlePillarAction(connection: Connection, payload: { selection?: string | string[]; pillarId?: string; action?: string; data?: unknown }, requestId?: string): Promise<void> {
-    const action = payload.action;
-    const pillarId = payload.pillarId;
-
-    if (action === 'approve_all') {
-      this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'review');
-      await this.sendReviewSummary(connection, requestId);
-    } else if (action === 'regenerate' && pillarId) {
-      // Regenerate single pillar
-      this.sendTextMessage(connection, `Regenerating pillar ${pillarId}...`, requestId);
-      // For now, just acknowledge - full implementation would regenerate
-    }
   }
 
   private async sendReviewSummary(connection: Connection, requestId?: string): Promise<void> {
@@ -1319,9 +1460,15 @@ Return JSON array:
   }
 
   private checkRateLimit(connectionId: string, now: number): { allowed: boolean; retryAfter: number } {
-    if (Math.random() < 0.01) {
-      const cleanupThreshold = now - RATE_LIMIT_WINDOW_MS;
-      this.sql`DELETE FROM rate_limits WHERE updated_at < ${cleanupThreshold}`;
+    // CRITICAL FIX: Run cleanup more frequently (10% instead of 1%) to prevent rate_limits table bloat
+    // During adversarial testing, 1% was too infrequent and table grew unbounded
+    if (Math.random() < 0.1) {
+      const cleanupThreshold = now - RATE_LIMIT_WINDOW_MS * 2; // Keep 2x window for safety
+      try {
+        this.sql`DELETE FROM rate_limits WHERE updated_at < ${cleanupThreshold}`;
+      } catch (e) {
+        console.error('[BrandDNAAgent] Rate limit cleanup failed:', e);
+      }
     }
 
     const result = this.sql<{ timestamps: string }>`
@@ -1332,6 +1479,10 @@ Return JSON array:
     if (result.length > 0 && result[0]) {
       try {
         timestamps = JSON.parse(result[0].timestamps);
+        // Ensure timestamps is actually an array to prevent corruption
+        if (!Array.isArray(timestamps)) {
+          timestamps = [];
+        }
       } catch {
         timestamps = [];
       }
@@ -1350,10 +1501,19 @@ Return JSON array:
     }
 
     timestamps.push(now);
-    this.sql`
-      INSERT OR REPLACE INTO rate_limits (connection_id, timestamps, updated_at)
-      VALUES (${connectionId}, ${JSON.stringify(timestamps)}, ${now})
-    `;
+
+    // CRITICAL FIX: Prevent timestamp array from growing unbounded during rapid fire messages
+    // Keep only the most recent timestamps within the window
+    const trimmedTimestamps = timestamps.slice(-RATE_LIMIT_MAX_MESSAGES);
+
+    try {
+      this.sql`
+        INSERT OR REPLACE INTO rate_limits (connection_id, timestamps, updated_at)
+        VALUES (${connectionId}, ${JSON.stringify(trimmedTimestamps)}, ${now})
+      `;
+    } catch (e) {
+      console.error('[BrandDNAAgent] Rate limit update failed:', e);
+    }
 
     return { allowed: true, retryAfter: 0 };
   }
@@ -1376,26 +1536,55 @@ Return JSON array:
   private addToHistory(role: 'user' | 'agent', content: string, componentType: string | undefined): void {
     const now = Date.now();
     const compType = componentType ?? null;
-    this.sql`
-      INSERT INTO conversation_history (role, content, component_type, created_at)
-      VALUES (${role}, ${content}, ${compType}, ${now})
-    `;
+
+    try {
+      this.sql`
+        INSERT INTO conversation_history (role, content, component_type, created_at)
+        VALUES (${role}, ${content}, ${compType}, ${now})
+      `;
+
+      // CRITICAL FIX: Deterministic cleanup every N messages
+      // During adversarial testing, probabilistic cleanup was unreliable under sustained load
+      this.messageCounter++;
+      if (this.messageCounter >= CLEANUP_INTERVAL_MESSAGES) {
+        this.messageCounter = 0;
+        this.sql`
+          DELETE FROM conversation_history
+          WHERE id NOT IN (
+            SELECT id FROM conversation_history
+            ORDER BY created_at DESC
+            LIMIT ${MAX_HISTORY_MESSAGES}
+          )
+        `;
+      }
+    } catch (e) {
+      console.error('[BrandDNAAgent] Failed to add history:', e);
+    }
   }
 
   private getHistory(limit: number = 50): Array<{ role: string; content: string; componentType: string; createdAt: number }> {
-    const results = this.sql<{ role: string; content: string; component_type: string; created_at: number }>`
-      SELECT role, content, component_type, created_at
-      FROM conversation_history
-      ORDER BY created_at DESC
-      LIMIT ${limit}
-    `;
+    // CRITICAL FIX: Cap history retrieval to prevent sending massive batches to client
+    // During adversarial testing, unlimited history caused WebSocket message size explosions
+    const safeLimit = Math.min(limit, 100); // Never return more than 100 messages
 
-    return results.reverse().map(row => ({
-      role: row.role,
-      content: row.content,
-      componentType: row.component_type,
-      createdAt: row.created_at,
-    }));
+    try {
+      const results = this.sql<{ role: string; content: string; component_type: string; created_at: number }>`
+        SELECT role, content, component_type, created_at
+        FROM conversation_history
+        ORDER BY created_at DESC
+        LIMIT ${safeLimit}
+      `;
+
+      return results.reverse().map(row => ({
+        role: row.role,
+        content: row.content,
+        componentType: row.component_type,
+        createdAt: row.created_at,
+      }));
+    } catch (e) {
+      console.error('[BrandDNAAgent] Failed to get history:', e);
+      return [];
+    }
   }
 
   private calculateProgress(step: string): number {

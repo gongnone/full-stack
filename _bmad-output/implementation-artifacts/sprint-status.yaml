@@ -10,9 +10,9 @@ story_location: _bmad-output/implementation-artifacts
 # - ready: Story file complete, ready for implementation
 # - blocked: Waiting on dependency
 
-# Last Updated: 2026-01-01
+# Last Updated: 2026-01-04
 # Updated By: Claude Opus 4.5 (Bob, SM)
-# Reason: Epic 10 Retrospective completed, TD-2 (ESLint no-explicit-any) implemented
+# Reason: Added Sentry error tracking story (Phase 1.5.2 - Post-MVP Hardening)
 
 development_status:
   # Epic 1: Foundation & Identity (The Access Layer) - VERIFIED ON STAGING
@@ -120,6 +120,15 @@ development_status:
   10-4-mobile-first-client-approval-flow: done  # P0 - Client approves pillars on mobile - DONE 2026-01-01
   10-5-iterative-pillar-refinement: done  # P1 - Client modifies/regenerates pillars - DONE 2026-01-01
 
+  # Phase 1.5.2: Post-MVP Hardening (Production Observability)
+  # P1 - Manual testing feedback: Need real-time error visibility
+  # Created: 2026-01-04 after email triple-send incident retrospective
+  SENTRY-1-error-tracking-installation: ready  # P1 - Install Sentry for Workers + React, source maps, alerting
+  # Estimated effort: 4-6 hours
+  # Blocks: Production confidence, effective manual testing
+  # Sprint item: _bmad-output/sprints/sentry-error-tracking-installation.md
+  # Gap analysis: _bmad-output/reports/manual-testing-gaps-sentry-analysis.md
+
 # Implementation Priority (P0 First):
 # ✅ Story 4.3 - Self-Healing Loop (core differentiator) - DONE
 # ✅ Story 5.2 - Sprint View (core UX) - DONE
@@ -137,6 +146,12 @@ development_status:
 #       - Fixed 10 any violations in production code (auth, audience, clients, review)
 #       - Test files relaxed to warn (fix over time)
 # TD-3: ESLint rule for trivial test assertions - PENDING (low priority)
+
+# Phase 1.5.2 Backlog (Post-MVP Hardening):
+# SENTRY-1: Error tracking installation - READY (created 2026-01-04)
+#           - Addresses manual testing gaps from email triple-send incident
+#           - 4-6 hour implementation, $26/mo cost
+#           - Enables: Real-time alerts, stack traces, user impact tracking
 
 # Quality Gate Status:
 # Last Run: 2026-01-01

@@ -47,7 +47,7 @@ import { sendVerificationEmail, sendPasswordResetEmail, sendBrandDNAInvitation }
 
 describe('Email Service', () => {
   let mockEnv: Partial<Env>;
-  let mockDb: D1Database;
+  let _mockDb: D1Database;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,7 +58,7 @@ describe('Email Service', () => {
       EMAIL_FROM: 'test@foundry.example.com',
       ENVIRONMENT: 'test',
     };
-    mockDb = createMockDb();
+    _mockDb = createMockDb();
 
     // Default: no existing email log (idempotency check returns null)
     mockDbFirst.mockResolvedValue(null);

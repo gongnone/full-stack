@@ -35,6 +35,7 @@ export function TestimonialRequestModal({
 }: TestimonialRequestModalProps) {
   const [step, setStep] = useState<Step>('sentiment');
   const [sentiment, setSentiment] = useState<Sentiment>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const { addToast } = useToast();
@@ -68,13 +69,15 @@ export function TestimonialRequestModal({
 
   const handleResponse = async (response: 'accept' | 'decline' | 'snooze') => {
     try {
-      await respondMutation.mutateAsync({
+      const result = await respondMutation.mutateAsync({
         clientId,
         response,
         sentiment: sentiment || undefined,
       });
 
       if (response === 'accept') {
+        // Capture requestId for later submission
+        setRequestId(result.requestId);
         setStep('recording');
       } else if (response === 'decline') {
         addToast('No problem! Thanks for letting us know.', 'info', UI_CONFIG.TOAST_DURATION.SUCCESS);
@@ -116,13 +119,15 @@ export function TestimonialRequestModal({
 
       setUploadProgress(75);
 
-      // Step 3: Calculate duration from blob (estimate ~60 seconds max)
-      // In production, would extract actual duration from video metadata
-      const estimatedDuration = Math.min(60, Math.floor(blob.size / 30000)); // ~30KB per second rough estimate
+      // Step 3: Calculate duration from blob
+      // Default to 30 seconds if we can't determine actual duration
+      // In production, would extract actual duration from video metadata using MediaRecorder
+      const estimatedDuration = Math.max(1, Math.min(60, Math.floor(blob.size / 50000))); // Ensure at least 1 second
 
       // Step 4: Submit testimonial record
       await submitMutation.mutateAsync({
         clientId,
+        requestId: requestId || undefined,
         r2Key,
         duration: estimatedDuration,
         permissionPublic: false, // Default to private, user can change later

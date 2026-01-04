@@ -419,9 +419,15 @@ function PlatformSelectorComponent({
   maxSelection = 4,
   onSelection,
 }: PlatformSelectorProps & { onSelection: (type: string, selection: string[]) => void }) {
+  // Initialize hooks BEFORE any early returns (Rules of Hooks)
   const [selected, setSelected] = useState<string[]>(
     recommended?.slice(0, minSelection).map(p => p.id) || []
   );
+
+  // Defensive check: if allPlatforms is undefined, don't render (wait for re-send)
+  if (!allPlatforms || !Array.isArray(allPlatforms)) {
+    return <div className="bg-[#1A1F26] border border-[#2A3038] rounded-xl p-4 text-[#8B98A5]">Loading platforms...</div>;
+  }
 
   const togglePlatform = (id: string) => {
     setSelected(prev => {
@@ -483,40 +489,198 @@ interface PillarProposalProps {
 function PillarProposalComponent({
   prompt,
   pillars,
+  allowEdit,
   allowRegenerate,
   onAction,
 }: PillarProposalProps & { onAction: (action: string, data?: unknown) => void }) {
+  // Initialize hooks BEFORE any early returns (Rules of Hooks)
+  const [selectedPillars, setSelectedPillars] = useState<Set<string>>(
+    new Set(pillars?.map(p => p.id) || [])
+  );
+  const [editingPillar, setEditingPillar] = useState<string | null>(null);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedDescription, setEditedDescription] = useState('');
+
+  // Fix Issue 3: Sync state when pillars prop changes (e.g., after regeneration)
+  useEffect(() => {
+    if (pillars && Array.isArray(pillars)) {
+      setSelectedPillars(new Set(pillars.map(p => p.id)));
+      setEditingPillar(null); // Cancel any in-progress edit when pillars change
+    }
+  }, [pillars]);
+
+  // Defensive check: if pillars is undefined, don't render (wait for re-send)
+  if (!pillars || !Array.isArray(pillars)) {
+    return <div className="bg-[#1A1F26] border border-[#2A3038] rounded-xl p-4 text-[#8B98A5]">Loading content pillars...</div>;
+  }
+
+  const togglePillar = (id: string) => {
+    setSelectedPillars(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const startEdit = (pillar: typeof pillars[0]) => {
+    setEditingPillar(pillar.id);
+    setEditedTitle(pillar.title);
+    setEditedDescription(pillar.description);
+  };
+
+  const saveEdit = () => {
+    if (!editingPillar) return;
+    // Fix Issue 4: Client-side validation for empty title/description
+    const trimmedTitle = editedTitle.trim();
+    const trimmedDescription = editedDescription.trim();
+    if (!trimmedTitle && !trimmedDescription) {
+      // Don't submit empty edits - server would reject anyway
+      return;
+    }
+    onAction('edit_pillar', {
+      pillarId: editingPillar,
+      title: trimmedTitle,
+      description: trimmedDescription,
+    });
+    setEditingPillar(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingPillar(null);
+    setEditedTitle('');
+    setEditedDescription('');
+  };
+
+  const handleApprove = () => {
+    if (selectedPillars.size === pillars.length) {
+      onAction('approve_all');
+    } else {
+      onAction('approve_selected', { pillarIds: Array.from(selectedPillars) });
+    }
+  };
+
   return (
     <div className="bg-[#1A1F26] border border-[#2A3038] rounded-xl p-4">
       <p className="text-[#E7E9EA] mb-4">{prompt}</p>
       <div className="space-y-3 mb-4">
-        {pillars.map(pillar => (
-          <div key={pillar.id} className="p-3 bg-[#0F1419] rounded-lg border border-[#2A3038]">
-            <div className="flex items-start justify-between">
-              <div>
-                <h4 className="font-medium text-[#E7E9EA]">{pillar.title}</h4>
-                <p className="text-sm text-[#8B98A5] mt-1">{pillar.description}</p>
-                <p className="text-xs text-[#1D9BF0] mt-2">{pillar.rationale}</p>
+        {pillars.map(pillar => {
+          const isEditing = editingPillar === pillar.id;
+          const isSelected = selectedPillars.has(pillar.id);
+
+          return (
+            <div
+              key={pillar.id}
+              className={`p-3 bg-[#0F1419] rounded-lg border transition-colors ${
+                isSelected ? 'border-[#1D9BF0]' : 'border-[#2A3038]'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                {/* Checkbox for selection */}
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => togglePillar(pillar.id)}
+                  className="mt-1 w-4 h-4 rounded border-[#2A3038] bg-[#0F1419] text-[#1D9BF0] focus:ring-[#1D9BF0] focus:ring-offset-0"
+                />
+
+                {/* Content */}
+                <div className="flex-1">
+                  {isEditing ? (
+                    <>
+                      <input
+                        type="text"
+                        value={editedTitle}
+                        onChange={(e) => setEditedTitle(e.target.value)}
+                        className="w-full bg-[#1A1F26] border border-[#2A3038] rounded px-2 py-1 text-[#E7E9EA] font-medium mb-2 focus:outline-none focus:border-[#1D9BF0]"
+                      />
+                      <textarea
+                        value={editedDescription}
+                        onChange={(e) => setEditedDescription(e.target.value)}
+                        rows={2}
+                        className="w-full bg-[#1A1F26] border border-[#2A3038] rounded px-2 py-1 text-sm text-[#8B98A5] resize-none focus:outline-none focus:border-[#1D9BF0]"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <h4 className="font-medium text-[#E7E9EA]">{pillar.title}</h4>
+                      <p className="text-sm text-[#8B98A5] mt-1">{pillar.description}</p>
+                      <p className="text-xs text-[#1D9BF0] mt-2">{pillar.rationale}</p>
+                    </>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-1">
+                  {isEditing ? (
+                    <>
+                      <button
+                        onClick={saveEdit}
+                        className="p-2 text-[#00D26A] hover:bg-[#00D26A]/20 rounded transition-colors"
+                        title="Save"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="p-2 text-[#F4212E] hover:bg-[#F4212E]/20 rounded transition-colors"
+                        title="Cancel"
+                      >
+                        <span className="w-4 h-4 flex items-center justify-center text-sm">✕</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {allowEdit && (
+                        <button
+                          onClick={() => startEdit(pillar)}
+                          className="p-2 text-[#8B98A5] hover:text-[#1D9BF0] hover:bg-[#1D9BF0]/20 rounded transition-colors"
+                          title="Edit"
+                        >
+                          <span className="w-4 h-4 flex items-center justify-center text-sm">✎</span>
+                        </button>
+                      )}
+                      {allowRegenerate && (
+                        <button
+                          onClick={() => onAction('regenerate', { pillarId: pillar.id })}
+                          className="p-2 text-[#8B98A5] hover:text-[#1D9BF0] hover:bg-[#1D9BF0]/20 rounded transition-colors"
+                          title="Regenerate"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
-              {allowRegenerate && (
-                <button
-                  onClick={() => onAction('regenerate', { pillarId: pillar.id })}
-                  className="p-2 text-[#8B98A5] hover:text-[#1D9BF0] transition-colors"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-      <button
-        onClick={() => onAction('approve_all')}
-        className="w-full py-3 bg-[#00D26A] text-white rounded-lg font-medium hover:bg-[#00BA5F] transition-colors flex items-center justify-center gap-2"
-      >
-        <Check className="w-5 h-5" />
-        Approve All Pillars
-      </button>
+
+      {/* Action buttons */}
+      <div className="flex gap-3">
+        <button
+          onClick={handleApprove}
+          disabled={selectedPillars.size === 0}
+          className="flex-1 py-3 bg-[#00D26A] text-white rounded-lg font-medium hover:bg-[#00BA5F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          <Check className="w-5 h-5" />
+          {selectedPillars.size === pillars.length
+            ? 'Approve All Pillars'
+            : `Approve ${selectedPillars.size} of ${pillars.length}`}
+        </button>
+        <button
+          onClick={() => onAction('regenerate_all')}
+          className="px-6 py-3 bg-[#2A3038] text-[#E7E9EA] rounded-lg font-medium hover:bg-[#3A4048] transition-colors flex items-center gap-2"
+        >
+          <RefreshCw className="w-5 h-5" />
+          Regenerate All
+        </button>
+      </div>
     </div>
   );
 }

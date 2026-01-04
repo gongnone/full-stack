@@ -141,10 +141,12 @@ describe('testimonialsRouter', () => {
     it('returns testimonial with all fields', async () => {
       const { ctx, mockDb } = createMockContext();
       const now = Date.now();
+      const testId = '11111111-1111-1111-1111-111111111111';
+      const clientId = '22222222-2222-2222-2222-222222222222';
 
       mockDb.first.mockResolvedValueOnce({
-        id: 'testimonial-123',
-        client_id: 'client-123',
+        id: testId,
+        client_id: clientId,
         video_url: 'https://r2.example.com/video.webm',
         duration: 45,
         permission_public: 1,
@@ -153,10 +155,10 @@ describe('testimonialsRouter', () => {
       });
 
       const caller = testimonialsRouter.createCaller(ctx);
-      const result = await caller.get({ id: 'testimonial-123' });
+      const result = await caller.get({ id: testId });
 
-      expect(result.id).toBe('testimonial-123');
-      expect(result.clientId).toBe('client-123');
+      expect(result.id).toBe(testId);
+      expect(result.clientId).toBe(clientId);
       expect(result.clientName).toBe('Acme Corp');
       expect(result.videoUrl).toBe('https://r2.example.com/video.webm');
       expect(result.duration).toBe(45);
@@ -166,10 +168,11 @@ describe('testimonialsRouter', () => {
 
     it('converts permission_public to boolean', async () => {
       const { ctx, mockDb } = createMockContext();
+      const testId = '33333333-3333-3333-3333-333333333333';
 
       mockDb.first.mockResolvedValueOnce({
-        id: 'testimonial-123',
-        client_id: 'client-123',
+        id: testId,
+        client_id: '44444444-4444-4444-4444-444444444444',
         video_url: 'https://example.com/video.webm',
         duration: 30,
         permission_public: 0,
@@ -178,7 +181,7 @@ describe('testimonialsRouter', () => {
       });
 
       const caller = testimonialsRouter.createCaller(ctx);
-      const result = await caller.get({ id: 'testimonial-123' });
+      const result = await caller.get({ id: testId });
 
       expect(result.permissionPublic).toBe(false);
     });
@@ -200,10 +203,11 @@ describe('testimonialsRouter', () => {
 
     it('throws BAD_REQUEST when no media file exists', async () => {
       const { ctx, mockDb } = createMockContext();
+      const testId = '55555555-5555-5555-5555-555555555555';
 
       mockDb.first.mockResolvedValueOnce({
-        id: 'testimonial-123',
-        client_id: 'client-123',
+        id: testId,
+        client_id: '66666666-6666-6666-6666-666666666666',
         r2_key: null,
         type: 'video',
       });
@@ -211,22 +215,24 @@ describe('testimonialsRouter', () => {
       const caller = testimonialsRouter.createCaller(ctx);
 
       await expect(
-        caller.getDownloadUrl({ id: 'testimonial-123' })
+        caller.getDownloadUrl({ id: testId })
       ).rejects.toThrow('No media file associated');
     });
 
     it('creates asset token and returns download URL', async () => {
       const { ctx, mockDb } = createMockContext();
+      const testId = '77777777-7777-7777-7777-777777777777';
+      const clientId = '88888888-8888-8888-8888-888888888888';
 
       mockDb.first.mockResolvedValueOnce({
-        id: 'testimonial-123',
-        client_id: 'client-123',
-        r2_key: 'testimonials/client-123/video.webm',
+        id: testId,
+        client_id: clientId,
+        r2_key: `testimonials/${clientId}/video.webm`,
         type: 'video',
       });
 
       const caller = testimonialsRouter.createCaller(ctx);
-      const result = await caller.getDownloadUrl({ id: 'testimonial-123' });
+      const result = await caller.getDownloadUrl({ id: testId });
 
       expect(result.downloadUrl).toMatch(/^\/api\/assets\/download\//);
       expect(result.expiresAt).toBeDefined();
@@ -240,16 +246,17 @@ describe('testimonialsRouter', () => {
 
     it('creates audit log entry (AC3)', async () => {
       const { ctx, mockDb } = createMockContext();
+      const testId = '99999999-9999-9999-9999-999999999999';
 
       mockDb.first.mockResolvedValueOnce({
-        id: 'testimonial-123',
-        client_id: 'client-123',
+        id: testId,
+        client_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         r2_key: 'testimonials/video.webm',
         type: 'video',
       });
 
       const caller = testimonialsRouter.createCaller(ctx);
-      await caller.getDownloadUrl({ id: 'testimonial-123' });
+      await caller.getDownloadUrl({ id: testId });
 
       // Verify audit log was created
       expect(mockDb.prepare).toHaveBeenCalledWith(
@@ -263,16 +270,17 @@ describe('testimonialsRouter', () => {
     it('token expires in 1 hour', async () => {
       const { ctx, mockDb } = createMockContext();
       const now = Date.now();
+      const testId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 
       mockDb.first.mockResolvedValueOnce({
-        id: 'testimonial-123',
-        client_id: 'client-123',
+        id: testId,
+        client_id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
         r2_key: 'testimonials/video.webm',
         type: 'video',
       });
 
       const caller = testimonialsRouter.createCaller(ctx);
-      const result = await caller.getDownloadUrl({ id: 'testimonial-123' });
+      const result = await caller.getDownloadUrl({ id: testId });
 
       const expiresAt = new Date(result.expiresAt).getTime();
       const oneHourFromNow = now + 3600000;
@@ -704,20 +712,23 @@ describe('testimonialsRouter', () => {
   });
 
   describe('submit', () => {
+    const testClientId = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+    const testRequestId = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee';
+
     it('updates existing request with video details', async () => {
       const { ctx, mockDb } = createMockContext();
 
       const caller = testimonialsRouter.createCaller(ctx);
       const result = await caller.submit({
-        clientId: 'client-123',
-        requestId: 'request-123',
-        r2Key: 'testimonials/client-123/video.webm',
+        clientId: testClientId,
+        requestId: testRequestId,
+        r2Key: `testimonials/${testClientId}/video.webm`,
         duration: 45,
         permissionPublic: true,
       });
 
       expect(result.success).toBe(true);
-      expect(result.testimonialId).toBe('request-123');
+      expect(result.testimonialId).toBe(testRequestId);
       expect(mockDb.prepare).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE testimonials')
       );
@@ -728,7 +739,7 @@ describe('testimonialsRouter', () => {
 
       const caller = testimonialsRouter.createCaller(ctx);
       const result = await caller.submit({
-        clientId: 'client-123',
+        clientId: testClientId,
         r2Key: 'testimonials/video.webm',
         duration: 60,
         permissionPublic: false,
@@ -746,8 +757,8 @@ describe('testimonialsRouter', () => {
 
       const caller = testimonialsRouter.createCaller(ctx);
       await caller.submit({
-        clientId: 'client-123',
-        requestId: 'request-123',
+        clientId: testClientId,
+        requestId: testRequestId,
         r2Key: 'testimonials/video.webm',
         duration: 30,
         permissionPublic: true,
@@ -759,8 +770,8 @@ describe('testimonialsRouter', () => {
         1, // permissionPublic as integer
         'public', // status
         expect.any(Number),
-        'request-123',
-        'client-123'
+        testRequestId,
+        testClientId
       );
     });
 
@@ -771,7 +782,7 @@ describe('testimonialsRouter', () => {
 
       await expect(
         caller.submit({
-          clientId: 'client-123',
+          clientId: testClientId,
           r2Key: 'testimonials/video.webm',
           duration: 200,
           permissionPublic: false,
@@ -781,19 +792,21 @@ describe('testimonialsRouter', () => {
   });
 
   describe('getUploadUrl', () => {
+    const uploadClientId = 'ffffffff-ffff-ffff-ffff-ffffffffffff';
+
     it('returns upload URL with generated r2Key', async () => {
       const { ctx } = createMockContext();
       const now = Date.now();
 
       const caller = testimonialsRouter.createCaller(ctx);
       const result = await caller.getUploadUrl({
-        clientId: 'client-123',
+        clientId: uploadClientId,
         fileName: 'testimonial.webm',
         contentType: 'video/webm',
       });
 
       expect(result.uploadUrl).toBe('/api/upload/testimonial');
-      expect(result.r2Key).toContain('testimonials/client-123/');
+      expect(result.r2Key).toContain(`testimonials/${uploadClientId}/`);
       expect(result.r2Key).toContain('testimonial.webm');
       expect(new Date(result.expiresAt).getTime()).toBeGreaterThan(now);
     });
@@ -803,7 +816,7 @@ describe('testimonialsRouter', () => {
 
       const caller = testimonialsRouter.createCaller(ctx);
       const result1 = await caller.getUploadUrl({
-        clientId: 'client-123',
+        clientId: uploadClientId,
         fileName: 'video.webm',
       });
 
@@ -811,7 +824,7 @@ describe('testimonialsRouter', () => {
       await new Promise(resolve => setTimeout(resolve, 10));
 
       const result2 = await caller.getUploadUrl({
-        clientId: 'client-123',
+        clientId: uploadClientId,
         fileName: 'video.webm',
       });
 

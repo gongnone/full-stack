@@ -44,6 +44,9 @@ globalThis.IntersectionObserver = MockIntersectionObserver;
 // Mock window.scrollTo
 window.scrollTo = vi.fn();
 
+// Mock Element.scrollIntoView for components that use ref.scrollIntoView()
+Element.prototype.scrollIntoView = vi.fn();
+
 // Mock auth client module
 vi.mock('@/lib/auth-client', () => ({
   signIn: {

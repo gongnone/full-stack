@@ -182,7 +182,7 @@ const PUBLIC_TRPC_PROCEDURES = [
 const authMiddleware = async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next) => {
   // Check if this is a public tRPC procedure
   const url = new URL(c.req.url);
-  const input = url.searchParams.get('input');
+  const _input = url.searchParams.get('input');
 
   // For batched requests, check the path after /trpc/
   const pathParts = url.pathname.split('/trpc/');

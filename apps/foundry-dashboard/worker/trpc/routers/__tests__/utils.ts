@@ -52,6 +52,11 @@ export const createMockContext = () => {
     batch: vi.fn(),
   };
 
+  // Mock run that returns Drizzle result format with meta
+  const mockDrizzleRun = vi.fn().mockImplementation(() => {
+    return Promise.resolve({ meta: { changes: 1 } });
+  });
+
   const mockDrizzle = {
     select: vi.fn().mockReturnThis(),
     from: vi.fn().mockImplementation((table: any) => {
@@ -78,7 +83,7 @@ export const createMockContext = () => {
       lastQuery = `DELETE FROM ${table?.name || table || 'unknown'}`;
       return mockDrizzle;
     }),
-    
+
     // Terminal methods delegating to mockDb
     get: mockFirst,
     all: vi.fn().mockImplementation(async () => {
@@ -89,7 +94,13 @@ export const createMockContext = () => {
       }
       return result;
     }),
-    run: mockDb.run,
+    // run returns Drizzle format with meta.changes
+    run: mockDrizzleRun,
+    // transaction for bulk operations
+    transaction: vi.fn().mockImplementation(async (fn: (tx: typeof mockDrizzle) => Promise<unknown>) => {
+      // Execute the transaction callback with the mock drizzle as tx
+      return await fn(mockDrizzle);
+    }),
   } as any;
 
   const mockCallAgent = vi.fn();

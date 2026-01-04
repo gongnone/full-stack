@@ -60,6 +60,11 @@ interface UseBrandDNAAgentReturn {
   disconnect: () => void;
 }
 
+// Centralized constants for memory management
+const MAX_RECONNECT_ATTEMPTS = 5;
+const MAX_MESSAGES = 500; // Prevent memory exhaustion during adversarial testing
+const MAX_HISTORY_BATCH = 100; // Limit history batch processing to prevent UI freeze
+
 export function useBrandDNAAgent({
   clientId,
   onError,
@@ -74,7 +79,8 @@ export function useBrandDNAAgent({
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reconnectAttemptsRef = useRef(0);
-  const MAX_RECONNECT_ATTEMPTS = 5;
+  const isUnmountedRef = useRef(false); // Track unmount to prevent state updates
+  const pendingMessagesRef = useRef<unknown[]>([]); // Queue for messages while connecting
 
   const getWebSocketUrl = useCallback(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -83,16 +89,27 @@ export function useBrandDNAAgent({
   }, [clientId]);
 
   const addMessage = useCallback((role: 'agent' | 'user', component: AgentComponent) => {
+    if (isUnmountedRef.current) return; // Prevent state updates after unmount
+
     const message: ConversationMessage = {
       id: crypto.randomUUID(),
       role,
       component,
       timestamp: Date.now(),
     };
-    setMessages(prev => [...prev, message]);
+    setMessages(prev => {
+      // Prevent unbounded growth - keep only last MAX_MESSAGES
+      const updated = [...prev, message];
+      if (updated.length > MAX_MESSAGES) {
+        return updated.slice(-MAX_MESSAGES);
+      }
+      return updated;
+    });
   }, []);
 
   const handleMessage = useCallback((event: MessageEvent) => {
+    if (isUnmountedRef.current) return; // Prevent processing after unmount
+
     try {
       const data = JSON.parse(event.data);
 
@@ -114,7 +131,18 @@ export function useBrandDNAAgent({
             createdAt: number;
           }>;
 
-          historyMessages.forEach(msg => {
+          // Skip complex components that need full props (they'll be re-sent)
+          const complexTypes = ['PlatformSelector', 'PillarProposal', 'BrandDNAReport'];
+
+          // Limit history batch processing to prevent UI freeze
+          const limitedHistory = historyMessages.slice(-MAX_HISTORY_BATCH);
+
+          limitedHistory.forEach(msg => {
+            // Skip complex components - they'll be re-sent with full props
+            if (complexTypes.includes(msg.componentType)) {
+              return;
+            }
+
             addMessage(msg.role as 'agent' | 'user', {
               type: msg.componentType as AgentComponent['type'] || 'TextMessage',
               props: { content: msg.content, variant: msg.role },
@@ -125,34 +153,67 @@ export function useBrandDNAAgent({
         }
 
         // Update session state
-        if (agentMessage.sessionState) {
+        if (agentMessage.sessionState && !isUnmountedRef.current) {
           setSessionState(agentMessage.sessionState);
         }
       }
     } catch (e) {
-      console.error('Failed to parse WebSocket message:', e);
+      console.error('[useBrandDNAAgent] Failed to parse WebSocket message:', e);
     }
   }, [addMessage]);
 
   const connect = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    // Prevent multiple simultaneous connection attempts
+    if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) {
       return;
+    }
+
+    // Don't reconnect if unmounted
+    if (isUnmountedRef.current) {
+      return;
+    }
+
+    // Clear any pending reconnect timeout before creating new connection
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
 
     setIsConnecting(true);
     const url = getWebSocketUrl();
     const ws = new WebSocket(url);
+    let connectionClosed = false; // Track if this specific connection closed
 
     ws.onopen = () => {
+      if (isUnmountedRef.current || connectionClosed) return;
+
       setIsConnected(true);
       setIsConnecting(false);
       reconnectAttemptsRef.current = 0; // Reset reconnect counter on successful connection
       onConnected?.();
 
+      // Flush any pending messages that were queued while connecting
+      const pending = pendingMessagesRef.current;
+      pendingMessagesRef.current = [];
+      for (const msg of pending) {
+        try {
+          ws.send(JSON.stringify(msg));
+        } catch (e) {
+          console.error('[useBrandDNAAgent] Failed to send queued message:', e);
+        }
+      }
+
       // Start ping interval
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+      }
       pingIntervalRef.current = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'ping' }));
+        if (ws.readyState === WebSocket.OPEN && !isUnmountedRef.current) {
+          try {
+            ws.send(JSON.stringify({ type: 'ping' }));
+          } catch (e) {
+            console.error('[useBrandDNAAgent] Ping failed:', e);
+          }
         }
       }, 30000);
     };
@@ -160,6 +221,13 @@ export function useBrandDNAAgent({
     ws.onmessage = handleMessage;
 
     ws.onclose = () => {
+      connectionClosed = true;
+
+      // Clear pending messages queue - they won't be sent on this connection
+      pendingMessagesRef.current = [];
+
+      if (isUnmountedRef.current) return;
+
       setIsConnected(false);
       setIsConnecting(false);
       onDisconnected?.();
@@ -167,53 +235,81 @@ export function useBrandDNAAgent({
       // Clear ping interval
       if (pingIntervalRef.current) {
         clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = null;
       }
 
-      // Attempt reconnect with exponential backoff, max 5 attempts
-      if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+      // Only attempt reconnect if this is still the current WebSocket instance
+      // and we haven't exceeded max attempts
+      if (wsRef.current === ws && !isUnmountedRef.current && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
         reconnectAttemptsRef.current++;
-        console.log(`[WS] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`);
+        console.log(`[useBrandDNAAgent] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`);
+
+        // Clear any existing timeout before setting new one
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+        }
+
         reconnectTimeoutRef.current = setTimeout(() => {
-          if (wsRef.current === ws) {
+          if (!isUnmountedRef.current) {
             connect();
           }
         }, delay);
-      } else {
-        console.error('[WS] Max reconnection attempts reached');
+      } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+        console.error('[useBrandDNAAgent] Max reconnection attempts reached');
         onError?.('Connection failed after multiple attempts. Please refresh the page.');
       }
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      onError?.('Connection error. Retrying...');
+      console.error('[useBrandDNAAgent] WebSocket error:', error);
+      if (!isUnmountedRef.current) {
+        onError?.('Connection error. Retrying...');
+      }
     };
 
     wsRef.current = ws;
   }, [getWebSocketUrl, handleMessage, onConnected, onDisconnected, onError]);
 
   const disconnect = useCallback(() => {
+    // Clear all pending operations
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
     if (pingIntervalRef.current) {
       clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
     }
     if (wsRef.current) {
-      wsRef.current.close();
+      // Prevent reconnection attempts after explicit disconnect
+      const ws = wsRef.current;
       wsRef.current = null;
+      try {
+        ws.close(1000, 'Client disconnect'); // Normal closure
+      } catch (e) {
+        console.error('[useBrandDNAAgent] Error during disconnect:', e);
+      }
     }
   }, []);
 
   const sendMessage = useCallback((message: unknown) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    const ws = wsRef.current;
+    if (!ws || isUnmountedRef.current) return;
+
+    // Only send if connection is open
+    if (ws.readyState === WebSocket.OPEN) {
       try {
-        wsRef.current.send(JSON.stringify(message));
+        ws.send(JSON.stringify(message));
       } catch (error) {
-        console.error('[WS] Failed to send message:', error);
+        console.error('[useBrandDNAAgent] Failed to send message:', error);
       }
+    } else if (ws.readyState === WebSocket.CONNECTING) {
+      // Queue message - will be flushed when connection opens
+      // This avoids adding multiple event listeners and handles connection failures gracefully
+      pendingMessagesRef.current.push(message);
     }
+    // If CLOSING or CLOSED, message is dropped (connection will reconnect)
   }, []);
 
   const sendTextInput = useCallback((text: string) => {
@@ -255,14 +351,17 @@ export function useBrandDNAAgent({
 
   // Connect on mount - use ref to prevent Strict Mode double-connection issues
   useEffect(() => {
+    isUnmountedRef.current = false;
+
     // Small delay to ensure component is fully mounted and avoid React Strict Mode race
     const timeoutId = setTimeout(() => {
-      if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+      if (!isUnmountedRef.current && (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED)) {
         connect();
       }
     }, 100);
 
     return () => {
+      isUnmountedRef.current = true;
       clearTimeout(timeoutId);
       disconnect();
     };

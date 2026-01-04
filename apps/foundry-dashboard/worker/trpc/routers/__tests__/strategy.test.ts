@@ -41,7 +41,7 @@ describe('strategyRouter', () => {
   describe('triggerResearch', () => {
     it('creates research report and triggers pillar synthesis', async () => {
       const { ctx, mockDb } = createMockContext();
-      const now = Date.now();
+      const _now = Date.now();
 
       // Mock: brand_dna data exists
       mockDb.first.mockResolvedValueOnce({

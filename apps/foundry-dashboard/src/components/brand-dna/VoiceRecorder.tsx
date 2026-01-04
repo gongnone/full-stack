@@ -42,9 +42,23 @@ export function VoiceRecorder({
     try {
       // Chrome, Firefox, Edge support this
       const result = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-      setHasPermission(result.state === 'granted');
+      // Only show denied state if explicitly denied, not if 'prompt' (user hasn't been asked yet)
+      if (result.state === 'granted') {
+        setHasPermission(true);
+      } else if (result.state === 'denied') {
+        setHasPermission(false);
+      } else {
+        // 'prompt' state - user hasn't been asked yet, don't show warning
+        setHasPermission(null);
+      }
       result.onchange = () => {
-        setHasPermission(result.state === 'granted');
+        if (result.state === 'granted') {
+          setHasPermission(true);
+        } else if (result.state === 'denied') {
+          setHasPermission(false);
+        } else {
+          setHasPermission(null);
+        }
       };
     } catch {
       // Permissions API not supported or blocked, will request on first use
@@ -117,7 +131,24 @@ export function VoiceRecorder({
       }, 1000);
     } catch (err) {
       setHasPermission(false);
-      const message = 'Microphone access denied. Please enable it in your browser settings.';
+
+      // Provide platform-specific instructions for enabling microphone
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isAndroid = /Android/.test(navigator.userAgent);
+      const errorMsg = err instanceof Error ? err.message : '';
+      const isPermissionDenied = errorMsg.includes('Permission') || errorMsg.includes('NotAllowed') || errorMsg.includes('denied');
+
+      let message: string;
+      if (isIOS && isPermissionDenied) {
+        message = 'Microphone access blocked. Go to Settings → Safari → Microphone and enable access for this website.';
+      } else if (isAndroid && isPermissionDenied) {
+        message = 'Microphone access blocked. Tap the lock icon 🔒 in the address bar → Permissions → Microphone → Allow.';
+      } else if (isPermissionDenied) {
+        message = 'Microphone access denied. Click the lock/camera icon in your browser address bar to allow access.';
+      } else {
+        message = 'Could not access microphone. Please check your device has a working microphone.';
+      }
+
       setError(message);
       addToast(message, 'error', UI_CONFIG.TOAST_DURATION.ERROR);
       console.error('Error accessing microphone:', err);
@@ -249,13 +280,13 @@ export function VoiceRecorder({
         </div>
       </div>
 
-      {/* Permission warning */}
+      {/* Permission warning - only show if explicitly denied */}
       {hasPermission === false && (
         <div
-          className="flex items-center gap-2 p-3 rounded-lg text-sm"
+          className="flex items-start gap-2 p-3 rounded-lg text-sm"
           style={{ backgroundColor: 'rgba(244, 33, 46, 0.1)', color: 'var(--kill)' }}
         >
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -263,9 +294,16 @@ export function VoiceRecorder({
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
             />
           </svg>
-          <span>
-            Microphone access is required. Please enable it in your browser settings and refresh the page.
-          </span>
+          <div>
+            <p className="font-medium">Microphone access was denied</p>
+            <p className="mt-1 opacity-80">
+              {/iPad|iPhone|iPod/.test(navigator.userAgent)
+                ? 'Go to Settings → Safari → Microphone to enable access.'
+                : /Android/.test(navigator.userAgent)
+                  ? 'Tap the 🔒 lock icon in your address bar → Permissions → Microphone → Allow.'
+                  : 'Click the lock icon in your browser address bar to enable microphone access.'}
+            </p>
+          </div>
         </div>
       )}
 

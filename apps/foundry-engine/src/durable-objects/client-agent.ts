@@ -1294,32 +1294,29 @@ export class ClientAgent extends DurableObject<Env> {
     const sqlParams: any[] = []
 
     // Filter logic aligned with Epic 5 definitions
+    // Status flow: generating -> reviewing -> approved/rejected/killed
     // G7 thresholds: >90 = High Confidence, 50-90 = Needs Review
-    if (params.filter === 'top10') {
-      // High Confidence: Ready for review + High Score (G7 > 90)
-      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
+    if (params.filter === 'top10' || params.filter === 'high-confidence') {
+      // High Confidence: Generated/Reviewing + High Score (G7 > 90)
+      conditions.push(`(status = 'generating' OR status = 'reviewing')`)
       conditions.push(`g7_engagement > 90`)
     } else if (params.filter === 'needs-review') {
-      // Needs Review: Ready for review + Mid Score (G7 50-90)
-      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
+      // Needs Review: Generated/Reviewing + Mid Score (G7 50-90)
+      conditions.push(`(status = 'generating' OR status = 'reviewing')`)
       conditions.push(`g7_engagement >= 50 AND g7_engagement <= 90`)
-    } else if (params.filter === 'flagged') {
-      // Creative Conflicts: Failed QA or escalated
-      conditions.push(`(status = 'failed_qa' OR status = 'creative_conflict')`)
+    } else if (params.filter === 'flagged' || params.filter === 'conflicts') {
+      // Creative Conflicts: Rejected spokes that need attention
+      conditions.push(`status = 'rejected'`)
     } else if (params.filter === 'just-generated') {
-      // Just Generated: Spokes with status 'generating' OR created in last 24 hours
-      const twentyFourHoursAgo = new Date()
-      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24)
-      const cutoffISO = twentyFourHoursAgo.toISOString()
-      conditions.push(`(status = 'generating' OR created_at >= ?)`)
-      sqlParams.push(cutoffISO)
+      // Just Generated: All spokes in generating status (not yet reviewed)
+      conditions.push(`status = 'generating'`)
     } else if (params.filter === 'golden-nuggets') {
       // Epic 12-1: Golden Nuggets - engagement_prediction >= 9.0
-      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
+      conditions.push(`(status = 'generating' OR status = 'reviewing')`)
       conditions.push(`engagement_prediction >= 9.0`)
     } else {
-      // All pending review items
-      conditions.push(`(status = 'ready_for_review' OR status = 'reviewing')`)
+      // All pending review items (generating or actively reviewing)
+      conditions.push(`(status = 'generating' OR status = 'reviewing')`)
     }
 
     if (conditions.length > 0) {

@@ -443,7 +443,7 @@ test.describe('Story 3.3: Interactive Pillar Configuration', () => {
       const firstCard = page.locator('[data-testid^="editable-pillar-card-"]').first();
 
       // Supporting points section should be visible if there are supporting points
-      const supportingPoints = firstCard.locator('text=Supporting Points:');
+      const _supportingPoints = firstCard.locator('text=Supporting Points:');
       // This may or may not be visible depending on extracted content
     });
 

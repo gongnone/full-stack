@@ -108,7 +108,7 @@ test.describe('Story 4.1: Deterministic Spoke Fracturing', () => {
 
       // Check for Generate Spokes button
       const generateButton = page.locator('button:has-text("Generate Spokes")');
-      const isVisible = await generateButton.isVisible({ timeout: 3000 }).catch(() => false);
+      const _isVisible = await generateButton.isVisible({ timeout: 3000 }).catch(() => false);
 
       if (isVisible) {
         // Button should be enabled when hub is ready
@@ -243,7 +243,7 @@ test.describe('Story 4.1: Deterministic Spoke Fracturing', () => {
 
       // The generation progress should not be visible initially
       const progressIndicator = page.locator('[data-testid="generation-progress"], text=Generation in Progress');
-      const isVisible = await progressIndicator.isVisible({ timeout: 1000 }).catch(() => false);
+      const _isVisible = await progressIndicator.isVisible({ timeout: 1000 }).catch(() => false);
 
       // Progress should only show during active generation
       // This test just verifies the page loads correctly

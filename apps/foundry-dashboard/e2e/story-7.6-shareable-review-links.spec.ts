@@ -14,7 +14,7 @@ const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
 const TEST_EMAIL = process.env.TEST_EMAIL || 'e2e-test@foundry.local';
 const TEST_PASSWORD = process.env.TEST_PASSWORD || 'TestPassword123!';
 
-async function login(page: import('@playwright/test').Page) {
+async function _login(page: import('@playwright/test').Page) {
   await page.goto(`${BASE_URL}/login`);
   await page.fill('input[type="email"]', TEST_EMAIL);
   await page.fill('input[type="password"]', TEST_PASSWORD);

@@ -11,8 +11,7 @@
  * @tags @P0 @critical @generation @ai @journey
  */
 
-import { test, expect } from '../fixtures/auth.fixture';
-import { uniqueTestId } from '../fixtures/auth.fixture';
+import { test, expect, uniqueTestId as _uniqueTestId } from '../fixtures/auth.fixture';
 
 // =============================================================================
 // TEST CONFIGURATION
@@ -75,7 +74,7 @@ test.describe('@P0 Phase 1: Source Material Ingestion', () => {
     await sourceIngestionPage.pasteText(GENERATION_CONFIG.sourceContent);
 
     // Verify word count (if available)
-    const wordCount = await sourceIngestionPage.getWordCount();
+    const _wordCount = await sourceIngestionPage.getWordCount();
     // Should have substantial content
   });
 
@@ -87,7 +86,7 @@ test.describe('@P0 Phase 1: Source Material Ingestion', () => {
     await sourceIngestionPage.pasteText('Too short');
 
     // Should show warning for minimum length
-    const hasWarning = await sourceIngestionPage.hasMinLengthWarning();
+    const _hasWarning = await sourceIngestionPage.hasMinLengthWarning();
     // Warning visibility depends on implementation
   });
 });
@@ -112,14 +111,14 @@ test.describe('@P0 Phase 2: Thematic Extraction', () => {
     await extractionPage.waitForLoad();
 
     // Check for pillar list structure (may be empty without data)
-    const pillarCount = await extractionPage.getPillarCount();
+    const _pillarCount = await extractionPage.getPillarCount();
     // Count depends on whether extraction has run
   });
 
   test('2.3 Add pillar button exists', async ({ extractionPage }) => {
     await extractionPage.goto();
 
-    const hasAddButton = await extractionPage.isVisible(extractionPage.addPillarButton);
+    const _hasAddButton = await extractionPage.isVisible(extractionPage.addPillarButton);
     // Button visibility depends on page state
   });
 });
@@ -169,7 +168,7 @@ test.describe('@P0 Phase 4: Spoke Generation', () => {
     await generationPage.goto();
 
     // WebSocket status may or may not be visible depending on state
-    const hasWsStatus = await generationPage.isWebSocketConnected();
+    const _hasWsStatus = await generationPage.isWebSocketConnected();
     // Status depends on whether generation is active
   });
 });
@@ -193,7 +192,7 @@ test.describe('@P0 Phase 5: Quality Gates', () => {
     await qualityGatesPage.goto();
 
     // Check for any filter elements
-    const hasFilters =
+    const _hasFilters =
       (await qualityGatesPage.isVisible(qualityGatesPage.filterHighConfidence)) ||
       (await qualityGatesPage.isVisible(qualityGatesPage.filterNeedsReview)) ||
       (await qualityGatesPage.isVisible(qualityGatesPage.filterFailed));
@@ -211,7 +210,7 @@ test.describe('Phase 6: Self-Healing Loop', () => {
     await qualityGatesPage.goto();
 
     // Check for self-healed badge element (may not be present without healed spokes)
-    const hasSelfHealingBadge = await qualityGatesPage.isVisible(qualityGatesPage.selfHealingBadge);
+    const _hasSelfHealingBadge = await qualityGatesPage.isVisible(qualityGatesPage.selfHealingBadge);
     // Badge only visible if spokes have been healed
   });
 });
@@ -255,7 +254,7 @@ test.describe('@P0 Phase 7: Creative Conflicts', () => {
 
 test.describe('@P0 @smoke Complete AI Generation Journey', () => {
   test('Full generation flow navigation', async ({
-    authenticatedPage,
+    authenticatedPage: _authenticatedPage,
     sourceIngestionPage,
     extractionPage,
     hubPage,

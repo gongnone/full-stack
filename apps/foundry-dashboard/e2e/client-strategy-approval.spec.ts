@@ -11,7 +11,7 @@
  * @tags @P1 @client-journey @strategy
  */
 
-import { test, expect, type Page, request } from '@playwright/test';
+import { test, expect, type Page as _Page, request as _request } from '@playwright/test';
 
 /**
  * Test tokens - must match tokens created by seeding script
@@ -50,7 +50,7 @@ test.describe('Client Strategy Approval Flow @P1', () => {
       await page.goto(`/strategy/${TEST_TOKENS.valid}`);
 
       // Should show loading spinner
-      const loadingSpinner = page.locator('.animate-spin');
+      const _loadingSpinner = page.locator('.animate-spin');
       // Loading may be very quick, so we check if it was ever visible or page transitioned
       await expect(page.locator('body')).toBeVisible();
     });
@@ -420,7 +420,7 @@ test.describe('Client Strategy Approval Flow @P1', () => {
         const teachTag = page.getByRole('button', { name: 'TEACH' });
         if (await teachTag.isVisible().catch(() => false)) {
           // Get initial state (check if it has active styling)
-          const initialBg = await teachTag.evaluate(
+          const _initialBg = await teachTag.evaluate(
             (el) => getComputedStyle(el).backgroundColor
           );
 

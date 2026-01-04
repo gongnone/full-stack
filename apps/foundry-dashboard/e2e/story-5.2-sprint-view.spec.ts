@@ -156,7 +156,7 @@ test.describe('Story 5.2: Sprint View with Signal Header', () => {
 
       if (hasSpokes) {
         // Get initial progress
-        const initialProgress = await page.locator('text=/\\d+ \\/ \\d+/').textContent();
+        const _initialProgress = await page.locator('text=/\\d+ \\/ \\d+/').textContent();
 
         // Approve
         await page.keyboard.press('ArrowRight');

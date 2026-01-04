@@ -97,7 +97,7 @@ test.describe('Story 4.5: Multimodal Visual Concept Engine', () => {
       // Look for visual concept indicators
       // These would be: Visual Concept header, Layout Specifications, Image Prompt, etc.
       const visualIndicators = page.locator('text=/Visual Concept|Image Prompt|Layout|Aspect Ratio/i');
-      const hasVisuals = await visualIndicators.first().isVisible({ timeout: 3000 }).catch(() => false);
+      const _hasVisuals = await visualIndicators.first().isVisible({ timeout: 3000 }).catch(() => false);
 
       // Visual concepts may or may not be present - just verify page structure
       expect(true).toBe(true);

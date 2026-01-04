@@ -3,7 +3,7 @@
  * Handles Executive Producer Report display and actions
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect as _expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class ReportPage extends BasePage {

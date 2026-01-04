@@ -31,8 +31,8 @@ test.describe('Story 7.3: Multi-Client Workspace Access', () => {
       const clientSelector = page.locator('button').filter({ has: page.locator('svg') }).filter({ hasText: /Select Client|Client/i }).first();
 
       // Either client selector exists or there's a client indicator
-      const hasSelector = await clientSelector.isVisible().catch(() => false);
-      const hasIndicator = await page.locator('text=/Switch Client|Manage Clients/i').isVisible().catch(() => false);
+      const _hasSelector = await clientSelector.isVisible().catch(() => false);
+      const _hasIndicator = await page.locator('text=/Switch Client|Manage Clients/i').isVisible().catch(() => false);
 
       // At minimum, sidebar should be visible
       await expect(page.locator('aside')).toBeVisible();
@@ -63,7 +63,7 @@ test.describe('Story 7.3: Multi-Client Workspace Access', () => {
 
         // Dropdown should appear
         const dropdown = page.locator('[role="menu"], [class*="dropdown"]');
-        const hasDropdown = await dropdown.isVisible().catch(() => false);
+        const _hasDropdown = await dropdown.isVisible().catch(() => false);
 
         // Close by clicking elsewhere
         await page.click('body');

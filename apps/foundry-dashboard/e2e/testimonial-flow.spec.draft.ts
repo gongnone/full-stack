@@ -57,7 +57,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
   test.describe('Testimonial Request (Client-Facing)', () => {
     skipUntilImplemented(
       'testimonial request page loads with client info',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto(`/testimonial/${TEST_DATA.requestToken}`);
 
         // Should show client/agency branding
@@ -72,7 +72,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'validates permission before recording',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto(`/testimonial/${TEST_DATA.requestToken}`);
 
         // Record button should be disabled without permission
@@ -89,7 +89,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'recording shows timer and stop button',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto(`/testimonial/${TEST_DATA.requestToken}`);
 
         // Grant permission and start recording
@@ -112,7 +112,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'preview allows replay before submit',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto(`/testimonial/${TEST_DATA.requestToken}`);
 
         // Simulate recording completion
@@ -136,7 +136,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'successful submission shows thank you message',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto(`/testimonial/${TEST_DATA.requestToken}`);
 
         // Complete the recording flow (mocked in test DB)
@@ -155,7 +155,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'handles expired request token',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/testimonial/expired-token-12345');
 
         await expect(
@@ -166,7 +166,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'handles already-used request token',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/testimonial/used-token-12345');
 
         await expect(
@@ -178,14 +178,14 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
   test.describe('Testimonial Management (Agency Dashboard)', () => {
     // These tests require authentication
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async ({ page: _page }) => {
       // Login would happen here
       // await loginAsAgencyUser(page);
     });
 
     skipUntilImplemented(
       'testimonials list page shows all client testimonials',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/app/testimonials');
 
         // Should show testimonials table/list
@@ -200,7 +200,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'testimonials can be filtered by client',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/app/testimonials');
 
         // Select a client filter
@@ -214,7 +214,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'individual testimonial shows video player',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto(`/app/testimonials/${TEST_DATA.testimonialIds[0]}`);
 
         // Should show video player
@@ -228,7 +228,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'download button generates signed URL',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto(`/app/testimonials/${TEST_DATA.testimonialIds[0]}`);
 
         // Click download
@@ -243,7 +243,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'bulk export selects multiple testimonials',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/app/testimonials');
 
         // Select multiple testimonials
@@ -260,7 +260,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'bulk export triggers ZIP download',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/app/testimonials');
 
         // Select testimonials
@@ -281,7 +281,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
   test.describe('Testimonial Request Management', () => {
     skipUntilImplemented(
       'can send new testimonial request to client',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/app/clients/client-123');
 
         // Click request testimonial button
@@ -294,7 +294,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'shows pending testimonial requests',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/app/testimonials/requests');
 
         // Should list pending requests
@@ -306,7 +306,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'can resend testimonial request',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/app/testimonials/requests');
 
         // Find a pending request and resend
@@ -322,7 +322,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
   test.describe('Sentiment Analysis', () => {
     skipUntilImplemented(
       'shows sentiment badge on testimonial',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto(`/app/testimonials/${TEST_DATA.testimonialIds[0]}`);
 
         // Should show sentiment indicator
@@ -334,7 +334,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'can filter testimonials by sentiment',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/app/testimonials');
 
         // Open sentiment filter
@@ -350,7 +350,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
   test.describe('Audit Logging (AC3)', () => {
     skipUntilImplemented(
       'download action is logged',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         // This is tested at router level, but E2E verifies full flow
         await page.goto(`/app/testimonials/${TEST_DATA.testimonialIds[0]}`);
 
@@ -367,7 +367,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'bulk export action is logged',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/app/testimonials');
 
         // Select and export
@@ -388,7 +388,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'testimonial request page is usable on mobile',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto(`/testimonial/${TEST_DATA.requestToken}`);
 
         // Permission checkbox should be visible
@@ -405,7 +405,7 @@ test.describe('Testimonial Collection Flow @P1 @blocked', () => {
 
     skipUntilImplemented(
       'testimonials list is scrollable on mobile',
-      async ({ page }) => {
+      async ({ page: _page }) => {
         await page.goto('/app/testimonials');
 
         // List should be visible and scrollable

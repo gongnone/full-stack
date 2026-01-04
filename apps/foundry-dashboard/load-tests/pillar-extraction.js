@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 /**
  * k6 Load Test: Pillar Extraction Performance (NFR-P2)
  *
@@ -201,7 +202,7 @@ export function handleSummary(data) {
   };
 }
 
-function textSummary(data, opts) {
+function textSummary(data, _opts) {
   const p95 = data.metrics.pillar_extraction_duration?.values['p(95)'] || 0;
   const successRate = data.metrics.pillar_extraction_success?.values.rate || 0;
   const passed = p95 < 30000 && successRate > 0.99;

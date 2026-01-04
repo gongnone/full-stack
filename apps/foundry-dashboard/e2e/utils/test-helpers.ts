@@ -3,7 +3,7 @@
  * Provides authentication, data fetching, and common test helpers
  */
 
-import { Page, expect } from '@playwright/test';
+import { Page, expect as _expect } from '@playwright/test';
 
 // Environment configuration
 export const config = {
@@ -67,7 +67,7 @@ export async function getFirstHubId(page: Page): Promise<string | null> {
 
   // Wait for either hub cards or empty state
   const hubCard = page.locator('[data-testid="hub-card"], .hub-card, a[href*="/app/hubs/"]').first();
-  const emptyState = page.locator('text=Create Hub, text=No Hubs, text=Get started');
+  const _emptyState = page.locator('text=Create Hub, text=No Hubs, text=Get started');
 
   // Wait for either
   const foundHub = await hubCard.isVisible({ timeout: 5000 }).catch(() => false);
@@ -149,7 +149,7 @@ export async function navigateToCreativeConflicts(page: Page): Promise<boolean> 
 
   // Wait for page content - h1 with Creative Conflicts or empty state
   const title = page.locator('h1:has-text("Creative Conflicts")');
-  const emptyState = page.locator('h2:has-text("No Creative Conflicts")');
+  const _emptyState = page.locator('h2:has-text("No Creative Conflicts")');
 
   const hasTitle = await title.isVisible({ timeout: 5000 }).catch(() => false);
   const hasEmpty = await emptyState.isVisible({ timeout: 2000 }).catch(() => false);
@@ -162,7 +162,7 @@ export async function navigateToCreativeConflicts(page: Page): Promise<boolean> 
  */
 export async function hasReviewItems(page: Page): Promise<boolean> {
   const progressText = page.locator('text=/\\d+ \\/ \\d+/');
-  const emptyState = page.locator('text=No Items Found, text=Sprint Complete');
+  const _emptyState = page.locator('text=No Items Found, text=Sprint Complete');
 
   const hasProgress = await progressText.isVisible({ timeout: 3000 }).catch(() => false);
   const isEmpty = await emptyState.isVisible({ timeout: 1000 }).catch(() => false);

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * E2E Test Data Seeding Fixture
  * INFRA-01: Creates real test data via tRPC API for E2E tests
@@ -12,7 +13,7 @@
  *   });
  */
 
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect as _expect } from '@playwright/test';
 
 // Configuration
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
@@ -122,7 +123,7 @@ export const test = base.extend<{ seededData: SeededData }>({
     }
 
     // Step 4: Create spokes if none exist
-    let spokeIds: string[] = [];
+    const spokeIds: string[] = [];
 
     // Navigate to hubs page to check for spokes
     await page.goto(`${BASE_URL}/app/hubs`);

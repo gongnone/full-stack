@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 /**
  * k6 Load Test: Spoke Generation Performance (NFR-P3)
  *

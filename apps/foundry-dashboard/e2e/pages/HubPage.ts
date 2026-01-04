@@ -3,7 +3,7 @@
  * Handles hub creation wizard, pillar configuration, and spoke generation
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect as _expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class HubPage extends BasePage {
@@ -147,7 +147,7 @@ export class HubPage extends BasePage {
    */
   async waitForPillarExtraction(): Promise<void> {
     // Wait for processing stages
-    const stages = ['Parsing document', 'Identifying themes', 'Extracting claims', 'Generating pillars'];
+    const _stages = ['Parsing document', 'Identifying themes', 'Extracting claims', 'Generating pillars'];
 
     // Wait for pillars to appear
     await this.pillarItems.first().waitFor({ state: 'visible', timeout: 30000 });

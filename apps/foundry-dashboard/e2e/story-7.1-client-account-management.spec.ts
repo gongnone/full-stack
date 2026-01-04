@@ -222,12 +222,12 @@ test.describe('Story 7.1: Client Account Management', () => {
       await page.click('button:has-text("Add Client")');
 
       // Name input has label
-      const nameInput = page.locator('input#name');
+      const _nameInput = page.locator('input#name');
       const nameLabel = page.locator('label[for="name"]');
       await expect(nameLabel).toBeVisible();
 
       // Industry input has label
-      const industryInput = page.locator('input#industry');
+      const _industryInput = page.locator('input#industry');
       const industryLabel = page.locator('label[for="industry"]');
       await expect(industryLabel).toBeVisible();
     });

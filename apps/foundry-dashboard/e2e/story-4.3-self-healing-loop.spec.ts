@@ -129,7 +129,7 @@ test.describe('Story 4.3: The Self-Healing Loop', () => {
 
       if (hasItems) {
         // Get initial progress indicator
-        const progressBefore = await page.locator('text=/\\d+ \\/ \\d+/').textContent().catch(() => '');
+        const _progressBefore = await page.locator('text=/\\d+ \\/ \\d+/').textContent().catch(() => '');
 
         // Approve with keyboard shortcut
         await page.keyboard.press('ArrowRight');

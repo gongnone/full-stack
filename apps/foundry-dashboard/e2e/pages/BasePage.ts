@@ -3,7 +3,7 @@
  * Common functionality shared across all page objects
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect as _expect } from '@playwright/test';
 
 export abstract class BasePage {
   readonly page: Page;

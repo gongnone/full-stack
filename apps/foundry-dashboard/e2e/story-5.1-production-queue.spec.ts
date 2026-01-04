@@ -73,10 +73,10 @@ test.describe('Story 5.1: Production Queue Dashboard', () => {
 
       // All buckets should have count displays (even if 0)
       const bucketCards = page.locator('[class*="bucket-card"], [data-testid*="bucket"]');
-      const count = await bucketCards.count().catch(() => 0);
+      const _count = await bucketCards.count().catch(() => 0);
 
       // At minimum, bucket cards with counts exist in the layout
-      const countsExist = await page.locator('text=/\\d+ items?/').count().catch(() => 0);
+      const _countsExist = await page.locator('text=/\\d+ items?/').count().catch(() => 0);
       expect(countsExist >= 0).toBeTruthy();
     });
   });

@@ -4,7 +4,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { login, waitForPageLoad, navigateToHub, hasSpokes } from './utils/test-helpers';
+import { login, waitForPageLoad, navigateToHub as _navigateToHub, hasSpokes } from './utils/test-helpers';
 
 test.describe('Story 6.5: Clipboard Copy Quick Actions', () => {
   test.beforeEach(async ({ page }) => {

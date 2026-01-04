@@ -53,13 +53,13 @@ test.describe('@P0 Stage 8: Export', () => {
     const loggedIn = await login(page);
     test.skip(!loggedIn, 'Login failed');
 
-    let exportCallClientId: string | null = null;
+    let _exportCallClientId: string | null = null;
 
     await page.route('**/trpc/exports*', async (route) => {
       const url = route.request().url();
       const match = url.match(/clientId[=:]([^&\s]+)/);
       if (match) {
-        exportCallClientId = match[1];
+        _exportCallClientId = match[1];
       }
       const response = await route.fetch();
       await route.fulfill({ response });

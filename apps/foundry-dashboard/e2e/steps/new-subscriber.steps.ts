@@ -236,7 +236,7 @@ test.describe('Complete New Subscriber Journey', () => {
 // =============================================================================
 
 test.describe('Stripe Payment Flow', () => {
-  test.skip('Payment with valid card succeeds', async ({ page }) => {
+  test.skip('Payment with valid card succeeds', async ({ page: _page }) => {
     // This test requires Stripe test mode configuration
     // Placeholder for when Stripe integration is implemented
 
@@ -248,7 +248,7 @@ test.describe('Stripe Payment Flow', () => {
     // await expect(page.locator('text=Payment successful')).toBeVisible();
   });
 
-  test.skip('Payment with declined card shows error', async ({ page }) => {
+  test.skip('Payment with declined card shows error', async ({ page: _page }) => {
     // Placeholder for declined card test
   });
 });

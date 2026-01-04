@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Stage 4: Pillar Extraction E2E Tests
  *

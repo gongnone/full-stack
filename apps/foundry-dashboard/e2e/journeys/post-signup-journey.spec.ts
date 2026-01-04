@@ -179,12 +179,12 @@ test.describe('@P0 Phase 6: Review', () => {
 
 test.describe('@P0 @smoke Complete Journey', () => {
   test('Full navigation flow completes successfully', async ({
-    authenticatedPage,
+    authenticatedPage: _authenticatedPage,
     dashboardPage,
     clientPage,
     hubPage,
     reviewPage,
-    reportPage,
+    reportPage: _reportPage,
   }) => {
     const journeyStart = Date.now();
     const checkpoints: { name: string; time: number }[] = [];

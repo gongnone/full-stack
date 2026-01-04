@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 /**
  * k6 Load Test: Hub Ingestion SLA Validation (NFR-P2)
  *

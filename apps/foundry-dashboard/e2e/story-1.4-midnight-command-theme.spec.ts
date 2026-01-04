@@ -14,8 +14,8 @@ import { test, expect } from '@playwright/test';
 
 // Test configuration
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
-const TEST_EMAIL = 'e2e-test@foundry.local';
-const TEST_PASSWORD = 'TestPassword123!';
+const _TEST_EMAIL = 'e2e-test@foundry.local';
+const _TEST_PASSWORD = 'TestPassword123!';
 
 // Theme color constants (from index.css)
 const THEME_COLORS = {
@@ -244,7 +244,7 @@ test.describe('Story 1.4: Midnight Command Theme System', () => {
     test('Focus ring color is defined', async ({ page }) => {
       await page.goto(`${BASE_URL}/login`);
 
-      const borderFocusVar = await page.evaluate(() => {
+      const _borderFocusVar = await page.evaluate(() => {
         return getComputedStyle(document.documentElement).getPropertyValue('--border-focus').trim().toUpperCase();
       });
 

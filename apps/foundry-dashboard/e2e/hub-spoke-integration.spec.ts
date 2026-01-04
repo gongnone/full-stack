@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Hub and Spoke Integration E2E Tests
  *
@@ -125,7 +126,7 @@ test.describe('Hub and Spoke Integration', () => {
         });
 
         // Track polling count to verify timeout protection
-        let pollCount = 0;
+        const _pollCount = 0;
         const startTime = Date.now();
 
         // Wait for generation to complete or timeout
@@ -216,7 +217,7 @@ test.describe('Hub and Spoke Integration', () => {
     console.log(`Found ${pillarCount} pillar sections in TreeView`);
 
     // Count spokes visible under pillars
-    let displayedSpokes = 0;
+    let _displayedSpokes = 0;
 
     // Try to expand pillars and count spokes
     for (let i = 0; i < pillarCount; i++) {
@@ -235,7 +236,7 @@ test.describe('Hub and Spoke Integration', () => {
       // Count spokes within this pillar section
       const spokeItems = pillar.locator('[data-testid^="spoke-"], .spoke-item, .spoke-card');
       const count = await spokeItems.count();
-      displayedSpokes += count;
+      _displayedSpokes += count;
 
       // Also check for spoke count badge on pillar
       const pillarBadge = pillar.locator('text=/\\(\\d+\\)/');

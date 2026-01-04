@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * User Journey Phase 2 Tests - P1/P2 Priority
  *
@@ -17,7 +18,7 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
-import { test as authTest } from './fixtures/auth.fixture';
+import { test as _authTest } from './fixtures/auth.fixture';
 import AxeBuilder from '@axe-core/playwright';
 
 // =============================================================================
@@ -203,7 +204,7 @@ test.describe('@P1 Stage 2: Client - Edge Cases', () => {
 
     // Get current client from selector or URL
     const url1 = page.url();
-    const clientMatch = url1.match(/client[=\/]([a-f0-9-]+)/i);
+    const clientMatch = url1.match(/client[=/]([a-f0-9-]+)/i);
 
     if (clientMatch) {
       const clientId = clientMatch[1];
@@ -380,7 +381,7 @@ test.describe('@P1 Stage 4: Pillar Extraction - Error Handling', () => {
     await page.waitForLoadState('networkidle').catch(() => {});
 
     // Check for empty state messaging
-    const emptyState = page.locator('text=/no pillars|extraction failed|try again/i');
+    const _emptyState = page.locator('text=/no pillars|extraction failed|try again/i');
     console.log('PILLAR-P2-01: Empty state infrastructure verified');
   });
 });
@@ -545,7 +546,7 @@ test.describe('@P1 Stage 6: TreeView - Filters & Edge Cases', () => {
       const count = await spokeCards.count();
 
       if (count === 0) {
-        const emptyState = page.locator('text=/no spokes|generate spokes|empty/i');
+        const _emptyState = page.locator('text=/no spokes|generate spokes|empty/i');
         const hasEmptyState = await emptyState.isVisible();
         expect(hasEmptyState, 'Empty state should be shown').toBe(true);
         console.log('TREE-P1-14: Empty state verified');
@@ -954,11 +955,11 @@ test.describe('@P2 Performance NFR Tests', () => {
     test.skip(!loggedIn, 'Login failed');
 
     // Monitor extraction timing via network requests
-    let extractionStartTime = 0;
-    let extractionEndTime = 0;
+    let _extractionStartTime = 0;
+    let _extractionEndTime = 0;
 
     await page.route('**/trpc/hubs.create*', async (route) => {
-      extractionStartTime = Date.now();
+      _extractionStartTime = Date.now();
       const response = await route.fetch();
       await route.fulfill({ response });
     });
@@ -967,7 +968,7 @@ test.describe('@P2 Performance NFR Tests', () => {
       const response = await route.fetch();
       const json = await response.json();
       if (json.result?.data?.pillars?.length > 0) {
-        extractionEndTime = Date.now();
+        _extractionEndTime = Date.now();
       }
       await route.fulfill({ response });
     });
@@ -983,10 +984,10 @@ test.describe('@P2 Performance NFR Tests', () => {
     test.skip(!loggedIn, 'Login failed');
 
     // Monitor generation timing
-    let generationStartTime = 0;
+    let _generationStartTime = 0;
 
     await page.route('**/trpc/generation.start*', async (route) => {
-      generationStartTime = Date.now();
+      _generationStartTime = Date.now();
       const response = await route.fetch();
       await route.fulfill({ response });
     });

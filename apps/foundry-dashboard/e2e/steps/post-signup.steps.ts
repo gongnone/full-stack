@@ -9,7 +9,7 @@
  */
 
 import { test, expect } from '../fixtures/auth.fixture';
-import { DashboardPage, ClientPage, BrandDnaPage, HubPage, ReviewPage, ReportPage } from '../pages';
+import { _DashboardPage, _ClientPage, _BrandDnaPage, HubPage as _HubPage, ReviewPage as _ReviewPage, ReportPage as _ReportPage } from '../pages';
 
 // =============================================================================
 // CONFIGURATION
@@ -50,7 +50,7 @@ test.describe('Phase 1: Dashboard Onboarding', () => {
     await dashboardPage.verifySidebar();
 
     // And I should see an empty state with "Create Your First Client" CTA (if no clients)
-    const isEmpty = await dashboardPage.isEmptyState();
+    const _isEmpty = await dashboardPage.isEmptyState();
     // Note: May have existing clients from previous tests
 
     // And the page should load within 3 seconds (NFR-P5)
@@ -93,7 +93,7 @@ test.describe('Phase 2: Create First Client', () => {
     }
   });
 
-  test('@P0 @client New subscriber completes client creation', async ({ clientPage, authenticatedPage }) => {
+  test('@P0 @client New subscriber completes client creation', async ({ clientPage }) => {
     // Given I am on the client creation form
     await clientPage.gotoNew();
 
@@ -120,7 +120,7 @@ test.describe('Phase 2: Create First Client', () => {
     }
   });
 
-  test('@client @context Active client indicator is visible', async ({ clientPage, authenticatedPage }) => {
+  test('@client @context Active client indicator is visible', async ({ clientPage }) => {
     // Given I have created a client
     await clientPage.goto();
 
@@ -143,7 +143,7 @@ test.describe('Phase 2: Create First Client', () => {
 // =============================================================================
 
 test.describe('Phase 3: Brand DNA Setup', () => {
-  test('@brand-dna @setup New subscriber sees Brand DNA onboarding prompt', async ({ clientPage, brandDnaPage }) => {
+  test('@brand-dna @setup New subscriber sees Brand DNA onboarding prompt', async ({ clientPage, brandDnaPage: _brandDnaPage }) => {
     // Given I have created my first client
     await clientPage.goto();
     const clients = await clientPage.getClientNames();
@@ -153,7 +153,7 @@ test.describe('Phase 3: Brand DNA Setup', () => {
 
       // When I view the client workspace
       // Then I should see a prompt to "Set Up Brand DNA"
-      const hasPrompt = await clientPage.hasBrandDnaPrompt();
+      const _hasPrompt = await clientPage.hasBrandDnaPrompt();
       // Note: Prompt visibility depends on implementation
     }
   });
@@ -296,7 +296,7 @@ test.describe('Phase 6: Review and Approve Content', () => {
       await reviewPage.startSprint();
 
       // Then I should enter Sprint Mode
-      const inSprint = await reviewPage.isInSprintMode();
+      const _inSprint = await reviewPage.isInSprintMode();
       // Note: Sprint mode depends on having actual data
     }
   });
@@ -341,7 +341,7 @@ test.describe('Phase 7: Executive Producer Report', () => {
 
     // When I see the action buttons
     // Then I should see various actions
-    const actions = await reportPage.getAvailableActions();
+    const _actions = await reportPage.getAvailableActions();
     // Note: Actions depend on implementation and data state
   });
 });
@@ -352,7 +352,7 @@ test.describe('Phase 7: Executive Producer Report', () => {
 
 test.describe('Complete Post-Signup Journey', () => {
   test('@journey @e2e @P0 @smoke Complete journey validation', async ({
-    authenticatedPage,
+    authenticatedPage: _authenticatedPage,
     dashboardPage,
     clientPage,
     hubPage,

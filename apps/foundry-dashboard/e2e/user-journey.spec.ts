@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Complete User Journey E2E Tests
  *
@@ -987,13 +988,13 @@ test.describe('@P0 Stage 8: Export', () => {
     test.skip(!loggedIn, 'Login failed');
 
     // Monitor export API calls
-    let exportCallClientId: string | null = null;
+    let _exportCallClientId: string | null = null;
 
     await page.route('**/trpc/exports*', async (route) => {
       const url = route.request().url();
       const match = url.match(/clientId[=:]([^&\s]+)/);
       if (match) {
-        exportCallClientId = match[1];
+        _exportCallClientId = match[1];
       }
       const response = await route.fetch();
       await route.fulfill({ response });
@@ -1014,7 +1015,7 @@ test.describe('@P0 Stage 8: Export', () => {
 
 authTest.describe('@P0 @smoke Complete User Journey', () => {
   authTest('Full navigation from dashboard to export', async ({
-    authenticatedPage,
+    authenticatedPage: _authenticatedPage,
     dashboardPage,
     clientPage,
     hubPage,

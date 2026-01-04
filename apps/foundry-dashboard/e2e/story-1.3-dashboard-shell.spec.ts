@@ -9,7 +9,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { login, waitForPageLoad } from './utils/test-helpers';
+import { login, waitForPageLoad as _waitForPageLoad } from './utils/test-helpers';
 
 // Test configuration
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';

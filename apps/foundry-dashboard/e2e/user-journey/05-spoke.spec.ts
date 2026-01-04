@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Stage 5: Spoke Generation E2E Tests
  *

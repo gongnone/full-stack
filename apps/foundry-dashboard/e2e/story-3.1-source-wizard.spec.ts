@@ -11,7 +11,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import * as path from 'path';
+import * as _path from 'path';
 
 // Test configuration
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';
@@ -266,7 +266,7 @@ test.describe('Story 3.1: Source Selection & Upload Wizard', () => {
 
     test('empty state shows when no recent sources', async ({ page }) => {
       // For a new user, should show empty state
-      const emptyState = page.getByText(/no recent sources/i);
+      const _emptyState = page.getByText(/no recent sources/i);
       // May or may not be visible depending on user's history
       // Just verify the page loads without error
       await expect(page.locator('[data-testid="source-dropzone"]')).toBeVisible();

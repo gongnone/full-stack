@@ -3,7 +3,7 @@
  * Handles brand DNA setup, training samples, and voice marker editing
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect as _expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class BrandDnaPage extends BasePage {

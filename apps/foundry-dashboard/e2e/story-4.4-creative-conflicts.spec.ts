@@ -178,7 +178,7 @@ test.describe('Story 4.4: Creative Conflict Escalation', () => {
 
     // Wait for success message
     const successMsg = page.locator('text=Status updated successfully, text=success');
-    const hasSuccess = await successMsg.first().isVisible({ timeout: 5000 }).catch(() => false);
+    const _hasSuccess = await successMsg.first().isVisible({ timeout: 5000 }).catch(() => false);
 
     // Action should complete (may or may not show success message)
     expect(true).toBe(true); // Test passes if no error thrown

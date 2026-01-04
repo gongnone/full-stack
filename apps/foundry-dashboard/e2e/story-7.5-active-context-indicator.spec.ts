@@ -44,7 +44,7 @@ test.describe('Story 7.5: Active Context Indicator', () => {
 
       // Look for Building2 icon in client selector
       const buildingIcon = page.locator('[class*="lucide-building"], svg').filter({ has: page.locator('path') }).first();
-      const hasIcon = await buildingIcon.isVisible().catch(() => false);
+      const _hasIcon = await buildingIcon.isVisible().catch(() => false);
 
       // At minimum, some visual indicator should exist
       const sidebar = page.locator('aside');
@@ -170,7 +170,7 @@ test.describe('Story 7.5: Active Context Indicator', () => {
 
         // Check for menu items
         const menuItems = page.locator('[role="menuitem"]');
-        const count = await menuItems.count();
+        const _count = await menuItems.count();
 
         // Close dropdown
         await page.keyboard.press('Escape');
@@ -189,7 +189,7 @@ test.describe('Story 7.5: Active Context Indicator', () => {
 
       // Navigation elements should be navigable
       const navLinks = page.locator('aside a, aside button');
-      const count = await navLinks.count();
+      const _count = await navLinks.count();
       expect(count).toBeGreaterThan(0);
     });
   });

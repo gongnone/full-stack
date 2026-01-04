@@ -604,7 +604,7 @@ test.describe('Story 3.4: Hub Metadata & State Management', () => {
 
       // The Load More button should appear if there are more than 20 Hubs
       // This is a structural test - actual pagination requires data setup
-      const loadMoreButton = page.locator('button:has-text("Load More")');
+      const _loadMoreButton = page.locator('button:has-text("Load More")');
 
       // Button may or may not be visible depending on data
       // Just verify the page loads correctly

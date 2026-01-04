@@ -5,12 +5,12 @@
  * @tags @P0 @smoke @user-journey
  */
 
-import { test as authTest, expect } from '@playwright/test';
+import { test as _authTest, expect } from '@playwright/test';
 import { test } from '../fixtures/auth.fixture';
 
 test.describe('@P0 @smoke Complete User Journey', () => {
   test('Full navigation from dashboard to export', async ({
-    authenticatedPage,
+    authenticatedPage: _authenticatedPage,
     dashboardPage,
     clientPage,
     hubPage,

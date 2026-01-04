@@ -123,11 +123,11 @@ test.describe('Phase 2: Thematic Extraction', () => {
     // If pillars exist, test editing
     const pillarCount = await extractionPage.getPillarCount();
     if (pillarCount > 0) {
-      const originalData = await extractionPage.getPillarData(0);
+      const _originalData = await extractionPage.getPillarData(0);
       await extractionPage.editPillarTitle(0, 'Edited Test Title');
 
       // Verify change
-      const hasModified = await extractionPage.hasModifiedPillars();
+      const _hasModified = await extractionPage.hasModifiedPillars();
       // Note: Modified badge depends on implementation
     }
   });
@@ -164,7 +164,7 @@ test.describe('Phase 4: Spoke Generation', () => {
     await generationPage.goto();
 
     // Check for generation button (may not be visible without a hub)
-    const hasButton = await generationPage.isVisible(generationPage.startGenerationButton);
+    const _hasButton = await generationPage.isVisible(generationPage.startGenerationButton);
     // Button visibility depends on having a valid hub
   });
 
@@ -199,7 +199,7 @@ test.describe('Phase 5: Quality Gates', () => {
     await qualityGatesPage.goto();
 
     // Check for filter buttons (visibility depends on data)
-    const hasFilters =
+    const _hasFilters =
       (await qualityGatesPage.isVisible(qualityGatesPage.filterHighConfidence)) ||
       (await qualityGatesPage.isVisible(qualityGatesPage.filterNeedsReview)) ||
       (await qualityGatesPage.isVisible(qualityGatesPage.filterFailed));
@@ -214,7 +214,7 @@ test.describe('Phase 5: Quality Gates', () => {
 
 test.describe('Phase 6: Self-Healing Loop', () => {
   test.skip('@P0 @selfhealing Self-healing completes within 10 seconds per loop', async ({
-    qualityGatesPage,
+    qualityGatesPage: _qualityGatesPage,
   }) => {
     // This test requires actual AI infrastructure with failed spokes
     // Skip for CI, enable for integration testing
@@ -268,7 +268,7 @@ test.describe('Phase 7: Creative Conflicts', () => {
 
 test.describe('Complete AI Generation Journey', () => {
   test('@P0 @journey @smoke Navigation flow completes successfully', async ({
-    authenticatedPage,
+    authenticatedPage: _authenticatedPage,
     sourceIngestionPage,
     extractionPage,
     generationPage,

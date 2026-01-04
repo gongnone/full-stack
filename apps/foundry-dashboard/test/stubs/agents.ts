@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Stub for agents SDK to avoid ajv CommonJS compatibility issues in tests.
  * The agents SDK has transitive dependencies (MCP SDK -> ajv) that don't work in workerd.

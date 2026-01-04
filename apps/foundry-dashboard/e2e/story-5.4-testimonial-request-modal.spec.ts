@@ -17,14 +17,14 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('FR-1.5.16: Testimonial Request Modal', () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page: _page }) => {
     // TODO: Login with test user and navigate to review page
     // await loginAsTestUser(page);
     // await createTestClient(page);
     // await createTestSpokes(page, { count: 10, status: 'approved' });
   });
 
-  test('AC-1: Modal triggers after 10+ spoke approvals @P1', async ({ page }) => {
+  test('AC-1: Modal triggers after 10+ spoke approvals @P1', async ({ page: _page }) => {
     test.skip(true, 'Requires test data seeding infrastructure');
 
     // Navigate to review page with 10+ approved spokes
@@ -42,7 +42,7 @@ test.describe('FR-1.5.16: Testimonial Request Modal', () => {
     await expect(page.getByText(/You've approved \d+ pieces of content/i)).toBeVisible();
   });
 
-  test('AC-2: Sentiment "excited" allows testimonial request @P1', async ({ page }) => {
+  test('AC-2: Sentiment "excited" allows testimonial request @P1', async ({ page: _page }) => {
     test.skip(true, 'Requires test data seeding infrastructure');
 
     // Trigger modal
@@ -61,7 +61,7 @@ test.describe('FR-1.5.16: Testimonial Request Modal', () => {
     await expect(page.getByRole('button', { name: /Yes, I'd love to/i })).toBeVisible();
   });
 
-  test('AC-2: Sentiment "solid" allows testimonial request @P1', async ({ page }) => {
+  test('AC-2: Sentiment "solid" allows testimonial request @P1', async ({ page: _page }) => {
     test.skip(true, 'Requires test data seeding infrastructure');
 
     await page.goto('/app/review?clientId=test-client-123&showTestimonialModal=true');
@@ -98,7 +98,7 @@ test.describe('FR-1.5.16: Testimonial Request Modal', () => {
     });
   });
 
-  test('AC-3: Accept shows VideoRecorder with 60s max duration @P1', async ({ page }) => {
+  test('AC-3: Accept shows VideoRecorder with 60s max duration @P1', async ({ page: _page }) => {
     test.skip(true, 'Requires test data seeding infrastructure');
 
     await page.goto('/app/review?clientId=test-client-123&showTestimonialModal=true');
@@ -118,7 +118,7 @@ test.describe('FR-1.5.16: Testimonial Request Modal', () => {
     await expect(page.locator('video')).toBeVisible();
   });
 
-  test('AC-4: Snooze saves request with snooze_count=1 @P1', async ({ page }) => {
+  test('AC-4: Snooze saves request with snooze_count=1 @P1', async ({ page: _page }) => {
     test.skip(true, 'Requires test data seeding infrastructure');
 
     await page.goto('/app/review?clientId=test-client-123&showTestimonialModal=true');
@@ -139,7 +139,7 @@ test.describe('FR-1.5.16: Testimonial Request Modal', () => {
     // - sentiment = 'excited'
   });
 
-  test('AC-4: Second snooze increments snooze_count to 2 @P1', async ({ page }) => {
+  test('AC-4: Second snooze increments snooze_count to 2 @P1', async ({ page: _page }) => {
     test.skip(true, 'Requires test data seeding infrastructure');
 
     // Setup: Create existing snoozed request with snooze_count=1
@@ -173,7 +173,7 @@ test.describe('FR-1.5.16: Testimonial Request Modal', () => {
     });
   });
 
-  test('AC-5: Decline saves as declined, never triggers again @P1', async ({ page }) => {
+  test('AC-5: Decline saves as declined, never triggers again @P1', async ({ page: _page }) => {
     test.skip(true, 'Requires test data seeding infrastructure');
 
     await page.goto('/app/review?clientId=test-client-123&showTestimonialModal=true');
@@ -198,7 +198,7 @@ test.describe('FR-1.5.16: Testimonial Request Modal', () => {
     });
   });
 
-  test('AC-6: Video upload flow completes successfully @P1', async ({ page }) => {
+  test('AC-6: Video upload flow completes successfully @P1', async ({ page: _page }) => {
     test.skip(true, 'Requires camera permissions and test infrastructure');
 
     await page.goto('/app/review?clientId=test-client-123&showTestimonialModal=true');

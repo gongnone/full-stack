@@ -13,7 +13,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { login, waitForPageLoad } from './utils/test-helpers';
+import { login, waitForPageLoad as _waitForPageLoad } from './utils/test-helpers';
 
 // Test configuration from environment (with safe defaults for local dev)
 const BASE_URL = process.env.BASE_URL || 'http://localhost:5173';

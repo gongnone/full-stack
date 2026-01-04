@@ -11,6 +11,7 @@ export function initSentry() {
   Sentry.init({
     dsn: SENTRY_DSN,
     environment: import.meta.env.VITE_ENVIRONMENT || import.meta.env.MODE,
+    release: import.meta.env.VITE_SENTRY_RELEASE,
 
     // Performance monitoring
     tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,

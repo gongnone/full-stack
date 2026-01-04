@@ -250,12 +250,14 @@ export function VoiceRecorder({
     } catch (error) {
       console.error('Failed to start recording:', error);
 
-      // Provide iOS-specific instructions for enabling microphone
+      // Provide platform-specific instructions for enabling microphone
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isAndroid = /Android/.test(navigator.userAgent);
       const errorMsg = error instanceof Error ? error.message : '';
       const isPermissionDenied = errorMsg.includes('Permission') || errorMsg.includes('NotAllowed') || errorMsg.includes('denied');
 
       if (isIOS && isPermissionDenied) {
+        // iOS: All browsers use WebKit, settings are in Safari preferences
         setErrorMessage(
           'Microphone access is blocked. To enable:\n\n' +
           '1. Open iPhone Settings\n' +
@@ -264,7 +266,18 @@ export function VoiceRecorder({
           '4. Enable access for this website\n' +
           '5. Return here and tap "Try Again"'
         );
+      } else if (isAndroid && isPermissionDenied) {
+        // Android: Chrome and other browsers have site settings
+        setErrorMessage(
+          'Microphone access is blocked. To enable:\n\n' +
+          '1. Tap the lock icon (🔒) next to the URL\n' +
+          '2. Tap "Permissions" or "Site settings"\n' +
+          '3. Find "Microphone" and set to "Allow"\n' +
+          '4. Tap "Try Again" below\n\n' +
+          'Or upload a pre-recorded audio file instead.'
+        );
       } else if (isPermissionDenied) {
+        // Desktop browsers
         setErrorMessage(
           'Microphone access denied. Please click the lock/camera icon in your browser\'s address bar and allow microphone access, then try again.'
         );

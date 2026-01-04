@@ -156,6 +156,9 @@ importers:
       agents:
         specifier: ^0.3.3
         version: 0.3.3(@cloudflare/ai-chat@0.0.3)(@cloudflare/codemode@0.0.3)(@cloudflare/workers-types@4.20250628.0)(ai@5.0.102(zod@3.25.67))(react@19.1.0)(zod@3.25.67)
+      aws4fetch:
+        specifier: ^1.0.20
+        version: 1.0.20
       better-auth:
         specifier: ^1.4.7
         version: 1.4.7(drizzle-kit@0.31.4)(drizzle-orm@0.45.1(@cloudflare/workers-types@4.20250628.0)(@opentelemetry/api@1.9.0)(@planetscale/database@1.19.0)(kysely@0.28.9))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(solid-js@1.9.7)(vitest@3.2.4(@types/debug@4.1.12)(@types/node@22.15.33)(jiti@2.4.2)(jsdom@26.1.0)(lightningcss@1.30.1)(terser@5.43.1)(tsx@4.21.0)(yaml@2.8.0))
@@ -4481,6 +4484,9 @@ packages:
     hasBin: true
     peerDependencies:
       postcss: ^8.1.0
+
+  aws4fetch@1.0.20:
+    resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
 
   axe-core@4.11.0:
     resolution: {integrity: sha512-ilYanEU8vxxBexpJd8cWM4ElSQq4QctCLKih0TSfjIfCQTeyH/6zVrmIJfLPrKTKJRbiG+cfnZbQIjAlJmF1jQ==}
@@ -11805,6 +11811,8 @@ snapshots:
       picocolors: 1.1.1
       postcss: 8.5.6
       postcss-value-parser: 4.2.0
+
+  aws4fetch@1.0.20: {}
 
   axe-core@4.11.0: {}
 

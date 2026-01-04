@@ -69,10 +69,10 @@ describe('testimonialsRouter', () => {
       const result = await caller.list({ limit: 20 });
 
       expect(result.items).toHaveLength(2);
-      expect(result.items[0].id).toBe('testimonial-1');
-      expect(result.items[0].clientName).toBe('Acme Corp');
-      expect(result.items[0].permissionPublic).toBe(true);
-      expect(result.items[1].permissionPublic).toBe(false);
+      expect(result.items[0]?.id).toBe('testimonial-1');
+      expect(result.items[0]?.clientName).toBe('Acme Corp');
+      expect(result.items[0]?.permissionPublic).toBe(true);
+      expect(result.items[1]?.permissionPublic).toBe(false);
     });
 
     it('returns nextCursor when more results available', async () => {
@@ -697,8 +697,9 @@ describe('testimonialsRouter', () => {
       // Verify approved_at is set (not null)
       const bindCalls = mockDb.bind.mock.calls;
       const lastCall = bindCalls[bindCalls.length - 1];
+      expect(lastCall).toBeDefined();
       expect(lastCall).toContain('pending');
-      expect(lastCall[lastCall.length - 1]).toBeGreaterThanOrEqual(now - 1000);
+      expect(lastCall?.[lastCall.length - 1]).toBeGreaterThanOrEqual(now - 1000);
     });
   });
 

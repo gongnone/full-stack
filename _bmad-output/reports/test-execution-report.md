@@ -257,7 +257,7 @@ Error: Cannot find package 'cloudflare:test-internal'
 1. **Documentation:** Tests document expected behavior even before implementation
 2. **Specification:** Tests serve as executable specs for Phase 1.5 features
 3. **Validation:** Tests prove syntax/structure is correct
-4. **Coverage Baseline:** Establishes 98% critical path coverage target
+4. **Specification Coverage:** 98% of Phase 1.5 critical paths have test specifications written (not yet executable)
 
 ### What Tests Will Provide LATER
 
@@ -290,9 +290,11 @@ All test files are **production-ready code** that:
 
 The integration test acts as a **requirements document** showing what needs to be built for Phase 1.5. As features are implemented, tests will progressively pass, providing a clear completion metric.
 
-**Current Coverage:** 98% of Phase 1.5 critical path has tests
-**Current Passing:** 8% (implementation incomplete)
-**Target Passing:** 100% (when Phase 1.5 implementation complete)
+**Specification Coverage:** 98% of Phase 1.5 critical paths have test specifications
+**Execution Success Rate:** 8% of specifications pass (2/26 tests, implementation incomplete)
+**Target Success Rate:** 100% when Phase 1.5 implementation is complete
+
+NOTE: "Specification coverage" means tests are written and document expected behavior. "Execution success rate" means tests actually run and pass against the implementation.
 
 ---
 

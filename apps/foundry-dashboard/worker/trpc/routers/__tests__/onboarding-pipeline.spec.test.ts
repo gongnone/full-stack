@@ -7,6 +7,11 @@
  * client onboarding pipeline. It serves as an executable specification
  * showing how all pieces should integrate.
  *
+ * NOTE ON TEST DATA: All test entities use placeholder names:
+ * - Clients: "Pipeline Test Client", "Duplicate Test Client", etc.
+ * - Emails: "pipeline-test@example.com", etc.
+ * These are EXAMPLE DATA for testing purposes, not real entities.
+ *
  * CURRENT STATE: PARTIALLY IMPLEMENTED (2/26 tests pass)
  * - ✅ Client creation works
  * - ❌ Onboarding token generation (not auto-created)

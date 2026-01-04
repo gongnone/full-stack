@@ -83,6 +83,14 @@ export function createIntegrationContext(): IntegrationContext {
 
 /**
  * Seed test accounts for cross-tenant testing
+ *
+ * EXAMPLE TEST DATA: Creates users and clients with placeholder names:
+ * - Users: "User One", "User Two"
+ * - Clients: "Client 1", "Client 2"
+ * - Emails: auto-generated with unique suffixes (e.g., "user1-abc123@test.local")
+ *
+ * These are NOT real entities. Use this fixture to test multi-tenant
+ * isolation and cross-tenant security scenarios.
  */
 export async function seedTestAccounts(
   db: D1Database,
@@ -138,6 +146,13 @@ export async function seedTestAccounts(
 
 /**
  * Seed test hubs and spokes for review testing
+ *
+ * IMPORTANT: This creates EXAMPLE TEST DATA only. Names like "Test Source",
+ * "Test Hub", "Test Pillar" are placeholder values for integration testing.
+ * They are NOT real entities or production data.
+ *
+ * Use this fixture to populate test scenarios with valid data structures
+ * that match the database schema.
  */
 export async function seedTestHubsAndSpokes(
   db: D1Database,

@@ -8,6 +8,7 @@ import { test, expect } from '@playwright/test';
 // Test configuration
 const BASE_URL = process.env.BASE_URL || 'http://localhost:8787';
 const HUB_ID = '00000000-0000-0000-0000-000000000000'; // Mock/Test UUID
+const TEST_TIMEOUT = 60_000; // 60 seconds for ingestion tests
 
 test.describe('Story 3.5: Real-Time Ingestion Progress', () => {
   test.setTimeout(TEST_TIMEOUT);

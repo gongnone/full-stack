@@ -179,6 +179,14 @@ jobs:
         run: pnpm --filter foundry-dashboard run production:deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Sentry configuration for error tracking
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_ENVIRONMENT: production
+          VITE_SENTRY_RELEASE: ${{ github.sha }}
+          # Sentry configuration for source map uploads
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
   deploy-foundry-backend:
     name: 🚀 Foundry Backend (engine)

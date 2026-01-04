@@ -6,7 +6,11 @@ import { routeTree } from './routeTree.gen';
 import { trpc, createTRPCClient } from './lib/trpc-client';
 import { queryClient } from './lib/query-client';
 import { ToastProvider } from './lib/toast';
+import { initSentry } from './lib/sentry';
 import './index.css';
+
+// Initialize Sentry before app renders
+initSentry();
 
 const trpcClient = createTRPCClient();
 

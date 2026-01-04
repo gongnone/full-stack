@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SentryTestRouteImport } from './routes/sentry-test'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
@@ -33,6 +34,11 @@ import { Route as AppClientsClientIdSettingsRouteImport } from './routes/app/cli
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SentryTestRoute = SentryTestRouteImport.update({
+  id: '/sentry-test',
+  path: '/sentry-test',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/sentry-test': typeof SentryTestRoute
   '/signup': typeof SignupRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
@@ -157,6 +164,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/sentry-test': typeof SentryTestRoute
   '/signup': typeof SignupRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/sentry-test': typeof SentryTestRoute
   '/signup': typeof SignupRoute
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
@@ -204,6 +213,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/sentry-test'
     | '/signup'
     | '/app/analytics'
     | '/app/brand-dna'
@@ -225,6 +235,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/sentry-test'
     | '/signup'
     | '/app/analytics'
     | '/app/brand-dna'
@@ -247,6 +258,7 @@ export interface FileRouteTypes {
     | '/'
     | '/app'
     | '/login'
+    | '/sentry-test'
     | '/signup'
     | '/app/analytics'
     | '/app/brand-dna'
@@ -270,6 +282,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  SentryTestRoute: typeof SentryTestRoute
   SignupRoute: typeof SignupRoute
   OnboardTokenRoute: typeof OnboardTokenRoute
   ReviewTokenRoute: typeof ReviewTokenRoute
@@ -283,6 +296,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sentry-test': {
+      id: '/sentry-test'
+      path: '/sentry-test'
+      fullPath: '/sentry-test'
+      preLoaderRoute: typeof SentryTestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -478,6 +498,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  SentryTestRoute: SentryTestRoute,
   SignupRoute: SignupRoute,
   OnboardTokenRoute: OnboardTokenRoute,
   ReviewTokenRoute: ReviewTokenRoute,

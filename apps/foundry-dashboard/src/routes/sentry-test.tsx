@@ -25,7 +25,7 @@ function SentryTestPage() {
     alert('Error sent to Sentry! Check console and Sentry dashboard.');
   };
 
-  const triggerComponentError = () => {
+  const _triggerComponentError = () => {
     // This will be caught by error boundary
     const BrokenComponent = () => {
       throw new Error('🧪 Test Error: Component render error');

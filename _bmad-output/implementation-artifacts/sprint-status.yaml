@@ -123,9 +123,13 @@ development_status:
   # Phase 1.5.2: Post-MVP Hardening (Production Observability)
   # P1 - Manual testing feedback: Need real-time error visibility
   # Created: 2026-01-04 after email triple-send incident retrospective
+  # Configuration: Option A - Single Sentry project for stage + production URLs
   SENTRY-1-error-tracking-installation: ready  # P1 - Install Sentry for Workers + React, source maps, alerting
   # Estimated effort: 4-6 hours
+  # Cost: $26/month (Sentry Developer plan)
   # Blocks: Production confidence, effective manual testing
+  # Implementation plan: _bmad-output/implementation-artifacts/SENTRY-1-implementation-plan.md
+  # Quick start guide: _bmad-output/implementation-artifacts/SENTRY-1-quick-start.md
   # Sprint item: _bmad-output/sprints/sentry-error-tracking-installation.md
   # Gap analysis: _bmad-output/reports/manual-testing-gaps-sentry-analysis.md
 

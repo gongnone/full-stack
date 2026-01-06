@@ -124,14 +124,16 @@ pnpm test                                    # Run all unit tests
 
 Legacy system has minimal test coverage (3 files in data-service). **DO NOT add tests to Legacy** unless explicitly requested - it's maintenance-only.
 
-## CI/CD (GitHub Actions)
+## Deployments (Cloudflare Git Integration)
 
-Deployments are automated via **GitHub Actions** workflows:
+Deployments are handled automatically by **Cloudflare's Git integration**:
 
-| Branch | Environment | Workflow |
-|--------|-------------|----------|
-| `stage` | Stage | `.github/workflows/deploy-stage.yaml` |
-| `main` | Production | `.github/workflows/deploy-production.yaml` |
+| Branch | Environment |
+|--------|-------------|
+| `stage` | Stage (foundry-stage.williamjshaw.ca) |
+| `main` | Production (foundry.williamjshaw.ca) |
+
+Push to the branch and Cloudflare deploys automatically. No GitHub Actions needed.
 
 ### E2E Test Pipeline (IMPORTANT)
 
@@ -166,22 +168,6 @@ gh workflow run "e2e-tests.yaml" --ref stage  # All tests
 **GitHub Secrets for E2E:**
 - `E2E_TEST_EMAIL` - Test user email
 - `E2E_TEST_PASSWORD` - Test user password
-
-### GitHub Secrets Required
-- `CLOUDFLARE_API_TOKEN` - Token with "Edit Cloudflare Workers" permissions
-- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
-
-### Workflow Features
-- Resource isolation checks (prevents Legacy/Foundry database collision)
-- TypeScript type checking (`foundry:typecheck:build`)
-- Parallel deployment of all 4 workers
-- Health check verification
-
-### Manual Trigger
-```bash
-gh workflow run "deploy-stage.yaml" --ref stage
-gh workflow run "deploy-production.yaml" --ref main
-```
 
 ### Cloudflare Dashboard Secrets (foundry-dashboard)
 Set in Workers & Pages → foundry-dashboard-stage/production → Settings → Variables:

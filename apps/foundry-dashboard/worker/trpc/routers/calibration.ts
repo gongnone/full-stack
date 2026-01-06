@@ -519,12 +519,17 @@ export const calibrationRouter = t.router({
           title: `Voice Note ${new Date().toLocaleDateString()}`,
           source_type: 'voice',
           r2_key: input.audioR2Key,
-          status: 'processing'
+          status: 'processing',
+          created_at: new Date(),
         });
 
         // Story R-11: AC8 - Update rate limit timestamp
         await brandQueries.updateLastVoiceRecordingTime(ctx.drizzle, input.clientId);
       } catch (dbError) {
+        // Log the actual error for debugging
+        const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+        console.error(`[Voice Recording] DB insert failed for client ${input.clientId}:`, errorMessage, dbError);
+
         // Story R-11: AC10 - Attempt R2 cleanup if DB insert fails
         try {
           await ctx.env.MEDIA.delete(input.audioR2Key);
@@ -533,7 +538,7 @@ export const calibrationRouter = t.router({
         }
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Failed to create voice recording record',
+          message: `Failed to create voice recording record: ${errorMessage}`,
         });
       }
 

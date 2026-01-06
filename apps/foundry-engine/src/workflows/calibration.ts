@@ -351,13 +351,24 @@ Output JSON:
       const db = this.env.DB;
       const now = Math.floor(Date.now() / 1000);
 
-      // 9a: Mark training samples as analyzed with timestamp
+      // 9a: Mark training samples as analyzed with transcript and word counts
       if (sampleIds && sampleIds.length > 0) {
-        // Use batch updates for efficiency
-        const placeholders = sampleIds.map(() => '?').join(',');
-        await db.prepare(
-          `UPDATE training_samples SET status = 'analyzed', analyzed_at = ? WHERE id IN (${placeholders}) AND client_id = ?`
-        ).bind(now, ...sampleIds, clientId).run();
+        // Calculate word and character counts from processed content
+        const wordCount = processedContent ? processedContent.split(/\s+/).filter(Boolean).length : 0;
+        const charCount = processedContent ? processedContent.length : 0;
+
+        // Update each sample with transcript data
+        for (const sampleId of sampleIds) {
+          await db.prepare(`
+            UPDATE training_samples
+            SET status = 'analyzed',
+                analyzed_at = ?,
+                extracted_text = ?,
+                word_count = ?,
+                character_count = ?
+            WHERE id = ? AND client_id = ?
+          `).bind(now, processedContent, wordCount, charCount, sampleId, clientId).run();
+        }
       }
 
       // 9b: Upsert brand_dna table with extracted data

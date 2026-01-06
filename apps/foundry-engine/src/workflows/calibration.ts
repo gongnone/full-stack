@@ -101,8 +101,10 @@ export class CalibrationWorkflow extends WorkflowEntrypoint<Env, CalibrationPara
         }
 
         // Validate audio format (AC3: user-friendly error for unsupported formats)
+        // Content-type may include codec info like "audio/webm;codecs=opus", so use prefix matching
         const contentType = audioObject.httpMetadata?.contentType;
-        if (contentType && !SUPPORTED_AUDIO_TYPES.includes(contentType as typeof SUPPORTED_AUDIO_TYPES[number])) {
+        const baseContentType = contentType?.split(';')[0]; // Strip codec info
+        if (baseContentType && !SUPPORTED_AUDIO_TYPES.includes(baseContentType as typeof SUPPORTED_AUDIO_TYPES[number])) {
           throw new Error(
             `Unsupported audio format: ${contentType}. Supported formats: MP3, WAV, WebM, OGG, FLAC, M4A.`
           );

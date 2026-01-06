@@ -520,6 +520,8 @@ export const calibrationRouter = t.router({
           source_type: 'voice',
           r2_key: input.audioR2Key,
           status: 'processing',
+          word_count: 0,        // Required by D1 NOT NULL constraint
+          character_count: 0,   // Required by D1 NOT NULL constraint
           created_at: new Date(),
         });
 

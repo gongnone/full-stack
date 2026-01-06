@@ -674,8 +674,14 @@ export const calibrationRouter = t.router({
 
       try {
         const entities = JSON.parse(result.voice_entities);
+        // Normalize bannedWords: CalibrationWorkflow saves objects {word, severity, reason, ...}
+        // but VoiceEntitiesEditor expects strings. Handle both formats for compatibility.
+        const rawBannedWords = entities.bannedWords || [];
+        const bannedWords: string[] = rawBannedWords.map((item: string | { word: string }) =>
+          typeof item === 'string' ? item : item.word
+        );
         return {
-          bannedWords: entities.bannedWords || [],
+          bannedWords,
           voiceMarkers: entities.voiceMarkers || [],
           stances: entities.stances || [],
         };
@@ -701,7 +707,12 @@ export const calibrationRouter = t.router({
       }
 
       const normalizedWord = input.word.toLowerCase().trim();
-      if (entities.bannedWords.includes(normalizedWord)) {
+      // Handle both string format (legacy) and object format (from CalibrationWorkflow)
+      const alreadyExists = (entities.bannedWords || []).some((w: string | { word: string }) => {
+        const wordStr = typeof w === 'string' ? w : w.word;
+        return wordStr.toLowerCase() === normalizedWord;
+      });
+      if (alreadyExists) {
         return { success: true, bannedWords: entities.bannedWords };
       }
 
@@ -740,7 +751,11 @@ export const calibrationRouter = t.router({
       }
 
       const normalizedWord = input.word.toLowerCase().trim();
-      entities.bannedWords = (entities.bannedWords || []).filter((w: string) => w.toLowerCase() !== normalizedWord);
+      // Handle both string format (legacy) and object format (from CalibrationWorkflow)
+      entities.bannedWords = (entities.bannedWords || []).filter((w: string | { word: string }) => {
+        const wordStr = typeof w === 'string' ? w : w.word;
+        return wordStr.toLowerCase() !== normalizedWord;
+      });
 
       await brandQueries.updateBrandDNAEntities(ctx.drizzle, input.clientId, JSON.stringify(entities));
 

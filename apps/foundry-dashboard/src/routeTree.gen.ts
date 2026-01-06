@@ -29,6 +29,7 @@ import { Route as AppBrandDnaRouteImport } from './routes/app/brand-dna'
 import { Route as AppAnalyticsRouteImport } from './routes/app/analytics'
 import { Route as AppHubsNewRouteImport } from './routes/app/hubs.new'
 import { Route as AppHubsHubIdRouteImport } from './routes/app/hubs.$hubId'
+import { Route as AppClientsClientIdRouteImport } from './routes/app/clients.$clientId'
 import { Route as AppClientsClientIdSettingsRouteImport } from './routes/app/clients.$clientId.settings'
 
 const SignupRoute = SignupRouteImport.update({
@@ -131,11 +132,16 @@ const AppHubsHubIdRoute = AppHubsHubIdRouteImport.update({
   path: '/$hubId',
   getParentRoute: () => AppHubsRoute,
 } as any)
+const AppClientsClientIdRoute = AppClientsClientIdRouteImport.update({
+  id: '/$clientId',
+  path: '/$clientId',
+  getParentRoute: () => AppClientsRoute,
+} as any)
 const AppClientsClientIdSettingsRoute =
   AppClientsClientIdSettingsRouteImport.update({
-    id: '/$clientId/settings',
-    path: '/$clientId/settings',
-    getParentRoute: () => AppClientsRoute,
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AppClientsClientIdRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/review/$token': typeof ReviewTokenRoute
   '/strategy/$token': typeof StrategyTokenRoute
   '/app/': typeof AppIndexRoute
+  '/app/clients/$clientId': typeof AppClientsClientIdRouteWithChildren
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
   '/app/clients/$clientId/settings': typeof AppClientsClientIdSettingsRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/review/$token': typeof ReviewTokenRoute
   '/strategy/$token': typeof StrategyTokenRoute
   '/app': typeof AppIndexRoute
+  '/app/clients/$clientId': typeof AppClientsClientIdRouteWithChildren
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
   '/app/clients/$clientId/settings': typeof AppClientsClientIdSettingsRoute
@@ -203,6 +211,7 @@ export interface FileRoutesById {
   '/review/$token': typeof ReviewTokenRoute
   '/strategy/$token': typeof StrategyTokenRoute
   '/app/': typeof AppIndexRoute
+  '/app/clients/$clientId': typeof AppClientsClientIdRouteWithChildren
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
   '/app/clients/$clientId/settings': typeof AppClientsClientIdSettingsRoute
@@ -228,6 +237,7 @@ export interface FileRouteTypes {
     | '/review/$token'
     | '/strategy/$token'
     | '/app/'
+    | '/app/clients/$clientId'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
     | '/app/clients/$clientId/settings'
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/review/$token'
     | '/strategy/$token'
     | '/app'
+    | '/app/clients/$clientId'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
     | '/app/clients/$clientId/settings'
@@ -273,6 +284,7 @@ export interface FileRouteTypes {
     | '/review/$token'
     | '/strategy/$token'
     | '/app/'
+    | '/app/clients/$clientId'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
     | '/app/clients/$clientId/settings'
@@ -431,22 +443,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppHubsHubIdRouteImport
       parentRoute: typeof AppHubsRoute
     }
+    '/app/clients/$clientId': {
+      id: '/app/clients/$clientId'
+      path: '/$clientId'
+      fullPath: '/app/clients/$clientId'
+      preLoaderRoute: typeof AppClientsClientIdRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
     '/app/clients/$clientId/settings': {
       id: '/app/clients/$clientId/settings'
-      path: '/$clientId/settings'
+      path: '/settings'
       fullPath: '/app/clients/$clientId/settings'
       preLoaderRoute: typeof AppClientsClientIdSettingsRouteImport
-      parentRoute: typeof AppClientsRoute
+      parentRoute: typeof AppClientsClientIdRoute
     }
   }
 }
 
-interface AppClientsRouteChildren {
+interface AppClientsClientIdRouteChildren {
   AppClientsClientIdSettingsRoute: typeof AppClientsClientIdSettingsRoute
 }
 
-const AppClientsRouteChildren: AppClientsRouteChildren = {
+const AppClientsClientIdRouteChildren: AppClientsClientIdRouteChildren = {
   AppClientsClientIdSettingsRoute: AppClientsClientIdSettingsRoute,
+}
+
+const AppClientsClientIdRouteWithChildren =
+  AppClientsClientIdRoute._addFileChildren(AppClientsClientIdRouteChildren)
+
+interface AppClientsRouteChildren {
+  AppClientsClientIdRoute: typeof AppClientsClientIdRouteWithChildren
+}
+
+const AppClientsRouteChildren: AppClientsRouteChildren = {
+  AppClientsClientIdRoute: AppClientsClientIdRouteWithChildren,
 }
 
 const AppClientsRouteWithChildren = AppClientsRoute._addFileChildren(

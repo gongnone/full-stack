@@ -459,7 +459,7 @@ export async function sendBrandDNACompletionEmail(
     <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 24px;">
       <tr>
         <td style="background-color: #00D26A; border-radius: 6px;">
-          <a href="${dashboardUrl}/clients/${clientId}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none;">
+          <a href="${dashboardUrl}/app/clients/${clientId}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none;">
             View Brand DNA Results →
           </a>
         </td>
@@ -476,7 +476,7 @@ Great news!
 ${clientName} has completed their Brand DNA capture.
 Their voice profile is now being processed and will be ready for content generation shortly.
 
-View Brand DNA Results: ${dashboardUrl}/clients/${clientId}
+View Brand DNA Results: ${dashboardUrl}/app/clients/${clientId}
 
 Next step: Once processing completes, you can start creating Hubs for ${clientName}.
 `;
@@ -574,7 +574,7 @@ export async function sendStrategyLockedEmail(
     <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 24px;">
       <tr>
         <td style="background-color: #00D26A; border-radius: 6px;">
-          <a href="${dashboardUrl}/clients/${clientId}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none;">
+          <a href="${dashboardUrl}/app/clients/${clientId}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none;">
             View Approved Pillars →
           </a>
         </td>
@@ -591,7 +591,7 @@ Great news!
 ${clientName} has approved their brand strategy.
 They're now ready for content generation!
 
-View Approved Pillars: ${dashboardUrl}/clients/${clientId}
+View Approved Pillars: ${dashboardUrl}/app/clients/${clientId}
 
 You can now start creating Hubs for ${clientName}.
 `;

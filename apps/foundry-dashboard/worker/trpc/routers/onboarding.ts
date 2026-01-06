@@ -88,12 +88,57 @@ export const onboardingRouter = t.router({
         UPDATE client_onboard_tokens SET used_at = ? WHERE id = ?
       `).bind(now, invite.id).run();
 
-      // 1. Voice Recording Source
+      // Track transcription result for session update
+      let voiceTranscription: string | null = null;
+
+      // 1. Voice Recording Source - Process with Whisper transcription
       if (input.recordingKey) {
+        const sourceId = crypto.randomUUID();
+
+        // Insert hub_sources record first
         await ctx.db.prepare(`
           INSERT INTO hub_sources (id, client_id, user_id, title, source_type, r2_key, status, created_at, updated_at)
-          VALUES (?, ?, 'system', 'Brand Voice Recording', 'mp3', ?, 'pending', ?, ?)
-        `).bind(crypto.randomUUID(), invite.client_id, input.recordingKey, now, now).run();
+          VALUES (?, ?, 'onboarding', 'Brand Voice Recording', 'mp3', ?, 'processing', ?, ?)
+        `).bind(sourceId, invite.client_id, input.recordingKey, now, now).run();
+
+        // Fetch audio from R2 and transcribe with Whisper
+        try {
+          const audioObject = await ctx.env.MEDIA.get(input.recordingKey);
+          if (audioObject) {
+            const audioBuffer = await audioObject.arrayBuffer();
+
+            // Call Workers AI Whisper for transcription
+            const transcriptionResult = await ctx.env.AI.run('@cf/openai/whisper', {
+              audio: [...new Uint8Array(audioBuffer)],
+            });
+
+            voiceTranscription = transcriptionResult.text || '';
+
+            // Update hub_sources with transcription
+            await ctx.db.prepare(`
+              UPDATE hub_sources
+              SET raw_content = ?, word_count = ?, status = 'ready', updated_at = ?
+              WHERE id = ?
+            `).bind(
+              voiceTranscription,
+              voiceTranscription.split(/\s+/).filter(Boolean).length,
+              Date.now(),
+              sourceId
+            ).run();
+
+            console.log(`[Onboarding] Voice transcription complete for client ${invite.client_id}: ${voiceTranscription.length} chars`);
+          } else {
+            console.error(`[Onboarding] Voice recording not found in R2: ${input.recordingKey}`);
+            await ctx.db.prepare(`
+              UPDATE hub_sources SET status = 'failed', updated_at = ? WHERE id = ?
+            `).bind(Date.now(), sourceId).run();
+          }
+        } catch (err) {
+          console.error(`[Onboarding] Voice transcription failed for client ${invite.client_id}:`, err);
+          await ctx.db.prepare(`
+            UPDATE hub_sources SET status = 'failed', updated_at = ? WHERE id = ?
+          `).bind(Date.now(), sourceId).run();
+        }
       }
 
       // 2. Content Source
@@ -102,20 +147,34 @@ export const onboardingRouter = t.router({
         const type = input.contentKey.endsWith('.txt') ? 'text' : 'pdf';
         await ctx.db.prepare(`
           INSERT INTO hub_sources (id, client_id, user_id, title, source_type, r2_key, status, created_at, updated_at)
-          VALUES (?, ?, 'system', 'Brand Content Upload', ?, ?, 'pending', ?, ?)
+          VALUES (?, ?, 'onboarding', 'Brand Content Upload', ?, ?, 'pending', ?, ?)
         `).bind(crypto.randomUUID(), invite.client_id, type, input.contentKey, now, now).run();
       }
 
-      // AC7: Update Brand DNA session status to 'processing'
-      // Create or update brand_dna_sessions record
+      // Determine session status based on processing results
+      const sessionStatus = voiceTranscription ? 'completed' : (input.recordingKey ? 'failed' : 'pending');
+      const sessionStep = voiceTranscription ? 'complete' : 'voice_capture';
+
+      // AC7: Update Brand DNA session with transcription results
       await ctx.db.prepare(`
-        INSERT INTO brand_dna_sessions (id, client_id, user_id, status, current_step, created_at, updated_at)
-        VALUES (?, ?, 'system', 'processing', 'voice_capture', ?, ?)
+        INSERT INTO brand_dna_sessions (id, client_id, user_id, status, current_step, total_transcription, created_at, updated_at, completed_at)
+        VALUES (?, ?, 'onboarding', ?, ?, ?, ?, ?, ?)
         ON CONFLICT(client_id) DO UPDATE SET
-          status = 'processing',
-          current_step = 'voice_capture',
-          updated_at = excluded.updated_at
-      `).bind(crypto.randomUUID(), invite.client_id, now, now).run();
+          status = excluded.status,
+          current_step = excluded.current_step,
+          total_transcription = COALESCE(excluded.total_transcription, total_transcription),
+          updated_at = excluded.updated_at,
+          completed_at = excluded.completed_at
+      `).bind(
+        crypto.randomUUID(),
+        invite.client_id,
+        sessionStatus,
+        sessionStep,
+        voiceTranscription,
+        now,
+        now,
+        voiceTranscription ? now : null
+      ).run();
 
       // AC7: Send notification to agency owner
       const agencyOwner = await ctx.db.prepare(`

@@ -310,11 +310,12 @@ function BrandDNAPage() {
 
       setVoiceResult(result);
 
-      // Refresh stats and samples
+      // Refresh stats and samples (must invalidate both getBrandDNA and getBrandDNAReport for consistent UI)
       await Promise.all([
         utils.calibration.listSamples.invalidate(),
         utils.calibration.getSampleStats.invalidate(),
         utils.calibration.getBrandDNA.invalidate(),
+        utils.calibration.getBrandDNAReport.invalidate(),
       ]);
       addToast('Voice note processed successfully', 'success');
     } catch (error) {

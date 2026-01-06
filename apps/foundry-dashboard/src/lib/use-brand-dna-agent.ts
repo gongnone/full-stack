@@ -122,7 +122,8 @@ export function useBrandDNAAgent({
       if (data.component) {
         const agentMessage = data as AgentMessage;
 
-        // Handle history batch specially
+        // Handle history batch specially - REPLACE messages instead of appending
+        // This prevents duplicate messages on reconnect
         if (agentMessage.component.type === 'HistoryBatch') {
           const historyMessages = agentMessage.component.props.messages as Array<{
             role: string;
@@ -137,17 +138,29 @@ export function useBrandDNAAgent({
           // Limit history batch processing to prevent UI freeze
           const limitedHistory = historyMessages.slice(-MAX_HISTORY_BATCH);
 
+          // Build new messages array from history, replacing existing state
+          const restoredMessages: ConversationMessage[] = [];
           limitedHistory.forEach(msg => {
             // Skip complex components - they'll be re-sent with full props
             if (complexTypes.includes(msg.componentType)) {
               return;
             }
 
-            addMessage(msg.role as 'agent' | 'user', {
-              type: msg.componentType as AgentComponent['type'] || 'TextMessage',
-              props: { content: msg.content, variant: msg.role },
+            restoredMessages.push({
+              id: crypto.randomUUID(),
+              role: msg.role as 'agent' | 'user',
+              component: {
+                type: msg.componentType as AgentComponent['type'] || 'TextMessage',
+                props: { content: msg.content, variant: msg.role },
+              },
+              timestamp: msg.createdAt,
             });
           });
+
+          // Replace messages state with restored history to prevent duplicates
+          if (!isUnmountedRef.current) {
+            setMessages(restoredMessages);
+          }
         } else {
           addMessage('agent', agentMessage.component);
         }

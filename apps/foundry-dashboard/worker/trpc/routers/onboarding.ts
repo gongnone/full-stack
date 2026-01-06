@@ -30,8 +30,8 @@ export const onboardingRouter = t.router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid invitation link.' });
       }
 
-      const now = Date.now();
-      if (invite.expires_at < now) {
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      if (invite.expires_at < nowSeconds) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Invitation expired.' });
       }
 
@@ -70,7 +70,7 @@ export const onboardingRouter = t.router({
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid invitation token' });
       }
 
-      if (invite.expires_at < Date.now()) {
+      if (invite.expires_at < Math.floor(Date.now() / 1000)) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Invitation has expired' });
       }
 

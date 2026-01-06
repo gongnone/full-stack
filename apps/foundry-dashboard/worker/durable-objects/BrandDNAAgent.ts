@@ -67,8 +67,8 @@ const EXPRESS_STEPS = [
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_MESSAGES = 30;
 const SESSION_RECONNECT_TIMEOUT_MS = 30 * 60 * 1000;
-const _CLEANUP_INTERVAL_MESSAGES = 50; // Run deterministic cleanup every N messages (reserved for future use)
-const _MAX_HISTORY_MESSAGES = 1000; // Cap conversation history (reserved for future use)
+const CLEANUP_INTERVAL_MESSAGES = 50; // Run deterministic cleanup every N messages
+const MAX_HISTORY_MESSAGES = 1000; // Cap conversation history
 
 // Audience deep-dive questions (FR-1.5.2)
 const AUDIENCE_QUESTIONS = [
@@ -272,7 +272,11 @@ export class BrandDNAAgent extends Agent<AgentEnv> {
       };
 
       connection.send(JSON.stringify(welcomeResponse));
-      this.addToHistory('agent', welcomeResponse.component.props.content as string, 'TextMessage');
+      // Only add welcome message to history for new sessions - not reconnects
+      // This prevents duplicate welcome messages in history
+      if (!isResuming) {
+        this.addToHistory('agent', welcomeResponse.component.props.content as string, 'TextMessage');
+      }
 
       // Send path choice if new session
       if (!isResuming || currentStep === 'welcome') {
@@ -725,6 +729,19 @@ Return as JSON:
         break;
 
       case 'next_question': {
+        // Handle skip for different steps
+        const currentStep = this.getSessionValue(SESSION_KEYS.CURRENT_STEP);
+
+        if (currentStep === 'competitor_input') {
+          // Skip competitor input - proceed to pillar generation
+          this.setSessionValue(SESSION_KEYS.COMPETITORS, '');
+          this.setSessionValue(SESSION_KEYS.CURRENT_STEP, 'pillar_proposal');
+          this.sendTextMessage(connection, "No problem! I'll generate your content pillars based on what we've discussed so far...", message.requestId);
+          await this.generatePillars(connection, message.requestId);
+          break;
+        }
+
+        // Default: advance audience questions
         const currentIndex = parseInt(this.getSessionValue(SESSION_KEYS.CURRENT_QUESTION_INDEX) || '0', 10);
         await this.sendAudienceQuestion(connection, currentIndex + 1);
         break;

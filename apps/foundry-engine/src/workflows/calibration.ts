@@ -416,11 +416,14 @@ Output JSON:
     return {
       clientId,
       contentType,
+      // Return actual transcript for UI display
+      transcript: processedContent,
+      // Return full entities for UI display (not just counts)
       entitiesExtracted: {
-        voiceMarkers: extracted.voiceMarkers.length,
-        bannedWords: extracted.bannedWords.length,
-        stances: extracted.stances.length,
-        signaturePatterns: extracted.signaturePatterns.length,
+        voiceMarkers: extracted.voiceMarkers,
+        bannedWords: extracted.bannedWords.map(b => b.word),
+        stances: extracted.stances,
+        signaturePatterns: extracted.signaturePatterns,
       },
       dnaScoreBefore: scoreBefore,
       dnaScoreAfter: scoreAfter,

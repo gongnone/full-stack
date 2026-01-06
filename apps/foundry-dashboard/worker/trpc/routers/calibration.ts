@@ -582,13 +582,76 @@ export const calibrationRouter = t.router({
         });
       }
 
-      const result = await response.json() as { instanceId: string };
+      const startResult = await response.json() as { instanceId: string };
+      const instanceId = startResult.instanceId;
 
+      // Poll for workflow completion (voice transcription typically takes 10-30 seconds)
+      const MAX_POLL_TIME_MS = 90_000; // 90 seconds max
+      const POLL_INTERVAL_MS = 2_000;  // Poll every 2 seconds
+      const startTime = Date.now();
+
+      interface WorkflowResult {
+        status: string;
+        output?: {
+          transcript?: string;
+          entitiesExtracted?: {
+            voiceMarkers: string[];
+            bannedWords: string[];
+            stances: Array<{ topic: string; position: string }>;
+          };
+          dnaScoreBefore?: number;
+          dnaScoreAfter?: number;
+        };
+        error?: string;
+      }
+
+      while (Date.now() - startTime < MAX_POLL_TIME_MS) {
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
+
+        const statusResponse = await ctx.env.CONTENT_ENGINE.fetch(
+          `http://engine/api/workflows/${instanceId}?type=calibration`
+        );
+
+        if (!statusResponse.ok) {
+          console.error(`[Voice Recording] Failed to check workflow status: ${statusResponse.status}`);
+          continue;
+        }
+
+        const workflowResult = await statusResponse.json() as WorkflowResult;
+
+        if (workflowResult.status === 'complete') {
+          // Workflow completed successfully - return full results
+          return {
+            calibrationId: instanceId,
+            recordingId,
+            status: 'complete',
+            transcript: workflowResult.output?.transcript || '',
+            entitiesExtracted: workflowResult.output?.entitiesExtracted || {
+              voiceMarkers: [],
+              bannedWords: [],
+              stances: [],
+            },
+            dnaScoreBefore: workflowResult.output?.dnaScoreBefore || 0,
+            dnaScoreAfter: workflowResult.output?.dnaScoreAfter || 0,
+          };
+        }
+
+        if (workflowResult.status === 'errored') {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: workflowResult.error || 'Voice transcription workflow failed',
+          });
+        }
+
+        // Still running, continue polling
+      }
+
+      // Timeout - return partial result, UI can poll separately if needed
       return {
-        calibrationId: result.instanceId,
+        calibrationId: instanceId,
         recordingId,
         status: 'processing',
-        message: 'Voice note is being transcribed and analyzed. This may take a moment.'
+        message: 'Voice processing is taking longer than expected. Results will appear shortly.',
       };
     }),
 

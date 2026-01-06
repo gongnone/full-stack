@@ -96,9 +96,13 @@ export class CalibrationWorkflow extends WorkflowEntrypoint<Env, CalibrationPara
         }
 
         // Validate audio file size
+        if (audioObject.size === 0) {
+          throw new Error(`Audio file is empty (0 bytes): ${audioKey}. Recording may have failed.`);
+        }
         if (audioObject.size > MAX_AUDIO_FILE_SIZE) {
           throw new Error('Audio file too large. Maximum supported size is 10MB (~60 seconds).');
         }
+        console.log(`[Calibration] Processing audio: ${audioKey}, size: ${audioObject.size} bytes`);
 
         // Validate audio format (AC3: user-friendly error for unsupported formats)
         // Content-type may include codec info like "audio/webm;codecs=opus", so use prefix matching
@@ -112,11 +116,17 @@ export class CalibrationWorkflow extends WorkflowEntrypoint<Env, CalibrationPara
 
         // Convert to ArrayBuffer for Whisper
         const audioData = await audioObject.arrayBuffer();
+        const audioArray = new Uint8Array(audioData);
+        console.log(`[Calibration] ArrayBuffer size: ${audioData.byteLength}, Uint8Array length: ${audioArray.length}`);
+
+        if (audioArray.length === 0) {
+          throw new Error(`Audio ArrayBuffer is empty after R2 fetch: ${audioKey}`);
+        }
 
         // Call Workers AI Whisper model
-        // optimization: pass Uint8Array directly to avoid memory spike from spreading into number[]
+        // Pass as number[] for maximum compatibility with Whisper API
         const whisperResult = await this.env.AI.run('@cf/openai/whisper', {
-          audio: new Uint8Array(audioData) as any,
+          audio: [...audioArray],
         });
 
         const transcript = (whisperResult as { text?: string })?.text || '';

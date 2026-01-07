@@ -90,16 +90,25 @@ export const onboardingRouter = t.router({
 
       // Track transcription result for session update
       let voiceTranscription: string | null = null;
+      let trainingSampleId: string | null = null;
 
       // 1. Voice Recording Source - Process with Whisper transcription
       if (input.recordingKey) {
         const sourceId = crypto.randomUUID();
+        trainingSampleId = crypto.randomUUID();
 
-        // Insert hub_sources record first
+        // Insert hub_sources record (for research agent)
         await ctx.db.prepare(`
           INSERT INTO hub_sources (id, client_id, user_id, title, source_type, r2_key, status, created_at, updated_at)
           VALUES (?, ?, 'onboarding', 'Brand Voice Recording', 'mp3', ?, 'processing', ?, ?)
         `).bind(sourceId, invite.client_id, input.recordingKey, now, now).run();
+
+        // REMEDIATION: Also create training_samples record for dashboard visibility
+        // This bridges onboarding data to the dashboard's Brand DNA page
+        await ctx.db.prepare(`
+          INSERT INTO training_samples (id, client_id, user_id, title, source_type, r2_key, status, word_count, character_count, created_at, updated_at)
+          VALUES (?, ?, 'onboarding', 'Onboarding Voice Recording', 'voice', ?, 'processing', 0, 0, ?, ?)
+        `).bind(trainingSampleId, invite.client_id, input.recordingKey, now, now).run();
 
         // Fetch audio from R2 and transcribe with Whisper
         try {
@@ -115,18 +124,58 @@ export const onboardingRouter = t.router({
             voiceTranscription = transcriptionResult.text || '';
 
             // Update hub_sources with transcription
+            const wordCount = voiceTranscription.split(/\s+/).filter(Boolean).length;
             await ctx.db.prepare(`
               UPDATE hub_sources
               SET raw_content = ?, word_count = ?, status = 'ready', updated_at = ?
               WHERE id = ?
             `).bind(
               voiceTranscription,
-              voiceTranscription.split(/\s+/).filter(Boolean).length,
+              wordCount,
               Date.now(),
               sourceId
             ).run();
 
-            console.log(`[Onboarding] Voice transcription complete for client ${invite.client_id}: ${voiceTranscription.length} chars`);
+            // REMEDIATION: Also update training_samples with transcription
+            // This makes the voice recording visible in the dashboard's Brand DNA page
+            await ctx.db.prepare(`
+              UPDATE training_samples
+              SET extracted_text = ?, word_count = ?, character_count = ?, status = 'analyzed', analyzed_at = ?, updated_at = ?
+              WHERE id = ?
+            `).bind(
+              voiceTranscription,
+              wordCount,
+              voiceTranscription.length,
+              Date.now(),
+              Date.now(),
+              trainingSampleId
+            ).run();
+
+            // REMEDIATION: Trigger CalibrationWorkflow to extract voice entities and populate brand_dna table
+            // This enables the dashboard to display DNA strength scores, voice markers, and banned words
+            try {
+              const engineResponse = await ctx.env.CONTENT_ENGINE.fetch('http://engine/api/calibration/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  clientId: invite.client_id,
+                  contentType: 'voice',
+                  r2Key: input.recordingKey,
+                  sampleIds: [trainingSampleId],
+                }),
+              });
+
+              if (!engineResponse.ok) {
+                console.error('[Onboarding] CalibrationWorkflow trigger failed:', await engineResponse.text());
+              } else {
+                console.log('[Onboarding] CalibrationWorkflow started for brand_dna population');
+              }
+            } catch (calibrationErr) {
+              console.error('[Onboarding] CalibrationWorkflow trigger error:', calibrationErr);
+              // Non-blocking - onboarding completes even if workflow fails
+            }
+
+            console.log(`[Onboarding] Voice transcription complete for client ${invite.client_id}: ${voiceTranscription.length} chars, ${wordCount} words`);
           } else {
             console.error(`[Onboarding] Voice recording not found in R2: ${input.recordingKey}`);
             await ctx.db.prepare(`
@@ -145,10 +194,22 @@ export const onboardingRouter = t.router({
       if (input.contentKey) {
         // Infer type from key or default to pdf
         const type = input.contentKey.endsWith('.txt') ? 'text' : 'pdf';
+        const contentSourceId = crypto.randomUUID();
+        const contentSampleId = crypto.randomUUID();
+
+        // Insert hub_sources record (for research agent)
         await ctx.db.prepare(`
           INSERT INTO hub_sources (id, client_id, user_id, title, source_type, r2_key, status, created_at, updated_at)
           VALUES (?, ?, 'onboarding', 'Brand Content Upload', ?, ?, 'pending', ?, ?)
-        `).bind(crypto.randomUUID(), invite.client_id, type, input.contentKey, now, now).run();
+        `).bind(contentSourceId, invite.client_id, type, input.contentKey, now, now).run();
+
+        // REMEDIATION: Also create training_samples record for dashboard visibility
+        // Content type mapping: text → transcript, pdf → pdf
+        const sampleType = type === 'text' ? 'transcript' : 'pdf';
+        await ctx.db.prepare(`
+          INSERT INTO training_samples (id, client_id, user_id, title, source_type, r2_key, status, word_count, character_count, created_at, updated_at)
+          VALUES (?, ?, 'onboarding', 'Onboarding Content Upload', ?, ?, 'pending', 0, 0, ?, ?)
+        `).bind(contentSampleId, invite.client_id, sampleType, input.contentKey, now, now).run();
       }
 
       // Determine session status based on processing results

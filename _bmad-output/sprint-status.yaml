@@ -236,11 +236,25 @@ remediation_backlog:
     priority: HIGH
     completed: 2025-12-30
 
+  R-12-brand-dna-tooltip-clarity:
+    status: done
+    priority: P1
+    effort: 2-3 hours
+    issue: "Agencies don't understand DNA Strength meaning or how it affects content quality"
+    solution: "Add info icon tooltips to main score and sub-scores with progressive disclosure"
+    files:
+      - src/components/brand-dna/ScoreTooltip.tsx (new)
+      - src/components/brand-dna/MetricTooltip.tsx (new)
+      - src/components/brand-dna/BrandDNACard.tsx
+      - src/components/brand-dna/VoiceMetricsProgress.tsx
+    story_file: _bmad-output/implementation-artifacts/R-12-brand-dna-tooltip-clarity.md
+
 remediation_summary:
-  total_stories: 7
+  total_stories: 8
   critical_blockers: 0
-  completed: 7
-  estimated_effort: "12-16 hours"
+  completed: 8
+  in_review: 0
+  estimated_effort: "14-19 hours"
   actual_completion: "2025-12-29"
   recommended_order:
     - R-7 (CRITICAL - unblocks deployment) ✅

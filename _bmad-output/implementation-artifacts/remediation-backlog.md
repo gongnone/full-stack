@@ -419,5 +419,280 @@ A feature is truly **Done** when:
 
 ---
 
+## Step D: Onboarding-to-Dashboard Bridge Remediation
+
+### Context
+
+Commit `78d10ab` bridged client onboarding to the agency dashboard by:
+1. Dual-writing to `hub_sources` AND `training_samples`
+2. Updating both tables with Whisper transcription
+3. Triggering CalibrationWorkflow to populate `brand_dna`
+
+**Adversarial review identified critical gaps requiring remediation.**
+
+---
+
+### Priority: P0 - First Impression Killers
+
+#### TASK-030: Processing State UI for Onboarding Bridge
+
+**Problem:** Agency clicks email notification, arrives at dashboard BEFORE CalibrationWorkflow completes. Sees empty state with "Add 3 samples" message — confusing since client just completed onboarding.
+
+**File:** `apps/foundry-dashboard/src/routes/app/brand-dna.tsx`
+
+**Remediation:**
+```typescript
+// Detect "just onboarded" state
+const isProcessingOnboarding = brandDNAQuery.data === null &&
+  samplesQuery.data?.samples.some(s =>
+    s.title.includes('Onboarding') && s.status === 'processing'
+  );
+
+// Show appropriate UI
+{isProcessingOnboarding ? (
+  <ProcessingOnboardingState clientName={clientName} />
+) : (
+  <EmptyStatePrompt />
+)}
+```
+
+**Acceptance Criteria:**
+- [ ] Detects samples with "Onboarding" in title and "processing" status
+- [ ] Shows "Analyzing [Client]'s brand voice..." message
+- [ ] Includes estimated time ("typically 2-3 minutes")
+- [ ] Auto-refreshes when processing completes
+
+**Estimated Effort:** 2-3 hours
+
+---
+
+#### TASK-031: Email Notification Timing Fix
+
+**Problem:** Agency notification email sent BEFORE CalibrationWorkflow completes. Agency clicks link → empty/processing dashboard.
+
+**File:** `apps/foundry-dashboard/worker/trpc/routers/onboarding.ts`
+
+**Options:**
+1. **Delay email** - Send after CalibrationWorkflow webhook confirms completion
+2. **Update email copy** - "Processing complete in ~3 minutes, check dashboard shortly"
+3. **Add deep link with state** - `/app/brand-dna?onboarding=processing`
+
+**Recommended:** Option 2 (quickest, least invasive)
+
+**Acceptance Criteria:**
+- [ ] Email copy updated to set correct expectations
+- [ ] OR email delayed until workflow completion webhook
+
+**Estimated Effort:** 1-2 hours
+
+---
+
+### Priority: P1 - Clarity & Understanding
+
+#### TASK-032: DNA Strength Purpose Clarification
+
+**Problem:** Agencies don't understand what DNA Strength means or how it affects content quality.
+
+**File:** `apps/foundry-dashboard/src/components/brand-dna/BrandDNACard.tsx`
+
+**Remediation - Add impact messaging:**
+
+| Score Range | Impact Message |
+|-------------|----------------|
+| < 50% | "AI-generated content will need significant editing (~70%+ of outputs). Add training samples to improve." |
+| 50-79% | "AI content will need moderate editing (~40% of outputs). You're getting there!" |
+| ≥ 80% | "AI reliably produces on-brand content. Expect minimal editing (~20% or less)." |
+
+**UI Changes:**
+1. Rename "DNA Strength" → "Brand Voice Calibration" in UI
+2. Add impact tooltip explaining editing time correlation
+3. Show specific improvement actions with expected gains
+4. Set clear target: "🎯 Target: 80%+ for zero-edit content"
+
+**Acceptance Criteria:**
+- [ ] Score shows impact on editing time
+- [ ] Specific actions to improve with expected % gains
+- [ ] Target score clearly displayed
+- [ ] Tooltips on each sub-score (tone, vocabulary, structure, topics)
+
+**Estimated Effort:** 3-4 hours
+
+---
+
+#### TASK-033: Sub-Score Tooltips
+
+**Problem:** Individual scores (tone_match, vocabulary, structure, topics) lack explanation.
+
+**File:** `apps/foundry-dashboard/src/components/brand-dna/VoiceMetricsProgress.tsx`
+
+**Remediation - Add tooltips:**
+
+| Score | Tooltip |
+|-------|---------|
+| Tone Match | "How consistently AI will match your brand's emotional tone" |
+| Vocabulary | "Recognition of signature phrases and industry terminology" |
+| Structure | "Understanding of preferred content formats and flow" |
+| Topics | "Awareness of subjects to emphasize or avoid" |
+
+**Acceptance Criteria:**
+- [ ] Each progress bar has info icon with tooltip
+- [ ] Tooltips explain what score measures
+- [ ] Tooltips suggest how to improve that specific dimension
+
+**Estimated Effort:** 1-2 hours
+
+---
+
+### Priority: P2 - Robustness
+
+#### TASK-034: Whisper Timeout Handling
+
+**Problem:** Large audio files may cause Whisper API timeout. No timeout handling in current implementation.
+
+**File:** `apps/foundry-dashboard/worker/trpc/routers/onboarding.ts`
+
+**Remediation:**
+```typescript
+// Add timeout wrapper for Whisper call
+const transcriptionResult = await Promise.race([
+  ctx.env.AI.run('@cf/openai/whisper', { audio: [...new Uint8Array(audioBuffer)] }),
+  new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('Transcription timeout')), 120000)
+  )
+]);
+```
+
+**Acceptance Criteria:**
+- [ ] Whisper call has 120s timeout
+- [ ] Timeout triggers graceful failure
+- [ ] training_samples.status set to 'failed' with error message
+- [ ] User notified to retry or upload shorter audio
+
+**Estimated Effort:** 1-2 hours
+
+---
+
+#### TASK-035: Double-Submit Idempotency
+
+**Problem:** Rapid double-click on submit could create duplicate training_samples entries.
+
+**File:** `apps/foundry-dashboard/worker/trpc/routers/onboarding.ts`
+
+**Remediation:**
+```sql
+INSERT INTO training_samples (id, client_id, ..., r2_key, ...)
+VALUES (?, ?, ..., ?, ...)
+ON CONFLICT(client_id, r2_key) DO NOTHING
+```
+
+**Acceptance Criteria:**
+- [ ] Add unique constraint on (client_id, r2_key) if not exists
+- [ ] Use ON CONFLICT DO NOTHING for inserts
+- [ ] No duplicate samples created on double-submit
+
+**Estimated Effort:** 1 hour
+
+---
+
+#### TASK-036: CalibrationWorkflow Retry Logic
+
+**Problem:** If CONTENT_ENGINE.fetch fails, we log and move on. DNA never populates.
+
+**File:** `apps/foundry-dashboard/worker/trpc/routers/onboarding.ts`
+
+**Remediation:**
+```typescript
+// Add retry with exponential backoff
+const triggerCalibration = async (attempt = 1) => {
+  try {
+    const response = await ctx.env.CONTENT_ENGINE.fetch(...);
+    if (!response.ok && attempt < 3) {
+      await new Promise(r => setTimeout(r, 1000 * attempt));
+      return triggerCalibration(attempt + 1);
+    }
+  } catch (err) {
+    if (attempt < 3) {
+      await new Promise(r => setTimeout(r, 1000 * attempt));
+      return triggerCalibration(attempt + 1);
+    }
+    console.error('[Onboarding] CalibrationWorkflow failed after 3 attempts');
+  }
+};
+```
+
+**Acceptance Criteria:**
+- [ ] 3 retry attempts with exponential backoff
+- [ ] Failure after retries logged with alert
+- [ ] Manual retry endpoint available for support
+
+**Estimated Effort:** 2 hours
+
+---
+
+### Priority: P3 - Metrics & Research
+
+#### TASK-037: Onboarding-to-Dashboard Metrics
+
+**Problem:** No tracking of time-to-value metrics.
+
+**Events to Add:**
+
+| Event | Trigger | Properties |
+|-------|---------|------------|
+| `onboarding.completed` | Token marked used | clientId, hasVoice, hasContent |
+| `dashboard.first_view` | First brand-dna page load | clientId, dnaScore, timeSinceOnboarding |
+| `calibration.completed` | CalibrationWorkflow done | clientId, dnaScore, processingTime |
+| `content.first_generated` | First spoke created | clientId, dnaScore, timeSinceOnboarding |
+
+**Acceptance Criteria:**
+- [ ] Events fire to analytics (Plausible or custom)
+- [ ] Dashboard for time-to-value metrics
+- [ ] Alert if median onboarding→first_view > 30 minutes
+
+**Estimated Effort:** 4-6 hours
+
+---
+
+#### TASK-038: Agency User Research
+
+**Problem:** No validated understanding of agency mental models around DNA Strength.
+
+**Research Questions:**
+1. What do agencies expect when they first see DNA Strength?
+2. Do they understand the correlation to content quality?
+3. What score motivates them to start generating content?
+4. What confuses them about the current UI?
+
+**Deliverable:** 3-5 agency interviews with recorded sessions
+
+**Acceptance Criteria:**
+- [ ] Research protocol drafted
+- [ ] 3-5 interviews conducted
+- [ ] Findings synthesized into actionable recommendations
+- [ ] UI changes validated against findings
+
+**Estimated Effort:** 8-12 hours (across multiple days)
+
+---
+
+### Onboarding Bridge Remediation Summary
+
+| Task ID | Description | Priority | Status | Effort |
+|---------|-------------|----------|--------|--------|
+| TASK-030 | Processing state UI | P0 | TODO | 2-3h |
+| TASK-031 | Email timing fix | P0 | TODO | 1-2h |
+| TASK-032 | DNA strength purpose clarity | P1 | TODO | 3-4h |
+| TASK-033 | Sub-score tooltips | P1 | TODO | 1-2h |
+| TASK-034 | Whisper timeout handling | P2 | TODO | 1-2h |
+| TASK-035 | Double-submit idempotency | P2 | TODO | 1h |
+| TASK-036 | CalibrationWorkflow retry | P2 | TODO | 2h |
+| TASK-037 | Onboarding metrics | P3 | TODO | 4-6h |
+| TASK-038 | Agency user research | P3 | TODO | 8-12h |
+
+**Total New Effort:** 23-34 hours
+
+---
+
 **Report Generated:** 2025-12-27
+**Updated:** 2026-01-07 - Added Step D: Onboarding-to-Dashboard Bridge Remediation
 **Next Review:** Before next sprint planning

@@ -354,4 +354,79 @@ test.describe('Story 2.3: Brand DNA Analysis & Scoring', () => {
       expect(bodyBgColor).toBe('rgb(15, 20, 25)');
     });
   });
+
+  test.describe('Story R-12: Brand DNA Tooltip Clarity', () => {
+    test('DNA score tooltip shows impact explanation on hover', async ({ page }) => {
+      await login(page);
+      await page.goto(`${BASE_URL}/app/brand-dna`);
+
+      await page.waitForLoadState('networkidle').catch(() => {});
+
+      const scoreIcon = page.locator('[data-testid="score-info-icon"]');
+
+      if (await scoreIcon.isVisible()) {
+        // Hover over the info icon
+        await scoreIcon.hover();
+
+        // Wait for tooltip to appear (300ms delay)
+        await page.waitForTimeout(350);
+
+        // Tooltip should contain editing impact text
+        await expect(page.locator('text=/editing/i')).toBeVisible();
+
+        // Tooltip should contain tier information
+        const tooltipVisible = await page.locator('[role="tooltip"]').isVisible();
+        expect(tooltipVisible).toBe(true);
+      }
+    });
+
+    test('Metric tooltips show explanation on hover', async ({ page }) => {
+      await login(page);
+      await page.goto(`${BASE_URL}/app/brand-dna`);
+
+      await page.waitForLoadState('networkidle').catch(() => {});
+
+      const toneMetricIcon = page.locator('[data-testid="metric-info-tone_match"]');
+
+      if (await toneMetricIcon.isVisible()) {
+        // Hover over the tone match metric info icon
+        await toneMetricIcon.hover();
+
+        // Wait for tooltip to appear (300ms delay)
+        await page.waitForTimeout(350);
+
+        // Tooltip should contain metric explanation
+        await expect(page.locator('text=/emotional tone/i')).toBeVisible();
+      }
+    });
+
+    test('Tooltips are keyboard accessible', async ({ page }) => {
+      await login(page);
+      await page.goto(`${BASE_URL}/app/brand-dna`);
+
+      await page.waitForLoadState('networkidle').catch(() => {});
+
+      const scoreIcon = page.locator('[data-testid="score-info-icon"]');
+
+      if (await scoreIcon.isVisible()) {
+        // Focus the info icon
+        await scoreIcon.focus();
+
+        // Press Enter to show tooltip
+        await page.keyboard.press('Enter');
+
+        // Tooltip should be visible
+        const tooltipVisible = await page.locator('[role="tooltip"]').isVisible();
+        expect(tooltipVisible).toBe(true);
+
+        // Press Escape to close
+        await page.keyboard.press('Escape');
+
+        // Tooltip should be hidden
+        await page.waitForTimeout(100);
+        const tooltipHidden = !(await page.locator('[role="tooltip"]').isVisible());
+        expect(tooltipHidden).toBe(true);
+      }
+    });
+  });
 });

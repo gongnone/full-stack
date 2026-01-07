@@ -1,28 +1,32 @@
 /**
  * Story 2.3: Brand DNA Analysis & Scoring
  * Task 8: VoiceMetrics Progress Bars Component (AC2)
+ * Story R-12: Added MetricTooltip for sub-score explanations
  *
  * Displays individual score breakdown with animated progress bars.
  * Color-coded: green (>80%), yellow (60-80%), red (<60%)
  */
 
 import type { BrandDNABreakdown } from '@/../../worker/types';
+import { MetricTooltip, type MetricKey } from './MetricTooltip';
 
 interface ProgressBarProps {
   label: string;
   value: number;
+  metricKey: MetricKey;
   testId?: string;
 }
 
-function ProgressBar({ label, value, testId }: ProgressBarProps) {
+function ProgressBar({ label, value, metricKey, testId }: ProgressBarProps) {
   const color =
     value >= 80 ? 'var(--approve)' : value >= 60 ? 'var(--warning)' : 'var(--kill)';
 
   return (
     <div className="mb-4" data-testid={testId}>
       <div className="flex justify-between mb-1.5">
-        <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <span className="text-sm inline-flex items-center" style={{ color: 'var(--text-secondary)' }}>
           {label}
+          <MetricTooltip metricKey={metricKey} />
         </span>
         <span className="text-sm font-mono" style={{ color: 'var(--text-primary)' }}>
           {value}%
@@ -61,21 +65,25 @@ export function VoiceMetricsProgress({ breakdown, className = '' }: VoiceMetrics
       <ProgressBar
         label="Tone Match"
         value={breakdown.tone_match}
+        metricKey="tone_match"
         testId="progress-tone-match"
       />
       <ProgressBar
         label="Vocabulary"
         value={breakdown.vocabulary}
+        metricKey="vocabulary"
         testId="progress-vocabulary"
       />
       <ProgressBar
         label="Structure"
         value={breakdown.structure}
+        metricKey="structure"
         testId="progress-structure"
       />
       <ProgressBar
         label="Topics"
         value={breakdown.topics}
+        metricKey="topics"
         testId="progress-topics"
       />
     </div>

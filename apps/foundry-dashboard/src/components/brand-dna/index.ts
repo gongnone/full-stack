@@ -20,3 +20,7 @@ export { TopicsToAvoid } from './TopicsToAvoid';
 // Story 2.5 components
 export { EditableChipList } from './EditableChipList';
 export { VoiceEntitiesEditor } from './VoiceEntitiesEditor';
+
+// Story R-12 components (Brand DNA Tooltip Clarity)
+export { ScoreTooltip } from './ScoreTooltip';
+export { MetricTooltip, type MetricKey } from './MetricTooltip';

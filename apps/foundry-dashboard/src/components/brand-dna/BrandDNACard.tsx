@@ -17,6 +17,7 @@ import { VoiceMetricsProgress } from './VoiceMetricsProgress';
 import { SignaturePhrasesChips } from './SignaturePhrasesChips';
 import { TopicsToAvoid } from './TopicsToAvoid';
 import { RecommendationsSection } from './RecommendationsSection';
+import { ScoreTooltip } from './ScoreTooltip';
 
 interface BrandDNACardProps {
   report: BrandDNAReport;
@@ -62,11 +63,12 @@ export function BrandDNACard({
       >
         <div className="text-center mb-6">
           <span
-            className="text-5xl font-bold"
+            className="text-5xl font-bold inline-flex items-center"
             style={{ color: statusStyle.color }}
             data-testid="dna-strength-score"
           >
             {report.strengthScore}%
+            <ScoreTooltip score={report.strengthScore} />
           </span>
           <div className="mt-2">
             <span

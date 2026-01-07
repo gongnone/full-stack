@@ -29,13 +29,13 @@ So that **the final review queue contains only high-quality, compliant content**
 **Given** a spoke is in the healing loop
 **When** the `generation_attempt` reaches 3
 **Then** the loop stops
-**And** the spoke status is set to `failed_qa`
+**And** the spoke status is set to `creative_conflict` (escalated for human review)
 **And** it is flagged for manual intervention in the Creative Conflict Escalation (Story 4.4)
 
 ### AC4: Success Transition
 **Given** a healed spoke passes all quality gates
 **When** the evaluation completes
-**Then** status is set to `ready_for_review`
+**Then** status is set to `pending_review` (awaiting human approval)
 **And** the `feedback_log` is updated with `healing_attempt` incremented
 
 ## Tasks / Subtasks

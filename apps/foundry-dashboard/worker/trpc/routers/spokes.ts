@@ -37,6 +37,7 @@ const platformEnum = z.enum([
   'youtube_thumbnail',
 ]);
 
+// Story 4.3: Added 'pending_review' and 'creative_conflict' for Self-Healing Loop
 const spokeStatusEnum = z.enum([
   'pending',
   'generating',
@@ -45,6 +46,8 @@ const spokeStatusEnum = z.enum([
   'rejected',
   'killed',
   'failed',
+  'pending_review',     // Story 4.3: Content passed gates, awaiting human review
+  'creative_conflict',  // Story 4.4: Failed Self-Healing after 3 attempts, escalated
 ]);
 
 // Calculate Levenshtein edit distance ratio (0 = identical, 1 = completely different)

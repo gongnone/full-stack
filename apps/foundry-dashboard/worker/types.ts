@@ -292,7 +292,9 @@ export interface FinalizeHubResult {
 
 // Story 4.1: Deterministic Spoke Fracturing types
 export type SpokePlatform = 'twitter' | 'linkedin' | 'tiktok' | 'instagram' | 'newsletter' | 'thread' | 'carousel' | 'youtube_thumbnail';
-export type SpokeStatus = 'pending' | 'generating' | 'ready' | 'approved' | 'rejected' | 'killed' | 'failed';
+// Story 4.3: Added 'creative_conflict' for spokes that fail Self-Healing after 3 attempts
+// Story 4.4: creative_conflict status escalates to human review
+export type SpokeStatus = 'pending' | 'generating' | 'ready' | 'approved' | 'rejected' | 'killed' | 'failed' | 'pending_review' | 'creative_conflict';
 export type SpokeGenerationStatus = 'pending' | 'generating' | 'completed' | 'failed';
 
 /** Quality gate scores from the adversarial critic (Story 4.2) */

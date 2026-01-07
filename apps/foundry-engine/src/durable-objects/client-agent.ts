@@ -264,12 +264,41 @@ export class ClientAgent extends DurableObject<Env> {
       )
     `)
 
+    // Story 4.3: Feedback log for Self-Healing Loop
+    // Stores Critic feedback for Creator to query during regeneration
+    this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS feedback_log (
+        id TEXT PRIMARY KEY,
+        spoke_id TEXT NOT NULL,
+        attempt INTEGER NOT NULL,
+        feedback_json TEXT NOT NULL,
+        scores_json TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    // Story 4.3: Healing metrics for FR50 (Self-healing efficiency)
+    // Records healing attempts for analytics dashboard
+    this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS healing_metrics (
+        id TEXT PRIMARY KEY,
+        spoke_id TEXT NOT NULL,
+        attempts INTEGER NOT NULL,
+        success INTEGER NOT NULL,
+        final_scores_json TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
     // Create indexes
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_spokes_hub ON spokes(hub_id)`)
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_spokes_status ON spokes(status)`)
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_spokes_parent ON spokes(parent_spoke_id)`)
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_spoke ON feedback(spoke_id)`)
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_analytics_type ON analytics(metric_type)`)
+    // Story 4.3: Indexes for healing tables
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_feedback_log_spoke ON feedback_log(spoke_id)`)
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_healing_metrics_spoke ON healing_metrics(spoke_id)`)
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -429,6 +458,16 @@ export class ClientAgent extends DurableObject<Env> {
 
       case 'getEngagementStats':
         return Response.json(await this.getEngagementStats(params))
+
+      // Story 4.3: Self-Healing Loop Methods
+      case 'logHealingFeedback':
+        return Response.json(await this.logHealingFeedback(params))
+
+      case 'logHealingResult':
+        return Response.json(await this.logHealingResult(params))
+
+      case 'getUserEditPatterns':
+        return Response.json(await this.getUserEditPatterns(params))
 
       default:
         return Response.json({ error: `Unknown method: ${method}` }, { status: 400 })
@@ -2657,5 +2696,108 @@ Return JSON format:
       weak: (stats.weak as number) || 0,
       avgScore: Math.round(((stats.avg_score as number) || 0) * 10) / 10,
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Story 4.3: Self-Healing Loop Methods
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Story 4.3 AC1: Log healing feedback for learning
+   * Stores failure reasons to feedback_log for Creator to query
+   */
+  private async logHealingFeedback(params: {
+    spokeId: string
+    attempt: number
+    feedback: Record<string, unknown>
+    scores: Record<string, unknown>
+  }): Promise<{ success: boolean }> {
+    const now = new Date().toISOString()
+
+    // Store in feedback_log table for learning
+    this.sql.exec(`
+      INSERT INTO feedback_log (id, spoke_id, attempt, feedback_json, scores_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `,
+      crypto.randomUUID(),
+      params.spokeId,
+      params.attempt,
+      JSON.stringify(params.feedback),
+      JSON.stringify(params.scores),
+      now
+    )
+
+    return { success: true }
+  }
+
+  /**
+   * Story 4.3 AC5-6: Log healing result for analytics (FR50)
+   * Records whether self-healing succeeded for efficiency metrics
+   */
+  private async logHealingResult(params: {
+    spokeId: string
+    attempts: number
+    success: boolean
+    finalScores: Record<string, unknown>
+  }): Promise<{ success: boolean }> {
+    const now = new Date().toISOString()
+
+    // Record healing metric for FR50: Self-healing efficiency tracking
+    this.sql.exec(`
+      INSERT INTO healing_metrics (id, spoke_id, attempts, success, final_scores_json, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `,
+      crypto.randomUUID(),
+      params.spokeId,
+      params.attempts,
+      params.success ? 1 : 0,
+      JSON.stringify(params.finalScores),
+      now
+    )
+
+    return { success: true }
+  }
+
+  /**
+   * Story 4.3 AC7: Context Refresh - Query mutation registry for user edit patterns
+   * On 3rd healing attempt, incorporates user edit patterns to improve regeneration.
+   *
+   * NOTE: Currently returns user-edited content as approved examples. This allows the
+   * Creator AI to infer patterns from content the user has approved/edited.
+   *
+   * TODO (Story 4.X): For true pattern extraction, store original_content in spokes table
+   * or create spoke_mutations table to track before/after for explicit diff analysis.
+   */
+  private async getUserEditPatterns(params: {
+    pillarId: string
+    platform: string
+    limit?: number
+  }): Promise<string[]> {
+    const limit = params.limit || 5
+
+    // Query user-edited spokes for this pillar+platform to learn user preferences
+    // These are spokes where mutated_at is set, indicating user made changes
+    const mutatedSpokes = this.sql.exec(`
+      SELECT s.content, s.mutated_at, s.quality_scores
+      FROM spokes s
+      WHERE s.pillar_id = ?
+        AND s.platform = ?
+        AND s.mutated_at IS NOT NULL
+        AND s.status IN ('approved', 'published', 'pending_review')
+      ORDER BY s.mutated_at DESC
+      LIMIT ?
+    `, params.pillarId, params.platform, limit).toArray()
+
+    if (mutatedSpokes.length === 0) {
+      return []
+    }
+
+    // Return user-edited content as approved examples for the Creator to learn from
+    // Format: "Example [N]: [content]" so the AI understands these are reference samples
+    return mutatedSpokes.map((row, index) => {
+      const content = row.content as string
+      const truncatedContent = content.length > 300 ? content.substring(0, 300) + '...' : content
+      return `USER-APPROVED EXAMPLE ${index + 1}:\n${truncatedContent}`
+    })
   }
 }

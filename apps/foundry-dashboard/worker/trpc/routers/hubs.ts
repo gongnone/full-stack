@@ -765,7 +765,7 @@ export const hubsRouter = t.router({
   createPillarFirstHub: procedure
     .input(z.object({
       clientId: z.string().min(1),
-      pillarIds: z.array(z.string().uuid()).min(1).max(10),
+      pillarIds: z.array(z.string().min(1)).min(1).max(10),
       title: z.string().max(255).optional(),
     }))
     .mutation(async ({ ctx, input }) => {

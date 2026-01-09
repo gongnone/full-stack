@@ -11,6 +11,7 @@ import { UrlInputTab } from './UrlInputTab';
 import { RecentSourcesList } from './RecentSourcesList';
 import { CorePillarsTab } from './CorePillarsTab';
 import { trpc } from '@/lib/trpc-client';
+import { useClientId } from '@/lib/use-client-id';
 import type { Pillar } from './ExtractionProgress';
 
 type UploadTab = 'upload' | 'paste' | 'url' | 'pillars';
@@ -67,10 +68,14 @@ const BASE_TABS: { id: UploadTab; label: string; Icon: typeof UploadIcon }[] = [
 export function StepUploadSource({ clientId, onSourceSelected, onPillarsSelected }: StepUploadSourceProps) {
   const [activeTab, setActiveTab] = useState<UploadTab>('upload');
 
+  // Fallback to useClientId() if clientId prop not provided (Story 3.6 fix)
+  const fallbackClientId = useClientId();
+  const effectiveClientId = clientId || fallbackClientId;
+
   // Story 3.6: Query for approved pillars count to conditionally show Core Pillars tab
   const { data: approvedPillars } = trpc.pillars.getApprovedPillarsForHub.useQuery(
-    { clientId },
-    { enabled: !!clientId }
+    { clientId: effectiveClientId! },
+    { enabled: !!effectiveClientId }
   );
 
   const approvedPillarCount = approvedPillars?.length || 0;
@@ -82,10 +87,10 @@ export function StepUploadSource({ clientId, onSourceSelected, onPillarsSelected
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-client-id={effectiveClientId} data-pillar-count={approvedPillarCount}>
       {/* Recent Sources - Quick Select */}
       <RecentSourcesList
-        clientId={clientId}
+        clientId={effectiveClientId!}
         onSourceSelected={(sourceId, sourceType) => onSourceSelected(sourceId, sourceType)}
       />
 

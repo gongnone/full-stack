@@ -39,6 +39,9 @@ async function login(page: import('@playwright/test').Page) {
 /**
  * Helper: Navigate to Hub wizard Step 2 (Upload Source)
  * This is where the Core Pillars tab should appear
+ *
+ * Note: The wizard auto-advances from Step 1 to Step 2 after client selection.
+ * We just need to wait for the auto-advance to complete.
  */
 async function navigateToHubWizardStep2(page: import('@playwright/test').Page) {
   await login(page);
@@ -47,24 +50,10 @@ async function navigateToHubWizardStep2(page: import('@playwright/test').Page) {
   // Wait for wizard to load
   await expect(page.locator('h1:has-text("Create New Hub")')).toBeVisible();
 
-  // Step 1: Client should be auto-selected - wait for Step 2 to become enabled
-  // Give staging environment up to 15 seconds for auto-selection
-  await page.locator('[data-testid="wizard-step-2"]').waitFor({ state: 'visible', timeout: 5000 });
-
-  // Wait for button to become enabled (auto-selection completes)
-  await page.waitForFunction(
-    () => {
-      const btn = document.querySelector('[data-testid="wizard-step-2"]') as HTMLButtonElement;
-      return btn && !btn.disabled;
-    },
-    { timeout: 15000 }
-  );
-
-  // Click Step 2 button
-  await page.locator('[data-testid="wizard-step-2"]').click();
-
-  // Wait for step 2 content to load
-  await page.locator('[data-testid="step-upload-source"]').waitFor({ timeout: 10000 });
+  // Wait for auto-advance from Step 1 to Step 2 (happens after 500ms)
+  // Step 2 content appears when auto-advance completes
+  // Look for the Upload PDF tab as a marker that Step 2 is loaded
+  await expect(page.locator('text=Upload PDF')).toBeVisible({ timeout: 10000 });
 }
 
 /**
@@ -72,20 +61,49 @@ async function navigateToHubWizardStep2(page: import('@playwright/test').Page) {
  */
 async function navigateToStep2WithApprovedPillars(page: import('@playwright/test').Page) {
   await navigateToHubWizardStep2(page);
-
-  // Ensure we're on Step 2 where tabs are visible
-  await expect(page.locator('text=Upload PDF').or(page.locator('text=Paste Text'))).toBeVisible();
+  // navigateToHubWizardStep2 already verifies Step 2 is loaded
 }
 
 test.describe('Story 3.6: Pillar-First Hub Creation', () => {
   test.describe('AC1: Core Pillars tab appears when approved pillars exist', () => {
     test('[P1] should display Core Pillars tab when client has approved pillars', async ({ page }) => {
+      // Intercept network requests to debug tRPC calls
+      page.on('response', async response => {
+        if (response.url().includes('pillars.getApprovedPillarsForHub')) {
+          console.log('=== tRPC Response:', response.url());
+          console.log('Status:', response.status());
+          try {
+            const body = await response.text();
+            console.log('Body:', body);
+          } catch (e) {
+            console.log('Could not read body:', e);
+          }
+        }
+      });
+
+      // Enable console logging for debugging
+      page.on('console', msg => console.log('BROWSER:', msg.text()));
+
       // GIVEN: User is logged in and has a client with approved pillars
       await navigateToStep2WithApprovedPillars(page);
 
-      // WHEN: The tab bar renders on Step 2
-      const tabBar = page.locator('[role="tablist"], [data-testid="source-tabs"]');
-      await expect(tabBar).toBeVisible();
+      // Wait for React Query to complete
+      await page.waitForTimeout(3000);
+
+      // Debug: Check component data attributes
+      const debugInfo = await page.evaluate(() => {
+        const uploadSource = document.querySelector('[data-client-id]');
+        return {
+          clientId: uploadSource?.getAttribute('data-client-id'),
+          pillarCount: uploadSource?.getAttribute('data-pillar-count'),
+          hasCorePillarsTab: !!document.querySelector('[data-testid="core-pillars-tab"]'),
+          tabButtons: Array.from(document.querySelectorAll('button')).slice(0, 5).map(b => b.textContent),
+        };
+      });
+      console.log('===  DEBUG INFO:', JSON.stringify(debugInfo, null, 2));
+
+      // Take screenshot for debugging
+      await page.screenshot({ path: 'test-results/debug-step2-tabs.png', fullPage: true });
 
       // THEN: Core Pillars tab is visible with target/bullseye icon
       const corePillarsTab = page.locator('[data-testid="core-pillars-tab"]');

@@ -44,7 +44,7 @@ const WIZARD_STEPS: Step[] = [
 
 // Source types that support extraction in MVP
 const SUPPORTED_SOURCE_TYPES = ['text'] as const;
-type SourceType = 'pdf' | 'text' | 'url';
+type SourceType = 'pdf' | 'text' | 'url' | 'pillars';
 
 function ArrowLeftIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
@@ -134,6 +134,17 @@ function NewHubWizard() {
       );
     }
   }, [selectedClientId, extractMutation]);
+
+  // Story 3.6: Handle pillar-first hub creation (skip extraction, use approved pillars)
+  const handlePillarsSelect = useCallback((pillars: Pillar[]) => {
+    // Set pillars as extracted (skip extraction step)
+    setExtractedPillars(pillars);
+    // Set a synthetic sourceId to indicate pillar-first flow
+    setSelectedSourceId('pillar-first');
+    setSelectedSourceType('pillars' as SourceType);
+    // Advance to Step 3
+    setCurrentStep(3);
+  }, []);
 
   const handleExtractionComplete = useCallback((pillars: Pillar[]) => {
     setExtractedPillars(pillars);
@@ -377,6 +388,7 @@ function NewHubWizard() {
           <StepUploadSource
             clientId={selectedClientId}
             onSourceSelected={handleSourceSelect}
+            onPillarsSelected={handlePillarsSelect}
           />
         )}
 

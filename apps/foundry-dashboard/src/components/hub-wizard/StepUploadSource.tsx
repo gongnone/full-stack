@@ -130,6 +130,7 @@ export function StepUploadSource({ clientId, onSourceSelected, onPillarsSelected
               {/* Story 3.6: Show pillar count badge (AC1) */}
               {isPillarsTab && approvedPillarCount > 0 && (
                 <span
+                  data-testid="pillar-count-badge"
                   className="ml-1 px-1.5 py-0.5 text-xs font-semibold rounded-full"
                   style={{
                     backgroundColor: isActive ? 'var(--approve)' : 'var(--bg-hover)',

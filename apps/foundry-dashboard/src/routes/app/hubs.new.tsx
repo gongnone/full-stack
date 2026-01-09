@@ -319,27 +319,39 @@ function NewHubWizard() {
     if (isPillarFirst) {
       // Use createPillarFirstHub for pillar-first flow
       const pillarIds = extractedPillars.map(p => p.id);
+      console.log('[Hub Creation] Using pillar-first flow:', { clientId: selectedClientId, pillarIds, title: hubTitle });
       createPillarFirstHubMutation.mutate({
         clientId: selectedClientId,
         pillarIds,
         title: hubTitle.trim() || undefined,
       }, {
         onSuccess: (result) => {
+          console.log('[Hub Creation] Success:', result);
           setHubCreated(true);
           setCreatedHubId(result.hubId);
+        },
+        onError: (error) => {
+          console.error('[Hub Creation] Error:', error);
+          setExtractionError(`Failed to create hub: ${error.message}`);
         },
       });
     } else {
       // Use regular finalize for source-based flow
       if (!selectedSourceId) return;
+      console.log('[Hub Creation] Using regular flow:', { sourceId: selectedSourceId, clientId: selectedClientId, title: hubTitle });
       finalizeMutation.mutate({
         sourceId: selectedSourceId,
         clientId: selectedClientId,
         title: hubTitle.trim() || undefined,
       }, {
         onSuccess: (result) => {
+          console.log('[Hub Creation] Success:', result);
           setHubCreated(true);
           setCreatedHubId(result.hubId);
+        },
+        onError: (error) => {
+          console.error('[Hub Creation] Error:', error);
+          setExtractionError(`Failed to create hub: ${error.message}`);
         },
       });
     }

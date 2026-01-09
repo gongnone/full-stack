@@ -5,7 +5,8 @@
 
 import { useState } from 'react';
 
-export type SourceType = 'pdf' | 'text' | 'url';
+// Story 3.6: Added 'pillars' for pillar-first hub creation
+export type SourceType = 'pdf' | 'text' | 'url' | 'pillars';
 
 interface SourceOption {
   type: SourceType;

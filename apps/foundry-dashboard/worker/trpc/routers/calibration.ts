@@ -1,6 +1,6 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import type { Context } from '../context';
 import type {
   TrainingSample,
@@ -11,6 +11,7 @@ import type {
 import { assertClientAccess } from '../middleware/client-access';
 import * as brandQueries from '../../db/queries/brand';
 import * as schema from '../../db/schema';
+import { sendBrandDNACompletionEmail, sendBrandDNAProcessingFailedEmail } from '../../email';
 
 // Helper to map DB TrainingSample to API TrainingSample
 function mapTrainingSample(dbSample: schema.TrainingSample): TrainingSample {
@@ -1128,5 +1129,57 @@ export const calibrationRouter = t.router({
       }).run();
 
       return { success: true, snapshotId };
+    }),
+
+  // Story R-13: Callback endpoint for calibration workflow completion
+  notifyCalibrationComplete: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      success: z.boolean(),
+      error: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const { clientId, success, error } = input;
+
+      // Get agency owner email (Better Auth user table not in Drizzle schema)
+      const agencyOwner = await ctx.db.prepare(`
+        SELECT u.email, u.name
+        FROM client_members cm
+        JOIN user u ON cm.user_id = u.id
+        WHERE cm.client_id = ? AND cm.role = 'agency_owner'
+        LIMIT 1
+      `).bind(clientId).first<{ email: string; name: string | null }>();
+
+      if (!agencyOwner?.email) {
+        return { sent: false };
+      }
+
+      // Get client name
+      const client = await ctx.drizzle
+        .select({ name: schema.clients.name })
+        .from(schema.clients)
+        .where(eq(schema.clients.id, clientId))
+        .get();
+
+      const dashboardUrl = ctx.env.BETTER_AUTH_URL || 'https://foundry.williamjshaw.ca';
+
+      if (success) {
+        await sendBrandDNACompletionEmail(
+          ctx.env,
+          agencyOwner.email,
+          client?.name || 'Your client',
+          clientId,
+          dashboardUrl
+        );
+      } else {
+        await sendBrandDNAProcessingFailedEmail(
+          ctx.env,
+          agencyOwner.email,
+          client?.name || 'Your client',
+          error || 'Unknown error'
+        );
+      }
+
+      return { sent: true };
     }),
 });

@@ -237,27 +237,6 @@ export const onboardingRouter = t.router({
         voiceTranscription ? now : null
       ).run();
 
-      // AC7: Send notification to agency owner
-      const agencyOwner = await ctx.db.prepare(`
-        SELECT u.email FROM client_members cm
-        JOIN user u ON cm.user_id = u.id
-        WHERE cm.client_id = ? AND cm.role = 'agency_owner'
-        LIMIT 1
-      `).bind(invite.client_id).first<{ email: string }>();
-
-      if (agencyOwner?.email) {
-        const dashboardUrl = ctx.env.BETTER_AUTH_URL || 'https://foundry.williamjshaw.ca';
-        await sendBrandDNACompletionEmail(
-          ctx.env,
-          agencyOwner.email,
-          invite.client_name,
-          invite.client_id,
-          dashboardUrl
-        ).catch(err => {
-          console.error('[Onboarding] Failed to send agency notification:', err);
-        });
-      }
-
       // Story 10-2: Trigger Deep Research Agent (runs async)
       // The research agent will:
       // 1. Analyze Brand DNA transcript and content

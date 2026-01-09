@@ -25,5 +25,8 @@ export { PillarDiscoveryList } from './PillarDiscoveryList';
 export { IngestionError } from './IngestionError';
 export { IngestionSuccess } from './IngestionSuccess';
 
+// Story 3.6: Pillar-First Hub Creation
+export { CorePillarsTab } from './CorePillarsTab';
+
 // Re-export types for consumers
 export type { Step } from './WizardStepper';

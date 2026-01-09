@@ -1,5 +1,4 @@
 import { WorkflowEntrypoint, WorkflowEvent, WorkflowStep } from 'cloudflare:workers';
-import puppeteer from '@cloudflare/puppeteer';
 import { PHASE_PROMPTS } from '@repo/agent-logic';
 import { initDatabase } from '@repo/data-ops/database';
 import { competitors, competitorOfferMap, projects } from '@repo/data-ops/schema';
@@ -35,28 +34,10 @@ export class GoldenPheasantWorkflow extends WorkflowEntrypoint<Env, GoldenPheasa
             return { status: 'initialized' };
         });
 
-        // 2. Scrape Competitor Website (Browser)
+        // 2. Scrape Competitor Website - disabled (puppeteer removed)
         const scrapeResult = await step.do('scrape-site', async () => {
-            if (!this.env.VIRTUAL_BROWSER) return { skipped: true, reason: 'No Browser Binding' };
-
-            // Basic landing page scrape
-            const browser = await puppeteer.launch(this.env.VIRTUAL_BROWSER);
-            try {
-                const page = await browser.newPage();
-                await page.goto(competitorUrl, { waitUntil: 'networkidle0', timeout: 30000 });
-                const content = await page.content();
-                // Simple text extraction for analysis
-                const text = await page.evaluate(() => {
-                    // @ts-ignore
-                    return document.body.innerText;
-                });
-                return { success: true, text: text.substring(0, 5000) }; // Limit for LLM
-            } catch (e) {
-                console.error('Site scrape failed', e);
-                return { success: false, error: String(e) };
-            } finally {
-                await browser.close();
-            }
+            // Browser scraping removed - using Playwright MCP for browser automation
+            return { skipped: true, reason: 'Browser scraping disabled', text: '' };
         });
 
         // 3. Wait for "Golden Pheasant" Upload (HITL)

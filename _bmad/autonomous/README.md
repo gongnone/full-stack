@@ -149,12 +149,12 @@ git log --oneline  # See what it did
 
 ## Requirements
 
-- **Claude Code** (`claude` CLI) with Chrome DevTools MCP configured
+- **Claude Code** (`claude` CLI) with Playwright MCP configured
 - **tmux**
 - **jq**
 - **git**
 
-Browser testing uses your existing Chrome DevTools MCP—no Playwright or Puppeteer needed.
+Browser testing uses Playwright MCP for automation.
 
 ## Tips
 

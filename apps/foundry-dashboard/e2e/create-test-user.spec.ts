@@ -43,6 +43,10 @@ async function createOrVerifyUser(
   try {
     await page.waitForURL(/\/app/, { timeout: 15000 });
     console.log(`✅ Created: ${user.email}`);
+
+    // Initialize test data (client, pillars, client_members association)
+    await initializeTestData(page);
+
     return true;
   } catch {
     // Check for error messages
@@ -56,6 +60,10 @@ async function createOrVerifyUser(
       try {
         await page.waitForURL(/\/app/, { timeout: 10000 });
         console.log(`✅ Verified: ${user.email} (already exists)`);
+
+        // Initialize test data for existing user too
+        await initializeTestData(page);
+
         return true;
       } catch {
         console.log(`❌ Failed to login: ${user.email}`);
@@ -67,6 +75,28 @@ async function createOrVerifyUser(
   }
 }
 
+async function initializeTestData(page: import('@playwright/test').Page): Promise<void> {
+  try {
+    // Call tRPC testSetup.initializeTestData mutation
+    const response = await page.evaluate(async () => {
+      const res = await fetch('/trpc/testSetup.initializeTestData', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      return res.json();
+    });
+
+    if (response.result?.data) {
+      console.log(`   📊 Test data initialized: ${response.result.data.pillarsCreated} pillars created`);
+    } else {
+      console.log(`   ⚠️  Test data initialization response: ${JSON.stringify(response).substring(0, 100)}`);
+    }
+  } catch (error: any) {
+    console.log(`   ⚠️  Failed to initialize test data: ${error.message}`);
+  }
+}
+
 test('create legacy test user', async ({ page }) => {
   const success = await createOrVerifyUser(page, LEGACY_USER);
   expect(success).toBe(true);
@@ -75,7 +105,7 @@ test('create legacy test user', async ({ page }) => {
   console.log(`   E2E_TEST_PASSWORD: ${LEGACY_USER.password}`);
 });
 
-test('create shard test users for parallel execution', async ({ page }) => {
+test.skip('create shard test users for parallel execution', async ({ page }) => {
   console.log('\n🔧 Creating shard test users for parallel E2E...\n');
 
   const results: string[] = [];

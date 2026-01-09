@@ -101,7 +101,8 @@
 
   // Environment variables
   "vars": {
-    "ENVIRONMENT": "development"
+    "ENVIRONMENT": "development",
+    "FOUNDRY_DASHBOARD_URL": "http://localhost:5173"
   },
 
   // Migrations for Durable Object SQLite
@@ -119,7 +120,8 @@
       "workers_dev": false,
       "keep_vars": true,
       "vars": {
-        "ENVIRONMENT": "stage"
+        "ENVIRONMENT": "stage",
+        "FOUNDRY_DASHBOARD_URL": "https://foundry-stage.williamjshaw.ca"
       },
       "durable_objects": {
         "bindings": [
@@ -204,7 +206,8 @@
       "workers_dev": false,
       "keep_vars": true,
       "vars": {
-        "ENVIRONMENT": "production"
+        "ENVIRONMENT": "production",
+        "FOUNDRY_DASHBOARD_URL": "https://foundry.williamjshaw.ca"
       },
       "durable_objects": {
         "bindings": [

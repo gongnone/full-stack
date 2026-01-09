@@ -55,12 +55,13 @@ development_status:
   2-5-voice-marker-and-banned-word-management: Verified
 
   # Epic 3: Hub Creation & Content Ingestion (The Strategy Layer)
-  epic-3: Verified
+  epic-3: in-progress
   3-1-source-selection-and-upload-wizard: Verified
   3-2-thematic-extraction-engine: Verified
   3-3-interactive-pillar-configuration: Verified
   3-4-hub-metadata-and-state-management: Verified
   3-5-real-time-ingestion-progress: Verified
+  3-6-pillar-first-hub-creation: ready-for-dev  # Use approved Brand DNA pillars instead of extraction
 
   # Epic 4: Spoke Generation & Quality Assurance (The Generation Layer)
   epic-4: Verified
@@ -75,6 +76,7 @@ development_status:
   5-1-production-queue-dashboard: Verified
   5-2-sprint-view-with-signal-header: Verified
   5-3-keyboard-first-approval-flow: Verified
+  5-3-e2e-keyboard-approval-tests: ready-for-dev
   5-4-kill-chain-cascade: Verified
   5-5-clone-best-and-variations: Verified
   5-6-executive-producer-report: Verified
@@ -249,10 +251,35 @@ remediation_backlog:
       - src/components/brand-dna/VoiceMetricsProgress.tsx
     story_file: _bmad-output/implementation-artifacts/R-12-brand-dna-tooltip-clarity.md
 
+  R-13-delay-brand-dna-email-until-ready:
+    status: review
+    priority: P1
+    effort: 2-3 hours
+    issue: "Brand DNA completion email sent before calibration finishes - 'View Results' shows nothing"
+    solution: "Move email trigger to Calibration Workflow completion instead of onboarding submit"
+    files:
+      - worker/trpc/routers/onboarding.ts (remove email send)
+      - worker/workflows/calibration-workflow.ts (add email send)
+      - worker/email/index.ts (update copy)
+    story_file: _bmad-output/implementation-artifacts/R-13-delay-brand-dna-email-until-ready.md
+
+  R-14-dedicated-client-brand-dna-results-page:
+    status: review
+    priority: P2
+    effort: 3-4 hours
+    issue: "Email 'View Brand DNA Results' links to generic client page, not detailed results view"
+    solution: "Create dedicated /app/clients/{clientId}/brand-dna route with full DNA display"
+    depends_on: R-13
+    files:
+      - src/routes/app/clients.$clientId.brand-dna.tsx (new)
+      - worker/email/index.ts (update URL)
+    story_file: _bmad-output/implementation-artifacts/R-14-dedicated-client-brand-dna-results-page.md
+
 remediation_summary:
-  total_stories: 8
+  total_stories: 10
   critical_blockers: 0
   completed: 8
+  ready_for_dev: 2
   in_review: 0
   estimated_effort: "14-19 hours"
   actual_completion: "2025-12-29"

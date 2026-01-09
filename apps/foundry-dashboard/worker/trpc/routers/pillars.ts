@@ -801,6 +801,67 @@ Generate a different angle while keeping the same framework type. Respond with J
       };
     }),
 
+  // ===== Story 3.6: Pillar-First Hub Creation =====
+
+  // Get approved pillars transformed for Hub wizard format
+  getApprovedPillarsForHub: procedure
+    .input(
+      z.object({
+        clientId: z.string().min(1),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // Get approved pillars from content_pillars table
+      const pillars = await ctx.drizzle
+        .select()
+        .from(schema.content_pillars)
+        .where(
+          and(
+            eq(schema.content_pillars.client_id, input.clientId),
+            eq(schema.content_pillars.status, 'approved')
+          )
+        )
+        .orderBy(schema.content_pillars.priority)
+        .all();
+
+      // Transform to Hub wizard format (extracted_pillars shape)
+      return pillars.map(p => {
+        // Map framework_type to psychological angle
+        const angleMap: Record<string, string> = {
+          'catalyst': 'Contrarian',
+          'core_truth': 'Authority',
+          'proof': 'Transformation',
+        };
+
+        // Extract supporting points from rationale JSON
+        let supportingPoints: string[] = [];
+        if (p.rationale) {
+          try {
+            const rationale = JSON.parse(p.rationale) as PillarRationale;
+            supportingPoints = [
+              rationale.voiceConnection,
+              rationale.audienceAlignment,
+              rationale.competitorDifferentiation,
+            ].filter(Boolean);
+          } catch {
+            // Ignore parse errors
+          }
+        }
+
+        return {
+          id: p.id,
+          title: p.title,
+          coreClaim: p.description || '',
+          psychologicalAngle: angleMap[p.framework_type || ''] || 'Authority',
+          estimatedSpokeCount: 5,
+          supportingPoints,
+          frameworkType: p.framework_type as FrameworkType | null,
+        };
+      });
+    }),
+
   // ===== Story 1.5-3-6: Brand DNA Strength Score =====
 
   // Get current strength score with breakdown

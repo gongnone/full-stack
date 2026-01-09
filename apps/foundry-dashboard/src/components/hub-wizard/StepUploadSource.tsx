@@ -1,5 +1,6 @@
 /**
  * Story 3-1: Source Selection & Upload Wizard
+ * Story 3.6: Pillar-First Hub Creation (Core Pillars tab)
  * StepUploadSource - Tab interface orchestrating upload options
  */
 
@@ -8,13 +9,17 @@ import { SourceDropZone } from './SourceDropZone';
 import { TextPasteTab } from './TextPasteTab';
 import { UrlInputTab } from './UrlInputTab';
 import { RecentSourcesList } from './RecentSourcesList';
+import { CorePillarsTab } from './CorePillarsTab';
+import { trpc } from '@/lib/trpc-client';
+import type { Pillar } from './ExtractionProgress';
 
-type UploadTab = 'upload' | 'paste' | 'url';
-type SourceType = 'pdf' | 'text' | 'url';
+type UploadTab = 'upload' | 'paste' | 'url' | 'pillars';
+export type SourceType = 'pdf' | 'text' | 'url' | 'pillars';
 
 interface StepUploadSourceProps {
   clientId: string;
   onSourceSelected: (sourceId: string, sourceType: SourceType) => void;
+  onPillarsSelected?: (pillars: Pillar[]) => void;
 }
 
 function UploadIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
@@ -41,14 +46,40 @@ function LinkIcon({ className, style }: { className?: string; style?: React.CSSP
   );
 }
 
-const TABS: { id: UploadTab; label: string; Icon: typeof UploadIcon }[] = [
+// Story 3.6: Target/bullseye icon for Core Pillars tab
+function TargetIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <circle cx="12" cy="12" r="10" strokeWidth={1.5} />
+      <circle cx="12" cy="12" r="6" strokeWidth={1.5} />
+      <circle cx="12" cy="12" r="2" strokeWidth={1.5} />
+    </svg>
+  );
+}
+
+// Base tabs (always shown)
+const BASE_TABS: { id: UploadTab; label: string; Icon: typeof UploadIcon }[] = [
   { id: 'upload', label: 'Upload PDF', Icon: UploadIcon },
   { id: 'paste', label: 'Paste Text', Icon: TextIcon },
   { id: 'url', label: 'From URL', Icon: LinkIcon },
 ];
 
-export function StepUploadSource({ clientId, onSourceSelected }: StepUploadSourceProps) {
+export function StepUploadSource({ clientId, onSourceSelected, onPillarsSelected }: StepUploadSourceProps) {
   const [activeTab, setActiveTab] = useState<UploadTab>('upload');
+
+  // Story 3.6: Query for approved pillars count to conditionally show Core Pillars tab
+  const { data: approvedPillars } = trpc.pillars.getApprovedPillarsForHub.useQuery(
+    { clientId },
+    { enabled: !!clientId }
+  );
+
+  const approvedPillarCount = approvedPillars?.length || 0;
+
+  // Build tabs array - add Core Pillars tab if approved pillars exist (AC1, AC2)
+  const tabs = [...BASE_TABS];
+  if (approvedPillarCount > 0) {
+    tabs.push({ id: 'pillars', label: 'Core Pillars', Icon: TargetIcon });
+  }
 
   return (
     <div className="space-y-6">
@@ -72,12 +103,14 @@ export function StepUploadSource({ clientId, onSourceSelected }: StepUploadSourc
         className="flex rounded-lg p-1"
         style={{ backgroundColor: 'var(--bg-surface)' }}
       >
-        {TABS.map(({ id, label, Icon }) => {
+        {tabs.map(({ id, label, Icon }) => {
           const isActive = activeTab === id;
+          const isPillarsTab = id === 'pillars';
           return (
             <button
               key={id}
               onClick={() => setActiveTab(id)}
+              data-testid={isPillarsTab ? 'core-pillars-tab' : undefined}
               className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-medium transition-all duration-200"
               style={{
                 backgroundColor: isActive ? 'var(--bg-primary)' : 'transparent',
@@ -89,6 +122,18 @@ export function StepUploadSource({ clientId, onSourceSelected }: StepUploadSourc
                 style={{ color: isActive ? 'var(--text-primary)' : 'var(--text-muted)' }}
               />
               <span className="hidden sm:inline">{label}</span>
+              {/* Story 3.6: Show pillar count badge (AC1) */}
+              {isPillarsTab && approvedPillarCount > 0 && (
+                <span
+                  className="ml-1 px-1.5 py-0.5 text-xs font-semibold rounded-full"
+                  style={{
+                    backgroundColor: isActive ? 'var(--approve)' : 'var(--bg-hover)',
+                    color: isActive ? 'white' : 'var(--text-muted)',
+                  }}
+                >
+                  {approvedPillarCount}
+                </span>
+              )}
             </button>
           );
         })}
@@ -118,6 +163,13 @@ export function StepUploadSource({ clientId, onSourceSelected }: StepUploadSourc
           <UrlInputTab
             clientId={clientId}
             onSourceCreated={(sourceId) => onSourceSelected(sourceId, 'url')}
+          />
+        )}
+        {/* Story 3.6: Core Pillars tab content (AC3) */}
+        {activeTab === 'pillars' && onPillarsSelected && (
+          <CorePillarsTab
+            clientId={clientId}
+            onPillarsSelected={onPillarsSelected}
           />
         )}
       </div>

@@ -62,30 +62,16 @@ pnpm foundry:typecheck
 
 ## CI/CD Deployment
 
-Deployments are automated via GitHub Actions:
+Deployments are handled automatically by **Cloudflare's Git integration**:
 
-| Branch | Environment | Workflow |
-|--------|-------------|----------|
-| `stage` | Stage | `.github/workflows/deploy-stage.yaml` |
-| `main` | Production | `.github/workflows/deploy-production.yaml` |
-
-### Required GitHub Secrets
-
-Add these in **Repository Settings > Secrets and variables > Actions > Secrets**:
-
-| Secret | Description |
+| Branch | Environment |
 |--------|-------------|
-| `CLOUDFLARE_API_TOKEN` | API token with "Edit Cloudflare Workers" permissions |
-| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID |
+| `stage` | Stage (foundry-stage.williamjshaw.ca) |
+| `main` | Production (foundry.williamjshaw.ca) |
 
-### Workflow Features
+Push to the branch and Cloudflare deploys automatically. No GitHub Actions needed.
 
-- Resource isolation checks (prevents Legacy/Foundry database collision)
-- TypeScript type checking
-- Parallel deployment of all 4 workers
-- Health check verification
-
-### Manual Deployment
+### Manual Deployment (if needed)
 
 ```bash
 # Stage

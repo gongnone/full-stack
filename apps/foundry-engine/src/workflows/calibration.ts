@@ -66,6 +66,8 @@ export class CalibrationWorkflow extends WorkflowEntrypoint<Env, CalibrationPara
   async run(event: WorkflowEvent<CalibrationParams>, step: WorkflowStep) {
     const { clientId, contentType, content, r2Key, audioR2Key, sampleIds } = event.payload;
 
+    try {
+
     // Step 1: Get current Brand DNA for comparison
     const currentDNA = await step.do('get-current-dna', async () => {
       const id = this.env.CLIENT_AGENT.idFromName(clientId);
@@ -436,6 +438,23 @@ Output JSON:
       }
     });
 
+    // Step 10: Notify foundry-dashboard that calibration is complete (Story R-13)
+    await step.do('notify-completion', async () => {
+      try {
+        const dashboardUrl = this.env.FOUNDRY_DASHBOARD_URL || 'https://foundry.williamjshaw.ca';
+        await fetch(`${dashboardUrl}/api/trpc/calibration.notifyCalibrationComplete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            json: { clientId, success: true }
+          }),
+        });
+      } catch (e) {
+        console.error('[Calibration Workflow] Failed to notify completion:', e);
+        // Non-blocking - calibration still succeeded
+      }
+    });
+
     return {
       clientId,
       contentType,
@@ -453,5 +472,27 @@ Output JSON:
       improvement: scoreAfter - scoreBefore,
       lastCalibration: mergedDNA.lastCalibration,
     };
+
+    } catch (error) {
+      // Story R-13 AC3: Notify failure on calibration error
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error during calibration';
+      console.error('[Calibration Workflow] Failed:', errorMessage, error);
+
+      try {
+        const dashboardUrl = this.env.FOUNDRY_DASHBOARD_URL || 'https://foundry.williamjshaw.ca';
+        await fetch(`${dashboardUrl}/api/trpc/calibration.notifyCalibrationComplete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            json: { clientId, success: false, error: errorMessage }
+          }),
+        });
+      } catch (notifyError) {
+        console.error('[Calibration Workflow] Failed to notify error:', notifyError);
+      }
+
+      // Re-throw to mark workflow as failed
+      throw error;
+    }
   }
 }

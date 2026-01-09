@@ -454,12 +454,12 @@ export async function sendBrandDNACompletionEmail(
     </p>
     <p style="margin: 0 0 24px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
       <strong>${escapeHtml(clientName)}</strong> has completed their Brand DNA capture.
-      Their voice profile is now being processed and will be ready for content generation shortly.
+      Their voice profile has been analyzed and is ready for content generation.
     </p>
     <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 24px;">
       <tr>
         <td style="background-color: #00D26A; border-radius: 6px;">
-          <a href="${dashboardUrl}/app/clients/${clientId}" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none;">
+          <a href="${dashboardUrl}/app/clients/${clientId}/brand-dna" target="_blank" style="display: inline-block; padding: 14px 32px; font-size: 16px; font-weight: 600; color: #0F1419; text-decoration: none;">
             View Brand DNA Results →
           </a>
         </td>
@@ -474,11 +474,56 @@ export async function sendBrandDNACompletionEmail(
 Great news!
 
 ${clientName} has completed their Brand DNA capture.
-Their voice profile is now being processed and will be ready for content generation shortly.
+Their voice profile has been analyzed and is ready for content generation.
 
-View Brand DNA Results: ${dashboardUrl}/app/clients/${clientId}
+View Brand DNA Results: ${dashboardUrl}/app/clients/${clientId}/brand-dna
 
 Next step: Once processing completes, you can start creating Hubs for ${clientName}.
+`;
+
+  return sendEmail(env, {
+    to: agencyEmail,
+    subject,
+    html: wrapInTemplate(htmlContent),
+    text: textContent.trim(),
+  });
+}
+
+/**
+ * Send Brand DNA Processing Failed email (Story R-13 AC3)
+ */
+export async function sendBrandDNAProcessingFailedEmail(
+  env: Env,
+  agencyEmail: string,
+  clientName: string,
+  errorMessage: string
+): Promise<{ success: boolean; error?: string }> {
+  // Silent fallback for dev mode
+  if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+    console.log(`[Email Mock] Sending Brand DNA Processing Failed notification to ${agencyEmail} for ${clientName}: ${errorMessage}`);
+    return { success: true };
+  }
+
+  const subject = `${clientName}'s Brand DNA processing encountered an issue`;
+
+  const htmlContent = `
+    <p style="margin: 0 0 20px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
+      We encountered an issue processing <strong>${escapeHtml(clientName)}</strong>'s Brand DNA.
+    </p>
+    <p style="margin: 0 0 24px; font-size: 14px; color: #F4212E; background-color: #2A1F1F; padding: 12px; border-radius: 4px; border-left: 3px solid #F4212E;">
+      <strong>Error:</strong> ${escapeHtml(errorMessage)}
+    </p>
+    <p style="margin: 0 0 24px; font-size: 16px; color: #E7E9EA; line-height: 1.6;">
+      Please have the client retry the onboarding process, or contact support if the issue persists.
+    </p>
+  `;
+
+  const textContent = `
+We encountered an issue processing ${clientName}'s Brand DNA.
+
+Error: ${errorMessage}
+
+Please have the client retry the onboarding process, or contact support if the issue persists.
 `;
 
   return sendEmail(env, {

@@ -759,6 +759,123 @@ export const hubsRouter = t.router({
       return { success: true };
     }),
 
+  // ===== Story 3.6: Pillar-First Hub Creation =====
+
+  // Create a Hub using approved Brand DNA pillars (no source upload needed)
+  createPillarFirstHub: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      pillarIds: z.array(z.string().uuid()).min(1).max(10),
+      title: z.string().max(255).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      const now = Date.now();
+      const sourceId = crypto.randomUUID();
+      const hubId = crypto.randomUUID();
+
+      // AC5: Create synthetic hub_sources record with source_type = 'pillars'
+      await ctx.db.prepare(`
+        INSERT INTO hub_sources (id, client_id, user_id, title, source_type, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'pillars', 'ready', ?, ?)
+      `).bind(
+        sourceId,
+        input.clientId,
+        ctx.userId,
+        input.title || 'Core Pillars Hub',
+        now,
+        now
+      ).run();
+
+      // AC5: Copy and transform pillars from content_pillars to extracted_pillars
+      // Map framework_type to psychological_angle
+      const angleMap: Record<string, string> = {
+        'catalyst': 'Contrarian',
+        'core_truth': 'Authority',
+        'proof': 'Transformation',
+      };
+
+      // Get the source pillars from content_pillars
+      const placeholders = input.pillarIds.map(() => '?').join(',');
+      const contentPillars = await ctx.db.prepare(`
+        SELECT id, title, description, framework_type, rationale
+        FROM content_pillars
+        WHERE id IN (${placeholders}) AND client_id = ?
+      `).bind(...input.pillarIds, input.clientId).all();
+
+      if (!contentPillars.results || contentPillars.results.length === 0) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'No approved pillars found with the provided IDs',
+        });
+      }
+
+      // Insert transformed pillars into extracted_pillars
+      let insertedCount = 0;
+      for (const pillar of contentPillars.results as Record<string, unknown>[]) {
+        const extractedPillarId = crypto.randomUUID();
+        const psychologicalAngle = angleMap[(pillar.framework_type as string) || ''] || 'Authority';
+
+        // Extract supporting points from rationale JSON
+        let supportingPoints: string[] = [];
+        if (pillar.rationale) {
+          try {
+            const rationale = JSON.parse(pillar.rationale as string);
+            supportingPoints = [
+              rationale.voiceConnection,
+              rationale.audienceAlignment,
+              rationale.competitorDifferentiation,
+            ].filter(Boolean);
+          } catch {
+            // Ignore parse errors
+          }
+        }
+
+        await ctx.db.prepare(`
+          INSERT INTO extracted_pillars (id, source_id, client_id, hub_id, title, core_claim, psychological_angle, estimated_spoke_count, supporting_points, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+          extractedPillarId,
+          sourceId,
+          input.clientId,
+          hubId,
+          pillar.title as string,
+          pillar.description as string || '',
+          psychologicalAngle,
+          5, // Default spoke count
+          JSON.stringify(supportingPoints),
+          now
+        ).run();
+
+        insertedCount++;
+      }
+
+      // Create the hub record
+      const hubTitle = input.title || 'Core Pillars Hub';
+      await ctx.db.prepare(`
+        INSERT INTO hubs (id, client_id, user_id, source_id, title, source_type, pillar_count, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 'pillars', ?, 'ready', ?, ?)
+      `).bind(
+        hubId,
+        input.clientId,
+        ctx.userId,
+        sourceId,
+        hubTitle,
+        insertedCount,
+        now,
+        now
+      ).run();
+
+      return {
+        hubId,
+        sourceId,
+        title: hubTitle,
+        pillarCount: insertedCount,
+        redirectTo: `/app/hubs/${hubId}`,
+      };
+    }),
+
   // ===== HUB MANAGEMENT (Story 3.4) =====
 
   // List all Hubs for a client from D1

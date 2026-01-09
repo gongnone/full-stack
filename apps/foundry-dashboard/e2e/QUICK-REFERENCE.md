@@ -348,6 +348,5 @@ expect(metrics.cls).toBeLessThan(0.1);    // CLS < 0.1
 ## Resources
 
 - Full Documentation: [README.md](./README.md)
-- Setup Guide: [/.github/SETUP-E2E.md](/.github/SETUP-E2E.md)
+- Setup Guide: [./setup/README.md](./setup/README.md)
 - Playwright Docs: https://playwright.dev
-- Workflow File: [/.github/workflows/e2e-tests.yaml](/.github/workflows/e2e-tests.yaml)

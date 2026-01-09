@@ -48,11 +48,15 @@ DELETE FROM client_research_reports WHERE client_id = 'e2e-test-client-001';
 DELETE FROM clients WHERE id = 'e2e-test-client-001';
 ```
 
-## CI/CD Integration
+## Running E2E Tests
 
-The GitHub Actions E2E workflow automatically seeds test data before running tests.
+Run E2E tests locally before pushing changes:
 
-See: `.github/workflows/e2e-tests.yaml`
+```bash
+cd apps/foundry-dashboard
+pnpm exec playwright test                # Run all tests
+pnpm exec playwright test --grep "@P0"   # Run priority tests
+```
 
 ## Troubleshooting
 

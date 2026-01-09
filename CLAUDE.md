@@ -135,37 +135,18 @@ Deployments are handled automatically by **Cloudflare's Git integration**:
 
 Push to the branch and Cloudflare deploys automatically. No GitHub Actions needed.
 
-### E2E Test Pipeline (IMPORTANT)
+### Running E2E Tests
 
-**Workflow:** `.github/workflows/e2e-tests.yaml`
+E2E tests are run locally or manually before pushing changes:
 
-The E2E Test Pipeline runs automatically on pushes to `stage`/`main` and can be monitored at:
-- **GitHub Actions URL:** https://github.com/gongnone/full-stack/actions/workflows/e2e-tests.yaml
-
-| Trigger | Tests Run |
-|---------|-----------|
-| Push to `stage`/`main` | `accessibility.spec.ts` (3 tests) |
-| Manual with `@P0` filter | All P0 priority tests |
-| Manual with no filter | Full test suite (all E2E) |
-
-**To manually trigger full E2E suite:**
 ```bash
-gh workflow run "e2e-tests.yaml" --ref stage -f test_filter="@P0"
-gh workflow run "e2e-tests.yaml" --ref stage  # All tests
+cd apps/foundry-dashboard
+pnpm exec playwright test                    # Run all E2E tests
+pnpm exec playwright test --grep "@P0"       # Run priority tests
+pnpm exec playwright test --ui               # Interactive UI mode
 ```
 
-**Or via GitHub UI:**
-1. Go to Actions → "E2E Test Pipeline"
-2. Click "Run workflow"
-3. Set `test_filter` (optional): `@P0`, `@smoke`, or specific file name
-4. Click "Run workflow"
-
-**Check test results:**
-- View workflow run for pass/fail status
-- Download `playwright-merged-report` artifact for detailed HTML report
-- On failure, download `test-artifacts-shard-*` for screenshots and traces
-
-**GitHub Secrets for E2E:**
+**Test credentials (set in environment):**
 - `E2E_TEST_EMAIL` - Test user email
 - `E2E_TEST_PASSWORD` - Test user password
 
@@ -225,7 +206,7 @@ If wrangler fails with authentication error (API token lacks D1 permissions), th
 ## Browser Environment
 
 - Running on GCP VM (headless)
-- Chrome DevTools MCP available for browser automation
+- Playwright MCP available for browser automation
 - Use `--headless` mode for all browser operations
 
 ### Browser Usage Guidelines
@@ -233,4 +214,4 @@ If wrangler fails with authentication error (API token lacks D1 permissions), th
 - Screenshots will be base64 encoded in responses
 - Network requests are logged and inspectable
 - Maximum viewport: 1920x1080
-- **Use Chrome DevTools MCP for testing** - agents should use browser automation to verify UI changes
+- **Use Playwright MCP for testing** - agents should use browser automation to verify UI changes

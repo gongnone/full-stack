@@ -8,7 +8,7 @@ import type { Pillar } from './ExtractionProgress';
 interface IngestionSuccessProps {
   hubTitle?: string;
   pillars: Pillar[];
-  sourceType?: 'pdf' | 'text' | 'url';
+  sourceType?: 'pdf' | 'text' | 'url' | 'pillars';
   onViewHub?: () => void;
   onStartGeneration?: () => void;
 }

@@ -19,7 +19,6 @@
     },
     "dependencies": {
         "@ai-sdk/openai": "^1.0.11",
-        "@cloudflare/puppeteer": "^1.0.3",
         "@repo/data-ops": "workspace:*",
         "ai": "^4.0.22",
         "nanoid": "^5.1.5",

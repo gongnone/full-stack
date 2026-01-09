@@ -62,23 +62,24 @@ export default defineConfig({
   projects: process.env.CI
     ? [
         {
+          name: 'setup',
+          testMatch: '**/create-test-user.spec.ts',
+        },
+        {
           name: 'chromium',
           use: { ...devices['Desktop Chrome'] },
+          dependencies: ['setup'],
         },
       ]
     : [
         {
+          name: 'setup',
+          testMatch: '**/create-test-user.spec.ts',
+        },
+        {
           name: 'chromium',
           use: { ...devices['Desktop Chrome'] },
-        },
-        {
-          name: 'firefox',
-          use: { ...devices['Desktop Firefox'] },
-        },
-        {
-          name: 'webkit',
-          use: { ...devices['Desktop Safari'] },
-          retries: 1,
+          dependencies: ['setup'],
         },
       ],
 

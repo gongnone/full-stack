@@ -292,7 +292,7 @@ test.describe('Story 3.6: Pillar-First Hub Creation', () => {
       await page.locator('[data-testid="use-pillars-button"]').click();
 
       // THEN: Wizard advances to Step 3 (Configure Pillars)
-      await expect(page.locator('h3:has-text("Configure Pillars"), text=Configure Pillars')).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('h3:has-text("Configure Pillars")')).toBeVisible({ timeout: 15000 });
     });
 
     test('[P0] should pre-load approved pillars into pillar configuration', async ({ page }) => {
@@ -302,7 +302,7 @@ test.describe('Story 3.6: Pillar-First Hub Creation', () => {
       await page.locator('[data-testid="use-pillars-button"]').click();
 
       // WHEN: Step 3 loads
-      await expect(page.locator('h3:has-text("Configure Pillars"), text=Configure Pillars')).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('h3:has-text("Configure Pillars")')).toBeVisible({ timeout: 15000 });
 
       // THEN: Pillars are pre-loaded in the configuration view
       const pillarCards = page.locator('[data-testid^="editable-pillar-card-"]');
@@ -331,7 +331,7 @@ test.describe('Story 3.6: Pillar-First Hub Creation', () => {
       expect(isProgressVisible).toBe(false);
 
       // Should advance to Step 3 quickly (no extraction delay)
-      await expect(page.locator('h3:has-text("Configure Pillars"), text=Configure Pillars')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('h3:has-text("Configure Pillars")')).toBeVisible({ timeout: 10000 });
 
       const elapsedTime = Date.now() - startTime;
       // Extraction typically takes 10+ seconds; pillar-first should be < 5s
@@ -343,7 +343,7 @@ test.describe('Story 3.6: Pillar-First Hub Creation', () => {
       await navigateToStep2WithApprovedPillars(page);
       await page.locator('[data-testid="core-pillars-tab"]').click();
       await page.locator('[data-testid="use-pillars-button"]').click();
-      await expect(page.locator('h3:has-text("Configure Pillars"), text=Configure Pillars')).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('h3:has-text("Configure Pillars")')).toBeVisible({ timeout: 15000 });
 
       // WHEN: Step 3 loads with pre-loaded pillars
       const continueButton = page.locator('[data-testid="continue-to-generate-btn"], button:has-text("Continue")');
@@ -359,7 +359,7 @@ test.describe('Story 3.6: Pillar-First Hub Creation', () => {
       await navigateToStep2WithApprovedPillars(page);
       await page.locator('[data-testid="core-pillars-tab"]').click();
       await page.locator('[data-testid="use-pillars-button"]').click();
-      await expect(page.locator('h3:has-text("Configure Pillars"), text=Configure Pillars')).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('h3:has-text("Configure Pillars")')).toBeVisible({ timeout: 15000 });
 
       // WHEN: User proceeds to Step 4 and creates the Hub
       await page.locator('[data-testid="continue-to-generate-btn"], button:has-text("Continue")').click();
@@ -476,7 +476,7 @@ test.describe('Story 3.6: Pillar-First Hub Creation', () => {
       await page.locator('[data-testid="use-pillars-button"]').click();
 
       // WHEN: Step 3 loads with transformed pillars
-      await expect(page.locator('h3:has-text("Configure Pillars"), text=Configure Pillars')).toBeVisible({ timeout: 15000 });
+      await expect(page.locator('h3:has-text("Configure Pillars")')).toBeVisible({ timeout: 15000 });
 
       // THEN: Pillars should have psychological angles (transformed from framework_type)
       // Framework mappings: catalyst→Contrarian, core_truth→Authority, proof→Transformation

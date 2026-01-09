@@ -135,6 +135,7 @@ export function CorePillarsTab({ clientId, onPillarsSelected, disabled }: CorePi
               {/* Framework badge */}
               <div className="flex items-center gap-2 mb-2">
                 <span
+                  data-testid="framework-badge"
                   className="px-2 py-0.5 text-xs font-semibold rounded"
                   style={{ backgroundColor: framework?.bg, color: framework?.color }}
                 >
@@ -143,12 +144,12 @@ export function CorePillarsTab({ clientId, onPillarsSelected, disabled }: CorePi
               </div>
 
               {/* Pillar title */}
-              <h5 className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
+              <h5 data-testid="pillar-title" className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>
                 {pillar.title}
               </h5>
 
               {/* Description (truncated to 100 chars as per AC3) */}
-              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              <p data-testid="pillar-description" className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 {pillar.coreClaim.length > 100
                   ? `${pillar.coreClaim.substring(0, 100)}...`
                   : pillar.coreClaim}

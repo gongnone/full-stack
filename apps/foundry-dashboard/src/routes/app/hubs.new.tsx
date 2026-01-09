@@ -107,6 +107,8 @@ function NewHubWizard() {
 
   // Story 3-4: Hub finalization
   const finalizeMutation = trpc.hubs.finalize.useMutation();
+  // Story 3.6: Pillar-first hub creation
+  const createPillarFirstHubMutation = trpc.hubs.createPillarFirstHub.useMutation();
   const [hubTitle, setHubTitle] = useState('');
 
   const handleClientSelect = useCallback((clientId: string) => {
@@ -309,19 +311,39 @@ function NewHubWizard() {
   const [createdHubId, setCreatedHubId] = useState<string | null>(null);
 
   const handleFinalizeHub = useCallback(() => {
-    if (!selectedSourceId || !selectedClientId) return;
+    if (!selectedClientId) return;
 
-    finalizeMutation.mutate({
-      sourceId: selectedSourceId,
-      clientId: selectedClientId,
-      title: hubTitle.trim() || undefined,
-    }, {
-      onSuccess: (result) => {
-        setHubCreated(true);
-        setCreatedHubId(result.hubId);
-      },
-    });
-  }, [selectedSourceId, selectedClientId, hubTitle, finalizeMutation]);
+    // Story 3.6: Detect pillar-first flow and use dedicated mutation
+    const isPillarFirst = selectedSourceType === 'pillars' || selectedSourceId === 'pillar-first';
+
+    if (isPillarFirst) {
+      // Use createPillarFirstHub for pillar-first flow
+      const pillarIds = extractedPillars.map(p => p.id);
+      createPillarFirstHubMutation.mutate({
+        clientId: selectedClientId,
+        pillarIds,
+        title: hubTitle.trim() || undefined,
+      }, {
+        onSuccess: (result) => {
+          setHubCreated(true);
+          setCreatedHubId(result.hubId);
+        },
+      });
+    } else {
+      // Use regular finalize for source-based flow
+      if (!selectedSourceId) return;
+      finalizeMutation.mutate({
+        sourceId: selectedSourceId,
+        clientId: selectedClientId,
+        title: hubTitle.trim() || undefined,
+      }, {
+        onSuccess: (result) => {
+          setHubCreated(true);
+          setCreatedHubId(result.hubId);
+        },
+      });
+    }
+  }, [selectedSourceId, selectedClientId, selectedSourceType, hubTitle, extractedPillars, finalizeMutation, createPillarFirstHubMutation]);
 
   // Story 3-5: Navigation handlers for success state
   const handleViewHub = useCallback(() => {
@@ -682,14 +704,14 @@ function NewHubWizard() {
           {currentStep === 4 && (
             <button
               onClick={handleFinalizeHub}
-              disabled={finalizeMutation.isPending}
+              disabled={finalizeMutation.isPending || createPillarFirstHubMutation.isPending}
               className="px-6 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
               style={{
                 backgroundColor: 'var(--approve)',
                 color: 'white',
               }}
             >
-              {finalizeMutation.isPending ? 'Creating Hub...' : 'Create Hub'}
+              {(finalizeMutation.isPending || createPillarFirstHubMutation.isPending) ? 'Creating Hub...' : 'Create Hub'}
             </button>
           )}
         </div>

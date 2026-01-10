@@ -813,41 +813,57 @@ Generate a different angle while keeping the same framework type. Respond with J
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
 
-      // Story 3.6: Get approved CORE PILLARS from Brand DNA conversation
-      // These are stored in brand_dna.voice_entities._rawData.pillars
+      // Story 3.6: Get approved CORE PILLARS from Brand DNA
+      // FALLBACK: _rawData.pillars not currently persisted by ClientAgent.updateBrandDNA
+      // Using signature_patterns as fallback (pillar titles from Brand DNA)
       const brandDna = await ctx.db
-        .prepare('SELECT voice_entities FROM brand_dna WHERE client_id = ?')
+        .prepare('SELECT signature_patterns, voice_entities FROM brand_dna WHERE client_id = ?')
         .bind(input.clientId)
-        .first<{ voice_entities: string }>();
+        .first<{ signature_patterns: string; voice_entities: string }>();
 
-      if (!brandDna?.voice_entities) {
+      if (!brandDna) {
         return [];
       }
 
-      // Parse voice_entities JSON and extract pillars from _rawData
-      let pillars: Array<{ id: string; title: string; description: string; rationale?: string }> = [];
-      try {
-        const voiceEntities = JSON.parse(brandDna.voice_entities);
-        // The approved content pillars are stored in _rawData.pillars
-        // (set by BrandDNAAgent.completeSession)
-        if (voiceEntities._rawData?.pillars && Array.isArray(voiceEntities._rawData.pillars)) {
-          pillars = voiceEntities._rawData.pillars;
+      // Try _rawData.pillars first (ideal but not currently saved)
+      let pillars: Array<{ id: string; title: string; description?: string; rationale?: string }> = [];
+
+      if (brandDna.voice_entities) {
+        try {
+          const voiceEntities = JSON.parse(brandDna.voice_entities);
+          if (voiceEntities._rawData?.pillars && Array.isArray(voiceEntities._rawData.pillars)) {
+            pillars = voiceEntities._rawData.pillars;
+          }
+        } catch (error) {
+          console.error('[getApprovedPillarsForHub] Failed to parse voice_entities:', error);
         }
-      } catch (error) {
-        console.error('[getApprovedPillarsForHub] Failed to parse voice_entities:', error);
-        return [];
+      }
+
+      // Fallback to signature_patterns (pillar titles only)
+      if (pillars.length === 0 && brandDna.signature_patterns) {
+        try {
+          const patterns = JSON.parse(brandDna.signature_patterns) as string[];
+          pillars = patterns.map((title, index) => ({
+            id: `pillar-${index + 1}`,
+            title,
+            description: `Content pillar focusing on ${title.toLowerCase()}`,
+          }));
+        } catch (error) {
+          console.error('[getApprovedPillarsForHub] Failed to parse signature_patterns:', error);
+          return [];
+        }
       }
 
       if (pillars.length === 0) {
         return [];
       }
 
-      // Transform approved pillars to Hub wizard format (extracted_pillars shape)
+      // Transform to Hub wizard format (extracted_pillars shape)
       return pillars.map(pillar => {
         return {
           id: pillar.id,
           title: pillar.title,
-          coreClaim: pillar.description || '',
+          coreClaim: pillar.description || `Focus on ${pillar.title}`,
           psychologicalAngle: 'Authority' as const,
           estimatedSpokeCount: 5,
           supportingPoints: pillar.rationale ? [pillar.rationale] : [],

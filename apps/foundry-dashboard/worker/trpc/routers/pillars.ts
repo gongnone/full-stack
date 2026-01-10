@@ -813,51 +813,42 @@ Generate a different angle while keeping the same framework type. Respond with J
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
 
-      // Get approved pillars from content_pillars table
-      const pillars = await ctx.drizzle
-        .select()
-        .from(schema.content_pillars)
-        .where(
-          and(
-            eq(schema.content_pillars.client_id, input.clientId),
-            eq(schema.content_pillars.status, 'approved')
-          )
-        )
-        .orderBy(schema.content_pillars.priority)
-        .all();
+      // Story 3.6: Get approved CORE PILLARS from Brand DNA stances (not content_pillars table)
+      // The stances are stored in brand_dna.voice_entities JSON field
+      const brandDna = await ctx.db
+        .prepare('SELECT voice_entities FROM brand_dna WHERE client_id = ?')
+        .bind(input.clientId)
+        .first<{ voice_entities: string }>();
 
-      // Transform to Hub wizard format (extracted_pillars shape)
-      return pillars.map(p => {
-        // Map framework_type to psychological angle
-        const angleMap: Record<string, string> = {
-          'catalyst': 'Contrarian',
-          'core_truth': 'Authority',
-          'proof': 'Transformation',
-        };
+      if (!brandDna?.voice_entities) {
+        return [];
+      }
 
-        // Extract supporting points from rationale JSON
-        let supportingPoints: string[] = [];
-        if (p.rationale) {
-          try {
-            const rationale = JSON.parse(p.rationale) as PillarRationale;
-            supportingPoints = [
-              rationale.voiceConnection,
-              rationale.audienceAlignment,
-              rationale.competitorDifferentiation,
-            ].filter(Boolean);
-          } catch {
-            // Ignore parse errors
-          }
-        }
+      // Parse voice_entities JSON and extract stances
+      let stances: Array<{ id: string; topic: string; position: string }> = [];
+      try {
+        const voiceEntities = JSON.parse(brandDna.voice_entities);
+        stances = voiceEntities.stances || [];
+      } catch (error) {
+        console.error('[getApprovedPillarsForHub] Failed to parse voice_entities:', error);
+        return [];
+      }
+
+      // Transform stances to Hub wizard format (extracted_pillars shape)
+      return stances.map(stance => {
+        // Truncate position for display (first 200 chars as coreClaim)
+        const coreClaim = stance.position.length > 200
+          ? stance.position.substring(0, 200) + '...'
+          : stance.position;
 
         return {
-          id: p.id,
-          title: p.title,
-          coreClaim: p.description || '',
-          psychologicalAngle: angleMap[(p.framework_type || '').toLowerCase()] || 'Authority',
+          id: stance.id,
+          title: stance.topic,
+          coreClaim,
+          psychologicalAngle: 'Authority' as const,
           estimatedSpokeCount: 5,
-          supportingPoints,
-          frameworkType: p.framework_type as FrameworkType | null,
+          supportingPoints: [],
+          frameworkType: null,
         };
       });
     }),

@@ -401,7 +401,7 @@ test.describe('Story 3.6: Pillar-First Hub Creation', () => {
       }
 
       // At minimum, verify the hubs page loaded
-      await expect(page.locator('text=Hubs').or(page.locator('h1'))).toBeVisible({ timeout: 10000 });
+      await expect(page.getByRole('heading', { name: 'Content Hubs' })).toBeVisible({ timeout: 10000 });
     });
 
     test('[P2] should work normally with spoke generation after pillar-first hub creation', async ({ page }) => {

@@ -854,7 +854,7 @@ Generate a different angle while keeping the same framework type. Respond with J
           id: p.id,
           title: p.title,
           coreClaim: p.description || '',
-          psychologicalAngle: angleMap[p.framework_type || ''] || 'Authority',
+          psychologicalAngle: angleMap[(p.framework_type || '').toLowerCase()] || 'Authority',
           estimatedSpokeCount: 5,
           supportingPoints,
           frameworkType: p.framework_type as FrameworkType | null,

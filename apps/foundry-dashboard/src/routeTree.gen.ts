@@ -31,6 +31,7 @@ import { Route as AppHubsNewRouteImport } from './routes/app/hubs.new'
 import { Route as AppHubsHubIdRouteImport } from './routes/app/hubs.$hubId'
 import { Route as AppClientsClientIdRouteImport } from './routes/app/clients.$clientId'
 import { Route as AppClientsClientIdSettingsRouteImport } from './routes/app/clients.$clientId.settings'
+import { Route as AppClientsClientIdBrandDnaRouteImport } from './routes/app/clients.$clientId.brand-dna'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -143,6 +144,12 @@ const AppClientsClientIdSettingsRoute =
     path: '/settings',
     getParentRoute: () => AppClientsClientIdRoute,
   } as any)
+const AppClientsClientIdBrandDnaRoute =
+  AppClientsClientIdBrandDnaRouteImport.update({
+    id: '/brand-dna',
+    path: '/brand-dna',
+    getParentRoute: () => AppClientsClientIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -166,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/app/clients/$clientId': typeof AppClientsClientIdRouteWithChildren
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
+  '/app/clients/$clientId/brand-dna': typeof AppClientsClientIdBrandDnaRoute
   '/app/clients/$clientId/settings': typeof AppClientsClientIdSettingsRoute
 }
 export interface FileRoutesByTo {
@@ -189,6 +197,7 @@ export interface FileRoutesByTo {
   '/app/clients/$clientId': typeof AppClientsClientIdRouteWithChildren
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
+  '/app/clients/$clientId/brand-dna': typeof AppClientsClientIdBrandDnaRoute
   '/app/clients/$clientId/settings': typeof AppClientsClientIdSettingsRoute
 }
 export interface FileRoutesById {
@@ -214,6 +223,7 @@ export interface FileRoutesById {
   '/app/clients/$clientId': typeof AppClientsClientIdRouteWithChildren
   '/app/hubs/$hubId': typeof AppHubsHubIdRoute
   '/app/hubs/new': typeof AppHubsNewRoute
+  '/app/clients/$clientId/brand-dna': typeof AppClientsClientIdBrandDnaRoute
   '/app/clients/$clientId/settings': typeof AppClientsClientIdSettingsRoute
 }
 export interface FileRouteTypes {
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/app/clients/$clientId'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
+    | '/app/clients/$clientId/brand-dna'
     | '/app/clients/$clientId/settings'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -263,6 +274,7 @@ export interface FileRouteTypes {
     | '/app/clients/$clientId'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
+    | '/app/clients/$clientId/brand-dna'
     | '/app/clients/$clientId/settings'
   id:
     | '__root__'
@@ -287,6 +299,7 @@ export interface FileRouteTypes {
     | '/app/clients/$clientId'
     | '/app/hubs/$hubId'
     | '/app/hubs/new'
+    | '/app/clients/$clientId/brand-dna'
     | '/app/clients/$clientId/settings'
   fileRoutesById: FileRoutesById
 }
@@ -457,14 +470,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsClientIdSettingsRouteImport
       parentRoute: typeof AppClientsClientIdRoute
     }
+    '/app/clients/$clientId/brand-dna': {
+      id: '/app/clients/$clientId/brand-dna'
+      path: '/brand-dna'
+      fullPath: '/app/clients/$clientId/brand-dna'
+      preLoaderRoute: typeof AppClientsClientIdBrandDnaRouteImport
+      parentRoute: typeof AppClientsClientIdRoute
+    }
   }
 }
 
 interface AppClientsClientIdRouteChildren {
+  AppClientsClientIdBrandDnaRoute: typeof AppClientsClientIdBrandDnaRoute
   AppClientsClientIdSettingsRoute: typeof AppClientsClientIdSettingsRoute
 }
 
 const AppClientsClientIdRouteChildren: AppClientsClientIdRouteChildren = {
+  AppClientsClientIdBrandDnaRoute: AppClientsClientIdBrandDnaRoute,
   AppClientsClientIdSettingsRoute: AppClientsClientIdSettingsRoute,
 }
 

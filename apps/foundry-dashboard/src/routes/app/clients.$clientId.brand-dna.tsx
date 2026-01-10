@@ -7,7 +7,6 @@
 
 import { createFileRoute, Link, useParams } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
-import { useClientRole } from '@/lib/use-client-role';
 import { BrandDNACard } from '@/components/brand-dna/BrandDNACard';
 import { ScoreTooltip } from '@/components/brand-dna/ScoreTooltip';
 
@@ -17,9 +16,6 @@ export const Route = createFileRoute('/app/clients/$clientId/brand-dna')({
 
 function ClientBrandDNAPage() {
   const { clientId } = useParams({ from: '/app/clients/$clientId/brand-dna' });
-
-  // RBAC: Check if user can view this client
-  const { canViewClient } = useClientRole();
 
   // CRITICAL: Use calibration.getBrandDNAReport for FULL report
   // NOT clients.getDNAReport (only returns strength score)
@@ -32,6 +28,8 @@ function ClientBrandDNAPage() {
     }
   );
 
+  // RBAC: clients.getById has built-in access control
+  // It will throw FORBIDDEN if user is not a member of this client
   const clientQuery = trpc.clients.getById.useQuery({ clientId });
 
   const client = clientQuery.data;
@@ -39,7 +37,8 @@ function ClientBrandDNAPage() {
   const isProcessing = !report && !dnaReportQuery.error;
 
   // AC2: RBAC - Access denied if user doesn't own client
-  if (!canViewClient) {
+  // Server-side RBAC in getById will return error if unauthorized
+  if (clientQuery.error?.data?.code === 'FORBIDDEN') {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
@@ -183,8 +182,8 @@ function ClientBrandDNAPage() {
               <div>
                 <span style={{ color: 'var(--text-muted)' }}>Captured:</span>{' '}
                 <span style={{ color: 'var(--text-primary)' }}>
-                  {report.lastCalibration
-                    ? new Date(report.lastCalibration).toLocaleDateString('en-US', {
+                  {report.lastCalibration?.timestamp
+                    ? new Date(report.lastCalibration.timestamp).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
@@ -193,16 +192,16 @@ function ClientBrandDNAPage() {
                 </span>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>Voice Markers:</span>{' '}
-                <span style={{ color: 'var(--text-primary)' }}>{report.voiceMarkers.length}</span>
+                <span style={{ color: 'var(--text-muted)' }}>Signature Phrases:</span>{' '}
+                <span style={{ color: 'var(--text-primary)' }}>{report.signaturePhrases.length}</span>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>Banned Words:</span>{' '}
-                <span style={{ color: 'var(--text-primary)' }}>{report.bannedWords.length}</span>
+                <span style={{ color: 'var(--text-muted)' }}>Topics to Avoid:</span>{' '}
+                <span style={{ color: 'var(--text-primary)' }}>{report.topicsToAvoid.length}</span>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>Brand Stances:</span>{' '}
-                <span style={{ color: 'var(--text-primary)' }}>{report.stances.length}</span>
+                <span style={{ color: 'var(--text-muted)' }}>Training Samples:</span>{' '}
+                <span style={{ color: 'var(--text-primary)' }}>{report.sampleCount}</span>
               </div>
             </div>
           </div>

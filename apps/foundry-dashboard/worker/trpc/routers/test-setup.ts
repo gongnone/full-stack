@@ -73,69 +73,107 @@ export const testSetupRouter = t.router({
     const pillars = [
       {
         id: 'test-pillar-catalyst-001',
-        title: 'Industry Disruption Insights',
-        description:
-          'Challenge conventional wisdom and share contrarian insights that make audiences question industry norms.',
+        pillar_name: 'Industry Disruption Insights',
+        strategy_tags: JSON.stringify(['CATALYST', 'thought-leadership', 'contrarian']),
         rationale: 'Positions brand as thought leader willing to challenge status quo',
-        framework_type: 'CATALYST',
-        priority: 1,
+        example_hook: 'Challenge conventional wisdom and share contrarian insights that make audiences question industry norms.',
       },
       {
         id: 'test-pillar-core-truth-001',
-        title: 'Behind-the-Scenes Wisdom',
-        description:
-          'Share internal processes, mistakes, and lessons learned to build authentic connection.',
+        pillar_name: 'Behind-the-Scenes Wisdom',
+        strategy_tags: JSON.stringify(['CORE_TRUTH', 'authenticity', 'vulnerability']),
         rationale: 'Humanizes brand and builds trust through vulnerability',
-        framework_type: 'CORE_TRUTH',
-        priority: 2,
+        example_hook: 'Share internal processes, mistakes, and lessons learned to build authentic connection.',
       },
       {
         id: 'test-pillar-proof-001',
-        title: 'Results & Case Studies',
-        description: 'Showcase tangible outcomes and real-world examples of success.',
+        pillar_name: 'Results & Case Studies',
+        strategy_tags: JSON.stringify(['PROOF', 'social-proof', 'results']),
         rationale: 'Provides social proof and demonstrates expertise',
-        framework_type: 'PROOF',
-        priority: 3,
+        example_hook: 'Showcase tangible outcomes and real-world examples of success.',
       },
     ];
 
     for (const pillar of pillars) {
       const existing = await ctx.db
-        .prepare('SELECT id FROM content_pillars WHERE id = ?')
+        .prepare('SELECT id FROM client_approved_pillars WHERE id = ?')
         .bind(pillar.id)
         .first<{ id: string }>();
 
       if (!existing) {
         await ctx.db
           .prepare(`
-            INSERT INTO content_pillars (
-              id, client_id, title, description, rationale,
-              status, priority, framework_type, generated_by,
-              created_at, updated_at
+            INSERT INTO client_approved_pillars (
+              id, client_id, pillar_name, strategy_tags, rationale, example_hook, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
           `)
           .bind(
             pillar.id,
             clientId,
-            pillar.title,
-            pillar.description,
+            pillar.pillar_name,
+            pillar.strategy_tags,
             pillar.rationale,
-            'approved',
-            pillar.priority,
-            pillar.framework_type,
-            'system',
-            now,
+            pillar.example_hook,
             now
           )
           .run();
       }
     }
 
+    // 4. Create Brand DNA data for R-13/R-14 tests
+    const existingDna = await ctx.db
+      .prepare('SELECT client_id FROM brand_dna WHERE client_id = ?')
+      .bind(clientId)
+      .first<{ client_id: string }>();
+
+    if (!existingDna) {
+      await ctx.db
+        .prepare(`
+          INSERT INTO brand_dna (
+            client_id, primary_tone, writing_style, target_audience,
+            tone_profile, signature_patterns, voice_entities,
+            strength_score, sample_count, last_calibration_at,
+            calibration_source, created_at, updated_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `)
+        .bind(
+          clientId,
+          'Professional yet approachable',
+          'Clear and concise technical writing',
+          'Tech-savvy business leaders',
+          JSON.stringify({
+            formal_casual: 65,
+            serious_playful: 70,
+            technical_accessible: 75,
+            reserved_expressive: 60,
+          }),
+          JSON.stringify([
+            { phrase: 'cutting-edge innovation', example: 'Our cutting-edge innovation drives results' },
+            { phrase: 'data-driven decisions', example: 'We make data-driven decisions' },
+            { phrase: 'seamless integration', example: 'Providing seamless integration' },
+          ]),
+          JSON.stringify({
+            bannedWords: ['buzzwords', 'jargon overload', 'empty promises'],
+            voiceMarkers: [],
+            stances: []
+          }),
+          82, // strength_score
+          5, // sample_count
+          now, // last_calibration_at (Unix timestamp)
+          'voice_recording',
+          now, // created_at
+          now  // updated_at
+        )
+        .run();
+    }
+
     return {
       success: true,
       clientId,
       pillarsCreated: pillars.length,
+      brandDnaCreated: !existingDna,
     };
   }),
 });

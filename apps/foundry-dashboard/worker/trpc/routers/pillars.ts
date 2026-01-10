@@ -813,8 +813,8 @@ Generate a different angle while keeping the same framework type. Respond with J
     .query(async ({ ctx, input }) => {
       await assertClientAccess(ctx, input.clientId);
 
-      // Story 3.6: Get approved CORE PILLARS from Brand DNA stances (not content_pillars table)
-      // The stances are stored in brand_dna.voice_entities JSON field
+      // Story 3.6: Get approved CORE PILLARS from Brand DNA conversation
+      // These are stored in brand_dna.voice_entities._rawData.pillars
       const brandDna = await ctx.db
         .prepare('SELECT voice_entities FROM brand_dna WHERE client_id = ?')
         .bind(input.clientId)
@@ -824,30 +824,33 @@ Generate a different angle while keeping the same framework type. Respond with J
         return [];
       }
 
-      // Parse voice_entities JSON and extract stances
-      let stances: Array<{ id: string; topic: string; position: string }> = [];
+      // Parse voice_entities JSON and extract pillars from _rawData
+      let pillars: Array<{ id: string; title: string; description: string; rationale?: string }> = [];
       try {
         const voiceEntities = JSON.parse(brandDna.voice_entities);
-        stances = voiceEntities.stances || [];
+        // The approved content pillars are stored in _rawData.pillars
+        // (set by BrandDNAAgent.completeSession)
+        if (voiceEntities._rawData?.pillars && Array.isArray(voiceEntities._rawData.pillars)) {
+          pillars = voiceEntities._rawData.pillars;
+        }
       } catch (error) {
         console.error('[getApprovedPillarsForHub] Failed to parse voice_entities:', error);
         return [];
       }
 
-      // Transform stances to Hub wizard format (extracted_pillars shape)
-      return stances.map(stance => {
-        // Truncate position for display (first 200 chars as coreClaim)
-        const coreClaim = stance.position.length > 200
-          ? stance.position.substring(0, 200) + '...'
-          : stance.position;
+      if (pillars.length === 0) {
+        return [];
+      }
 
+      // Transform approved pillars to Hub wizard format (extracted_pillars shape)
+      return pillars.map(pillar => {
         return {
-          id: stance.id,
-          title: stance.topic,
-          coreClaim,
+          id: pillar.id,
+          title: pillar.title,
+          coreClaim: pillar.description || '',
           psychologicalAngle: 'Authority' as const,
           estimatedSpokeCount: 5,
-          supportingPoints: [],
+          supportingPoints: pillar.rationale ? [pillar.rationale] : [],
           frameworkType: null,
         };
       });

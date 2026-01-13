@@ -804,16 +804,63 @@ export const hubsRouter = t.router({
         WHERE id IN (${placeholders}) AND client_id = ?
       `).bind(...input.pillarIds, input.clientId).all();
 
-      if (!contentPillars.results || contentPillars.results.length === 0) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: 'No approved pillars found with the provided IDs',
-        });
+      let pillarsToInsert: Array<{ title: string; description: string; framework_type?: string; rationale?: string }> = [];
+
+      // Try content_pillars first (approved pillars)
+      if (contentPillars.results && contentPillars.results.length > 0) {
+        pillarsToInsert = contentPillars.results.map((p: Record<string, unknown>) => ({
+          title: p.title as string,
+          description: (p.description as string) || '',
+          framework_type: p.framework_type as string | undefined,
+          rationale: p.rationale as string | undefined,
+        }));
+      } else {
+        // Fallback: Get pillars from Brand DNA signature_patterns
+        // This handles cases where pillars were approved during Brand DNA chat but not in content_pillars
+        const brandDna = await ctx.db
+          .prepare('SELECT signature_patterns FROM brand_dna WHERE client_id = ?')
+          .bind(input.clientId)
+          .first<{ signature_patterns: string }>();
+
+        if (!brandDna?.signature_patterns) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'No approved pillars found with the provided IDs',
+          });
+        }
+
+        try {
+          const patterns = JSON.parse(brandDna.signature_patterns) as string[];
+          // Filter to only the requested pillar indices (pillar-1 => index 0, pillar-2 => index 1, etc.)
+          const requestedIndices = input.pillarIds
+            .map(id => {
+              const match = id.match(/^pillar-(\d+)$/);
+              return match ? parseInt(match[1], 10) - 1 : -1;
+            })
+            .filter(idx => idx >= 0 && idx < patterns.length);
+
+          if (requestedIndices.length === 0) {
+            throw new TRPCError({
+              code: 'NOT_FOUND',
+              message: 'No approved pillars found with the provided IDs',
+            });
+          }
+
+          pillarsToInsert = requestedIndices.map(idx => ({
+            title: patterns[idx],
+            description: `Content pillar focusing on ${patterns[idx].toLowerCase()}`,
+          }));
+        } catch (error) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to parse Brand DNA pillars',
+          });
+        }
       }
 
       // Insert transformed pillars into extracted_pillars
       let insertedCount = 0;
-      for (const pillar of contentPillars.results as Record<string, unknown>[]) {
+      for (const pillar of pillarsToInsert) {
         const extractedPillarId = crypto.randomUUID();
         const psychologicalAngle = angleMap[(pillar.framework_type as string) || ''] || 'Authority';
 

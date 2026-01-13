@@ -208,10 +208,12 @@ export function createAuth(env: Env) {
       // sameSite: 'lax' is correct for same-origin (frontend + API on same domain)
       // 'none' was causing issues - it's for cross-origin only
       // secure: false for local dev to support WebKit E2E tests on localhost HTTP
+      // domain: explicitly set to localhost (no port) for Vite proxy to work
       defaultCookieAttributes: {
         sameSite: 'lax',
         secure: env.ENVIRONMENT === 'production' || env.ENVIRONMENT === 'stage',
         httpOnly: true,
+        domain: env.ENVIRONMENT === 'local' ? 'localhost' : undefined,
       },
     },
 

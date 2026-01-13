@@ -56,7 +56,7 @@ async function createOrVerifyUser(
       await page.goto('/login');
       await page.fill('#email', user.email);
       await page.fill('#password', user.password);
-      await page.click('button[type="submit"]');
+      await page.getByRole('button', { name: 'Sign in' }).click();
       try {
         await page.waitForURL(/\/app/, { timeout: 10000 });
         console.log(`✅ Verified: ${user.email} (already exists)`);

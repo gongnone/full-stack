@@ -49,24 +49,51 @@ async function createOrVerifyUser(
 
     return true;
   } catch {
-    // Check for error messages
-    const errorText = await page.locator('[role="alert"]').textContent().catch(() => null);
+    // Wait for and check error messages
+    const alert = page.locator('[role="alert"]');
+    await alert.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    const errorText = await alert.textContent().catch(() => null);
+
     if (errorText?.toLowerCase().includes('exists') || errorText?.toLowerCase().includes('already')) {
       // Verify login works
       await page.goto('/login');
+      await page.waitForSelector('#email', { timeout: 10000 });
       await page.fill('#email', user.email);
       await page.fill('#password', user.password);
-      await page.getByRole('button', { name: 'Sign in' }).click();
+
+      // Click sign in and wait for response
+      const signInButton = page.getByRole('button', { name: 'Sign in' });
+      await signInButton.click();
+
+      // Wait for button to finish loading (disabled state removed) or navigation
       try {
-        await page.waitForURL(/\/app/, { timeout: 10000 });
+        await Promise.race([
+          page.waitForURL(/\/app/, { timeout: 15000 }),
+          page.waitForFunction(() => {
+            const btn = document.querySelector('button:has-text("Sign in")') as HTMLButtonElement;
+            return btn && !btn.disabled;
+          }, { timeout: 15000 })
+        ]);
+      } catch (e) {
+        // Check for login errors
+        const loginAlert = page.locator('[role="alert"]');
+        const loginError = await loginAlert.textContent().catch(() => null);
+        console.log(`❌ Failed to login: ${user.email} - ${loginError || 'timeout'}`);
+        return false;
+      }
+
+      // Check if we navigated successfully
+      if (page.url().includes('/app')) {
         console.log(`✅ Verified: ${user.email} (already exists)`);
 
         // Initialize test data for existing user too
         await initializeTestData(page);
 
         return true;
-      } catch {
-        console.log(`❌ Failed to login: ${user.email}`);
+      } else {
+        const loginAlert = page.locator('[role="alert"]');
+        const loginError = await loginAlert.textContent().catch(() => null);
+        console.log(`❌ Failed to login: ${user.email} - ${loginError || 'did not navigate to /app'}`);
         return false;
       }
     }

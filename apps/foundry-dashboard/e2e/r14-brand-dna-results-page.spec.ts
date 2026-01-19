@@ -129,11 +129,14 @@ test.describe('R-14: Dedicated Client Brand DNA Results Page', () => {
       await page.goto(`${BASE_URL}/app/clients/${fakeClientId}/brand-dna`);
       await page.waitForLoadState('networkidle').catch(() => {});
 
+      // Wait for loading spinner to disappear
+      await page.waitForTimeout(2000);
+
       // THEN: Should show access denied or redirect
       const url = page.url();
       const hasAccessDenied = await page
         .locator('text=/access denied|permission|unauthorized|not found/i')
-        .isVisible()
+        .isVisible({ timeout: 5000 })
         .catch(() => false);
       const redirectedAway = !url.includes(fakeClientId);
 

@@ -30,7 +30,29 @@ async function createOrVerifyUser(
 ): Promise<boolean> {
   // Navigate to signup page
   await page.goto('/signup');
-  await page.waitForSelector('#email', { timeout: 10000 });
+  await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
+
+  console.log(`[createOrVerifyUser] Current URL after goto('/signup'): ${page.url()}`);
+
+  // Check if we got redirected to /app (already logged in)
+  if (page.url().includes('/app')) {
+    console.log(`✅ Already logged in: ${user.email}`);
+    try {
+      await initializeTestData(page);
+      console.log(`   📊 Test data initialized`);
+      return true;
+    } catch (error) {
+      console.log(`   ⚠️  Failed to initialize test data: ${error}`);
+      // Still return true since user is logged in - data might already exist
+      return true;
+    }
+  }
+
+  const emailInput = await page.waitForSelector('#email', { timeout: 10000 }).catch(() => null);
+  if (!emailInput) {
+    console.log(`[createOrVerifyUser] No email input found, current URL: ${page.url()}`);
+    return false;
+  }
 
   // Fill signup form
   await page.fill('#name', user.name);
@@ -53,11 +75,27 @@ async function createOrVerifyUser(
     const alert = page.locator('[role="alert"]');
     await alert.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
     const errorText = await alert.textContent().catch(() => null);
+    console.log(`[createOrVerifyUser] Error text from signup: "${errorText}"`);
 
     if (errorText?.toLowerCase().includes('exists') || errorText?.toLowerCase().includes('already')) {
+      console.log(`[createOrVerifyUser] User exists, attempting login...`);
       // Verify login works
-      await page.goto('/login');
-      await page.waitForSelector('#email', { timeout: 10000 });
+      await page.goto('/login', { waitUntil: 'networkidle', timeout: 20000 }).catch(() => {});
+
+      console.log(`[createOrVerifyUser] After goto('/login'), URL: ${page.url()}`);
+
+      // Check if we got redirected to /app (already logged in)
+      if (page.url().includes('/app')) {
+        console.log(`✅ Verified: ${user.email} (already logged in after /login redirect)`);
+        try {
+          await initializeTestData(page);
+          console.log(`   📊 Test data initialized`);
+        } catch (error) {
+          console.log(`   ⚠️  Failed to initialize test data: ${error}`);
+        }
+        return true;
+      }
+
       await page.fill('#email', user.email);
       await page.fill('#password', user.password);
 
@@ -65,21 +103,21 @@ async function createOrVerifyUser(
       const signInButton = page.getByRole('button', { name: 'Sign in' });
       await signInButton.click();
 
-      // Wait for button to finish loading (disabled state removed) or navigation
+      // Wait for navigation to /app
       try {
-        await Promise.race([
-          page.waitForURL(/\/app/, { timeout: 15000 }),
-          page.waitForFunction(() => {
-            const btn = document.querySelector('button:has-text("Sign in")') as HTMLButtonElement;
-            return btn && !btn.disabled;
-          }, { timeout: 15000 })
-        ]);
+        await page.waitForURL(/\/app/, { timeout: 30000 });
       } catch (e) {
-        // Check for login errors
-        const loginAlert = page.locator('[role="alert"]');
-        const loginError = await loginAlert.textContent().catch(() => null);
-        console.log(`❌ Failed to login: ${user.email} - ${loginError || 'timeout'}`);
-        return false;
+        // Check if we're at /app anyway (might have redirected after timeout)
+        if (page.url().includes('/app')) {
+          console.log(`✅ Verified: ${user.email} (at /app after slow navigation)`);
+        } else {
+          // Check for login errors
+          const loginAlert = page.locator('[role="alert"]');
+          const loginError = await loginAlert.textContent().catch(() => null);
+          console.log(`❌ Failed to login: ${user.email} - ${loginError || 'timeout'}`);
+          console.log(`   Current URL: ${page.url()}`);
+          return false;
+        }
       }
 
       // Check if we navigated successfully

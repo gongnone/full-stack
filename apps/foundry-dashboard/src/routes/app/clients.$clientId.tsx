@@ -5,12 +5,12 @@
  * Post-Brand DNA ingestion landing page for agency owners
  */
 
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, Outlet, useMatches } from '@tanstack/react-router';
 import { trpc } from '@/lib/trpc-client';
 import { useClientRole } from '@/lib/use-client-role';
 
 export const Route = createFileRoute('/app/clients/$clientId')({
-  component: ClientDetailPage,
+  component: ClientDetailPageLayout,
 });
 
 // Strength score color based on percentage
@@ -19,6 +19,26 @@ function getStrengthColor(score: number): string {
   if (score >= 60) return 'var(--warning)';
   if (score >= 40) return '#FFAD1F';
   return 'var(--text-muted)';
+}
+
+/**
+ * Layout wrapper that renders child routes (brand-dna, settings) or the detail page
+ */
+function ClientDetailPageLayout() {
+  const matches = useMatches();
+  // Check if we're at a child route (brand-dna or settings)
+  const isChildRoute = matches.some(match =>
+    match.id === '/app/clients/$clientId/brand-dna' ||
+    match.id === '/app/clients/$clientId/settings'
+  );
+
+  // If at child route, render it via Outlet
+  if (isChildRoute) {
+    return <Outlet />;
+  }
+
+  // Otherwise, render the detail page
+  return <ClientDetailPage />;
 }
 
 function ClientDetailPage() {

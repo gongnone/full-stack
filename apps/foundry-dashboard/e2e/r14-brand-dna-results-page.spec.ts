@@ -57,9 +57,11 @@ async function findFirstClientId(page: Page): Promise<string | null> {
   await page.waitForTimeout(2000);
 
   // Query clients via tRPC using page.evaluate
+  // tRPC GET format: /trpc/procedure?input={"json":{"param":"value"}}
   const clientId = await page.evaluate(async () => {
     try {
-      const response = await fetch('/trpc/clients.list', {
+      const input = encodeURIComponent(JSON.stringify({ json: {} }));
+      const response = await fetch(`/trpc/clients.list?input=${input}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });

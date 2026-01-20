@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Outlet, useMatches } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useSession } from '@/lib/auth-client';
 import { trpc } from '@/lib/trpc-client';
@@ -9,8 +9,27 @@ import { UI_CONFIG } from '@/lib/constants';
 import { useClientRole } from '@/lib/use-client-role';
 
 export const Route = createFileRoute('/app/clients')({
-  component: ClientsPage,
+  component: ClientsPageLayout,
 });
+
+/**
+ * Layout wrapper that renders child routes (clients.$clientId.*) or the list page
+ */
+function ClientsPageLayout() {
+  const matches = useMatches();
+  // Check if we're at a child route (clients.$clientId or deeper)
+  const isChildRoute = matches.some(match =>
+    match.id.startsWith('/app/clients/$clientId')
+  );
+
+  // If at child route, render it via Outlet
+  if (isChildRoute) {
+    return <Outlet />;
+  }
+
+  // Otherwise, render the clients list page
+  return <ClientsPage />;
+}
 
 function ClientsPage() {
   const { data: session } = useSession();

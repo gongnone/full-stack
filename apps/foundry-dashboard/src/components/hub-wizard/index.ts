@@ -28,5 +28,8 @@ export { IngestionSuccess } from './IngestionSuccess';
 // Story 3.6: Pillar-First Hub Creation
 export { CorePillarsTab } from './CorePillarsTab';
 
+// P0-2: Review Sprint UX Improvements
+export { GenerationSuccess } from './GenerationSuccess';
+
 // Re-export types for consumers
 export type { Step } from './WizardStepper';

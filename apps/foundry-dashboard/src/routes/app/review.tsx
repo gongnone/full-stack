@@ -28,6 +28,7 @@ function ReviewPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editedContent, setEditedContent] = useState('');
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'approve' | 'kill' | 'edit'; message: string } | null>(null);
 
   // Sprint stats tracking
   const [stats, setStats] = useState({
@@ -128,6 +129,12 @@ function ReviewPage() {
 
     setDirection(action === 'approve' ? 'right' : 'left');
 
+    // P0-2: Set action feedback for visual confirmation
+    setActionFeedback({
+      type: action,
+      message: action === 'approve' ? '✓ Approved! Moving to next...' : '✗ Killed. Next spoke...'
+    });
+
     swipeMutation.mutate({
       clientId,
       spokeId: currentSpoke.id,
@@ -135,6 +142,9 @@ function ReviewPage() {
     });
 
     setTimeout(() => {
+      // Clear feedback before advancing
+      setActionFeedback(null);
+
       if (currentIndex < spokes.length - 1) {
         setCurrentIndex((prev) => prev + 1);
         setDirection(null);
@@ -142,7 +152,7 @@ function ReviewPage() {
       } else {
         setIsComplete(true);
       }
-    }, 150);
+    }, 800);
   }, [currentIndex, spokes, clientId, currentSpoke, swipeMutation]);
 
   // Nuclear approve (Cmd+A)
@@ -375,6 +385,50 @@ function ReviewPage() {
         </div>
       </div>
 
+      {/* P0-2: Progress Visualization */}
+      <div className="mb-8">
+        {/* Progress Stats */}
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-[var(--text-secondary)]">Progress</span>
+          <span className="text-sm text-[var(--text-secondary)]">{currentIndex + 1} of {spokes.length} reviewed</span>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="w-full max-w-2xl mx-auto h-2 bg-[var(--bg-surface)] rounded-full overflow-hidden mb-4">
+          <div
+            className="h-full bg-gradient-to-r from-[var(--edit)] to-[var(--approve)] rounded-full transition-all duration-300 ease-out"
+            style={{ width: `${((currentIndex + 1) / spokes.length) * 100}%` }}
+          />
+        </div>
+
+        {/* Stats Pills */}
+        <div className="flex items-center justify-center gap-3">
+          <div className="px-3 py-1 rounded-full bg-[var(--approve-glow)] text-[var(--approve)] text-xs font-semibold">
+            ✓ {stats.approved} Approved
+          </div>
+          {stats.edited > 0 && (
+            <div className="px-3 py-1 rounded-full bg-[var(--edit-glow)] text-[var(--edit)] text-xs font-semibold">
+              ✎ {stats.edited} Edited
+            </div>
+          )}
+          <div className="px-3 py-1 rounded-full bg-[var(--kill-glow)] text-[var(--kill)] text-xs font-semibold">
+            ✗ {stats.killed} Killed
+          </div>
+        </div>
+
+        {/* Milestone Celebrations */}
+        {currentIndex + 1 === Math.floor(spokes.length / 2) && (
+          <div className="text-center mt-4 text-sm font-semibold text-[var(--edit)] animate-bounce-in">
+            💪 Halfway there! Keep up the great work!
+          </div>
+        )}
+        {currentIndex + 1 === Math.floor(spokes.length * 0.75) && (
+          <div className="text-center mt-4 text-sm font-semibold text-[var(--approve)] animate-bounce-in">
+            🎯 Almost done! Just {spokes.length - currentIndex - 1} more to go!
+          </div>
+        )}
+      </div>
+
       {/* High-Velocity Card Container */}
       <div className="relative min-h-[500px] flex items-center justify-center">
         {currentSpoke && <div
@@ -565,6 +619,28 @@ function ReviewPage() {
           <KeyboardHint keys={['→']} action="Approve" size="sm" />
         </div>
       </div>
+
+      {/* P0-2: Action Feedback Toast */}
+      {actionFeedback && (
+        <div
+          className="fixed top-8 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 animate-slide-down"
+          style={{
+            backgroundColor: actionFeedback.type === 'approve' ? 'var(--approve)' : actionFeedback.type === 'kill' ? 'var(--kill)' : 'var(--edit)',
+            color: 'white'
+          }}
+        >
+          {actionFeedback.type === 'approve' ? (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          <span className="font-semibold">{actionFeedback.message}</span>
+        </div>
+      )}
 
       {/* Kill Confirmation Modal */}
       <KillConfirmationModal

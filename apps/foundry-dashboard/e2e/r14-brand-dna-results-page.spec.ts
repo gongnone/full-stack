@@ -117,10 +117,11 @@ test.describe('R-14: Dedicated Client Brand DNA Results Page', () => {
 
       // Should show either DNA results or processing state
       const hasContent = await Promise.race([
-        page.locator('[data-testid="dna-strength-score"]').waitFor({ timeout: 5000 }).then(() => true),
-        page.locator('text=/Brand DNA/i').waitFor({ timeout: 5000 }).then(() => true),
-        page.locator('text=/being analyzed|processing/i').waitFor({ timeout: 5000 }).then(() => true),
-      ]).catch(() => false);
+        page.getByText('Brand DNA', { exact: false }).isVisible().catch(() => false),
+        page.getByText('Signature Phrases', { exact: false }).isVisible().catch(() => false),
+        page.getByText('being analyzed', { exact: false }).isVisible().catch(() => false),
+        page.getByText('Processing', { exact: false }).isVisible().catch(() => false),
+      ]).then(result => result);
 
       expect(hasContent, 'Page should show Brand DNA content or processing state').toBe(true);
     });

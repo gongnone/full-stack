@@ -116,12 +116,15 @@ test.describe('R-14: Dedicated Client Brand DNA Results Page', () => {
       expect(notFound, 'Page should not show 404').toBe(false);
 
       // Should show either DNA results or processing state
-      const hasContent = await Promise.race([
-        page.getByText('Brand DNA', { exact: false }).isVisible().catch(() => false),
-        page.getByText('Signature Phrases', { exact: false }).isVisible().catch(() => false),
-        page.getByText('being analyzed', { exact: false }).isVisible().catch(() => false),
-        page.getByText('Processing', { exact: false }).isVisible().catch(() => false),
-      ]).then(result => result);
+      // Wait for page to load content (give it time to render)
+      await page.waitForTimeout(2000);
+
+      const hasContent =
+        (await page.getByText('Brand DNA', { exact: false }).isVisible().catch(() => false)) ||
+        (await page.getByText('Signature Phrases', { exact: false }).isVisible().catch(() => false)) ||
+        (await page.getByText('Extraction Details', { exact: false }).isVisible().catch(() => false)) ||
+        (await page.getByText('being analyzed', { exact: false }).isVisible().catch(() => false)) ||
+        (await page.getByText('Processing', { exact: false }).isVisible().catch(() => false));
 
       expect(hasContent, 'Page should show Brand DNA content or processing state').toBe(true);
     });

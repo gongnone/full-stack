@@ -47,37 +47,41 @@ async function login(page: Page): Promise<boolean> {
 
 /**
  * Helper: Find first client ID from the clients list
+ * Uses tRPC query since ClientManager renders cards without navigation links
  */
 async function findFirstClientId(page: Page): Promise<string | null> {
   await page.goto(`${BASE_URL}/app/clients`);
   await page.waitForLoadState('networkidle').catch(() => {});
 
-  // Wait for client cards or empty state
-  await page
-    .locator('a[href*="/app/clients/"], [data-testid="empty-state"]')
-    .first()
-    .waitFor({ timeout: 10000 })
-    .catch(() => {});
+  // Wait for page to load
+  await page.waitForTimeout(2000);
 
-  const clientLinks = page.locator('a[href*="/app/clients/"]');
-  const count = await clientLinks.count();
-
-  if (count === 0) {
-    console.log('findFirstClientId: No clients found');
-    return null;
-  }
-
-  for (let i = 0; i < count; i++) {
-    const href = await clientLinks.nth(i).getAttribute('href');
-    // Match client ID in URL (UUID format)
-    const match = href?.match(/\/app\/clients\/([a-f0-9-]+)(?:\/|$)/);
-    if (match) {
-      console.log(`findFirstClientId: Found client ID = ${match[1]}`);
-      return match[1];
+  // Query clients via tRPC using page.evaluate
+  const clientId = await page.evaluate(async () => {
+    try {
+      const response = await fetch('/trpc/clients.list', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      const clients = data?.result?.data?.items || [];
+      if (clients.length > 0) {
+        return clients[0].id;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to fetch clients:', error);
+      return null;
     }
+  });
+
+  if (clientId) {
+    console.log(`findFirstClientId: Found client ID = ${clientId}`);
+  } else {
+    console.log('findFirstClientId: No clients found');
   }
 
-  return null;
+  return clientId;
 }
 
 test.describe('R-14: Dedicated Client Brand DNA Results Page', () => {

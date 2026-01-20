@@ -142,10 +142,12 @@ test.describe('R-14: Dedicated Client Brand DNA Results Page', () => {
       // Note: Due to route nesting without Outlet, may fall back to clients list
       const url = page.url();
 
-      const hasAccessDenied = await page
-        .locator('text=/access denied|permission|unauthorized|not found/i')
-        .isVisible({ timeout: 5000 })
-        .catch(() => false);
+      // Check for access denied message (multiple possible formats)
+      const hasAccessDenied = await Promise.race([
+        page.getByText('Access denied', { exact: false }).isVisible().catch(() => false),
+        page.getByText('Client Not Found', { exact: false }).isVisible().catch(() => false),
+        page.getByText('Permission denied', { exact: false }).isVisible().catch(() => false),
+      ]).then(result => result);
 
       // Check if redirected away from fake client ID (URL changed)
       const redirectedAway = !url.includes(fakeClientId);
@@ -320,17 +322,19 @@ test.describe('R-14: Dedicated Client Brand DNA Results Page', () => {
       await page.waitForLoadState('networkidle').catch(() => {});
 
       // THEN: Should show extraction details
-      // Look for date information
-      const hasDate = await page
-        .locator('text=/captured|analyzed|last calibration|date/i')
-        .isVisible()
-        .catch(() => false);
+      // Look for date information (multiple possible text formats)
+      const hasDate = await Promise.race([
+        page.getByText('Captured:', { exact: false }).isVisible().catch(() => false),
+        page.getByText('Last calibration:', { exact: false }).isVisible().catch(() => false),
+        page.getByText('Analyzed:', { exact: false }).isVisible().catch(() => false),
+      ]).then(result => result);
 
-      // Look for source counts
-      const hasSourceCount = await page
-        .locator('text=/voice markers|samples|sources/i')
-        .isVisible()
-        .catch(() => false);
+      // Look for source counts (signature phrases or training samples)
+      const hasSourceCount = await Promise.race([
+        page.getByText('Signature Phrases:', { exact: false }).isVisible().catch(() => false),
+        page.getByText('Training Samples:', { exact: false }).isVisible().catch(() => false),
+        page.getByText('Voice Markers:', { exact: false }).isVisible().catch(() => false),
+      ]).then(result => result);
 
       // At least one metadata element should be present if DNA exists
       const hasDNA = await page

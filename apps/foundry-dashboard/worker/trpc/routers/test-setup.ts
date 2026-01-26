@@ -216,20 +216,81 @@ export const testSetupRouter = t.router({
       });
     }
 
-    // Get approved pillars
-    const pillars = await ctx.db
-      .prepare('SELECT id FROM client_approved_pillars WHERE client_id = ? LIMIT 3')
+    // Get or create extracted_pillars (linked to hubs)
+    // First check if we already have extracted pillars
+    const existingPillars = await ctx.db
+      .prepare('SELECT id FROM extracted_pillars WHERE client_id = ? LIMIT 3')
       .bind(clientId)
       .all<{ id: string }>();
 
-    if (!pillars.results || pillars.results.length === 0) {
-      throw new TRPCError({
-        code: 'PRECONDITION_FAILED',
-        message: 'No approved pillars found. Run initializeTestData first.',
-      });
-    }
+    let pillarIds: string[] = [];
 
-    const pillarIds = pillars.results.map(p => p.id);
+    if (existingPillars.results && existingPillars.results.length >= 3) {
+      pillarIds = existingPillars.results.map(p => p.id);
+    } else {
+      // Create extracted_pillars for the hubs we're about to create
+      const extractedPillars = [
+        {
+          id: 'test-extracted-pillar-001',
+          source_id: 'test-source-001',
+          hub_id: 'test-hub-001',
+          title: 'Innovation & Disruption',
+          core_claim: 'Technology innovation drives market disruption',
+          supporting_evidence: JSON.stringify(['Industry trends', 'Market data', 'Case studies']),
+          confidence_score: 0.85,
+        },
+        {
+          id: 'test-extracted-pillar-002',
+          source_id: 'test-source-001',
+          hub_id: 'test-hub-001',
+          title: 'Authentic Leadership',
+          core_claim: 'Authentic leadership builds trust and drives team performance',
+          supporting_evidence: JSON.stringify(['Research findings', 'Expert insights']),
+          confidence_score: 0.82,
+        },
+        {
+          id: 'test-extracted-pillar-003',
+          source_id: 'test-source-002',
+          hub_id: 'test-hub-002',
+          title: 'Data-Driven Results',
+          core_claim: 'Data-driven decision making produces measurable outcomes',
+          supporting_evidence: JSON.stringify(['Statistical analysis', 'Performance metrics']),
+          confidence_score: 0.88,
+        },
+      ];
+
+      for (const pillar of extractedPillars) {
+        const existing = await ctx.db
+          .prepare('SELECT id FROM extracted_pillars WHERE id = ?')
+          .bind(pillar.id)
+          .first<{ id: string }>();
+
+        if (!existing) {
+          await ctx.db
+            .prepare(`
+              INSERT INTO extracted_pillars (
+                id, source_id, client_id, hub_id, title, core_claim,
+                supporting_evidence, confidence_score, created_at
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `)
+            .bind(
+              pillar.id,
+              pillar.source_id,
+              clientId,
+              pillar.hub_id,
+              pillar.title,
+              pillar.core_claim,
+              pillar.supporting_evidence,
+              pillar.confidence_score,
+              now
+            )
+            .run();
+        }
+      }
+
+      pillarIds = extractedPillars.map(p => p.id);
+    }
 
     // 1. Create hub_sources (idempotent)
     const hubSources = [
@@ -403,6 +464,7 @@ export const testSetupRouter = t.router({
       clientId,
       hubSourcesCreated: hubSources.length,
       hubsCreated: hubs.length,
+      extractedPillarsCreated: pillarIds.length,
       spokesCreated: spokes.length,
       platforms: platforms,
     };

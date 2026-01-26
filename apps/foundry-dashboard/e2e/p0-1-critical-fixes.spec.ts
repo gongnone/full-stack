@@ -305,10 +305,13 @@ test.describe('P0-1: Critical Fixes @P0', () => {
       if (hasProgress) {
         // Verify spoke content is actually visible
         // Look for quality score badges which are unique to spokes
-        const qualityScores = await page.locator('text=/G[27] Score/i').count();
+        // Using status role since scores are in status elements
+        const g7Scores = await page.locator('[role="status"]:has-text("G7")').count();
+        const g2Scores = await page.locator('[role="status"]:has-text("G2")').count();
+        const totalScores = g7Scores + g2Scores;
 
         // Should have at least one quality score visible (each spoke has G2 and G7)
-        expect(qualityScores).toBeGreaterThan(0);
+        expect(totalScores).toBeGreaterThan(0);
       }
     });
 
@@ -513,8 +516,10 @@ test.describe('P0-1: Critical Fixes @P0', () => {
       // If content exists, verify it's actually visible (not phantom)
       if (hasProgress) {
         // Check for visible content elements using quality scores
-        const contentElements = await page.locator('text=/G[27] Score/i').count();
-        expect(contentElements).toBeGreaterThan(0);
+        const g7Scores = await page.locator('[role="status"]:has-text("G7")').count();
+        const g2Scores = await page.locator('[role="status"]:has-text("G2")').count();
+        const totalScores = g7Scores + g2Scores;
+        expect(totalScores).toBeGreaterThan(0);
       }
     });
 
@@ -531,11 +536,13 @@ test.describe('P0-1: Critical Fixes @P0', () => {
         test.skip(true, 'No content to verify metadata visibility');
       }
 
-      // Look for quality scores (G2 and G7 scores are typically shown)
-      const hasScores = await page.locator('text=/G[27] Score/i').count();
+      // Look for quality scores (G2 and G7 scores shown in status elements)
+      const g7Scores = await page.locator('[role="status"]:has-text("G7")').count();
+      const g2Scores = await page.locator('[role="status"]:has-text("G2")').count();
+      const totalScores = g7Scores + g2Scores;
 
       // Should have some quality/score indicators visible (each spoke has G2 and G7)
-      expect(hasScores).toBeGreaterThan(0);
+      expect(totalScores).toBeGreaterThan(0);
     });
   });
 });

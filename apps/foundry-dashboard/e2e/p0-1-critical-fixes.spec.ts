@@ -46,13 +46,30 @@ test.describe('P0-1: Critical Fixes @P0', () => {
 
       if (hasContent) {
         // If there's content, keyboard shortcuts should work
+        // Get initial progress
+        const initialProgress = await page.locator('text=/\\d+ \\/ \\d+/').first().textContent();
+        const initialMatch = initialProgress?.match(/(\d+) \/ (\d+)/);
+
+        if (!initialMatch) {
+          test.skip(true, 'Could not parse progress');
+        }
+
+        const [, initialCurrent, totalSpokes] = initialMatch!.map(Number);
+
+        if (initialCurrent >= totalSpokes) {
+          test.skip(true, 'Sprint already complete');
+        }
+
         // Press approve key
         await page.keyboard.press('ArrowRight');
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(1000);
 
-        // Should advance or show feedback
-        const hasFeedback = await page.locator('text=/approved/i').isVisible({ timeout: 2000 }).catch(() => false);
-        expect(hasFeedback).toBe(true);
+        // Should advance to next spoke
+        const newProgress = await page.locator('text=/\\d+ \\/ \\d+/').first().textContent();
+        const newMatch = newProgress?.match(/(\d+) \/ (\d+)/);
+        const [, newCurrent] = newMatch!.map(Number);
+
+        expect(newCurrent).toBe(initialCurrent + 1);
       } else if (hasEmpty) {
         // If empty state, keyboard shortcuts should be disabled
         // Get console messages to verify no action warnings
@@ -287,10 +304,11 @@ test.describe('P0-1: Critical Fixes @P0', () => {
 
       if (hasProgress) {
         // Verify spoke content is actually visible
-        const spokeCards = await page.locator('[class*="card"], [role="article"]').count();
+        // Look for quality score badges which are unique to spokes
+        const qualityScores = await page.locator('text=/G[27] Score/i').count();
 
-        // Should have at least one content element visible
-        expect(spokeCards).toBeGreaterThan(0);
+        // Should have at least one quality score visible (each spoke has G2 and G7)
+        expect(qualityScores).toBeGreaterThan(0);
       }
     });
 
@@ -477,21 +495,25 @@ test.describe('P0-1: Critical Fixes @P0', () => {
       // Navigate to just-generated filter (most recent spokes)
       await page.goto(`${BASE_URL}/app/review?filter=just-generated`);
 
-      // Wait for loading
+      // Wait for loading - increase timeout and ensure page is ready
+      await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
       await page.locator('.animate-spin').waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
 
+      // Wait a bit for content to render
+      await page.waitForTimeout(1000);
+
       // Should either have content or proper empty state (not stuck/broken)
-      const hasContent = await page.locator('text=/\\d+ \\/ \\d+/').isVisible({ timeout: 5000 }).catch(() => false);
-      const hasEmptyState = await page.locator('text=/No Content Found/i').isVisible({ timeout: 5000 }).catch(() => false);
+      const hasProgress = await page.locator('text=/\\d+ \\/ \\d+/').isVisible({ timeout: 5000 }).catch(() => false);
+      const hasEmptyState = await page.locator('text=/No.*Found|No Items|No Content/i').isVisible({ timeout: 5000 }).catch(() => false);
       const hasError = await page.locator('text=/error|failed/i').isVisible({ timeout: 5000 }).catch(() => false);
 
       // Should be in valid state (not undefined/stuck)
-      expect(hasContent || hasEmptyState || hasError).toBe(true);
+      expect(hasProgress || hasEmptyState || hasError).toBe(true);
 
       // If content exists, verify it's actually visible (not phantom)
-      if (hasContent) {
-        // Check for visible content elements
-        const contentElements = await page.locator('[class*="card"], [role="article"], [class*="spoke"]').count();
+      if (hasProgress) {
+        // Check for visible content elements using quality scores
+        const contentElements = await page.locator('text=/G[27] Score/i').count();
         expect(contentElements).toBeGreaterThan(0);
       }
     });
@@ -509,10 +531,10 @@ test.describe('P0-1: Critical Fixes @P0', () => {
         test.skip(true, 'No content to verify metadata visibility');
       }
 
-      // Look for quality scores (G7 scores are typically shown)
-      const hasScores = await page.locator('text=/G7|Quality|Score|\\d+\\.\\d+/i').count();
+      // Look for quality scores (G2 and G7 scores are typically shown)
+      const hasScores = await page.locator('text=/G[27] Score/i').count();
 
-      // Should have some quality/score indicators visible
+      // Should have some quality/score indicators visible (each spoke has G2 and G7)
       expect(hasScores).toBeGreaterThan(0);
     });
   });

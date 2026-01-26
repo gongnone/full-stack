@@ -7,8 +7,10 @@ import type { CloneOptions } from '@/components/review';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
 
+// P0-2.1: Multi-Client Agency Sprint support
 const reviewSearchSchema = z.object({
   filter: z.string().optional().catch(undefined),
+  clients: z.string().optional().catch(undefined), // "abc,def,ghi" or "priority"
 });
 
 export const Route = createFileRoute('/app/review')({
@@ -17,9 +19,19 @@ export const Route = createFileRoute('/app/review')({
 });
 
 function ReviewPage() {
-  const { filter: rawFilter } = Route.useSearch();
+  const { filter: rawFilter, clients: rawClients } = Route.useSearch();
   const navigate = useNavigate();
   const clientId = useClientId();
+
+  // P0-2.1: Parse client IDs from URL parameter
+  const clientIds = useMemo(() => {
+    if (!rawClients) return undefined;
+    // TODO: Handle "priority" keyword by fetching user's priority clients
+    // if (rawClients === 'priority') return userPriorityClients;
+    return rawClients.split(',').filter(Boolean);
+  }, [rawClients]);
+
+  const isMultiClient = clientIds && clientIds.length > 1;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
   const [isComplete, setIsComplete] = useState(false);
@@ -43,41 +55,42 @@ function ReviewPage() {
   });
   const decisionStartRef = useRef<number>(Date.now());
 
-  // tRPC Queries - Bucket counts for tiles
+  // tRPC Queries - Bucket counts for tiles (single-client only)
   const highConfidenceCountQuery = trpc.review.getQueue.useQuery(
     { clientId: clientId!, filter: 'top10', limit: 100 },
-    { enabled: !!clientId && !rawFilter }
+    { enabled: !!clientId && !rawFilter && !isMultiClient }
   );
   const needsReviewCountQuery = trpc.review.getQueue.useQuery(
     { clientId: clientId!, filter: 'needs-review', limit: 100 },
-    { enabled: !!clientId && !rawFilter }
+    { enabled: !!clientId && !rawFilter && !isMultiClient }
   );
   const conflictsCountQuery = trpc.review.getQueue.useQuery(
     { clientId: clientId!, filter: 'flagged', limit: 100 },
-    { enabled: !!clientId && !rawFilter }
+    { enabled: !!clientId && !rawFilter && !isMultiClient }
   );
   const volumeQuery = trpc.analytics.getVolumeMetrics.useQuery(
     { clientId: clientId!, periodDays: 1 },
-    { enabled: !!clientId && !rawFilter }
+    { enabled: !!clientId && !rawFilter && !isMultiClient }
   );
 
-  // Active sprint queue query
+  // P0-2.1: Active sprint queue query (supports both single and multi-client)
+  const internalFilter = rawFilter === 'high-confidence' ? 'top10' :
+                         rawFilter === 'conflicts' ? 'flagged' :
+                         rawFilter === 'needs-review' ? 'needs-review' :
+                         rawFilter === 'just-generated' ? 'just-generated' :
+                         rawFilter === 'golden-nuggets' ? 'golden-nuggets' : 'all';
+
   const queueQuery = trpc.review.getQueue.useQuery(
-    {
-      clientId: clientId!,
-      filter: rawFilter === 'high-confidence' ? 'top10' :
-              rawFilter === 'conflicts' ? 'flagged' :
-              rawFilter === 'needs-review' ? 'needs-review' :
-              rawFilter === 'just-generated' ? 'just-generated' :
-              rawFilter === 'golden-nuggets' ? 'golden-nuggets' : 'all'
-    },
-    { enabled: !!clientId && !!rawFilter }
+    isMultiClient
+      ? { clientIds, filter: internalFilter, limit: 100 }
+      : { clientId: clientId!, filter: internalFilter, limit: 100 },
+    { enabled: !!(clientId || (clientIds && clientIds.length > 0)) && !!rawFilter }
   );
 
-  // Epic 12-1: Golden Nuggets count query
+  // Epic 12-1: Golden Nuggets count query (single-client only)
   const goldenNuggetsCountQuery = trpc.review.getQueue.useQuery(
     { clientId: clientId!, filter: 'golden-nuggets', limit: 100 },
-    { enabled: !!clientId && !rawFilter }
+    { enabled: !!clientId && !rawFilter && !isMultiClient }
   );
 
   const swipeMutation = trpc.review.swipeAction.useMutation();
@@ -119,11 +132,16 @@ function ReviewPage() {
     }
   }, [spokes.length, stats.total]);
 
-  // P0-3: Restore session on mount
+  // P0-3: Restore session on mount (supports multi-client)
   useEffect(() => {
-    if (!rawFilter || !clientId || spokes.length === 0) return;
+    if (!rawFilter || spokes.length === 0) return;
+    if (!clientId && !isMultiClient) return;
 
-    const sessionKey = `review-session-${clientId}-${rawFilter}`;
+    // P0-2.1: Multi-client session key format
+    const sessionKey = isMultiClient
+      ? `review-session-multi-${[...clientIds!].sort().join('-')}-${rawFilter}`
+      : `review-session-${clientId}-${rawFilter}`;
+
     const savedSession = localStorage.getItem(sessionKey);
 
     if (savedSession) {
@@ -145,17 +163,36 @@ function ReviewPage() {
         localStorage.removeItem(sessionKey);
       }
     }
-  }, [rawFilter, clientId, spokes.length]);
+  }, [rawFilter, clientId, clientIds, isMultiClient, spokes.length]);
 
-  // P0-3: Save session on progress changes
+  // P0-3: Save session on progress changes (supports multi-client)
   useEffect(() => {
-    if (!rawFilter || !clientId || spokes.length === 0 || !stats.total) return;
+    if (!rawFilter || spokes.length === 0 || !stats.total) return;
+    if (!clientId && !isMultiClient) return;
     if (isComplete) return; // Don't save if sprint is complete
 
-    const sessionKey = `review-session-${clientId}-${rawFilter}`;
+    // P0-2.1: Multi-client session key format
+    const sessionKey = isMultiClient
+      ? `review-session-multi-${[...clientIds!].sort().join('-')}-${rawFilter}`
+      : `review-session-${clientId}-${rawFilter}`;
+
+    // P0-2.1: Calculate per-client stats for multi-client mode
+    const perClientStats = isMultiClient
+      ? clientIds!.reduce((acc, cId) => {
+          const clientSpokes = spokes.filter((s: any) => s.clientId === cId);
+          const reviewedClientSpokes = spokes.slice(0, currentIndex + 1).filter((s: any) => s.clientId === cId);
+          acc[cId] = {
+            total: clientSpokes.length,
+            reviewed: reviewedClientSpokes.length,
+          };
+          return acc;
+        }, {} as Record<string, { total: number; reviewed: number }>)
+      : undefined;
+
     const session = {
       index: currentIndex,
       stats,
+      perClientStats,
       timestamp: Date.now(),
     };
 
@@ -164,17 +201,20 @@ function ReviewPage() {
     } catch (err) {
       console.error('Failed to save session:', err);
     }
-  }, [rawFilter, clientId, currentIndex, stats, spokes.length, isComplete]);
+  }, [rawFilter, clientId, clientIds, isMultiClient, currentIndex, stats, spokes, isComplete]);
 
-  // P0-3: Clear session on completion
+  // P0-3: Clear session on completion (supports multi-client)
   useEffect(() => {
-    if (!rawFilter || !clientId) return;
+    if (!rawFilter) return;
+    if (!clientId && !isMultiClient) return;
 
     if (isComplete) {
-      const sessionKey = `review-session-${clientId}-${rawFilter}`;
+      const sessionKey = isMultiClient
+        ? `review-session-multi-${[...clientIds!].sort().join('-')}-${rawFilter}`
+        : `review-session-${clientId}-${rawFilter}`;
       localStorage.removeItem(sessionKey);
     }
-  }, [isComplete, rawFilter, clientId]);
+  }, [isComplete, rawFilter, clientId, clientIds, isMultiClient]);
 
   const handleAction = useCallback((action: 'approve' | 'kill') => {
     if (!currentSpoke || !clientId) return;
@@ -415,11 +455,27 @@ function ReviewPage() {
       );
     }
 
+    // P0-2.1: Calculate per-client stats for SprintComplete
+    const perClientStats = isMultiClient && clientIds
+      ? clientIds.reduce((acc, cId) => {
+          const clientSpokes = spokes.filter((s: any) => s.clientId === cId);
+          acc[cId] = {
+            total: clientSpokes.length,
+            approved: 0, // TODO: Track per-client in handleAction
+            killed: 0,
+            edited: 0,
+          };
+          return acc;
+        }, {} as Record<string, { total: number; approved: number; killed: number; edited: number }>)
+      : undefined;
+
     return (
       <SprintComplete
         stats={stats}
         filter={rawFilter}
-        clientId={clientId || ''}
+        clientId={isMultiClient ? undefined : (clientId || '')}
+        clientIds={isMultiClient ? clientIds : undefined}
+        perClientStats={perClientStats}
         onBackToDashboard={() => navigate({ to: '/app/review' })}
         onReviewConflicts={() => navigate({ to: '/app/review', search: { filter: 'conflicts' } })}
       />
@@ -488,7 +544,10 @@ function ReviewPage() {
                   avgDecisionMs: 150,
                 });
                 setSavedSessionRestored(false);
-                const sessionKey = `review-session-${clientId}-${rawFilter}`;
+                // P0-2.1: Multi-client session key
+                const sessionKey = isMultiClient
+                  ? `review-session-multi-${[...clientIds!].sort().join('-')}-${rawFilter}`
+                  : `review-session-${clientId}-${rawFilter}`;
                 localStorage.removeItem(sessionKey);
               }}
               className="px-4 py-2 rounded-lg bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--edit)] text-sm font-semibold transition-colors"
@@ -504,7 +563,22 @@ function ReviewPage() {
         {/* Progress Stats */}
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm text-[var(--text-secondary)]">Progress</span>
-          <span className="text-sm text-[var(--text-secondary)]">{currentIndex + 1} of {spokes.length} reviewed</span>
+          <div className="text-right">
+            <span className="text-sm text-[var(--text-secondary)]">{currentIndex + 1} of {spokes.length} reviewed</span>
+            {/* P0-2.1: Multi-client progress breakdown */}
+            {isMultiClient && clientIds && (
+              <div className="text-xs text-[var(--text-secondary)] mt-1">
+                {clientIds.slice(0, 5).map((cId, idx) => {
+                  const clientSpokes = spokes.filter((s: any) => s.clientId === cId);
+                  const reviewed = spokes.slice(0, currentIndex + 1).filter((s: any) => s.clientId === cId).length;
+                  const clientName = clientSpokes[0]?.clientName || cId.slice(0, 8);
+                  const separator = idx > 0 ? ' • ' : '';
+                  return `${separator}${clientName}: ${reviewed}/${clientSpokes.length}`;
+                }).join('')}
+                {clientIds.length > 5 && ` • +${clientIds.length - 5} more`}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Progress Bar */}
@@ -554,6 +628,18 @@ function ReviewPage() {
             ${!direction ? 'translate-x-0 opacity-100 rotate-0 scale-100' : 'scale-95'}
           `}
         >
+          {/* P0-2.1: Client Badge for multi-client sprints */}
+          {isMultiClient && (currentSpoke as any).clientId && (
+            <div className="absolute top-4 left-4 flex items-center gap-2 bg-[var(--bg-elevated)] rounded-full px-3 py-1 border border-[var(--border-subtle)] shadow-sm">
+              {(currentSpoke as any).clientLogo && (
+                <img src={(currentSpoke as any).clientLogo} className="w-5 h-5 rounded-full" alt="" />
+              )}
+              <span className="text-xs text-[var(--text-secondary)] font-medium">
+                {(currentSpoke as any).clientName || (currentSpoke as any).clientId.slice(0, 8)}
+              </span>
+            </div>
+          )}
+
           {/* Spoke Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">

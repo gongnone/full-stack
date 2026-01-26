@@ -34,16 +34,85 @@ interface ReviewQueueSpoke {
 
 export const reviewRouter = t.router({
   // Get the bulk approval queue
+  // P0-2.1: Multi-Client Agency Sprint support
   getQueue: procedure
     .input(z.object({
-      clientId: z.string().min(1),
+      clientId: z.string().min(1).optional(),
+      clientIds: z.array(z.string().min(1)).optional(),
       filter: z.enum(['all', 'top10', 'flagged', 'needs-review', 'just-generated', 'golden-nuggets']).default('all'),
       limit: z.number().min(1).max(100).default(50),
       cursor: z.number().optional(), // offset-based pagination
+    }).refine(data => {
+      const hasSingle = !!data.clientId;
+      const hasMulti = !!data.clientIds && data.clientIds.length > 0;
+      return hasSingle !== hasMulti; // XOR: exactly one
+    }, {
+      message: "Exactly one of clientId or clientIds must be provided"
     }))
     .query(async ({ ctx, input }) => {
-      await assertClientAccess(ctx, input.clientId);
-      const items = await ctx.callAgent(input.clientId, 'getReviewQueue', {
+      // Multi-client mode
+      if (input.clientIds && input.clientIds.length > 0) {
+        // 1. Validate access to all clients
+        await Promise.all(
+          input.clientIds.map(id => assertClientAccess(ctx, id))
+        );
+
+        // 2. Fetch spokes in parallel from each client
+        const results = await Promise.all(
+          input.clientIds.map(id =>
+            ctx.callAgent(id, 'getReviewQueue', {
+              filter: input.filter,
+              limit: input.limit,
+              offset: input.cursor,
+            }) as Promise<ReviewQueueSpoke[]>
+          )
+        );
+
+        // 3. Fetch client metadata
+        const placeholders = input.clientIds.map(() => '?').join(', ');
+        const clientsResult = await ctx.db
+          .prepare(`SELECT id, name, logo_url FROM clients WHERE id IN (${placeholders})`)
+          .bind(...input.clientIds)
+          .all();
+        const clientsMap = new Map(clientsResult.results.map((c: any) => [c.id, { name: c.name, logoUrl: c.logo_url }]));
+
+        // 4. Merge and enrich with client metadata
+        const allSpokes = results.flatMap((items, idx) =>
+          items.map((item: any) => ({
+            ...item,
+            clientId: input.clientIds![idx],
+            clientName: clientsMap.get(input.clientIds![idx])?.name || input.clientIds![idx],
+            clientLogo: clientsMap.get(input.clientIds![idx])?.logoUrl,
+            parentSpokeId: item.parentSpokeId || item.parent_spoke_id,
+            clonedFrom: item.clonedFrom || item.cloned_from,
+            engagementPrediction: item.engagementPrediction ?? item.engagement_prediction ?? null,
+            engagementConfidence: item.engagementConfidence ?? item.engagement_confidence ?? null,
+          }))
+        );
+
+        // 5. Sort by G7 score DESC (top10/golden-nuggets) or createdAt DESC
+        const sorted = allSpokes.sort((a, b) => {
+          if (input.filter === 'top10' || input.filter === 'golden-nuggets') {
+            return (b.qualityScores?.g7_engagement || 0) - (a.qualityScores?.g7_engagement || 0);
+          }
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        // 6. Apply limit and pagination
+        const paginatedItems = sorted.slice(0, input.limit);
+        const nextCursor = sorted.length > input.limit ? (input.cursor || 0) + input.limit : undefined;
+
+        return {
+          items: paginatedItems,
+          nextCursor,
+          totalCount: sorted.length,
+          estimatedReviewTime: `${Math.ceil(paginatedItems.length * 6 / 60)} minutes`,
+        };
+      }
+
+      // Single-client mode (existing logic)
+      await assertClientAccess(ctx, input.clientId!);
+      const items = await ctx.callAgent(input.clientId!, 'getReviewQueue', {
         filter: input.filter,
         limit: input.limit + 1, // Fetch one extra to determine next cursor
         offset: input.cursor,

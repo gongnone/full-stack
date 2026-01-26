@@ -13,10 +13,20 @@ interface SprintStats {
   avgDecisionMs: number;
 }
 
+// P0-2.1: Multi-Client Agency Sprint support
+interface ClientStats {
+  total: number;
+  approved: number;
+  killed: number;
+  edited: number;
+}
+
 interface SprintCompleteProps {
   stats: SprintStats;
   filter: string;
-  clientId: string;
+  clientId?: string; // Optional for multi-client mode
+  clientIds?: string[]; // P0-2.1: Array of client IDs for multi-client sprints
+  perClientStats?: Record<string, ClientStats>; // P0-2.1: Per-client stats breakdown
   onBackToDashboard: () => void;
   onReviewConflicts: () => void;
 }
@@ -44,10 +54,13 @@ function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string
   return <span>{displayed}{suffix}</span>;
 }
 
-export function SprintComplete({ stats, filter: _filter, clientId, onBackToDashboard, onReviewConflicts }: SprintCompleteProps) {
+export function SprintComplete({ stats, filter: _filter, clientId, clientIds, perClientStats, onBackToDashboard, onReviewConflicts }: SprintCompleteProps) {
   const { addToast } = useToast();
   const [showTestimonialModal, setShowTestimonialModal] = useState(false);
   const [hasCheckedTestimonial, setHasCheckedTestimonial] = useState(false);
+
+  // P0-2.1: Multi-client mode flag
+  const isMultiClient = clientIds && clientIds.length > 1;
 
   const hoursSaved = (stats.total * ROI_CONFIG.MINUTES_SAVED_PER_SPOKE) / 60;
   const dollarValue = Math.round(hoursSaved * ROI_CONFIG.HOURLY_RATE_USD);
@@ -57,7 +70,16 @@ export function SprintComplete({ stats, filter: _filter, clientId, onBackToDashb
   const avgTimePerSpoke = Math.round(stats.avgDecisionMs / 1000); // Convert to seconds
 
   // P0-3: Dynamic celebration message based on approval rate
+  // P0-2.1: Multi-client celebration messages
   const getCelebrationMessage = () => {
+    if (isMultiClient) {
+      // Multi-client mode
+      if (approvalRate >= 80) return `🚀 All ${clientIds!.length} clients reviewed! Outstanding work!`;
+      if (approvalRate >= 60) return `🎉 ${clientIds!.length} clients complete! Great efficiency!`;
+      return `👍 ${clientIds!.length} clients reviewed! Keep optimizing!`;
+    }
+
+    // Single-client mode (existing logic)
     if (approvalRate >= 80) return "🌟 Outstanding! Your content is 🔥";
     if (approvalRate >= 60) return "🎉 Great job! Solid content quality";
     if (approvalRate >= 40) return "👍 Good work! Room for optimization";
@@ -74,10 +96,10 @@ export function SprintComplete({ stats, filter: _filter, clientId, onBackToDashb
 
   const speedBadge = getSpeedBadge();
 
-  // FR-1.5.16: Check if testimonial should be triggered
+  // FR-1.5.16: Check if testimonial should be triggered (single-client only)
   const testimonialTriggerQuery = trpc.testimonials.checkTrigger.useQuery(
-    { clientId },
-    { enabled: !!clientId && !hasCheckedTestimonial }
+    { clientId: clientId || '' },
+    { enabled: !!clientId && !isMultiClient && !hasCheckedTestimonial }
   );
 
   // Show testimonial modal after a short delay when trigger conditions are met

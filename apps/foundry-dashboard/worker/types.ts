@@ -322,6 +322,9 @@ export interface Spoke {
   g2_score: number | null; // Hook strength 0-100 (Story 4.2)
   g4_status: string | null; // Voice alignment (Story 4.2)
   g5_status: string | null; // Platform compliance (Story 4.2)
+  g7_score?: number | null; // Engagement prediction 0-10 (Story 4.6)
+  g7_benchmark?: number | null; // Benchmark engagement rate 0-1 (Story 4.6)
+  g7_source?: string | null; // Scoring source blend (Story 4.6)
   quality_scores?: QualityScores; // Aggregated quality scores from Durable Object
   visual_archetype?: string; // Visual style for thumbnails
   image_prompt?: string; // AI image generation prompt
@@ -461,4 +464,31 @@ export interface HookDatabaseStats {
   byPlatform: Record<string, number>;
   byCategory: Record<string, number>;
   byTier: Record<string, number>;
+}
+
+// P0-2.1: Multi-Client Agency Sprint types
+export interface ReviewQueueSpoke {
+  id: string;
+  hubId: string;
+  pillarId: string;
+  platform: SpokePlatform;
+  content: string;
+  status: SpokeStatus;
+  qualityScores: {
+    g2_hook?: number;
+    g4_voice?: boolean;
+    g5_platform?: boolean;
+    g7_engagement?: number;
+  };
+  engagementPrediction?: number | null;
+  engagementConfidence?: 'low' | 'medium' | 'high' | null;
+  parentSpokeId?: string | null;
+  clonedFrom?: string | null;
+  createdAt: string;
+}
+
+export interface ReviewQueueSpokeWithClient extends ReviewQueueSpoke {
+  clientId: string;
+  clientName: string;
+  clientLogo?: string;
 }

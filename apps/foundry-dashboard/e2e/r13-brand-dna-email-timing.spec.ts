@@ -51,22 +51,44 @@ async function loginAndGetSession(page: Page): Promise<string | null> {
 }
 
 /**
- * Helper: Find first client ID
+ * Helper: Find first client ID from the clients list
+ * Uses tRPC query since ClientManager renders cards without navigation links
  */
 async function findFirstClientId(page: Page): Promise<string | null> {
   await page.goto(`${BASE_URL}/app/clients`);
   await page.waitForLoadState('networkidle').catch(() => {});
 
-  const clientLinks = page.locator('a[href*="/app/clients/"]');
-  const count = await clientLinks.count();
+  // Wait for page to load
+  await page.waitForTimeout(2000);
 
-  for (let i = 0; i < count; i++) {
-    const href = await clientLinks.nth(i).getAttribute('href');
-    const match = href?.match(/\/app\/clients\/([a-f0-9-]+)(?:\/|$)/);
-    if (match) return match[1];
+  // Query clients via tRPC using page.evaluate
+  // tRPC GET format: /trpc/procedure?input={"json":{"param":"value"}}
+  const clientId = await page.evaluate(async () => {
+    try {
+      const input = encodeURIComponent(JSON.stringify({ json: {} }));
+      const response = await fetch(`/trpc/clients.list?input=${input}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      const clients = data?.result?.data?.items || [];
+      if (clients.length > 0) {
+        return clients[0].id;
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to fetch clients:', error);
+      return null;
+    }
+  });
+
+  if (clientId) {
+    console.log(`findFirstClientId: Found client ID = ${clientId}`);
+  } else {
+    console.log('findFirstClientId: No clients found');
   }
 
-  return null;
+  return clientId;
 }
 
 test.describe('R-13: Brand DNA Email Timing', () => {
@@ -120,7 +142,7 @@ test.describe('R-13: Brand DNA Email Timing', () => {
       // Note: This tests that the endpoint is reachable, not that it sends email
       // (Email sending requires AWS SES credentials)
 
-      const response = await request.post(`${BASE_URL}/api/trpc/calibration.notifyCalibrationComplete`, {
+      const response = await request.post(`${BASE_URL}/trpc/calibration.notifyCalibrationComplete`, {
         headers: {
           'Content-Type': 'application/json',
           Cookie: session,
@@ -164,7 +186,7 @@ test.describe('R-13: Brand DNA Email Timing', () => {
       }
 
       // WHEN: Calling with success=false (calibration failed)
-      const response = await request.post(`${BASE_URL}/api/trpc/calibration.notifyCalibrationComplete`, {
+      const response = await request.post(`${BASE_URL}/trpc/calibration.notifyCalibrationComplete`, {
         headers: {
           'Content-Type': 'application/json',
           Cookie: session,

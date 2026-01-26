@@ -148,10 +148,8 @@ test.describe('R-13: Brand DNA Email Timing', () => {
           Cookie: session,
         },
         data: {
-          json: {
-            clientId,
-            success: true,
-          },
+          clientId,
+          success: true,
         },
       });
 
@@ -192,11 +190,9 @@ test.describe('R-13: Brand DNA Email Timing', () => {
           Cookie: session,
         },
         data: {
-          json: {
-            clientId,
-            success: false,
-            error: 'Test calibration failure',
-          },
+          clientId,
+          success: false,
+          error: 'Test calibration failure',
         },
       });
 

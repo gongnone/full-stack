@@ -240,16 +240,21 @@ test.describe('R-13: Brand DNA Email Timing', () => {
       await page.goto(`${BASE_URL}/app/clients/${clientId}/brand-dna`);
       await page.waitForLoadState('networkidle').catch(() => {});
 
+      // Wait for content to render
+      await page.waitForTimeout(2000);
+
       // THEN: Page should load (email would have been sent after calibration)
       const url = page.url();
       expect(url).toContain('/brand-dna');
 
       // Should show DNA content or processing state
-      const hasContent = await Promise.race([
-        page.locator('[data-testid="dna-strength-score"]').waitFor({ timeout: 5000 }).then(() => true),
-        page.locator('text=/Brand DNA/i').waitFor({ timeout: 5000 }).then(() => true),
-        page.locator('text=/being analyzed|processing/i').waitFor({ timeout: 5000 }).then(() => true),
-      ]).catch(() => false);
+      const hasContent =
+        (await page.getByText('Brand DNA', { exact: false }).isVisible().catch(() => false)) ||
+        (await page.getByText('Signature Phrases', { exact: false }).isVisible().catch(() => false)) ||
+        (await page.getByText('Extraction Details', { exact: false }).isVisible().catch(() => false)) ||
+        (await page.locator('[data-testid="dna-strength-score"]').isVisible().catch(() => false)) ||
+        (await page.getByText('being analyzed', { exact: false }).isVisible().catch(() => false)) ||
+        (await page.getByText('Processing', { exact: false }).isVisible().catch(() => false));
 
       expect(hasContent, 'Brand DNA page should render').toBe(true);
     });

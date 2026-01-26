@@ -424,38 +424,25 @@ export const testSetupRouter = t.router({
       }
     }
 
+    // Create spokes via Durable Object (not D1 directly)
+    // The DO manages spoke state in its own SQL storage
     for (const spoke of spokes) {
-      const existing = await ctx.db
-        .prepare('SELECT id FROM spokes WHERE id = ?')
-        .bind(spoke.id)
-        .first<{ id: string }>();
-
-      if (!existing) {
-        await ctx.db
-          .prepare(`
-            INSERT INTO spokes (
-              id, hub_id, pillar_id, client_id, platform, content,
-              psychological_angle, status, g2_score, g4_status, g5_status,
-              created_at, updated_at
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `)
-          .bind(
-            spoke.id,
-            spoke.hub_id,
-            spoke.pillar_id,
-            clientId,
-            spoke.platform,
-            spoke.content,
-            spoke.psychological_angle,
-            'ready', // Status for review queue
-            spoke.g2_score,
-            spoke.g4_status,
-            spoke.g5_status,
-            now,
-            now
-          )
-          .run();
+      try {
+        await ctx.callAgent(clientId, 'createSpoke', {
+          id: spoke.id,
+          hubId: spoke.hub_id,
+          pillarId: spoke.pillar_id,
+          platform: spoke.platform,
+          content: spoke.content,
+          status: 'generating', // Use 'generating' for review queue visibility
+          regenerationCount: 0,
+          parentSpokeId: null,
+        });
+      } catch (error: any) {
+        // Spoke might already exist, continue
+        if (!error.message?.includes('UNIQUE constraint')) {
+          console.error(`Failed to create spoke ${spoke.id}:`, error);
+        }
       }
     }
 

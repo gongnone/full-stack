@@ -30,6 +30,9 @@ function ReviewPage() {
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [actionFeedback, setActionFeedback] = useState<{ type: 'approve' | 'kill' | 'edit'; message: string } | null>(null);
 
+  // P0-3: Session persistence state
+  const [savedSessionRestored, setSavedSessionRestored] = useState(false);
+
   // Sprint stats tracking
   const [stats, setStats] = useState({
     total: 0,
@@ -115,6 +118,63 @@ function ReviewPage() {
       setStats(prev => ({ ...prev, total: spokes.length }));
     }
   }, [spokes.length, stats.total]);
+
+  // P0-3: Restore session on mount
+  useEffect(() => {
+    if (!rawFilter || !clientId || spokes.length === 0) return;
+
+    const sessionKey = `review-session-${clientId}-${rawFilter}`;
+    const savedSession = localStorage.getItem(sessionKey);
+
+    if (savedSession) {
+      try {
+        const session = JSON.parse(savedSession);
+        const ONE_HOUR = 3600000;
+        const isStale = Date.now() - session.timestamp > ONE_HOUR;
+
+        if (isStale) {
+          localStorage.removeItem(sessionKey);
+        } else if (session.index < spokes.length) {
+          // Restore session
+          setCurrentIndex(session.index);
+          setStats(session.stats);
+          setSavedSessionRestored(true);
+        }
+      } catch (err) {
+        console.error('Failed to restore session:', err);
+        localStorage.removeItem(sessionKey);
+      }
+    }
+  }, [rawFilter, clientId, spokes.length]);
+
+  // P0-3: Save session on progress changes
+  useEffect(() => {
+    if (!rawFilter || !clientId || spokes.length === 0 || !stats.total) return;
+    if (isComplete) return; // Don't save if sprint is complete
+
+    const sessionKey = `review-session-${clientId}-${rawFilter}`;
+    const session = {
+      index: currentIndex,
+      stats,
+      timestamp: Date.now(),
+    };
+
+    try {
+      localStorage.setItem(sessionKey, JSON.stringify(session));
+    } catch (err) {
+      console.error('Failed to save session:', err);
+    }
+  }, [rawFilter, clientId, currentIndex, stats, spokes.length, isComplete]);
+
+  // P0-3: Clear session on completion
+  useEffect(() => {
+    if (!rawFilter || !clientId) return;
+
+    if (isComplete) {
+      const sessionKey = `review-session-${clientId}-${rawFilter}`;
+      localStorage.removeItem(sessionKey);
+    }
+  }, [isComplete, rawFilter, clientId]);
 
   const handleAction = useCallback((action: 'approve' | 'kill') => {
     if (!currentSpoke || !clientId) return;
@@ -384,6 +444,60 @@ function ReviewPage() {
           </div>
         </div>
       </div>
+
+      {/* P0-3: Welcome Back Banner */}
+      {savedSessionRestored && (
+        <div className="bg-[var(--edit-glow)] border border-[var(--edit)] rounded-xl p-6 mb-6 animate-slide-down">
+          <div className="flex items-start gap-4">
+            {/* Clock Icon */}
+            <div className="flex-shrink-0">
+              <svg
+                className="w-6 h-6 text-[var(--edit)]"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-[var(--edit)] mb-2">
+                Welcome back! Resuming where you left off
+              </h3>
+              <p className="text-sm text-[var(--text-secondary)]">
+                You've reviewed {currentIndex} of {spokes.length} spokes ({stats.approved} approved, {stats.killed} killed)
+              </p>
+            </div>
+
+            {/* Start Over Button */}
+            <button
+              onClick={() => {
+                setCurrentIndex(0);
+                setStats({
+                  total: spokes.length,
+                  approved: 0,
+                  killed: 0,
+                  edited: 0,
+                  avgDecisionMs: 150,
+                });
+                setSavedSessionRestored(false);
+                const sessionKey = `review-session-${clientId}-${rawFilter}`;
+                localStorage.removeItem(sessionKey);
+              }}
+              className="px-4 py-2 rounded-lg bg-[var(--bg-elevated)] hover:bg-[var(--bg-hover)] text-[var(--edit)] text-sm font-semibold transition-colors"
+            >
+              Start Over
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* P0-2: Progress Visualization */}
       <div className="mb-8">

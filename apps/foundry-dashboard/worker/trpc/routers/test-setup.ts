@@ -176,4 +176,235 @@ export const testSetupRouter = t.router({
       brandDnaCreated: !existingDna,
     };
   }),
+
+  /**
+   * Generate test spokes for review sprint E2E tests
+   * Creates:
+   * - 2 hub_sources (text type)
+   * - 2 hubs linked to sources
+   * - 10 spokes in 'ready' status for review (2 per platform across different pillars)
+   */
+  generateTestSpokes: procedure.mutation(async ({ ctx }) => {
+    // Security: Only allow in non-production
+    if (ctx.env.ENVIRONMENT === 'production') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Test setup not allowed in production',
+      });
+    }
+
+    if (!ctx.userId) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: 'Not authenticated',
+      });
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const clientId = 'test-client-001';
+
+    // Verify client exists
+    const existingClient = await ctx.db
+      .prepare('SELECT id FROM clients WHERE id = ?')
+      .bind(clientId)
+      .first<{ id: string }>();
+
+    if (!existingClient) {
+      throw new TRPCError({
+        code: 'PRECONDITION_FAILED',
+        message: 'Test client not found. Run initializeTestData first.',
+      });
+    }
+
+    // Get approved pillars
+    const pillars = await ctx.db
+      .prepare('SELECT id FROM client_approved_pillars WHERE client_id = ? LIMIT 3')
+      .bind(clientId)
+      .all<{ id: string }>();
+
+    if (!pillars.results || pillars.results.length === 0) {
+      throw new TRPCError({
+        code: 'PRECONDITION_FAILED',
+        message: 'No approved pillars found. Run initializeTestData first.',
+      });
+    }
+
+    const pillarIds = pillars.results.map(p => p.id);
+
+    // 1. Create hub_sources (idempotent)
+    const hubSources = [
+      {
+        id: 'test-source-001',
+        title: 'E2E Test Content Source 1',
+        source_type: 'text',
+        raw_content: 'This is test content for E2E testing. It contains insights about technology innovation and disruption.',
+        character_count: 105,
+        word_count: 16,
+      },
+      {
+        id: 'test-source-002',
+        title: 'E2E Test Content Source 2',
+        source_type: 'text',
+        raw_content: 'Additional test content for generating varied spokes. Focus on authenticity and real-world results.',
+        character_count: 103,
+        word_count: 14,
+      },
+    ];
+
+    for (const source of hubSources) {
+      const existing = await ctx.db
+        .prepare('SELECT id FROM hub_sources WHERE id = ?')
+        .bind(source.id)
+        .first<{ id: string }>();
+
+      if (!existing) {
+        await ctx.db
+          .prepare(`
+            INSERT INTO hub_sources (
+              id, client_id, user_id, title, source_type, raw_content,
+              character_count, word_count, status, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `)
+          .bind(
+            source.id,
+            clientId,
+            ctx.userId,
+            source.title,
+            source.source_type,
+            source.raw_content,
+            source.character_count,
+            source.word_count,
+            'ready',
+            now,
+            now
+          )
+          .run();
+      }
+    }
+
+    // 2. Create hubs (idempotent)
+    const hubs = [
+      {
+        id: 'test-hub-001',
+        source_id: 'test-source-001',
+        title: 'E2E Test Hub 1 - Innovation',
+        pillar_count: 2,
+        spoke_count: 5,
+      },
+      {
+        id: 'test-hub-002',
+        source_id: 'test-source-002',
+        title: 'E2E Test Hub 2 - Authenticity',
+        pillar_count: 1,
+        spoke_count: 5,
+      },
+    ];
+
+    for (const hub of hubs) {
+      const existing = await ctx.db
+        .prepare('SELECT id FROM hubs WHERE id = ?')
+        .bind(hub.id)
+        .first<{ id: string }>();
+
+      if (!existing) {
+        await ctx.db
+          .prepare(`
+            INSERT INTO hubs (
+              id, client_id, user_id, source_id, title, source_type,
+              pillar_count, spoke_count, status, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `)
+          .bind(
+            hub.id,
+            clientId,
+            ctx.userId,
+            hub.source_id,
+            hub.title,
+            'text',
+            hub.pillar_count,
+            hub.spoke_count,
+            'ready',
+            now,
+            now
+          )
+          .run();
+      }
+    }
+
+    // 3. Create spokes in 'ready' status for review (idempotent)
+    const platforms = ['twitter', 'linkedin', 'tiktok', 'instagram', 'newsletter'] as const;
+    const psychAngles = ['Contrarian', 'Authority', 'Curiosity', 'Aspiration', 'Transformation'] as const;
+
+    const spokes = [];
+    let spokeIndex = 0;
+
+    // Generate 2 spokes per platform (10 total)
+    for (let i = 0; i < platforms.length; i++) {
+      for (let j = 0; j < 2; j++) {
+        spokeIndex++;
+        const hubId = j === 0 ? 'test-hub-001' : 'test-hub-002';
+        const pillarId = pillarIds[i % pillarIds.length];
+        const platform = platforms[i];
+        const psychAngle = psychAngles[i];
+
+        spokes.push({
+          id: `test-spoke-${String(spokeIndex).padStart(3, '0')}`,
+          hub_id: hubId,
+          pillar_id: pillarId,
+          platform,
+          content: `Test ${platform} post #${spokeIndex}: ${psychAngle} angle. This is compelling content that demonstrates ${pillarId.includes('catalyst') ? 'disruption' : pillarId.includes('core-truth') ? 'authenticity' : 'results'}. Engaging hook that captures attention and drives action. #testcontent #e2e`,
+          psychological_angle: psychAngle,
+          g2_score: 75 + (spokeIndex % 20), // Vary scores 75-95
+          g4_status: 'pass',
+          g5_status: 'pass',
+        });
+      }
+    }
+
+    for (const spoke of spokes) {
+      const existing = await ctx.db
+        .prepare('SELECT id FROM spokes WHERE id = ?')
+        .bind(spoke.id)
+        .first<{ id: string }>();
+
+      if (!existing) {
+        await ctx.db
+          .prepare(`
+            INSERT INTO spokes (
+              id, hub_id, pillar_id, client_id, platform, content,
+              psychological_angle, status, g2_score, g4_status, g5_status,
+              created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `)
+          .bind(
+            spoke.id,
+            spoke.hub_id,
+            spoke.pillar_id,
+            clientId,
+            spoke.platform,
+            spoke.content,
+            spoke.psychological_angle,
+            'ready', // Status for review queue
+            spoke.g2_score,
+            spoke.g4_status,
+            spoke.g5_status,
+            now,
+            now
+          )
+          .run();
+      }
+    }
+
+    return {
+      success: true,
+      clientId,
+      hubSourcesCreated: hubSources.length,
+      hubsCreated: hubs.length,
+      spokesCreated: spokes.length,
+      platforms: platforms,
+    };
+  }),
 });

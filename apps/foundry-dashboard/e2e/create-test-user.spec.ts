@@ -142,8 +142,8 @@ async function createOrVerifyUser(
 
 async function initializeTestData(page: import('@playwright/test').Page): Promise<void> {
   try {
-    // Call tRPC testSetup.initializeTestData mutation
-    const response = await page.evaluate(async () => {
+    // Step 1: Initialize client, pillars, and brand DNA
+    const initResponse = await page.evaluate(async () => {
       const res = await fetch('/trpc/testSetup.initializeTestData', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -152,10 +152,27 @@ async function initializeTestData(page: import('@playwright/test').Page): Promis
       return res.json();
     });
 
-    if (response.result?.data) {
-      console.log(`   📊 Test data initialized: ${response.result.data.pillarsCreated} pillars created`);
+    if (initResponse.result?.data) {
+      console.log(`   📊 Test data initialized: ${initResponse.result.data.pillarsCreated} pillars created`);
     } else {
-      console.log(`   ⚠️  Test data initialization response: ${JSON.stringify(response).substring(0, 100)}`);
+      console.log(`   ⚠️  Test data initialization response: ${JSON.stringify(initResponse).substring(0, 100)}`);
+    }
+
+    // Step 2: Generate test spokes for review sprint tests
+    const spokesResponse = await page.evaluate(async () => {
+      const res = await fetch('/trpc/testSetup.generateTestSpokes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      return res.json();
+    });
+
+    if (spokesResponse.result?.data) {
+      const data = spokesResponse.result.data;
+      console.log(`   🎯 Test spokes generated: ${data.spokesCreated} spokes, ${data.hubsCreated} hubs`);
+    } else {
+      console.log(`   ⚠️  Test spokes generation response: ${JSON.stringify(spokesResponse).substring(0, 100)}`);
     }
   } catch (error: any) {
     console.log(`   ⚠️  Failed to initialize test data: ${error.message}`);

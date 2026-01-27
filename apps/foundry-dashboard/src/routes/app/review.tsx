@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { z } from 'zod';
 import { ActionButton, ScoreBadge, KeyboardHint } from '@/components/ui';
-import { BucketCard, SprintComplete, KillConfirmationModal, CloneSpokeModal } from '@/components/review';
+import { BucketCard, SprintComplete, KillConfirmationModal, CloneSpokeModal, MultiSessionDashboard } from '@/components/review';
 import type { CloneOptions } from '@/components/review';
 import { trpc } from '@/lib/trpc-client';
 import { useClientId } from '@/lib/use-client-id';
@@ -124,6 +124,70 @@ function ReviewPage() {
 
   const spokes = useMemo(() => queueQuery.data?.items || [], [queueQuery.data]);
   const currentSpoke = spokes[currentIndex];
+
+  // P0-2.1: Scan localStorage for active sessions
+  const activeSessions = useMemo(() => {
+    if (rawFilter) return []; // Only scan when no filter (dashboard view)
+
+    const sessions: any[] = [];
+    const prefix = 'review-session-';
+
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key?.startsWith(prefix)) continue;
+
+        try {
+          const data = JSON.parse(localStorage.getItem(key)!);
+          const age = Date.now() - data.timestamp;
+          if (age > 3600000) {
+            // Stale session (> 1 hour), remove it
+            localStorage.removeItem(key);
+            continue;
+          }
+
+          // Parse session key to extract client IDs and filter
+          const isMulti = key.includes('-multi-');
+          const parts = key.replace(prefix, '').split('-');
+
+          let clientIds: string[];
+          let filter: string;
+
+          if (isMulti) {
+            // Format: review-session-multi-{clientId1}-{clientId2}-...-{filter}
+            filter = parts[parts.length - 1];
+            clientIds = parts.slice(1, -1); // Skip 'multi' and filter
+          } else {
+            // Format: review-session-{clientId}-{filter}
+            filter = parts[parts.length - 1];
+            clientIds = [parts[0]];
+          }
+
+          // Build resume URL
+          const resumeUrl = isMulti
+            ? { filter, clients: clientIds.join(',') }
+            : { filter };
+
+          sessions.push({
+            key,
+            ...data,
+            isMultiClient: isMulti,
+            clientNames: clientIds, // TODO: Fetch actual client names from DB
+            filter,
+            resumeUrl,
+          });
+        } catch (e) {
+          console.error('Failed to parse session:', e);
+          localStorage.removeItem(key!);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to scan sessions:', e);
+    }
+
+    // Sort by timestamp (most recent first)
+    return sessions.sort((a, b) => b.timestamp - a.timestamp);
+  }, [rawFilter]);
 
   // Update stats when spokes load
   useEffect(() => {
@@ -327,6 +391,11 @@ function ReviewPage() {
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
     };
   }, [handleAction, isComplete, currentSpoke, rawFilter, navigate, handleNuclearApprove]);
+
+  // P0-2.1: Multi-Session Dashboard (when no filter and multiple sessions)
+  if (!rawFilter && activeSessions.length > 1) {
+    return <MultiSessionDashboard sessions={activeSessions} />;
+  }
 
   // Dashboard view (no filter selected)
   if (!rawFilter) {

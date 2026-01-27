@@ -178,6 +178,26 @@ Zero-Edit Rate: ${zeroEditRate}%`;
         </div>
       </div>
 
+      {/* P0-2.1: Agency Efficiency Metrics */}
+      {isMultiClient && clientIds && (
+        <div className="flex flex-wrap gap-3 justify-center animate-slide-up delay-700">
+          {/* 10x Efficiency Badge */}
+          <div className="bg-[var(--approve)]/20 text-[var(--approve)] px-4 py-2 rounded-full text-sm font-semibold">
+            ⚡️ Efficiency: {Math.round((stats.total * 6) / Math.max(avgTimePerSpoke * stats.total, 1))}x faster
+          </div>
+
+          {/* Time Saved Badge */}
+          <div className="bg-[var(--edit)]/20 text-[var(--edit)] px-4 py-2 rounded-full text-sm font-semibold">
+            💰 {hoursSaved.toFixed(1)} hours saved
+          </div>
+
+          {/* Multi-Client Badge */}
+          <div className="bg-[var(--text-primary)]/10 text-[var(--text-primary)] px-4 py-2 rounded-full text-sm font-semibold">
+            🏢 {clientIds.length} clients managed
+          </div>
+        </div>
+      )}
+
       {/* P0-3: Stats Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-slide-up delay-300">
         <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-6 text-center">
@@ -234,6 +254,46 @@ Zero-Edit Rate: ${zeroEditRate}%`;
           </span>
         </div>
       </div>
+
+      {/* P0-2.1: Per-Client Performance Summary */}
+      {isMultiClient && perClientStats && Object.keys(perClientStats).length > 0 && (
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-6 animate-slide-up delay-600">
+          <h3 className="text-xl font-semibold mb-4 text-[var(--text-primary)]">📊 Client Performance</h3>
+          <div className="space-y-3">
+            {Object.entries(perClientStats)
+              .sort(([, a], [, b]) => {
+                const aRate = a.total > 0 ? (a.approved / a.total) * 100 : 0;
+                const bRate = b.total > 0 ? (b.approved / b.total) * 100 : 0;
+                return bRate - aRate;
+              })
+              .map(([cId, clientStat]) => {
+                const approvalRate = clientStat.total > 0 ? Math.round((clientStat.approved / clientStat.total) * 100) : 0;
+                const zeroEditRate = clientStat.total > 0 ? Math.round(((clientStat.approved - clientStat.edited) / clientStat.total) * 100) : 0;
+
+                const color = zeroEditRate >= 60 ? 'var(--approve)'
+                            : zeroEditRate >= 40 ? 'var(--edit)'
+                            : 'var(--warning)';
+                const badge = zeroEditRate >= 60 ? '✅ Target met'
+                            : zeroEditRate >= 40 ? '⚠️ Below target'
+                            : '❌ Needs attention';
+
+                return (
+                  <div key={cId} className="flex justify-between items-center p-3 bg-[var(--bg-surface)] rounded-lg">
+                    <span className="text-[var(--text-secondary)] font-medium">{cId.slice(0, 16)}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-[var(--text-muted)]">
+                        {clientStat.approved}/{clientStat.total} approved ({approvalRate}%)
+                      </span>
+                      <span className="font-semibold text-sm" style={{ color }}>
+                        {zeroEditRate}% {badge}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
       {/* P0-3: What's Next Section */}
       <div className="animate-slide-up delay-500">

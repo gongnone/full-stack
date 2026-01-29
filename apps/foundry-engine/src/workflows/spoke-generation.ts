@@ -3,11 +3,13 @@ import {
   WorkflowStep,
   WorkflowEvent,
 } from 'cloudflare:workers';
+import { scoreEngagement, type G7ScoringResult } from '../agents/critic/g7-scorer';
 
 interface Env {
   CLIENT_AGENT: DurableObjectNamespace;
   AI: Ai;
   QUALITY_QUEUE: Queue;
+  VECTORIZE: VectorizeIndex;
 }
 
 // Story 4.3: Type definitions for Brand DNA (matches ClientAgent DO types)
@@ -133,6 +135,7 @@ const SOURCE_CONTENT_LIMIT_REGENERATION = 1500;
 // Story 4.3: Quality gate pass thresholds (consistent across evaluation and feedback)
 const G2_HOOK_PASS_THRESHOLD = 70;
 const G6_VISUAL_PASS_THRESHOLD = 70;
+const G7_ENGAGEMENT_PASS_THRESHOLD = 7.5; // Story 4.6: G7 uses 0-10 scale
 
 // Story 4.3: Gate result interface for Self-Healing Loop
 interface GateResult {
@@ -149,6 +152,7 @@ interface HealingFeedback {
   g4?: { violations: string[]; feedback: string };
   g5?: { feedback: string };
   g6?: { cliches: string[]; feedback: string };
+  g7?: { score: number; benchmark: number; feedback: string }; // Story 4.6: G7 Engagement Prediction
   userEditPatterns?: string[]; // Context Refresh on 3rd attempt
 }
 
@@ -320,6 +324,12 @@ REQUIRED: Strictly adhere to platform character limits.`;
 Avoid: ${feedback.g6.cliches.join(', ')}
 ${feedback.g6.feedback}`;
       }
+      if (feedback.g7) {
+        feedbackInstructions += `\n\nENGAGEMENT PREDICTION FAILED (Score: ${feedback.g7.score.toFixed(1)}/10):
+${feedback.g7.feedback}
+REQUIRED: Improve hook stopping power and novelty. Target score >= ${G7_ENGAGEMENT_PASS_THRESHOLD}.
+Benchmark engagement rate: ${(feedback.g7.benchmark * 100).toFixed(1)}%`;
+      }
       // Story 4.3 AC7: Context Refresh on 3rd attempt
       if (feedback.userEditPatterns && feedback.userEditPatterns.length > 0) {
         feedbackInstructions += `\n\nUSER EDIT PATTERNS DETECTED (from mutation registry):
@@ -457,35 +467,43 @@ Pass threshold: ${G2_HOOK_PASS_THRESHOLD}`,
         }
       });
 
-      // G4: Voice Alignment
-      const g4Result = await step.do(`critic-g4-attempt-${attempt}`, async () => {
-        const result = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as any, {
-          messages: [
-            {
-              role: 'system',
-              content: `You are a CRITIC agent evaluating voice alignment.
+      // G4: Voice Alignment — skip when Brand DNA is empty
+      const hasBrandDNA = brandDNA && (
+        ((brandDNA as BrandDNA).voiceMarkers?.length > 0) ||
+        ((brandDNA as BrandDNA).bannedWords?.length > 0) ||
+        ((brandDNA as BrandDNA).signaturePatterns?.length > 0)
+      );
+
+      const g4Result = hasBrandDNA
+        ? await step.do(`critic-g4-attempt-${attempt}`, async () => {
+            const result = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as any, {
+              messages: [
+                {
+                  role: 'system',
+                  content: `You are a CRITIC agent evaluating voice alignment.
 Check if the content matches the brand voice:
 - Voice Markers: ${(brandDNA as Record<string, unknown>).voiceMarkers ? ((brandDNA as Record<string, unknown>).voiceMarkers as string[]).join(', ') : 'None'}
 - Banned Words: ${(brandDNA as Record<string, unknown>).bannedWords ? ((brandDNA as Record<string, unknown>).bannedWords as Array<{ word: string }>).map((b) => b.word).join(', ') : 'None'}
 
 Output JSON: { "passed": boolean, "violations": ["string"], "feedback": "string" }`,
-            },
-            { role: 'user', content: `Content to evaluate:\n${content}` },
-          ],
-        });
+                },
+                { role: 'user', content: `Content to evaluate:\n${content}` },
+              ],
+            });
 
-        try {
-          const text = (result as { response: string }).response;
-          const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-          return {
-            passed: json.passed ?? true,
-            violations: json.violations || [],
-            feedback: json.feedback || '',
-          };
-        } catch {
-          return { passed: true, violations: [], feedback: '' };
-        }
-      });
+            try {
+              const text = (result as { response: string }).response;
+              const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
+              return {
+                passed: json.passed ?? true,
+                violations: json.violations || [],
+                feedback: json.feedback || '',
+              };
+            } catch {
+              return { passed: true, violations: [], feedback: '' };
+            }
+          })
+        : { passed: true, violations: [] as string[], feedback: 'Brand DNA not configured — voice alignment skipped' };
 
       // G5: Platform Compliance
       const g5Result = await step.do(`critic-g5-attempt-${attempt}`, async () => {
@@ -527,45 +545,91 @@ Pass threshold: ${G6_VISUAL_PASS_THRESHOLD}`,
         }
       });
 
-      // G7: Engagement Prediction (ADVISORY ONLY - does not block content)
+      // G7: Engagement Prediction (Story 4.6 - Hybrid Vectorize approach)
       const g7Result = await step.do(`critic-g7-attempt-${attempt}`, async () => {
-        const result = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as any, {
-          messages: [
-            {
-              role: 'system',
-              content: `You are a CRITIC agent predicting engagement.
-Rate engagement potential 0-100 based on:
-- Shareability
-- Comment-worthiness
-- Save/bookmark likelihood
-- Profile click potential
-
-Output JSON: { "score": number, "feedback": "string" }`,
-            },
-            { role: 'user', content: `Content for ${platform}:\n${content}` },
-          ],
-        });
-
         try {
-          const text = (result as { response: string }).response;
-          const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-          return { score: json.score || 70, feedback: json.feedback || '' };
-        } catch {
-          return { score: 70, feedback: '' };
+          // Create adapter for Vectorize API to match g7-scorer interface
+          const vectorizeAdapter = {
+            query: async (params: { namespace: string; vector: number[]; topK: number }) => {
+              const results = await this.env.VECTORIZE.query(params.vector, {
+                namespace: params.namespace,
+                topK: params.topK,
+                returnValues: true,
+              });
+              return results.matches.map(match => ({
+                values: Array.from(match.values || []) as number[],
+                metadata: match.metadata as Record<string, unknown>,
+              }));
+            },
+          };
+
+          // Create adapter for Workers AI to match g7-scorer interface
+          const aiAdapter = {
+            run: async (model: string, params: { text: string }) => {
+              const result = await this.env.AI.run(model as any, params);
+              return result as { data: number[][] };
+            },
+          };
+
+          const result: G7ScoringResult = await scoreEngagement(
+            {
+              id: spokeId,
+              content,
+              platform,
+            },
+            {
+              niche: 'business', // TODO: Add niche tracking to BrandDNA in Story 4.7
+            },
+            clientId,
+            vectorizeAdapter,
+            aiAdapter
+          );
+
+          const passed = result.g7Score >= G7_ENGAGEMENT_PASS_THRESHOLD;
+          const feedback = !passed
+            ? `Low engagement prediction (${result.g7Score.toFixed(1)}/10). Target >= ${G7_ENGAGEMENT_PASS_THRESHOLD}. Benchmark: ${(result.g7Benchmark * 100).toFixed(1)}% engagement rate.`
+            : '';
+
+          return {
+            passed,
+            score: result.g7Score,
+            benchmark: result.g7Benchmark,
+            source: result.g7Source,
+            stoppingPower: result.stoppingPower,
+            novelty: result.novelty,
+            feedback,
+          };
+        } catch (error) {
+          // Default to pass on error to avoid blocking content generation
+          console.error('G7 scoring error:', error);
+          return {
+            passed: true,
+            score: 7.5,
+            benchmark: 0.042,
+            source: 'error-fallback',
+            stoppingPower: 5,
+            novelty: 5,
+            feedback: 'G7 evaluation failed (defaulting to pass)',
+          };
         }
       });
 
       // Aggregate results
-      // Note: G6 (visual) included in pass/fail to ensure quality visual concepts
-      // Note: G7 (engagement) is ADVISORY ONLY - doesn't block content (used for sorting/prioritization)
-      const allPassed = g2Result.passed && g4Result.passed && g5Result.passed && g6Result.passed;
+      // Note: G6 (visual) and G7 (engagement) included in pass/fail
+      // Story 4.6: G7 now BLOCKS content with score < 7.5
+      const allPassed = g2Result.passed && g4Result.passed && g5Result.passed && g6Result.passed && g7Result.passed;
       const scores = {
         g2_hook: g2Result.score,
         g4_voice: g4Result.passed,
         g5_platform: g5Result.passed,
         g6_visual: g6Result.score,
-        g6_visual_passed: g6Result.passed, // Track pass/fail separately
-        g7_engagement: g7Result.score, // Advisory only - doesn't affect allPassed
+        g6_visual_passed: g6Result.passed,
+        g7_score: g7Result.score, // Story 4.6: 0-10 scale
+        g7_benchmark: g7Result.benchmark,
+        g7_source: g7Result.source,
+        g7_stopping_power: g7Result.stoppingPower,
+        g7_novelty: g7Result.novelty,
+        g7_passed: g7Result.passed,
       };
 
       // Build feedback for regeneration if gates failed
@@ -581,6 +645,13 @@ Output JSON: { "score": number, "feedback": "string" }`,
       }
       if (!g6Result.passed && g6Result.cliches && g6Result.cliches.length > 0) {
         feedback.g6 = { cliches: g6Result.cliches, feedback: g6Result.feedback };
+      }
+      if (!g7Result.passed) {
+        feedback.g7 = {
+          score: g7Result.score,
+          benchmark: g7Result.benchmark,
+          feedback: g7Result.feedback,
+        };
       }
 
       return { allPassed, scores, feedback, g2Result, g4Result, g5Result, g6Result, g7Result };

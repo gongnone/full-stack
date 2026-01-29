@@ -125,6 +125,91 @@ app.post('/api/spokes/generate', async (c) => {
   });
 });
 
+// Dashboard-compatible alias for spoke generation
+// Dashboard calls this endpoint from hubs.ts triggerSpokeGeneration
+app.post('/api/hubs/generate-spokes', async (c) => {
+  const { clientId, hubId, pillars, strategy } = await c.req.json();
+
+  if (!pillars || pillars.length === 0) {
+    return c.json({ error: 'No pillars found. Extract pillars first.' }, 400);
+  }
+
+  // Determine platforms from strategy or use defaults
+  const targetPlatforms = (strategy && Array.isArray(strategy) && strategy.length > 0)
+    ? strategy.map((s: { platform: string }) => s.platform)
+    : ['twitter', 'linkedin', 'tiktok', 'instagram', 'thread', 'carousel'];
+
+  // Get source content from ClientAgent DO
+  let sourceContent = '';
+  try {
+    const agentId = c.env.CLIENT_AGENT.idFromName(clientId);
+    const agent = c.env.CLIENT_AGENT.get(agentId);
+    const hubResponse = await agent.fetch(new Request('http://internal/rpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'getHub', args: { hubId } }),
+    }));
+    if (hubResponse.ok) {
+      const hubData = await hubResponse.json() as { sourceContent?: string };
+      sourceContent = hubData?.sourceContent || '';
+    }
+  } catch (e) {
+    console.warn('[generate-spokes] Could not fetch source content from DO, continuing with empty:', e);
+  }
+
+  // Create workflow instances for each pillar × platform
+  const workflowInstances: Array<{
+    instanceId: string;
+    spokeId: string;
+    platform: string;
+    pillarId: string;
+  }> = [];
+
+  for (const pillar of pillars) {
+    // Parse golden_nuggets as hooks if available
+    let hooks: string[] = [];
+    try {
+      if (pillar.golden_nuggets) {
+        hooks = typeof pillar.golden_nuggets === 'string'
+          ? JSON.parse(pillar.golden_nuggets)
+          : pillar.golden_nuggets;
+      }
+    } catch { /* ignore parse errors */ }
+
+    for (const platform of targetPlatforms) {
+      const spokeId = crypto.randomUUID();
+
+      const instance = await c.env.SPOKE_GENERATION.create({
+        params: {
+          clientId,
+          hubId,
+          spokeId,
+          platform,
+          pillarId: pillar.id || pillar.pillarId,
+          pillarTitle: pillar.title,
+          hooks,
+          sourceContent,
+        },
+      });
+
+      workflowInstances.push({
+        instanceId: instance.id,
+        spokeId,
+        platform,
+        pillarId: pillar.id || pillar.pillarId,
+      });
+    }
+  }
+
+  return c.json({
+    instanceId: workflowInstances[0]?.instanceId || 'batch-' + hubId,
+    status: 'started',
+    hubId,
+    spokesQueued: workflowInstances.length,
+    instances: workflowInstances,
+  });
+});
+
 // Trigger Spoke Variation Generation (Clone Feature)
 // Creates variations of an existing spoke with different content
 app.post('/api/spokes/variations', async (c) => {

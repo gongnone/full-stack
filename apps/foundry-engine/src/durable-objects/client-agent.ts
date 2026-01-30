@@ -79,6 +79,7 @@ interface Env {
   SPOKE_QUEUE: Queue
   QUALITY_QUEUE: Queue
   MEDIA_BUCKET: R2Bucket
+  DB: D1Database
 }
 
 export class ClientAgent extends DurableObject<Env> {
@@ -468,6 +469,9 @@ export class ClientAgent extends DurableObject<Env> {
 
       case 'getUserEditPatterns':
         return Response.json(await this.getUserEditPatterns(params))
+
+      case 'syncAllSpokeCountsToD1':
+        return Response.json(await this.syncAllSpokeCountsToD1())
 
       default:
         return Response.json({ error: `Unknown method: ${method}` }, { status: 400 })
@@ -1094,6 +1098,9 @@ export class ClientAgent extends DurableObject<Env> {
       spoke.parentSpokeId || null
     )
 
+    // Sync spoke count to D1 after creating spoke
+    await this.syncSpokeCountToD1(spoke.hubId)
+    
     return this.getSpoke(spoke.id) as Promise<Spoke>
   }
 
@@ -1186,9 +1193,62 @@ export class ClientAgent extends DurableObject<Env> {
     if (sets.length > 0) {
       sqlParams.push(spokeId)
       this.sql.exec(`UPDATE spokes SET ${sets.join(', ')} WHERE id = ?`, ...sqlParams)
+      
+      // S2-1: Sync spoke count to D1 if status changed (affects hub list display)
+      if (updates.status) {
+        const spoke = await this.getSpoke(spokeId)
+        if (spoke) {
+          await this.syncSpokeCountToD1(spoke.hubId)
+        }
+      }
     }
 
     return this.getSpoke(spokeId) as Promise<Spoke>
+  }
+
+  // S2-1: Sync spoke count from DO SQLite to D1 for hub list display
+  private async syncSpokeCountToD1(hubId: string): Promise<void> {
+    try {
+      // Count spokes for this hub in local SQLite
+      const result = this.sql.exec(`
+        SELECT COUNT(*) as count FROM spokes WHERE hub_id = ?
+      `, hubId).one()
+      
+      const spokeCount = (result.count as number) || 0
+      
+      // Update the hub's spoke_count in D1
+      await this.env.DB.prepare(`
+        UPDATE hubs SET spoke_count = ? WHERE id = ?
+      `).bind(spokeCount, hubId).run()
+      
+      console.log(`[ClientAgent] Synced spoke count for hub ${hubId}: ${spokeCount} spokes`)
+    } catch (error) {
+      console.error(`[ClientAgent] Failed to sync spoke count for hub ${hubId}:`, error)
+      // Don't throw - this is not critical for spoke creation/update operations
+    }
+  }
+
+  // S2-1: Sync all hub spoke counts to D1 (one-time fix for existing data)
+  private async syncAllSpokeCountsToD1(): Promise<{ synced: number }> {
+    try {
+      // Get all unique hub IDs from local spokes table
+      const hubResults = this.sql.exec(`
+        SELECT DISTINCT hub_id FROM spokes
+      `).toArray()
+      
+      let synced = 0
+      for (const hubRow of hubResults) {
+        const hubId = hubRow.hub_id as string
+        await this.syncSpokeCountToD1(hubId)
+        synced++
+      }
+      
+      console.log(`[ClientAgent] Synced spoke counts for ${synced} hubs to D1`)
+      return { synced }
+    } catch (error) {
+      console.error(`[ClientAgent] Failed to sync all spoke counts:`, error)
+      throw error
+    }
   }
 
   private async listSpokes(params: { hubId?: string; status?: string; limit?: number; createdAfter?: string }): Promise<Spoke[]> {

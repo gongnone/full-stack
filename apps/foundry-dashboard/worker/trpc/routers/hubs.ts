@@ -1068,4 +1068,23 @@ export const hubsRouter = t.router({
 
       return { success: true, hubId: input.hubId };
     }),
+
+  // S2-1: Sync spoke counts from Durable Object to D1 (one-time fix)
+  syncSpokeCountsToD1: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+      
+      try {
+        const result = await ctx.callAgent(input.clientId, 'syncAllSpokeCountsToD1', {});
+        return { success: true, synced: result.synced };
+      } catch (error) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: `Failed to sync spoke counts: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        });
+      }
+    }),
 });

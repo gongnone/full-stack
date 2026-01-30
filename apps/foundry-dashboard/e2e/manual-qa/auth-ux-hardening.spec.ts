@@ -158,6 +158,62 @@ test.describe('Auth UX Hardening — Mobile First', () => {
     await expect(signOutLink.first()).toBeVisible();
   });
 
+  test('AC3b: Login error clears spinner and re-enables form', async ({ page }) => {
+    await page.goto(`${BASE}/login`);
+    await page.waitForLoadState('networkidle');
+
+    await page.fill('#email', 'nonexistent@example.com');
+    await page.fill('#password', 'WrongPassword1!');
+    await page.click('button[type="submit"]');
+
+    // Spinner should appear
+    await expect(page.locator('text=Signing in')).toBeVisible({ timeout: 2000 });
+
+    // After error, spinner should disappear and button should say "Sign in" again
+    await expect(page.locator('button:has-text("Sign in")')).toBeVisible({ timeout: 10000 });
+
+    // Form fields should be re-enabled
+    await expect(page.locator('#email')).toBeEnabled();
+    await expect(page.locator('#password')).toBeEnabled();
+
+    // Error message visible
+    await expect(page.locator('[role="alert"]')).toBeVisible();
+  });
+
+  test('AC4b: Forgot password with invalid email still shows success (no leak)', async ({ page }) => {
+    await page.goto(`${BASE}/forgot-password`);
+    await page.waitForLoadState('networkidle');
+
+    // Submit with email that doesn't exist
+    await page.fill('#email', 'doesnotexist@nowhere.fake');
+    await page.click('button:has-text("Send reset link")');
+
+    // Should still show success (don't reveal if email exists)
+    await expect(page.locator('text=Check your email')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('AC2b: Signup with existing email shows clear error', async ({ page }) => {
+    // First create an account
+    const email = `e2e-dupe-${Date.now()}@example.com`;
+    await page.request.post(`${BASE}/api/auth/sign-up/email`, {
+      data: { name: 'Dupe Test', email, password: 'E2eTest!ng99' }
+    });
+
+    // Try to sign up again with same email
+    await page.goto(`${BASE}/signup`);
+    await page.waitForLoadState('networkidle');
+    await page.fill('#name', 'Dupe Test');
+    await page.fill('#email', email);
+    await page.fill('#password', 'E2eTest!ng99');
+    await page.fill('#confirmPassword', 'E2eTest!ng99');
+    await page.click('button[type="submit"]');
+
+    // Should show error, NOT spinner forever
+    await expect(page.locator('[role="alert"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("Create account")')).toBeVisible();
+    await expect(page.locator('#email')).toBeEnabled();
+  });
+
   test('AC7: HTML responses have cache-busting headers', async ({ request }) => {
     const res = await request.get(`${BASE}/`);
     const cacheControl = res.headers()['cache-control'] || '';

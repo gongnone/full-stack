@@ -47,6 +47,7 @@ function LoginPage() {
 
       if (result.error) {
         setError(result.error.message || 'Failed to sign in');
+        setIsLoading(false);
         return;
       }
 

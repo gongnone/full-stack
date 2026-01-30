@@ -2778,7 +2778,7 @@ Return JSON format:
     // Query user-edited spokes for this pillar+platform to learn user preferences
     // These are spokes where mutated_at is set, indicating user made changes
     const mutatedSpokes = this.sql.exec(`
-      SELECT s.content, s.mutated_at, s.quality_scores
+      SELECT s.content, s.mutated_at
       FROM spokes s
       WHERE s.pillar_id = ?
         AND s.platform = ?

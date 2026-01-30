@@ -15,6 +15,30 @@ export const Route = createFileRoute('/signup')({
   component: SignupPage,
 });
 
+/** Real-time password requirement checks */
+function usePasswordChecks(password: string) {
+  return {
+    length: password.length >= AUTH_CONFIG.MIN_PASSWORD_LENGTH,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+    special: /[^A-Za-z0-9]/.test(password),
+  };
+}
+
+function PasswordRequirement({ met, label }: { met: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-1.5 text-xs">
+      <span style={{ color: met ? 'var(--approve)' : 'var(--text-muted)' }}>
+        {met ? '✓' : '○'}
+      </span>
+      <span style={{ color: met ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
 function SignupPage() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
@@ -23,29 +47,24 @@ function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [touched, setTouched] = useState(false);
+
+  const checks = usePasswordChecks(password);
+  const allChecksPassed = checks.length && checks.uppercase && checks.lowercase && checks.number && checks.special;
+  const passwordsMatch = password === confirmPassword;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setTouched(true);
 
-    if (password !== confirmPassword) {
+    if (!allChecksPassed) {
+      setError('Please fix the password requirements highlighted below');
+      return;
+    }
+
+    if (!passwordsMatch) {
       setError('Passwords do not match');
-      return;
-    }
-
-    if (password.length < AUTH_CONFIG.MIN_PASSWORD_LENGTH) {
-      setError(`Password must be at least ${AUTH_CONFIG.MIN_PASSWORD_LENGTH} characters`);
-      return;
-    }
-
-    // Validate password complexity
-    const hasUppercase = /[A-Z]/.test(password);
-    const hasLowercase = /[a-z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    const hasSpecial = /[^A-Za-z0-9]/.test(password);
-
-    if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
-      setError('Password must contain uppercase, lowercase, number, and special character');
       return;
     }
 
@@ -146,9 +165,20 @@ function SignupPage() {
                 maxLength={AUTH_CONFIG.MAX_PASSWORD_LENGTH}
                 autoComplete="new-password"
               />
-              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {AUTH_CONFIG.MIN_PASSWORD_LENGTH}–{AUTH_CONFIG.MAX_PASSWORD_LENGTH} characters with uppercase, lowercase, number, and special character
-              </p>
+              {password.length > 0 && (
+                <div className="grid grid-cols-2 gap-1 mt-1.5">
+                  <PasswordRequirement met={checks.length} label={`${AUTH_CONFIG.MIN_PASSWORD_LENGTH}+ characters`} />
+                  <PasswordRequirement met={checks.uppercase} label="Uppercase letter" />
+                  <PasswordRequirement met={checks.lowercase} label="Lowercase letter" />
+                  <PasswordRequirement met={checks.number} label="Number" />
+                  <PasswordRequirement met={checks.special} label="Special character" />
+                </div>
+              )}
+              {password.length === 0 && (
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  {AUTH_CONFIG.MIN_PASSWORD_LENGTH}+ characters with uppercase, lowercase, number, and special character
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
@@ -162,11 +192,16 @@ function SignupPage() {
                 maxLength={AUTH_CONFIG.MAX_PASSWORD_LENGTH}
                 autoComplete="new-password"
               />
+              {confirmPassword.length > 0 && !passwordsMatch && (
+                <p className="text-xs" style={{ color: 'var(--destructive, #ef4444)' }}>
+                  Passwords do not match
+                </p>
+              )}
             </div>
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isLoading || (touched && (!allChecksPassed || !passwordsMatch))}
             >
               {isLoading ? 'Creating account...' : 'Create account'}
             </Button>

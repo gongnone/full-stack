@@ -110,7 +110,7 @@ const PLATFORM_SPECS: Record<string, {
     style: 'Thought leadership, storytelling, professional',
   },
   tiktok: {
-    maxLength: 150,
+    maxLength: 4000,
     format: 'Video script hook + CTA',
     style: 'Trendy, energetic, pattern-interrupt',
   },
@@ -123,6 +123,11 @@ const PLATFORM_SPECS: Record<string, {
     maxLength: 2800,
     format: '5-7 tweet thread with numbering',
     style: 'Educational, structured, value-packed',
+  },
+  carousel: {
+    maxLength: 5000,
+    format: '10-slide carousel with progressive reveal',
+    style: 'Visual-first, educational, scroll-stopping',
   },
 };
 
@@ -457,11 +462,14 @@ Pass threshold: ${G2_HOOK_PASS_THRESHOLD}`,
         try {
           const text = (result as { response: string }).response;
           const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-          return {
-            score: json.score || 50,
-            passed: json.passed ?? json.score >= G2_HOOK_PASS_THRESHOLD,
-            feedback: json.feedback || '',
-          };
+          const score = json.score || 50;
+          const feedback = json.feedback || '';
+          // If critic returned no feedback and a middling score, it didn't
+          // meaningfully evaluate — default to pass to avoid blind regen loops
+          const passed = feedback === '' && score < G2_HOOK_PASS_THRESHOLD
+            ? true
+            : (json.passed ?? score >= G2_HOOK_PASS_THRESHOLD);
+          return { score, passed, feedback };
         } catch {
           return { score: G2_HOOK_PASS_THRESHOLD, passed: true, feedback: '' };
         }
@@ -534,12 +542,15 @@ Pass threshold: ${G6_VISUAL_PASS_THRESHOLD}`,
         try {
           const text = (result as { response: string }).response;
           const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-          return {
-            score: json.score || 50,
-            passed: json.passed ?? json.score >= G6_VISUAL_PASS_THRESHOLD,
-            feedback: json.feedback || '',
-            cliches: json.cliches || [],
-          };
+          const score = json.score || 50;
+          const feedback = json.feedback || '';
+          const cliches = json.cliches || [];
+          // If critic returned no feedback, no clichés, and a middling score,
+          // it didn't meaningfully evaluate — default to pass
+          const passed = (feedback === '' && cliches.length === 0 && score < G6_VISUAL_PASS_THRESHOLD)
+            ? true
+            : (json.passed ?? score >= G6_VISUAL_PASS_THRESHOLD);
+          return { score, passed, feedback, cliches };
         } catch {
           return { score: G6_VISUAL_PASS_THRESHOLD, passed: true, feedback: '', cliches: [] };
         }

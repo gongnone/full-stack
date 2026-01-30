@@ -65,7 +65,7 @@ export const testSetupRouter = t.router({
           INSERT INTO client_members (id, client_id, user_id, role, created_at)
           VALUES (?, ?, ?, ?, ?)
         `)
-        .bind(memberId, clientId, ctx.userId, 'owner', now)
+        .bind(memberId, clientId, ctx.userId, 'agency_owner', now)
         .run();
     }
 

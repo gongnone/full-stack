@@ -67,9 +67,8 @@ test.describe('Story 1.3: Dashboard Shell with Routing', () => {
 
     test('AC2: Sidebar shows all required navigation items', async ({ page }) => {
       // Check all 6 navigation items exist
-      // Note: Test user has 'Creator' role — only sees Dashboard, Hubs, Brand DNA, Analytics
-      // Review, Clients, Settings are hidden for Creator role (see RBAC)
-      const navItems = ['Dashboard', 'Hubs', 'Brand DNA', 'Analytics'];
+      // Note: Test user has 'agency_owner' role — sees all navigation items
+      const navItems = ['Dashboard', 'Hubs', 'Brand DNA', 'Clients', 'Analytics', 'Settings'];
 
       for (const item of navItems) {
         const navLink = page.locator(`aside a:has-text("${item}")`);
@@ -79,11 +78,13 @@ test.describe('Story 1.3: Dashboard Shell with Routing', () => {
 
     test('AC2: Navigation links route to correct pages', async ({ page }) => {
       // Test each navigation link
-      // Note: Test user has 'Creator' role — only sees these nav items
+      // Note: Test user has 'agency_owner' role — sees all nav items
       const routes = [
         { name: 'Hubs', path: '/app/hubs' },
         { name: 'Brand DNA', path: '/app/brand-dna' },
+        { name: 'Clients', path: '/app/clients' },
         { name: 'Analytics', path: '/app/analytics' },
+        { name: 'Settings', path: '/app/settings' },
         { name: 'Dashboard', path: '/app' },
       ];
 

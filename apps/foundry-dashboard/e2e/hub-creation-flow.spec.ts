@@ -250,12 +250,28 @@ test.describe('Hub Creation Flow', () => {
 
     console.log('\n=== STEP 6: Verify Success ===');
 
-    // Wait for mutation to complete
+    // Wait for mutation to complete and UI to update
     await page.waitForLoadState("networkidle").catch(() => {});
 
-    // Quick check for success or error
-    const hasSuccess = await page.getByText(/successfully/i).isVisible().catch(() => false);
-    const hasViewHub = await page.getByRole('button', { name: /View Hub/i }).isVisible().catch(() => false);
+    // Wait specifically for success state OR error state (don't timeout on success)
+    try {
+      // Try to wait for success screen first
+      await page.waitForSelector('[data-testid="ingestion-success"]', { timeout: 10000 });
+      console.log('✅ Success screen rendered');
+    } catch {
+      // If success screen doesn't appear, check for error
+      const hasError = await page.locator('text=/Failed|Error/i').first().isVisible().catch(() => false);
+      if (hasError) {
+        const errorText = await page.locator('text=/Failed|Error/i').first().textContent().catch(() => 'Unknown error');
+        console.log(`❌ Hub creation error: ${errorText}`);
+        throw new Error(`Hub creation failed: ${errorText}`);
+      }
+      console.log('⚠️ Success screen not visible within timeout');
+    }
+
+    // Now check for specific success indicators
+    const hasSuccess = await page.getByText(/Hub Created!/i).isVisible().catch(() => false);
+    const hasViewHub = await page.getByTestId('view-hub-button').isVisible().catch(() => false);
     const hasError = await page.locator('text=/Failed|Error/i').first().isVisible().catch(() => false);
 
     if (hasError) {

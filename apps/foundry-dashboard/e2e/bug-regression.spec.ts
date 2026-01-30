@@ -185,7 +185,7 @@ test.describe('Bug Regression: Review Page', () => {
     await page.goto(`${BASE_URL}/app/review?filter=needs-review`);
     await page.waitForLoadState('networkidle').catch(() => {});
 
-    // Creator role can't access Review — check for content
+    // Agency owner role can access Review — check for content or "No spokes" message
     const editButton = page.locator('button:has-text("Edit Spoke")');
     const hasReviewContent = await editButton.isVisible({ timeout: 3000 }).catch(() => false);
     if (!hasReviewContent) {
@@ -211,7 +211,7 @@ test.describe('Bug Regression: Review Page', () => {
     await page.goto(`${BASE_URL}/app/review?filter=needs-review`);
     await page.waitForLoadState('networkidle').catch(() => {});
 
-    // Creator role can't access Review
+    // Agency owner role can access Review
     const spokeCard = page.locator('[class*="bg-[var(--bg-elevated)]"]').first();
     const hasContent = await spokeCard.isVisible({ timeout: 3000 }).catch(() => false);
     if (!hasContent) return; // Role-gated, not a bug

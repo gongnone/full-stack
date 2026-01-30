@@ -1336,26 +1336,25 @@ export class ClientAgent extends DurableObject<Env> {
     // Status flow: generating -> reviewing -> approved/rejected/killed
     // G7 thresholds: >90 = High Confidence, 50-90 = Needs Review
     if (params.filter === 'top10' || params.filter === 'high-confidence') {
-      // High Confidence: Generated/Reviewing + High Score (G7 > 90)
-      conditions.push(`(status = 'generating' OR status = 'reviewing')`)
-      conditions.push(`g7_engagement > 90`)
+      // High Confidence: Pending review + High G7 Score (> 9.0 on 0-10 scale)
+      conditions.push(`status IN ('pending_review', 'generating', 'reviewing')`)
+      conditions.push(`g7_engagement > 9.0`)
     } else if (params.filter === 'needs-review') {
-      // Needs Review: Generated/Reviewing + Mid Score (G7 50-90)
-      conditions.push(`(status = 'generating' OR status = 'reviewing')`)
-      conditions.push(`g7_engagement >= 50 AND g7_engagement <= 90`)
+      // Needs Review: Pending review spokes (completed pipeline, awaiting human review)
+      conditions.push(`status IN ('pending_review', 'generating', 'reviewing')`)
     } else if (params.filter === 'flagged' || params.filter === 'conflicts') {
-      // Creative Conflicts: Rejected spokes that need attention
-      conditions.push(`status = 'rejected'`)
+      // Creative Conflicts: Failed all regen attempts, needs human intervention
+      conditions.push(`status IN ('creative_conflict', 'rejected')`)
     } else if (params.filter === 'just-generated') {
-      // Just Generated: All spokes in generating status (not yet reviewed)
-      conditions.push(`status = 'generating'`)
+      // Just Generated: All pending spokes (generating or pending review)
+      conditions.push(`status IN ('generating', 'pending_review')`)
     } else if (params.filter === 'golden-nuggets') {
       // Epic 12-1: Golden Nuggets - engagement_prediction >= 9.0
-      conditions.push(`(status = 'generating' OR status = 'reviewing')`)
+      conditions.push(`status IN ('pending_review', 'generating', 'reviewing')`)
       conditions.push(`engagement_prediction >= 9.0`)
     } else {
-      // All pending review items (generating or actively reviewing)
-      conditions.push(`(status = 'generating' OR status = 'reviewing')`)
+      // All pending review items
+      conditions.push(`status IN ('pending_review', 'generating', 'reviewing', 'creative_conflict')`)
     }
 
     if (conditions.length > 0) {

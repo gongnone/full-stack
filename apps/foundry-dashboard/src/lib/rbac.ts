@@ -113,8 +113,11 @@ export const MENU_VISIBILITY: Record<MenuItemId, ClientRole[]> = {
 /**
  * Check if a role can see a specific menu item
  */
+// Default menu items visible when no client role is assigned (e.g., account owner before client setup)
+const NO_ROLE_MENU_ITEMS: MenuItemId[] = ['dashboard', 'hubs', 'brand-dna', 'clients', 'analytics', 'settings'];
+
 export function canAccessMenuItem(role: ClientRole | null, menuItem: MenuItemId): boolean {
-  // No role = account owner who hasn't set up clients yet → show everything
-  if (!role) return true;
+  // No role = account owner who hasn't set up clients yet → safe default set
+  if (!role) return NO_ROLE_MENU_ITEMS.includes(menuItem);
   return MENU_VISIBILITY[menuItem].includes(role);
 }

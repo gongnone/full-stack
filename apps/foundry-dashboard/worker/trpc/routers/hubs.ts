@@ -674,17 +674,27 @@ export const hubsRouter = t.router({
       await assertClientAccess(ctx, input.clientId);
       
       try {
-        const result = await ctx.db.prepare(`
-          SELECT COUNT(*) as generated, total_expected
-          FROM spokes s
-          JOIN hubs h ON s.hub_id = h.id
-          WHERE h.id = ? AND h.client_id = ?
+        // Spokes are stored in the Durable Object, not D1.
+        // Query the DO to get accurate spoke count.
+        const spokes = await ctx.callAgent(input.clientId, 'listSpokes', {
+          hubId: input.hubId,
+        }) as Array<{ id: string; status: string }>;
+
+        // Count non-generating spokes as "generated" (completed pipeline)
+        const generated = spokes.filter(s => s.status !== 'generating').length;
+
+        // Get total expected from D1 hub metadata (pillar count × platforms)
+        const hub = await ctx.db.prepare(`
+          SELECT h.id,
+            (SELECT COUNT(*) FROM extracted_pillars ep WHERE ep.hub_id = h.id) as pillar_count
+          FROM hubs h WHERE h.id = ? AND h.client_id = ?
         `).bind(input.hubId, input.clientId).first();
 
-        return {
-          generated: (result?.generated as number) || 0,
-          total: (result?.total_expected as number) || 25, // Fallback to 25
-        };
+        const pillarCount = (hub?.pillar_count as number) || 4;
+        // Default 6 platforms when no strategy configured
+        const total = pillarCount * 6;
+
+        return { generated, total };
       } catch (error) {
         return { generated: 0, total: 25 };
       }
@@ -1012,7 +1022,17 @@ export const hubsRouter = t.router({
         title: hub.title as string,
         source_type: hub.source_type as 'pdf' | 'text' | 'url',
         pillar_count: hub.pillar_count as number,
-        spoke_count: hub.spoke_count as number,
+        // Spoke count from D1 is stale — get real count from DO
+        spoke_count: await (async () => {
+          try {
+            const spokes = await ctx.callAgent(input.clientId, 'listSpokes', {
+              hubId: input.hubId,
+            }) as Array<{ id: string; status: string }>;
+            return spokes.filter(s => s.status !== 'generating').length;
+          } catch {
+            return hub.spoke_count as number;
+          }
+        })(),
         status: hub.status as 'processing' | 'ready' | 'archived',
         created_at: hub.created_at as number,
         updated_at: hub.updated_at as number,

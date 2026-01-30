@@ -52,10 +52,10 @@ function LoginPage() {
 
       // R-13 AC2: Clear any stale cached data from previous session before navigation
       clearSessionCache();
+      // Don't clear loading — keep spinner until navigation completes
       navigate({ to: '/app' });
     } catch (err) {
       setError('An unexpected error occurred');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -97,6 +97,7 @@ function LoginPage() {
 
           {/* Email/Password Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            <fieldset disabled={isLoading} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -126,8 +127,17 @@ function LoginPage() {
               className="w-full"
               disabled={isLoading}
             >
-              {isLoading ? 'Signing in...' : 'Sign in'}
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Signing in…
+                </span>
+              ) : 'Sign in'}
             </Button>
+            </fieldset>
           </form>
         </CardContent>
         <CardFooter>

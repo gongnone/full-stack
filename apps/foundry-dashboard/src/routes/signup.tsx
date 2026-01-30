@@ -69,6 +69,7 @@ function SignupPage() {
     }
 
     setIsLoading(true);
+    setError('');
 
     try {
       const result = await signUp.email({
@@ -79,15 +80,16 @@ function SignupPage() {
 
       if (result.error) {
         setError(result.error.message || 'Failed to create account');
+        setIsLoading(false);
         return;
       }
 
       // R-13 AC2: Clear any stale cached data before navigation
       clearSessionCache();
+      // Don't setIsLoading(false) — keep spinner until navigation completes
       navigate({ to: '/app' });
     } catch (err) {
       setError('An unexpected error occurred');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -129,6 +131,7 @@ function SignupPage() {
 
           {/* Email/Password Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
+            <fieldset disabled={isLoading} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input
@@ -203,8 +206,17 @@ function SignupPage() {
               className="w-full"
               disabled={isLoading || (touched && (!allChecksPassed || !passwordsMatch))}
             >
-              {isLoading ? 'Creating account...' : 'Create account'}
+              {isLoading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Creating account…
+                </span>
+              ) : 'Create account'}
             </Button>
+            </fieldset>
           </form>
         </CardContent>
         <CardFooter>

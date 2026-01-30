@@ -39,7 +39,10 @@ function bucketSpokesByDay(spokes: DOSpoke[], days: number) {
   }
 
   for (const spoke of spokes) {
-    const dateStr = spoke.createdAt.split('T')[0];
+    // DO SQLite stores dates as "2026-01-30 02:06:03" (space-separated)
+    // ISO format uses "2026-01-30T02:06:03" (T-separated)
+    // Handle both formats
+    const dateStr = spoke.createdAt?.split('T')[0]?.split(' ')[0];
     if (dateStr && buckets[dateStr]) {
       buckets[dateStr]!.push(spoke);
     }
@@ -147,10 +150,19 @@ export const analyticsRouter = t.router({
       clientId: z.string().min(1),
       periodDays: z.number().min(1).max(90).default(7),
     }))
-    .query(async ({ ctx }) => {
-      await ctx.db.prepare('SELECT 1').first(); // Dummy for TRPC context
-      // Note: In real app, we'd reuse the summary metrics call from the frontend
-      return { rate: 85, total: 100, withoutEdit: 85, trend: 'up' }; // Fallback
+    .query(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+      try {
+        const spokes = await ctx.callAgent(input.clientId, 'listSpokes', { limit: 1000 }) as DOSpoke[];
+        // Zero-edit = approved without being mutated
+        const approved = spokes.filter(s => s.status === 'approved');
+        const zeroEdit = approved.filter(s => !s.mutatedAt);
+        const total = approved.length;
+        const rate = total > 0 ? Math.round((zeroEdit.length / total) * 100) : 0;
+        return { rate, total, withoutEdit: zeroEdit.length, trend: 'neutral' as const };
+      } catch {
+        return { rate: 0, total: 0, withoutEdit: 0, trend: 'neutral' as const };
+      }
     }),
 
   getCriticPassRate: procedure
@@ -482,10 +494,12 @@ export const analyticsRouter = t.router({
         return createdAt >= previousCutoff && createdAt < currentCutoff;
       });
 
-      // Count hubs created in current period
-      const hubCount = await ctx.callAgent(input.clientId, 'countHubs', {
-        createdAfter: currentCutoffISO,
-      }) as { count: number };
+      // Count hubs created in current period (hubs live in D1, not DO)
+      const hubCountResult = await ctx.db.prepare(`
+        SELECT COUNT(*) as count FROM hubs 
+        WHERE client_id = ? AND created_at >= ?
+      `).bind(input.clientId, Date.parse(currentCutoffISO)).first();
+      const hubCount = { count: (hubCountResult?.count as number) || 0 };
 
       const spokesGenerated = currentSpokes.length;
       const previousSpokesCount = previousSpokes.length;

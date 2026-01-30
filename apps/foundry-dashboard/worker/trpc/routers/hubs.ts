@@ -961,15 +961,28 @@ export const hubsRouter = t.router({
 
       const result = await ctx.db.prepare(query).bind(...params).all();
 
-      const items = (result.results || []).map((row: Record<string, unknown>) => ({
+      // Enrich hub list with real spoke counts from DO
+      const hubRows = result.results || [];
+      const items = await Promise.all(hubRows.map(async (row: Record<string, unknown>) => {
+        let spokeCount = row.spoke_count as number;
+        try {
+          const spokes = await ctx.callAgent(input.clientId, 'listSpokes', {
+            hubId: row.id as string,
+          }) as Array<{ id: string; status: string }>;
+          spokeCount = spokes.filter(s => s.status !== 'generating').length;
+        } catch {
+          // Fall back to D1 count on error
+        }
+        return {
         id: row.id as string,
         title: row.title as string,
         sourceType: row.source_type as 'pdf' | 'text' | 'url',
         pillarCount: row.pillar_count as number,
-        spokeCount: row.spoke_count as number,
+        spokeCount,
         status: row.status as 'processing' | 'ready' | 'archived',
         createdAt: row.created_at as number,
         updatedAt: row.updated_at as number,
+      };
       }));
 
       return {

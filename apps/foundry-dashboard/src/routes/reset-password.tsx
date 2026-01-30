@@ -26,13 +26,14 @@ function usePasswordChecks(password: string) {
   };
 }
 
-function PasswordRequirement({ met, label }: { met: boolean; label: string }) {
+function PasswordRequirement({ met, label, showError }: { met: boolean; label: string; showError?: boolean }) {
+  const failed = !met && showError;
   return (
     <div className="flex items-center gap-1.5 text-xs">
-      <span style={{ color: met ? 'var(--approve)' : 'var(--text-muted)' }}>
-        {met ? '✓' : '○'}
+      <span style={{ color: met ? 'var(--approve)' : failed ? 'var(--destructive, #ef4444)' : 'var(--text-muted)' }}>
+        {met ? '✓' : failed ? '✗' : '○'}
       </span>
-      <span style={{ color: met ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+      <span style={{ color: met ? 'var(--text-secondary)' : failed ? 'var(--destructive, #ef4444)' : 'var(--text-muted)' }}>
         {label}
       </span>
     </div>
@@ -47,10 +48,12 @@ function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(urlError || '');
   const [success, setSuccess] = useState(false);
+  const [attempted, setAttempted] = useState(false);
 
   const checks = usePasswordChecks(password);
   const allChecksPassed = checks.length && checks.uppercase && checks.lowercase && checks.number && checks.special;
   const passwordsMatch = password === confirmPassword;
+  const canSubmit = allChecksPassed && passwordsMatch && password.length > 0 && confirmPassword.length > 0;
 
   if (!token && !success) {
     return (
@@ -74,8 +77,10 @@ function ResetPasswordPage() {
     e.preventDefault();
     setError('');
 
+    setAttempted(true);
+
     if (!allChecksPassed) {
-      setError('Please fix the password requirements below');
+      setError('Please fix the highlighted password requirements below');
       return;
     }
     if (!passwordsMatch) {
@@ -162,11 +167,11 @@ function ResetPasswordPage() {
                 />
                 {password.length > 0 && (
                   <div className="grid grid-cols-2 gap-1 mt-1.5">
-                    <PasswordRequirement met={checks.length} label={`${AUTH_CONFIG.MIN_PASSWORD_LENGTH}+ characters`} />
-                    <PasswordRequirement met={checks.uppercase} label="Uppercase letter" />
-                    <PasswordRequirement met={checks.lowercase} label="Lowercase letter" />
-                    <PasswordRequirement met={checks.number} label="Number" />
-                    <PasswordRequirement met={checks.special} label="Special character" />
+                    <PasswordRequirement met={checks.length} label={`${AUTH_CONFIG.MIN_PASSWORD_LENGTH}+ characters`} showError={attempted} />
+                    <PasswordRequirement met={checks.uppercase} label="Uppercase letter" showError={attempted} />
+                    <PasswordRequirement met={checks.lowercase} label="Lowercase letter" showError={attempted} />
+                    <PasswordRequirement met={checks.number} label="Number" showError={attempted} />
+                    <PasswordRequirement met={checks.special} label="Special character" showError={attempted} />
                   </div>
                 )}
               </div>
@@ -191,7 +196,7 @@ function ResetPasswordPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={isLoading}
+                disabled={isLoading || !canSubmit}
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">

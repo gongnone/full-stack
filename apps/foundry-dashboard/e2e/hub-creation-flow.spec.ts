@@ -64,7 +64,7 @@ async function login(page: import('@playwright/test').Page) {
 
   // Fill login form
   const emailInput = page.getByPlaceholder('you@example.com');
-  const passwordInput = page.getByPlaceholder('••••••••');
+  const passwordInput = page.locator('input[type="password"]');
 
   await emailInput.waitFor({ state: 'visible', timeout: 10000 });
   await emailInput.fill(config.testEmail);

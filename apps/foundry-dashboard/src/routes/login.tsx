@@ -55,8 +55,9 @@ function LoginPage() {
       clearSessionCache();
       // Don't clear loading — keep spinner until navigation completes
       navigate({ to: '/app' });
-    } catch (err) {
-      setError('An unexpected error occurred');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(message.includes('INVALID') ? 'Invalid email or password' : message);
       setIsLoading(false);
     }
   };

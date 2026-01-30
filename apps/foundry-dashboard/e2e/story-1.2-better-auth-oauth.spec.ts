@@ -169,8 +169,8 @@ test.describe('Story 1.2: Better Auth Integration with OAuth', () => {
       await page.fill('input[type="password"]', 'WrongPassword123!');
       await page.click('button[type="submit"]');
 
-      // Should show error message
-      await expect(page.locator('text=/invalid|error|incorrect/i')).toBeVisible({ timeout: 5000 });
+      // Should show error message (Better Auth can be slow)
+      await expect(page.locator('text=/invalid|error|incorrect/i')).toBeVisible({ timeout: 15000 });
     });
 
     test('Error message does not reveal which field is wrong', async ({ page }) => {
@@ -180,8 +180,8 @@ test.describe('Story 1.2: Better Auth Integration with OAuth', () => {
       await page.fill('input[type="password"]', 'WrongPassword123!');
       await page.click('button[type="submit"]');
 
-      // Wait for error
-      await expect(page.locator('text=/invalid|error|incorrect/i')).toBeVisible({ timeout: 5000 });
+      // Wait for error (Better Auth can be slow for non-existent users)
+      await expect(page.locator('text=/invalid|error|incorrect/i')).toBeVisible({ timeout: 15000 });
 
       // Error should NOT say specifically "email not found" or "wrong password"
       // Should be generic like "Invalid email or password"

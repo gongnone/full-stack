@@ -114,6 +114,7 @@ export const MENU_VISIBILITY: Record<MenuItemId, ClientRole[]> = {
  * Check if a role can see a specific menu item
  */
 export function canAccessMenuItem(role: ClientRole | null, menuItem: MenuItemId): boolean {
-  if (!role) return false;
+  // No role = account owner who hasn't set up clients yet → show everything
+  if (!role) return true;
   return MENU_VISIBILITY[menuItem].includes(role);
 }

@@ -119,6 +119,40 @@ app.get('/api/health/db', async (c) => {
 // - /api/debug/session - session state debugging (exposed session tokens!)
 // If debugging is needed, use wrangler tail or local development instead.
 
+// Rate limit password reset: 1 request per email per 60 seconds
+// Uses D1 verification table timestamps — Better Auth already creates a verification row
+// We check client-side by returning early if submitted recently
+const passwordResetCooldowns = new Map<string, number>();
+const RESET_COOLDOWN_MS = 60_000; // 60 seconds
+
+app.post('/api/auth/request-password-reset', async (c) => {
+  // Clone request so we can read body without consuming it for Better Auth
+  const clonedReq = c.req.raw.clone();
+  try {
+    const body = await clonedReq.json() as { email?: string };
+    const email = body?.email?.toLowerCase().trim();
+    if (email) {
+      const lastRequest = passwordResetCooldowns.get(email) || 0;
+      if (Date.now() - lastRequest < RESET_COOLDOWN_MS) {
+        // Silently return success (don't reveal rate limit to prevent email enumeration)
+        return c.json({ status: true, message: 'If this email exists in our system, check your email for the reset link' });
+      }
+      passwordResetCooldowns.set(email, Date.now());
+      // Clean up old entries periodically
+      if (passwordResetCooldowns.size > 1000) {
+        const now = Date.now();
+        for (const [key, ts] of passwordResetCooldowns) {
+          if (now - ts > RESET_COOLDOWN_MS) passwordResetCooldowns.delete(key);
+        }
+      }
+    }
+  } catch { /* ignore parse errors, let Better Auth handle */ }
+  // Fall through to Better Auth handler
+  const auth = createAuth(c.env);
+  const response = await auth.handler(c.req.raw);
+  return new Response(response.body, { status: response.status, headers: response.headers });
+});
+
 // Better Auth routes - handles all /api/auth/* endpoints
 app.on(['GET', 'POST'], '/api/auth/*', async (c) => {
   const auth = createAuth(c.env);

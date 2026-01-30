@@ -62,9 +62,27 @@ export function SprintComplete({ stats, filter: _filter, clientId, clientIds, pe
   // P0-2.1: Multi-client mode flag
   const isMultiClient = clientIds && clientIds.length > 1;
 
+  // S2-2: Get real zero-edit rate from analytics (single-client only)
+  const zeroEditQuery = trpc.analytics.getZeroEditRate.useQuery(
+    { clientId: clientId || '', periodDays: 30 },
+    { enabled: !!clientId && !isMultiClient }
+  );
+
   const hoursSaved = (stats.total * ROI_CONFIG.MINUTES_SAVED_PER_SPOKE) / 60;
   const dollarValue = Math.round(hoursSaved * ROI_CONFIG.HOURLY_RATE_USD);
-  const zeroEditRate = stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
+  
+  // S2-2: Use real zero-edit rate from analytics when available
+  const zeroEditRate = (() => {
+    if (!isMultiClient && zeroEditQuery.data && zeroEditQuery.data.total > 0) {
+      // Use real calculation: approved spokes that weren't edited
+      return zeroEditQuery.data.rate;
+    }
+    
+    // Fallback for multi-client or when data unavailable
+    // Note: This is approximate since local stats don't track edited status properly
+    return stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
+  })();
+  
   const approvalRate = stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0;
   const killRate = stats.total > 0 ? Math.round((stats.killed / stats.total) * 100) : 0;
   const avgTimePerSpoke = Math.round(stats.avgDecisionMs / 1000); // Convert to seconds
@@ -229,11 +247,18 @@ Zero-Edit Rate: ${zeroEditRate}%`;
         </div>
       </div>
 
-      {/* Zero-Edit Rate */}
+      {/* S2-2: Zero-Edit Rate - now using real data instead of hardcoded calculation */}
       <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Zero-Edit Rate</h2>
-          <span className="text-sm text-[var(--text-secondary)]">Target: {QUALITY_GATE_CONFIG.TARGET_ZERO_EDIT_RATE}%</span>
+          <div className="flex items-center gap-2">
+            {!isMultiClient && zeroEditQuery.data && (
+              <span className="text-xs bg-[var(--approve)]/10 text-[var(--approve)] px-2 py-0.5 rounded" title="Using real data from spoke edit history">
+                Real data
+              </span>
+            )}
+            <span className="text-sm text-[var(--text-secondary)]">Target: {QUALITY_GATE_CONFIG.TARGET_ZERO_EDIT_RATE}%</span>
+          </div>
         </div>
         <div className="relative h-4 bg-[var(--bg-surface)] rounded-full overflow-hidden">
           <div
@@ -247,10 +272,23 @@ Zero-Edit Rate: ${zeroEditRate}%`;
         </div>
         <div className="flex justify-between mt-2 text-sm">
           <span className={`font-bold ${zeroEditRate >= QUALITY_GATE_CONFIG.TARGET_ZERO_EDIT_RATE ? 'text-[var(--approve)]' : 'text-[var(--warning)]'}`}>
-            {zeroEditRate}%
+            {!isMultiClient && zeroEditQuery.data && zeroEditQuery.data.total === 0 ? (
+              <span className="text-[var(--text-muted)]">No data yet</span>
+            ) : !isMultiClient && zeroEditQuery.data && zeroEditQuery.data.total < 10 ? (
+              <span className="text-[var(--text-muted)]" title={`Only ${zeroEditQuery.data.total} spokes reviewed`}>
+                {zeroEditRate}% (insufficient data)
+              </span>
+            ) : (
+              `${zeroEditRate}%`
+            )}
           </span>
           <span className="text-[var(--text-muted)]">
-            {zeroEditRate >= QUALITY_GATE_CONFIG.TARGET_ZERO_EDIT_RATE ? 'Above target' : 'Below target'}
+            {!isMultiClient && zeroEditQuery.data && zeroEditQuery.data.total === 0 ? 
+              'Review some spokes first' :
+              !isMultiClient && zeroEditQuery.data && zeroEditQuery.data.total < 10 ?
+              'Need 10+ spokes for reliable rate' :
+              zeroEditRate >= QUALITY_GATE_CONFIG.TARGET_ZERO_EDIT_RATE ? 'Above target' : 'Below target'
+            }
           </span>
         </div>
       </div>

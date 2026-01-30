@@ -42,6 +42,17 @@ app.use('*', cors({
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 }));
 
+// Prevent aggressive caching of HTML pages (SPA shell)
+// JS/CSS assets have content hashes so they're safe to cache
+app.use('*', async (c: Context, next: Next) => {
+  await next();
+  const ct = c.res.headers.get('content-type') || '';
+  if (ct.includes('text/html')) {
+    c.res.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    c.res.headers.set('Pragma', 'no-cache');
+  }
+});
+
 // Health check (simple)
 app.get('/health', (c) => c.json({ status: 'ok', service: 'foundry-dashboard' }));
 

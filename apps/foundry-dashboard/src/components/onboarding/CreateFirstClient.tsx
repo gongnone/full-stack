@@ -4,7 +4,9 @@ import { trpc } from '@/lib/trpc-client';
 import { useToast } from '@/lib/toast';
 import { Building2, Sparkles, ArrowRight } from 'lucide-react';
 import { CLIENT_CONFIG, UI_CONFIG } from '@/lib/constants';
-import { SignOutButton } from '@/components/settings/SignOutButton';
+import { signOut } from '@/lib/auth-client';
+import { clearSessionCache } from '@/lib/query-client';
+import { LogOut } from 'lucide-react';
 
 /**
  * R-14 AC2/AC3: Onboarding flow for new users without clients.
@@ -54,14 +56,28 @@ export function CreateFirstClient() {
     });
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      clearSessionCache();
+      sessionStorage.removeItem('foundry_session_user_id');
+      navigate({ to: '/login' });
+    } catch (_) { /* ignore */ }
+  };
+
   return (
     <div
       className="min-h-screen flex items-center justify-center p-6 relative"
       style={{ backgroundColor: 'var(--bg-base)' }}
     >
-      <div className="absolute top-6 right-6">
-        <SignOutButton />
-      </div>
+      <button
+        onClick={handleSignOut}
+        className="absolute top-4 right-4 flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <LogOut className="w-3.5 h-3.5" />
+        Sign out
+      </button>
 
       <div
         className="w-full max-w-md p-8 rounded-2xl border"

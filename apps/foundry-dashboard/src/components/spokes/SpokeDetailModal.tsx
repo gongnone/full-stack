@@ -143,15 +143,18 @@ export function SpokeDetailModal({
               <GateBadge gate="G2" score={spoke.g2_score ?? 0} size="md" />
               <GateBadge gate="G4" passed={g4Passed} g4Details={{ violations: g4Violations }} size="md" />
               <GateBadge gate="G5" passed={g5Passed} g5Details={{ violations: g5Violations }} size="md" />
+              {spoke.g7_score !== undefined && spoke.g7_score !== null && (
+                <GateBadge
+                  gate="G7"
+                  g7Score={spoke.g7_score}
+                  g7Details={{
+                    benchmark: spoke.g7_benchmark ?? undefined,
+                    source: spoke.g7_source ?? undefined,
+                  }}
+                  size="md"
+                />
+              )}
             </div>
-            {spoke.quality_scores?.g7_overall != null && (
-              <div className="flex items-center gap-1 ml-auto">
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>G7:</span>
-                <span className="text-sm font-medium" style={{ color: spoke.quality_scores.g7_overall >= 80 ? 'var(--approve)' : 'var(--text-primary)' }}>
-                  {spoke.quality_scores.g7_overall}
-                </span>
-              </div>
-            )}
           </div>
 
           {/* Content */}

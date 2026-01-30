@@ -113,10 +113,11 @@ function LoginPage() {
               <Label htmlFor="password">Password</Label>
               <PasswordInput
                 id="password"
-                placeholder="••••••••"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                maxLength={128}
                 autoComplete="current-password"
               />
             </div>

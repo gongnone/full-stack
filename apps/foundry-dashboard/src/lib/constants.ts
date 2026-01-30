@@ -31,6 +31,8 @@ export const URL_VALIDATION = {
 export const AUTH_CONFIG = {
   /** Minimum password length requirement */
   MIN_PASSWORD_LENGTH: 12,
+  /** Maximum password length (must match server-side Better Auth config) */
+  MAX_PASSWORD_LENGTH: 128,
 } as const;
 
 // Application Routes

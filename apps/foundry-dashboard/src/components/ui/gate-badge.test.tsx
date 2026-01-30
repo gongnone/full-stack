@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { GateBadge } from './gate-badge';
 import userEvent from '@testing-library/user-event';
-import type { G2Breakdown, G4Details, G5Details } from './gate-badge';
+import type { G2Breakdown, G4Details, G5Details, G7Details } from './gate-badge';
 
 describe('GateBadge', () => {
   describe('G2 Gate (Hook Strength)', () => {
@@ -252,6 +252,74 @@ describe('GateBadge', () => {
 
       expect(screen.getByText('Exceeds 280 chars')).toBeInTheDocument();
       expect(screen.getByText('Missing hashtags')).toBeInTheDocument();
+    });
+  });
+
+  describe('G7 Gate (Engagement Prediction) - Story 4.6', () => {
+    it('renders G7 badge with score', () => {
+      render(<GateBadge gate="G7" g7Score={8.2} />);
+      const badge = screen.getByRole('status');
+      expect(badge).toHaveTextContent('G7');
+      expect(badge).toHaveTextContent('8.2');
+      expect(badge).toHaveClass('text-[#FFAD1F]'); // Warning color for 7.5-8.5
+    });
+
+    it('renders G7 pass color for high score', () => {
+      render(<GateBadge gate="G7" g7Score={9.0} />);
+      const badge = screen.getByRole('status');
+      expect(badge).toHaveClass('text-[#00D26A]'); // Pass color for >= 8.5
+    });
+
+    it('renders G7 warning color for medium score', () => {
+      render(<GateBadge gate="G7" g7Score={7.8} />);
+      const badge = screen.getByRole('status');
+      expect(badge).toHaveClass('text-[#FFAD1F]'); // Warning color for 7.5-8.5
+    });
+
+    it('renders G7 fail color for low score', () => {
+      render(<GateBadge gate="G7" g7Score={6.5} />);
+      const badge = screen.getByRole('status');
+      expect(badge).toHaveClass('text-[#F4212E]'); // Fail color for < 7.5
+    });
+
+    it('shows G7 details in tooltip', async () => {
+      const user = userEvent.setup();
+      const g7Details: G7Details = {
+        benchmark: 0.051,
+        source: '70% admired, 30% baseline',
+        stoppingPower: 8.5,
+        novelty: 7.5,
+      };
+
+      render(<GateBadge gate="G7" g7Score={8.2} g7Details={g7Details} />);
+
+      const badge = screen.getByRole('status');
+      await user.hover(badge);
+
+      await waitFor(() => {
+        expect(screen.getByText('Engagement Prediction')).toBeInTheDocument();
+      }, { timeout: 1000 });
+
+      expect(screen.getByText('8.2/10')).toBeInTheDocument();
+      expect(screen.getByText('5.1%')).toBeInTheDocument(); // Benchmark
+      expect(screen.getByText('8.5/10')).toBeInTheDocument(); // Stopping Power
+      expect(screen.getByText('7.5/10')).toBeInTheDocument(); // Novelty
+      expect(screen.getByText('70% admired, 30% baseline')).toBeInTheDocument();
+    });
+
+    it('defaults to 0.0 when score not provided', () => {
+      render(<GateBadge gate="G7" />);
+      expect(screen.getByText('0.0')).toBeInTheDocument();
+    });
+
+    it('formats score to 1 decimal place', () => {
+      render(<GateBadge gate="G7" g7Score={7.456} />);
+      expect(screen.getByText('7.5')).toBeInTheDocument();
+    });
+
+    it('has proper aria-label for G7', () => {
+      render(<GateBadge gate="G7" g7Score={8.2} />);
+      expect(screen.getByRole('status')).toHaveAttribute('aria-label', 'G7: 8.2');
     });
   });
 

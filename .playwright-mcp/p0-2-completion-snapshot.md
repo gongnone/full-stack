@@ -1,0 +1,124 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e6]:
+        - img [ref=e8]
+        - generic [ref=e10]: Foundry
+      - navigation [ref=e11]:
+        - link "Dashboard" [ref=e12] [cursor=pointer]:
+          - /url: /app
+          - img [ref=e13]
+          - text: Dashboard
+        - link "Hubs" [ref=e15] [cursor=pointer]:
+          - /url: /app/hubs
+          - img [ref=e16]
+          - text: Hubs
+        - link "Brand DNA" [ref=e18] [cursor=pointer]:
+          - /url: /app/brand-dna
+          - img [ref=e19]
+          - text: Brand DNA
+        - link "Analytics" [ref=e21] [cursor=pointer]:
+          - /url: /app/analytics
+          - img [ref=e22]
+          - text: Analytics
+      - generic [ref=e25]:
+        - generic [ref=e26]: Command Palette
+        - generic [ref=e27]: Cmd+K
+      - generic [ref=e29]:
+        - generic [ref=e30]: E
+        - generic [ref=e31]:
+          - paragraph [ref=e32]: E2E Test User
+          - paragraph [ref=e33]: Creator
+        - button "Sign out" [ref=e34]:
+          - img [ref=e35]
+    - generic [ref=e37]:
+      - banner [ref=e38]:
+        - button "E2E Test Client" [ref=e48]:
+          - img [ref=e50]
+          - generic [ref=e54]: E2E Test Client
+          - img [ref=e55]
+        - generic [ref=e57]:
+          - img [ref=e59]
+          - generic [ref=e64]:
+            - generic [ref=e65]:
+              - generic [ref=e66]: E2E Test Client
+              - img [ref=e67]
+            - generic [ref=e69]:
+              - generic [ref=e70]: Active Workspace
+              - generic [ref=e71]: •
+              - 'generic "Your role: Creator" [ref=e72]':
+                - img [ref=e73]
+                - text: Creator
+        - button "Search Cmd+K" [ref=e40]:
+          - img [ref=e41]
+          - generic [ref=e43]: Search
+          - generic [ref=e44]: Cmd+K
+      - main [ref=e45]:
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - generic [ref=e75]:
+              - heading "Sprint Review" [level=1] [ref=e76]
+              - paragraph [ref=e77]: "Mode: all"
+            - generic [ref=e78]:
+              - generic [ref=e79]: Progress
+              - generic [ref=e80]: 26 / 26
+          - generic [ref=e81]:
+            - generic [ref=e82]:
+              - generic [ref=e83]: Progress
+              - generic [ref=e84]: 26 of 26 reviewed
+            - generic [ref=e87]:
+              - generic [ref=e88]: ✓ 24 Approved
+              - generic [ref=e89]: ✗ 1 Killed
+          - generic [ref=e90]:
+            - generic [ref=e258]:
+              - generic [ref=e259]:
+                - generic [ref=e260]:
+                  - img [ref=e262]
+                  - generic [ref=e264]:
+                    - generic [ref=e265]: Pillar
+                    - generic [ref=e266]: 7eb2f10f-b6cb-4788-ade1-b63273ba279f
+                - generic [ref=e267]:
+                  - 'status "G7 Score: 0.0" [ref=e268]':
+                    - generic [ref=e269]: G7
+                    - text: "0.0"
+                  - 'status "G2 Score: 0.0" [ref=e270]':
+                    - generic [ref=e271]: G2
+                    - text: "0.0"
+                  - generic [ref=e272]:
+                    - button "Clone" [disabled] [ref=e273]
+                    - generic: Requires G7 Score ≥ 9.0
+              - generic [ref=e275]:
+                - generic [ref=e276]:
+                  - generic [ref=e277]: Voice (G4)
+                  - generic [ref=e278]: FAILED
+                - generic [ref=e279]:
+                  - generic [ref=e280]: Platform (G5)
+                  - generic [ref=e281]: FAILED
+            - generic [ref=e116]:
+              - img [ref=e118]
+              - generic [ref=e120]: Kill
+            - generic [ref=e122]:
+              - img [ref=e124]
+              - generic [ref=e126]: Approve
+          - generic [ref=e127]:
+            - generic [ref=e128]:
+              - button [ref=e129]:
+                - img [ref=e130]
+              - generic [ref=e132]:
+                - generic [ref=e134]: ←
+                - generic [ref=e135]: Kill
+            - generic [ref=e137]:
+              - button "Edit Spoke" [ref=e138]
+              - generic [ref=e139]:
+                - generic [ref=e141]: E
+                - generic [ref=e142]: Edit
+            - generic [ref=e144]:
+              - button [ref=e145]:
+                - img [ref=e146]
+              - generic [ref=e148]:
+                - generic [ref=e150]: →
+                - generic [ref=e151]: Approve
+  - region "Notifications (F8)":
+    - list
+  - region "Notifications (F8)":
+    - list

@@ -466,6 +466,36 @@ export interface HookDatabaseStats {
   byTier: Record<string, number>;
 }
 
+// Story 4.7: Admired Profiles Management types
+export type AdmiredProfileStatus = 'pending' | 'syncing' | 'active' | 'error' | 'rate_limited';
+
+export interface AdmiredProfile {
+  id: string;
+  client_id: string;
+  instagram_handle: string;
+  profile_url: string;
+  avatar_url: string | null;
+  follower_count: number;
+  bio: string | null;
+  post_count: number;
+  status: AdmiredProfileStatus;
+  error_message: string | null;
+  last_synced: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface AdmiredProfileInput {
+  instagramHandle: string; // e.g., "@garyvee" or "garyvee"
+}
+
+export interface AdmiredProfileWeighting {
+  profileCount: number;
+  admiredWeight: number; // 0.0 to 1.0
+  baselineWeight: number; // 0.0 to 1.0
+  description: string; // e.g., "70% admired, 30% baseline"
+}
+
 // P0-2.1: Multi-Client Agency Sprint types
 export interface ReviewQueueSpoke {
   id: string;

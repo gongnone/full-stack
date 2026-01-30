@@ -4,6 +4,7 @@ import { signUp } from '@/lib/auth-client';
 import { clearSessionCache } from '@/lib/query-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -135,28 +136,30 @@ function SignupPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
-                placeholder="••••••••"
+                placeholder="Create a strong password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={AUTH_CONFIG.MIN_PASSWORD_LENGTH}
+                maxLength={AUTH_CONFIG.MAX_PASSWORD_LENGTH}
                 autoComplete="new-password"
               />
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                Min {AUTH_CONFIG.MIN_PASSWORD_LENGTH} characters with uppercase, lowercase, number, and special character
+                {AUTH_CONFIG.MIN_PASSWORD_LENGTH}–{AUTH_CONFIG.MAX_PASSWORD_LENGTH} characters with uppercase, lowercase, number, and special character
               </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
+              <PasswordInput
                 id="confirmPassword"
-                type="password"
-                placeholder="••••••••"
+                placeholder="Confirm your password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
+                minLength={AUTH_CONFIG.MIN_PASSWORD_LENGTH}
+                maxLength={AUTH_CONFIG.MAX_PASSWORD_LENGTH}
                 autoComplete="new-password"
               />
             </div>

@@ -162,6 +162,17 @@ export function SpokeCard({ spoke, onClick, isExpanded = false }: SpokeCardProps
             g5Details={{ violations: g5Violations }}
             size="sm"
           />
+          {spoke.g7_score !== undefined && spoke.g7_score !== null && (
+            <GateBadge
+              gate="G7"
+              g7Score={spoke.g7_score}
+              g7Details={{
+                benchmark: spoke.g7_benchmark ?? undefined,
+                source: spoke.g7_source ?? undefined,
+              }}
+              size="sm"
+            />
+          )}
         </div>
       </div>
 

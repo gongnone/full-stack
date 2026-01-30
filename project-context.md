@@ -112,11 +112,13 @@ return await llm.generate(prompt); // No quality gate
 | Feature | Included |
 |---------|----------|
 | Ingestion | PDF, Transcript, Raw Text |
-| Generation | Text Spokes, Carousels, Threads |
-| Quality | G2, G4, G5 Gates + Self-Healing |
-| Calibration | Text-based DNA updates |
-| Analytics | Zero-Edit Rate, Volume |
+| Generation | Text Spokes (Carousels/Threads de-scoped) |
+| Quality | G2, G4, G5, **G7** Gates + Self-Healing |
+| Calibration | Text-based DNA updates + Admired Profiles |
+| Analytics | Zero-Edit Rate, Volume, G7 Accuracy |
 | Export | CSV, JSON |
+
+**Note:** G7 Engagement Prediction brought into scope per Williamshaw approval 2026-01-19. Carousels and Threads de-scoped to accommodate G7 + Admired Profiles feature.
 
 ---
 
@@ -124,11 +126,11 @@ return await llm.generate(prompt); // No quality gate
 
 - ❌ Voice-to-Grounding (text input only)
 - ❌ G6 Visual Archetype scoring
-- ❌ G7 Engagement Prediction
 - ❌ G-Compliance Gate
 - ❌ Publishing integrations
 - ❌ Video rendering
 - ❌ WebSocket real-time sync
+- ❌ Carousels and Threads (de-scoped for G7)
 
 ---
 

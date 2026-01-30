@@ -106,7 +106,9 @@ export const spokeEvaluations = sqliteTable('spoke_evaluations', {
   g4_similarity_score: real('g4_similarity_score'),
   g5_result: text('g5_result', { enum: ['pass', 'fail'] }).notNull(),
   g5_violations: text('g5_violations'), // JSON
-  g7_score: integer('g7_score'), // Optional, for later phases
+  g7_score: real('g7_score'), // G7 Engagement Prediction score (0-10)
+  g7_benchmark: real('g7_benchmark'), // Average engagement rate from similar hooks
+  g7_source: text('g7_source'), // Weighting source (e.g., "70% admired, 30% baseline")
   overall_pass: integer('overall_pass', { mode: 'boolean' }).notNull(), // 0 or 1
   critic_notes: text('critic_notes'),
   createdAt: text('created_at').notNull().default('CURRENT_TIMESTAMP'),

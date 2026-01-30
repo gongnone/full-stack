@@ -5,11 +5,13 @@ import { cn } from '@/lib/utils';
 /**
  * GateBadge - Quality gate badge with hover tooltips
  * Story 4.2: Displays G2/G4/G5 gate status with "Why" hover pattern
+ * Story 4.6: Added G7 Engagement Prediction gate
  *
  * Usage:
  *   <GateBadge gate="G2" score={85} breakdown={{ hook: 35, pattern: 25, benefit: 15, curiosity: 10 }} />
  *   <GateBadge gate="G4" passed={true} violations={[]} similarity={0.92} />
  *   <GateBadge gate="G5" passed={false} violations={['Exceeds 280 chars']} />
+ *   <GateBadge gate="G7" g7Score={8.2} g7Details={{ benchmark: 0.051, source: "70% admired, 30% baseline", stoppingPower: 8.5, novelty: 7.5 }} />
  */
 
 const gateBadgeVariants = cva(
@@ -51,7 +53,14 @@ export interface G5Details {
   violations?: string[];
 }
 
-export type GateType = 'G2' | 'G4' | 'G5';
+export interface G7Details {
+  benchmark?: number;      // Average engagement rate (0-1)
+  source?: string;         // e.g., "70% admired, 30% baseline"
+  stoppingPower?: number;  // 0-10 scale
+  novelty?: number;        // 0-10 scale
+}
+
+export type GateType = 'G2' | 'G4' | 'G5' | 'G7';
 
 export interface GateBadgeProps
   extends Omit<React.HTMLAttributes<HTMLDivElement>, 'children'>,
@@ -64,6 +73,9 @@ export interface GateBadgeProps
   passed?: boolean;
   g4Details?: G4Details;
   g5Details?: G5Details;
+  // G7: 0-10 score (Story 4.6)
+  g7Score?: number;
+  g7Details?: G7Details;
 }
 
 function getG2Status(score: number): 'pass' | 'warning' | 'fail' {
@@ -72,8 +84,14 @@ function getG2Status(score: number): 'pass' | 'warning' | 'fail' {
   return 'fail';
 }
 
+function getG7Status(score: number): 'pass' | 'warning' | 'fail' {
+  if (score >= 8.5) return 'pass';
+  if (score >= 7.5) return 'warning';
+  return 'fail';
+}
+
 const GateBadge = React.forwardRef<HTMLDivElement, GateBadgeProps>(
-  ({ className, size, gate, score, breakdown, passed, g4Details, g5Details, ...props }, ref) => {
+  ({ className, size, gate, score, breakdown, passed, g4Details, g5Details, g7Score, g7Details, ...props }, ref) => {
     const [showTooltip, setShowTooltip] = React.useState(false);
     const [tooltipTimeout, setTooltipTimeout] = React.useState<ReturnType<typeof setTimeout> | null>(null);
 
@@ -95,6 +113,10 @@ const GateBadge = React.forwardRef<HTMLDivElement, GateBadgeProps>(
       const s = score ?? 0;
       status = getG2Status(s);
       displayValue = `${s}`;
+    } else if (gate === 'G7') {
+      const s = g7Score ?? 0;
+      status = getG7Status(s);
+      displayValue = s.toFixed(1);
     } else {
       status = passed ? 'pass' : 'fail';
       displayValue = passed ? 'Pass' : 'Fail';
@@ -219,6 +241,43 @@ const GateBadge = React.forwardRef<HTMLDivElement, GateBadgeProps>(
                           </li>
                         ))}
                       </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {gate === 'G7' && (
+              <div className="space-y-2">
+                <div className="text-xs font-bold text-[var(--text-primary)] border-b border-[var(--border-subtle)] pb-1">
+                  Engagement Prediction
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Score:</span>
+                    <span className="font-medium text-[var(--text-primary)]">{g7Score?.toFixed(1) ?? '0.0'}/10</span>
+                  </div>
+                  {g7Details?.benchmark !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-muted)]">Benchmark:</span>
+                      <span className="font-medium text-[var(--text-primary)]">{(g7Details.benchmark * 100).toFixed(1)}%</span>
+                    </div>
+                  )}
+                  {g7Details?.stoppingPower !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-muted)]">Stopping Power:</span>
+                      <span className="font-medium text-[var(--text-primary)]">{g7Details.stoppingPower.toFixed(1)}/10</span>
+                    </div>
+                  )}
+                  {g7Details?.novelty !== undefined && (
+                    <div className="flex justify-between">
+                      <span className="text-[var(--text-muted)]">Novelty:</span>
+                      <span className="font-medium text-[var(--text-primary)]">{g7Details.novelty.toFixed(1)}/10</span>
+                    </div>
+                  )}
+                  {g7Details?.source && (
+                    <div className="pt-1 mt-1 border-t border-[var(--border-subtle)]">
+                      <span className="text-[var(--text-secondary)] italic text-[10px]">{g7Details.source}</span>
                     </div>
                   )}
                 </div>

@@ -87,8 +87,8 @@ function DashboardHome() {
         <StatCard
           title="Zero-Edit Rate"
           value={zeroEditQuery.isLoading ? '...' : `${zeroEditQuery.data?.rate || 0}%`}
-          change={`${zeroEditQuery.data?.trend === 'up' ? '+' : ''} trend`}
-          changeType={zeroEditQuery.data?.trend === 'up' ? 'positive' : zeroEditQuery.data?.trend === 'down' ? 'negative' : 'neutral'}
+          change={`${(zeroEditQuery.data?.trend as string) === 'up' ? '+' : ''} trend`}
+          changeType={(zeroEditQuery.data?.trend as string) === 'up' ? 'positive' : (zeroEditQuery.data?.trend as string) === 'down' ? 'negative' : 'neutral'}
         />
       </div>
 

@@ -125,7 +125,7 @@ export function MultiSessionDashboard({ sessions }: MultiSessionDashboardProps) 
                 <ActionButton
                   variant="approve"
                   size="sm"
-                  onClick={() => navigate({ to: '/app/review', search: session.resumeUrl })}
+                  onClick={() => navigate({ to: '/app/review', search: session.resumeUrl } as any)}
                   className="flex-shrink-0"
                 >
                   Resume

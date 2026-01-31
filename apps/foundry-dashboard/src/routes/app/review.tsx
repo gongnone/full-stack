@@ -155,12 +155,12 @@ function ReviewPage() {
 
           if (isMulti) {
             // Format: review-session-multi-{clientId1}-{clientId2}-...-{filter}
-            filter = parts[parts.length - 1];
+            filter = parts[parts.length - 1] || '';
             clientIds = parts.slice(1, -1); // Skip 'multi' and filter
           } else {
             // Format: review-session-{clientId}-{filter}
-            filter = parts[parts.length - 1];
-            clientIds = [parts[0]];
+            filter = parts[parts.length - 1] || '';
+            clientIds = [parts[0] || ''];
           }
 
           // Build resume URL

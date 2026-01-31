@@ -86,7 +86,7 @@ export function GenerationSuccess({ hubId, spokeCount, pillarCount }: Generation
             Start Reviewing
           </ActionButton>
         </Link>
-        <Link to={`/app/hubs/${hubId}`}>
+        <Link to={`/app/hubs/${hubId}` as any}>
           <ActionButton variant="ghost" size="lg">
             View Hub Details
           </ActionButton>

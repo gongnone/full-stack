@@ -32,7 +32,7 @@ function ForgotPasswordPage() {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
+        const data = await res.json().catch(() => null) as { message?: string } | null;
         setError(data?.message || 'Something went wrong. Please try again.');
         setIsLoading(false);
         return;

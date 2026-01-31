@@ -98,7 +98,7 @@ function ResetPasswordPage() {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => null);
+        const data = await res.json().catch(() => null) as { message?: string } | null;
         setError(data?.message || 'Reset failed. The link may have expired.');
         setIsLoading(false);
         return;
@@ -123,7 +123,7 @@ function ResetPasswordPage() {
             <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
               You can now sign in with your new password.
             </p>
-            <Button className="w-full" onClick={() => navigate({ to: '/login' })}>
+            <Button className="w-full" onClick={() => navigate({ to: '/login' } as any)}>
               Go to Sign In
             </Button>
           </CardContent>

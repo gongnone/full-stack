@@ -396,7 +396,7 @@ Zero-Edit Rate: ${zeroEditRate}%`;
 
       {/* FR-1.5.16: Testimonial Request Modal */}
       <TestimonialRequestModal
-        clientId={clientId}
+        clientId={clientId || ''}
         isOpen={showTestimonialModal}
         onClose={() => setShowTestimonialModal(false)}
         approvedCount={'approvedCount' in (testimonialTriggerQuery.data || {}) ? (testimonialTriggerQuery.data as { approvedCount: number }).approvedCount : stats.approved}

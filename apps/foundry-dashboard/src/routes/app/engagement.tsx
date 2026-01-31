@@ -336,7 +336,7 @@ function EngagementPage() {
             setShowManualEntry(false);
             metricsQuery.refetch();
             statsQuery.refetch();
-            addToast({ type: 'success', message: 'Metrics added successfully!' });
+            addToast('Metrics added successfully!', 'success');
           }}
         />
       )}

@@ -61,7 +61,7 @@ export function CreateFirstClient() {
       await signOut();
       clearSessionCache();
       sessionStorage.removeItem('foundry_session_user_id');
-      navigate({ to: '/login' });
+      navigate({ to: '/login' } as any);
     } catch (_) { /* ignore */ }
   };
 

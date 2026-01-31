@@ -361,6 +361,9 @@ export const engagementRouter = t.router({
           meanAbsoluteError: null,
           accuracy: null,
           goldenNuggetPrecision: null,
+          directionalAccuracy: null,
+          modelHealth: 'needs-data' as string,
+          recommendation: 'Add engagement metrics to start tracking model accuracy.',
           message: 'Not enough data points. Add engagement metrics to track model accuracy.',
         };
       }

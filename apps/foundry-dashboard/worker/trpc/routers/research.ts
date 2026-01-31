@@ -130,7 +130,8 @@ async function runAIWithTimeout(
   timeoutMs: number = 60000
 ): Promise<string> {
   // Workers AI doesn't support AbortController, so use Promise.race
-  const aiPromise = ai.run('@cf/meta/llama-3.1-8b-instruct', {
+  // Mistral Small 3.1 for research — better reasoning than Llama 8b
+  const aiPromise = ai.run('@cf/mistralai/mistral-small-3.1-24b-instruct' as any, {
     prompt,
     max_tokens: 800,
   }).then(result => (result as { response: string }).response);

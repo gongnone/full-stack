@@ -44,6 +44,60 @@ app.use('*', cors({
 // Health check
 app.get('/health', (c) => c.json({ status: 'ok', service: 'foundry-engine' }));
 
+// Story 12-2: Seed Vectorize hook database with curated hooks
+app.post('/api/hooks/seed', async (c) => {
+  try {
+    const { bulkIngestHooks } = await import('./services/hook-database');
+    const { SEED_HOOKS } = await import('./services/hook-seed-data');
+
+    const hooks = SEED_HOOKS;
+    console.log(`[Hook Seed] Starting bulk ingest of ${hooks.length} hooks...`);
+
+    const result = await bulkIngestHooks(
+      hooks,
+      c.env.VECTORIZE,
+      c.env.DB,
+      c.env.AI,
+      25 // batch size
+    );
+
+    console.log(`[Hook Seed] Complete: ${result.ingested} ingested, ${result.errors.length} errors`);
+
+    return c.json({
+      status: 'complete',
+      ingested: result.ingested,
+      errors: result.errors.slice(0, 10), // Limit error output
+      totalErrors: result.errors.length,
+    });
+  } catch (error) {
+    console.error('[Hook Seed] Error:', error);
+    return c.json({ error: String(error) }, 500);
+  }
+});
+
+// Story 12-2: Search similar hooks
+app.post('/api/hooks/search', async (c) => {
+  try {
+    const { searchSimilarHooks } = await import('./services/hook-database');
+    const { query, platform, category, topK } = await c.req.json();
+
+    if (!query) {
+      return c.json({ error: 'query is required' }, 400);
+    }
+
+    const result = await searchSimilarHooks(query, c.env.VECTORIZE, c.env.AI, {
+      platform,
+      category,
+      topK: topK || 10,
+    });
+
+    return c.json(result);
+  } catch (error) {
+    console.error('[Hook Search] Error:', error);
+    return c.json({ error: String(error) }, 500);
+  }
+});
+
 // Trigger Hub Ingestion Workflow
 app.post('/api/hubs/ingest', async (c) => {
   const { clientId, hubId, sourceContent, platform, angle } = await c.req.json();

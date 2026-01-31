@@ -150,6 +150,11 @@ function DashboardHome() {
               Add Client
             </ActionButton>
           </Link>
+          <Link to="/app/content-library">
+            <ActionButton variant="outline" size="md">
+              Content Library
+            </ActionButton>
+          </Link>
           <Link to="/app/analytics">
             <ActionButton variant="outline" size="md">
               View Analytics

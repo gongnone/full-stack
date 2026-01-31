@@ -133,6 +133,103 @@ export const exportsRouter = t.router({
       };
     }),
 
+  // Story 13-4: Buffer CSV format export
+  exportBufferCsv: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      spokeIds: z.array(z.string()).optional(),
+      hubIds: z.array(z.string()).optional(),
+      platforms: z.array(platformEnum).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      // Get approved spokes
+      const spokes = await ctx.callAgent(input.clientId, 'getApprovedSpokes', {
+        spokeIds: input.spokeIds,
+        hubIds: input.hubIds,
+        platforms: input.platforms,
+      }) as Array<{
+        id: string;
+        content: string;
+        platform: string;
+        scheduledFor?: string;
+        pillarTitle?: string;
+        visualPrompt?: string;
+      }>;
+
+      // Buffer CSV format: Text, Media URL, Scheduled Date, Scheduled Time, Profile
+      const BUFFER_PROFILE_MAP: Record<string, string> = {
+        twitter: 'Twitter',
+        linkedin: 'LinkedIn',
+        instagram: 'Instagram',
+        tiktok: 'TikTok',
+        facebook: 'Facebook',
+      };
+
+      const header = 'Text,Media URL,Scheduled Date,Scheduled Time,Profile';
+      const rows = spokes.map(spoke => {
+        const scheduledDate = spoke.scheduledFor
+          ? new Date(spoke.scheduledFor).toISOString().split('T')[0]
+          : '';
+        const scheduledTime = spoke.scheduledFor
+          ? new Date(spoke.scheduledFor).toISOString().split('T')[1]?.slice(0, 5)
+          : '';
+        const profile = BUFFER_PROFILE_MAP[spoke.platform] || spoke.platform;
+        const text = spoke.content.replace(/"/g, '""'); // Escape quotes
+        return `"${text}","","${scheduledDate}","${scheduledTime}","${profile}"`;
+      });
+
+      return {
+        csv: [header, ...rows].join('\n'),
+        count: spokes.length,
+        format: 'buffer',
+      };
+    }),
+
+  // Story 13-5: Hootsuite CSV format export
+  exportHootsuiteCsv: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      spokeIds: z.array(z.string()).optional(),
+      hubIds: z.array(z.string()).optional(),
+      platforms: z.array(platformEnum).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      const spokes = await ctx.callAgent(input.clientId, 'getApprovedSpokes', {
+        spokeIds: input.spokeIds,
+        hubIds: input.hubIds,
+        platforms: input.platforms,
+      }) as Array<{
+        id: string;
+        content: string;
+        platform: string;
+        scheduledFor?: string;
+        pillarTitle?: string;
+      }>;
+
+      // Hootsuite CSV format: Date, Time, Message, Media URLs
+      const header = 'Date,Time,Message,Media URLs';
+      const rows = spokes.map(spoke => {
+        const scheduledDate = spoke.scheduledFor
+          ? new Date(spoke.scheduledFor).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
+          : '';
+        const scheduledTime = spoke.scheduledFor
+          ? new Date(spoke.scheduledFor).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
+          : '';
+        const message = spoke.content.replace(/"/g, '""');
+        return `"${scheduledDate}","${scheduledTime}","${message}",""`;
+      });
+
+      return {
+        csv: [header, ...rows].join('\n'),
+        count: spokes.length,
+        format: 'hootsuite',
+      };
+    }),
+
   // Get export metadata (Story 6.3 - scheduling info)
   getExportMetadata: procedure
     .input(z.object({

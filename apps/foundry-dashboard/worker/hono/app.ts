@@ -655,6 +655,84 @@ app.get('/ws/brand-dna/:clientId', async (c) => {
   }
 });
 
+// ===== Story 13-6: iCal Feed for Content Calendar =====
+app.get('/api/calendar/:clientId/ical', async (c) => {
+  try {
+    const clientId = c.req.param('clientId');
+    const token = c.req.query('token'); // Simple auth token
+
+    if (!clientId) {
+      return c.json({ error: 'Client ID required' }, 400);
+    }
+
+    // Get approved spokes with scheduling data from Durable Object
+    const doId = c.env.CLIENT_AGENT.idFromName(clientId);
+    const stub = c.env.CLIENT_AGENT.get(doId);
+    const response = await stub.fetch(new Request('http://do/getApprovedSpokes', {
+      method: 'POST',
+      body: JSON.stringify({ limit: 200 }),
+    }));
+    const spokes = await response.json() as Array<{
+      id: string;
+      content: string;
+      platform: string;
+      scheduledFor?: string;
+      approvedAt?: string;
+      pillarTitle?: string;
+      hubTitle?: string;
+    }>;
+
+    // Build iCal
+    const PLATFORM_EMOJI: Record<string, string> = {
+      twitter: '𝕏', linkedin: '💼', instagram: '📸', tiktok: '🎵',
+    };
+
+    const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const events = (spokes || [])
+      .filter(s => s.scheduledFor || s.approvedAt)
+      .map(spoke => {
+        const dtstart = (spoke.scheduledFor || spoke.approvedAt || '')
+          .replace(/[-:]/g, '').split('.')[0] + 'Z';
+        const emoji = PLATFORM_EMOJI[spoke.platform] || '📝';
+        const summary = `${emoji} ${spoke.platform.toUpperCase()}: ${spoke.content.slice(0, 60)}...`;
+        const description = spoke.content.replace(/\n/g, '\\n').replace(/,/g, '\\,');
+
+        return [
+          'BEGIN:VEVENT',
+          `DTSTART:${dtstart}`,
+          `DTEND:${dtstart}`,
+          `DTSTAMP:${now}`,
+          `UID:${spoke.id}@foundry`,
+          `SUMMARY:${summary.replace(/,/g, '\\,')}`,
+          `DESCRIPTION:${description}`,
+          `CATEGORIES:${spoke.platform}`,
+          'END:VEVENT',
+        ].join('\r\n');
+      });
+
+    const ical = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Foundry//Content Calendar//EN',
+      'CALSCALE:GREGORIAN',
+      'METHOD:PUBLISH',
+      `X-WR-CALNAME:Foundry Content Calendar`,
+      ...events,
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    return new Response(ical, {
+      headers: {
+        'Content-Type': 'text/calendar; charset=utf-8',
+        'Content-Disposition': `attachment; filename="foundry-calendar-${clientId.slice(0, 8)}.ics"`,
+      },
+    });
+  } catch (error) {
+    console.error('[iCal] Error:', error);
+    return c.json({ error: 'Failed to generate calendar' }, 500);
+  }
+});
+
 // ===== Engagement Webhook Receivers (Story 11-3) =====
 // POST /api/webhooks/engagement - Receive engagement metrics from external platforms
 app.post('/api/webhooks/engagement', async (c) => {

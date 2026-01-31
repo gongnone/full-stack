@@ -76,10 +76,11 @@ interface SpokeGenerationParams {
 // MODEL CONFIGURATION — Single place to change models
 // ═══════════════════════════════════════════════════════════════════════
 const MODELS = {
-  // Creative content generation — needs highest quality writing
-  creator: '@cf/openai/gpt-oss-120b' as const,
-  // Visual concept generation — needs creative thinking
-  visual: '@cf/openai/gpt-oss-120b' as const,
+  // Creative content generation — Llama 4 Scout MoE (17B×16 experts, multimodal)
+  // Significant upgrade from Llama 3.1-70b: better creative writing, cheaper ($0.85 vs $2.25/M output)
+  creator: '@cf/meta/llama-4-scout-17b-16e-instruct' as const,
+  // Visual concept generation — same model for creative quality
+  visual: '@cf/meta/llama-4-scout-17b-16e-instruct' as const,
   // Hook quality scoring — evaluation task, small model is fine
   critic: '@cf/meta/llama-3.1-8b-instruct-fast' as const,
   // Embeddings for G7

@@ -515,6 +515,107 @@ export const agencyRouter = t.router({
     }),
 });
 
+  // Story 14-1: Multi-Client Overview Dashboard
+  getOverview: procedure
+    .query(async ({ ctx }) => {
+      // Get all clients with health metrics
+      const clients = await ctx.db.prepare(`
+        SELECT 
+          c.id, c.name, c.status, c.brand_color, c.industry,
+          bd.strength_score as brand_dna_score,
+          (SELECT COUNT(*) FROM hubs WHERE client_id = c.id) as hub_count,
+          (SELECT COUNT(*) FROM engagement_metrics WHERE client_id = c.id AND created_at > unixepoch() - 604800) as recent_posts
+        FROM clients c
+        LEFT JOIN brand_dna bd ON bd.client_id = c.id
+        WHERE c.user_id = ?
+        ORDER BY c.name
+      `).bind(ctx.userId).all();
+
+      const clientData = (clients.results || []).map((client: any) => ({
+        ...client,
+        health: calculateClientHealth({
+          brandDnaScore: client.brand_dna_score || 0,
+          hubs: client.hub_count || 0,
+          recentPosts: client.recent_posts || 0,
+        }),
+      }));
+
+      // Aggregate stats
+      const totalClients = clientData.length;
+      const activeClients = clientData.filter((c: any) => c.health === 'healthy').length;
+      const needsAttention = clientData.filter((c: any) => c.health === 'needs-attention').length;
+      const inactive = clientData.filter((c: any) => c.health === 'inactive').length;
+
+      return {
+        clients: clientData,
+        stats: {
+          total: totalClients,
+          active: activeClients,
+          needsAttention,
+          inactive,
+        },
+      };
+    }),
+
+  // Story 14-2: Cross-Client Analytics Aggregation
+  getCrossClientAnalytics: procedure
+    .input(z.object({
+      periodDays: z.number().min(1).max(365).default(30),
+    }))
+    .query(async ({ ctx, input }) => {
+      const since = Math.floor(Date.now() / 1000) - (input.periodDays * 86400);
+
+      // Engagement by client
+      const byClient = await ctx.db.prepare(`
+        SELECT 
+          c.id as client_id,
+          c.name as client_name,
+          COUNT(em.id) as post_count,
+          SUM(em.impressions) as total_impressions,
+          AVG(em.engagement_rate) as avg_engagement_rate,
+          SUM(em.likes) as total_likes
+        FROM clients c
+        LEFT JOIN engagement_metrics em ON em.client_id = c.id AND em.created_at > ?
+        WHERE c.user_id = ?
+        GROUP BY c.id
+        ORDER BY total_impressions DESC
+      `).bind(since, ctx.userId).all();
+
+      // Engagement by platform (across all clients)
+      const byPlatform = await ctx.db.prepare(`
+        SELECT 
+          em.platform,
+          COUNT(*) as post_count,
+          SUM(em.impressions) as total_impressions,
+          AVG(em.engagement_rate) as avg_engagement_rate
+        FROM engagement_metrics em
+        INNER JOIN clients c ON c.id = em.client_id AND c.user_id = ?
+        WHERE em.created_at > ?
+        GROUP BY em.platform
+        ORDER BY total_impressions DESC
+      `).bind(ctx.userId, since).all();
+
+      // Overall
+      const overall = await ctx.db.prepare(`
+        SELECT 
+          COUNT(*) as total_posts,
+          SUM(impressions) as total_impressions,
+          AVG(engagement_rate) as avg_engagement_rate,
+          COUNT(DISTINCT em.client_id) as active_clients
+        FROM engagement_metrics em
+        INNER JOIN clients c ON c.id = em.client_id AND c.user_id = ?
+        WHERE em.created_at > ?
+      `).bind(ctx.userId, since).first();
+
+      return {
+        byClient: byClient.results || [],
+        byPlatform: byPlatform.results || [],
+        overall: overall || { total_posts: 0, total_impressions: 0, avg_engagement_rate: 0, active_clients: 0 },
+        periodDays: input.periodDays,
+      };
+    }),
+});
+
 // Helper function
 function calculateClientHealth(data: { brandDnaScore: number; hubs: number; recentPosts: number }): 'healthy' | 'needs-attention' | 'inactive' {
   if (data.brandDnaScore >= 70 && data.hubs >= 1 && data.recentPosts >= 5) return 'healthy';

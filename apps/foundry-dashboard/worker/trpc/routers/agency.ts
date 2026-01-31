@@ -513,7 +513,6 @@ export const agencyRouter = t.router({
         sentAt: now,
       };
     }),
-});
 
   // Story 14-1: Multi-Client Overview Dashboard
   getOverview: procedure

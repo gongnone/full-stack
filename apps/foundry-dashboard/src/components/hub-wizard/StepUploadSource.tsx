@@ -21,6 +21,7 @@ interface StepUploadSourceProps {
   clientId: string;
   onSourceSelected: (sourceId: string, sourceType: SourceType) => void;
   onPillarsSelected?: (pillars: Pillar[]) => void;
+  onQuickCreate?: (sourceId: string) => void; // New prop for streamlined hub creation
 }
 
 function UploadIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
@@ -65,7 +66,7 @@ const BASE_TABS: { id: UploadTab; label: string; Icon: typeof UploadIcon }[] = [
   { id: 'url', label: 'From URL', Icon: LinkIcon },
 ];
 
-export function StepUploadSource({ clientId, onSourceSelected, onPillarsSelected }: StepUploadSourceProps) {
+export function StepUploadSource({ clientId, onSourceSelected, onPillarsSelected, onQuickCreate }: StepUploadSourceProps) {
   const [activeTab, setActiveTab] = useState<UploadTab>('upload');
 
   // Fallback to useClientId() if clientId prop not provided (Story 3.6 fix)
@@ -163,6 +164,7 @@ export function StepUploadSource({ clientId, onSourceSelected, onPillarsSelected
           <TextPasteTab
             clientId={clientId}
             onSourceCreated={(sourceId) => onSourceSelected(sourceId, 'text')}
+            onQuickCreate={onQuickCreate ? (sourceId) => onQuickCreate(sourceId) : undefined}
           />
         )}
         {activeTab === 'url' && (

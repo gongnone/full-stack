@@ -357,6 +357,35 @@ function NewHubWizard() {
     }
   }, [selectedSourceId, selectedClientId, selectedSourceType, hubTitle, extractedPillars, finalizeMutation, createPillarFirstHubMutation]);
 
+  // Quick Create Handler: Streamlined hub creation (2-click flow)
+  const handleQuickCreate = useCallback((sourceId: string) => {
+    if (!selectedClientId) return;
+
+    console.log('[Hub Creation] Quick create flow:', { sourceId, clientId: selectedClientId });
+
+    // Set the source and advance to final step
+    setSelectedSourceId(sourceId);
+    setSelectedSourceType('text');
+    setCurrentStep(4);
+
+    // Auto-trigger hub creation with extraction and default settings
+    finalizeMutation.mutate({
+      sourceId,
+      clientId: selectedClientId,
+      title: undefined, // Auto-generate title from source
+    }, {
+      onSuccess: (result) => {
+        console.log('[Hub Creation] Quick create success:', result);
+        setHubCreated(true);
+        setCreatedHubId(result.hubId);
+      },
+      onError: (error) => {
+        console.error('[Hub Creation] Quick create error:', error);
+        setExtractionError(`Failed to create hub: ${error.message}`);
+      },
+    });
+  }, [selectedClientId, finalizeMutation]);
+
   // Story 3-5: Navigation handlers for success state
   const handleViewHub = useCallback(() => {
     if (createdHubId) {
@@ -423,6 +452,7 @@ function NewHubWizard() {
             clientId={selectedClientId}
             onSourceSelected={handleSourceSelect}
             onPillarsSelected={handlePillarsSelect}
+            onQuickCreate={handleQuickCreate}
           />
         )}
 

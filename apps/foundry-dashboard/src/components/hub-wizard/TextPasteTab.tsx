@@ -10,6 +10,7 @@ import { TEXT_CONTENT_LIMITS, formatNumber } from '@/lib/constants';
 interface TextPasteTabProps {
   clientId: string;
   onSourceCreated: (sourceId: string) => void;
+  onQuickCreate?: (sourceId: string) => void; // New prop for streamlined hub creation
   disabled?: boolean;
 }
 
@@ -17,7 +18,7 @@ function countWords(text: string): number {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-export function TextPasteTab({ clientId, onSourceCreated, disabled }: TextPasteTabProps) {
+export function TextPasteTab({ clientId, onSourceCreated, onQuickCreate, disabled }: TextPasteTabProps) {
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,6 +50,26 @@ export function TextPasteTab({ clientId, onSourceCreated, disabled }: TextPasteT
       setIsSubmitting(false);
     }
   }, [clientId, content, title, isValid, isSubmitting, createTextSource, onSourceCreated]);
+
+  const handleQuickCreate = useCallback(async () => {
+    if (!isValid || isSubmitting || !onQuickCreate) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const result = await createTextSource.mutateAsync({
+        clientId,
+        content,
+        title: title.trim() || 'Untitled',
+      });
+
+      onQuickCreate(result.sourceId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create hub');
+      setIsSubmitting(false);
+    }
+  }, [clientId, content, title, isValid, isSubmitting, createTextSource, onQuickCreate]);
 
   return (
     <div className="space-y-4">
@@ -114,19 +135,37 @@ export function TextPasteTab({ clientId, onSourceCreated, disabled }: TextPasteT
         </div>
       </div>
 
-      {/* Submit button */}
-      <button
-        onClick={handleSubmit}
-        disabled={disabled || isSubmitting || !isValid}
-        className="w-full py-2 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{
-          backgroundColor: isValid ? 'var(--approve)' : 'var(--bg-surface)',
-          color: isValid ? 'white' : 'var(--text-muted)',
-          border: isValid ? 'none' : '1px solid var(--border-subtle)',
-        }}
-      >
-        {isSubmitting ? 'Saving...' : 'Use This Content'}
-      </button>
+      {/* Submit buttons */}
+      <div className={`space-y-2 ${onQuickCreate ? '' : ''}`}>
+        {onQuickCreate && (
+          <button
+            onClick={handleQuickCreate}
+            disabled={disabled || isSubmitting || !isValid}
+            data-testid="quick-create-hub-btn"
+            className="w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              backgroundColor: isValid ? 'var(--approve)' : 'var(--bg-surface)',
+              color: isValid ? 'white' : 'var(--text-muted)',
+              border: isValid ? 'none' : '1px solid var(--border-subtle)',
+            }}
+          >
+            {isSubmitting ? 'Creating Hub...' : '🚀 Quick Create Hub'}
+          </button>
+        )}
+        
+        <button
+          onClick={handleSubmit}
+          disabled={disabled || isSubmitting || !isValid}
+          className={`w-full py-2 px-4 rounded-lg font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${onQuickCreate ? 'text-sm' : ''}`}
+          style={{
+            backgroundColor: onQuickCreate ? 'var(--bg-surface)' : (isValid ? 'var(--approve)' : 'var(--bg-surface)'),
+            color: onQuickCreate ? 'var(--text-secondary)' : (isValid ? 'white' : 'var(--text-muted)'),
+            border: '1px solid var(--border-subtle)',
+          }}
+        >
+          {isSubmitting ? 'Saving...' : onQuickCreate ? 'Use This Content (Advanced)' : 'Use This Content'}
+        </button>
+      </div>
 
       {error && (
         <p className="text-sm text-center" style={{ color: 'var(--kill)' }}>

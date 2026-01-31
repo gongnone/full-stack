@@ -218,7 +218,7 @@ Example output format:
               estimatedSpokeCount: typeof p.estimatedSpokeCount === 'number' ? p.estimatedSpokeCount : 7,
               supportingPoints: Array.isArray(p.supportingPoints)
                 ? p.supportingPoints.slice(0, 5).map(String)
-                : ['Supporting point 1', 'Supporting point 2', 'Supporting point 3'],
+                : this.extractSupportingPointsFromContent(truncatedContent, p.title || 'Untitled'),
             }));
 
           if (validPillars.length >= 1) {
@@ -253,11 +253,7 @@ Example output format:
             coreClaim: `Key insights about ${pattern.title.toLowerCase()} extracted from the source content.`,
             psychologicalAngle: pattern.angle,
             estimatedSpokeCount: 7,
-            supportingPoints: [
-              'Primary supporting evidence',
-              'Secondary insight',
-              'Actionable recommendation',
-            ],
+            supportingPoints: this.extractSupportingPointsFromContent(truncatedContent, pattern.title),
           });
         }
       }
@@ -277,11 +273,7 @@ Example output format:
           coreClaim: `Important considerations for ${theme.title.toLowerCase()} based on the source material.`,
           psychologicalAngle: theme.angle,
           estimatedSpokeCount: 7,
-          supportingPoints: [
-            'Key insight from content',
-            'Supporting evidence',
-            'Actionable takeaway',
-          ],
+          supportingPoints: this.extractSupportingPointsFromContent(truncatedContent, theme.title),
         });
       }
 
@@ -382,5 +374,53 @@ Example output format:
       spokesQueued: queuedSpokes.length,
       status: 'completed',
     };
+  }
+
+  // S2-3: Extract real supporting points from content instead of placeholders
+  private extractSupportingPointsFromContent(content: string, pillarTitle: string): string[] {
+    try {
+      // Split content into sentences and clean them
+      const sentences = content
+        .split(/[.!?]+/)
+        .map(s => s.trim())
+        .filter(s => s.length > 20 && s.length < 200); // Meaningful sentences
+
+      if (sentences.length === 0) return ['No supporting evidence found in source content'];
+
+      // Look for sentences that contain keywords related to the pillar title
+      const titleWords = pillarTitle.toLowerCase().split(/\s+/)
+        .filter(word => word.length > 3); // Skip short words like "and", "the"
+
+      const relevantSentences = sentences.filter(sentence => {
+        const lowerSentence = sentence.toLowerCase();
+        return titleWords.some(word => lowerSentence.includes(word)) ||
+               lowerSentence.includes('because') ||
+               lowerSentence.includes('result') ||
+               lowerSentence.includes('show') ||
+               lowerSentence.includes('evidence') ||
+               lowerSentence.includes('data') ||
+               lowerSentence.includes('study') ||
+               lowerSentence.includes('research') ||
+               lowerSentence.includes('proof');
+      });
+
+      // If we found relevant sentences, use them; otherwise use the first few sentences
+      const supportingSentences = relevantSentences.length > 0 ? relevantSentences : sentences;
+
+      // Return up to 3 supporting points, cleaned up
+      return supportingSentences
+        .slice(0, 3)
+        .map(sentence => {
+          // Clean up the sentence
+          let cleaned = sentence.replace(/^\W+/, '').replace(/\W+$/, ''); // Remove leading/trailing punctuation
+          if (cleaned.length > 150) {
+            cleaned = cleaned.substring(0, 147) + '...';
+          }
+          return cleaned || 'Supporting insight extracted from content';
+        });
+    } catch (error) {
+      console.error('[HubIngestion] Error extracting supporting points:', error);
+      return ['Supporting insight extracted from content'];
+    }
   }
 }

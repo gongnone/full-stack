@@ -1,7 +1,7 @@
 # Epic 11: Engagement Data Pipeline
 
 **Phase:** 2B - The Learning Loop
-**Status:** In Progress
+**Status:** In Progress (4/6 stories complete)
 **Priority:** P1
 **Goal:** Import actual performance metrics from published content to train the G7 engagement prediction model.
 

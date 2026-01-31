@@ -655,6 +655,183 @@ app.get('/ws/brand-dna/:clientId', async (c) => {
   }
 });
 
+// ===== Engagement Webhook Receivers (Story 11-3) =====
+// POST /api/webhooks/engagement - Receive engagement metrics from external platforms
+app.post('/api/webhooks/engagement', async (c) => {
+  try {
+    const body = await c.req.json();
+    
+    // Validate webhook signature if provided
+    const signature = c.req.header('X-Webhook-Signature');
+    const webhookSecret = (c.env as any).WEBHOOK_SECRET;
+    
+    if (webhookSecret && signature) {
+      // HMAC-SHA256 signature verification
+      const encoder = new TextEncoder();
+      const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(webhookSecret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+      );
+      const rawBody = JSON.stringify(body);
+      const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(rawBody));
+      const expectedSig = btoa(String.fromCharCode(...new Uint8Array(sig)));
+      
+      if (signature !== expectedSig) {
+        return c.json({ error: 'Invalid signature' }, 401);
+      }
+    }
+    
+    // Validate required fields
+    const { clientId, spokeId, platform, metrics, externalPostId } = body;
+    
+    if (!clientId || !spokeId || !platform || !metrics) {
+      return c.json({ 
+        error: 'Missing required fields',
+        required: ['clientId', 'spokeId', 'platform', 'metrics']
+      }, 400);
+    }
+    
+    const validPlatforms = ['twitter', 'linkedin', 'instagram', 'tiktok'];
+    if (!validPlatforms.includes(platform)) {
+      return c.json({ error: `Invalid platform. Must be one of: ${validPlatforms.join(', ')}` }, 400);
+    }
+    
+    // Calculate engagement rate
+    const impressions = metrics.impressions || 0;
+    const likes = metrics.likes || 0;
+    const comments = metrics.comments || 0;
+    const shares = metrics.shares || 0;
+    const clicks = metrics.clicks || 0;
+    const saves = metrics.saves || 0;
+    const totalEngagements = likes + comments + shares;
+    const engagementRate = impressions > 0 ? totalEngagements / impressions : 0;
+    
+    const id = crypto.randomUUID();
+    
+    // Deduplication: check if we already have this external post
+    if (externalPostId) {
+      const existing = await c.env.DB.prepare(
+        `SELECT id FROM engagement_metrics 
+         WHERE spoke_id = ? AND platform = ? AND external_post_id = ?`
+      ).bind(spokeId, platform, externalPostId).first();
+      
+      if (existing) {
+        // Update existing record instead of creating new
+        await c.env.DB.prepare(`
+          UPDATE engagement_metrics 
+          SET impressions = ?, likes = ?, comments = ?, shares = ?, clicks = ?, saves = ?,
+              engagement_rate = ?, updated_at = unixepoch(), fetched_at = unixepoch()
+          WHERE spoke_id = ? AND platform = ? AND external_post_id = ?
+        `).bind(
+          impressions, likes, comments, shares, clicks, saves,
+          engagementRate, spokeId, platform, externalPostId
+        ).run();
+        
+        return c.json({ 
+          status: 'updated', 
+          id: (existing as any).id, 
+          engagementRate,
+          deduplicated: true 
+        });
+      }
+    }
+    
+    // Insert new metric
+    await c.env.DB.prepare(`
+      INSERT INTO engagement_metrics 
+      (id, spoke_id, client_id, platform, external_post_id, external_post_url,
+       impressions, likes, comments, shares, clicks, saves,
+       engagement_rate, is_manual_entry, published_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+    `).bind(
+      id, spokeId, clientId, platform,
+      externalPostId || null, body.externalPostUrl || null,
+      impressions, likes, comments, shares, clicks, saves,
+      engagementRate, body.publishedAt || null
+    ).run();
+    
+    return c.json({ 
+      status: 'created', 
+      id, 
+      engagementRate 
+    });
+    
+  } catch (error) {
+    console.error('[Webhook] Error processing engagement data:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// POST /api/webhooks/engagement/batch - Receive multiple metrics at once
+app.post('/api/webhooks/engagement/batch', async (c) => {
+  try {
+    const { items } = await c.req.json();
+    
+    if (!Array.isArray(items) || items.length === 0) {
+      return c.json({ error: 'items must be a non-empty array' }, 400);
+    }
+    
+    if (items.length > 100) {
+      return c.json({ error: 'Maximum 100 items per batch' }, 400);
+    }
+    
+    const results = [];
+    let created = 0;
+    let updated = 0;
+    let errors = 0;
+    
+    for (const item of items) {
+      try {
+        const { clientId, spokeId, platform, metrics, externalPostId } = item;
+        
+        if (!clientId || !spokeId || !platform || !metrics) {
+          errors++;
+          results.push({ error: 'Missing required fields', item });
+          continue;
+        }
+        
+        const impressions = metrics.impressions || 0;
+        const likes = metrics.likes || 0;
+        const comments = metrics.comments || 0;
+        const shares = metrics.shares || 0;
+        const clicks = metrics.clicks || 0;
+        const saves = metrics.saves || 0;
+        const totalEngagements = likes + comments + shares;
+        const engagementRate = impressions > 0 ? totalEngagements / impressions : 0;
+        
+        const id = crypto.randomUUID();
+        
+        await c.env.DB.prepare(`
+          INSERT OR REPLACE INTO engagement_metrics 
+          (id, spoke_id, client_id, platform, external_post_id,
+           impressions, likes, comments, shares, clicks, saves,
+           engagement_rate, is_manual_entry)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        `).bind(
+          id, spokeId, clientId, platform, externalPostId || null,
+          impressions, likes, comments, shares, clicks, saves,
+          engagementRate
+        ).run();
+        
+        created++;
+        results.push({ status: 'created', id, spokeId, platform });
+      } catch (err) {
+        errors++;
+        results.push({ error: String(err), item });
+      }
+    }
+    
+    return c.json({ created, updated, errors, total: items.length, results });
+    
+  } catch (error) {
+    console.error('[Webhook] Batch error:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
 // SPA fallback - serve static assets
 app.get('*', async (c) => {
   const url = new URL(c.req.url);

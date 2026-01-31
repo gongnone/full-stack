@@ -566,16 +566,34 @@ Pass threshold: ${G6_VISUAL_PASS_THRESHOLD}`,
         try {
           // Create adapter for Vectorize API to match g7-scorer interface
           const vectorizeAdapter = {
-            query: async (params: { namespace: string; vector: number[]; topK: number }) => {
-              const results = await this.env.VECTORIZE.query(params.vector, {
-                namespace: params.namespace,
-                topK: params.topK,
-                returnValues: true,
-              });
-              return results.matches.map(match => ({
-                values: Array.from(match.values || []) as number[],
-                metadata: match.metadata as Record<string, unknown>,
-              }));
+            query: async (vectorOrParams: number[] | { namespace?: string; vector: number[]; topK: number }, options?: { namespace?: string; topK?: number; returnMetadata?: string }) => {
+              // Support both positional (vector, options) and object ({vector, namespace, topK}) forms
+              let vector: number[];
+              let namespace: string | undefined;
+              let topK: number;
+              
+              if (Array.isArray(vectorOrParams)) {
+                vector = vectorOrParams;
+                namespace = options?.namespace;
+                topK = options?.topK || 50;
+              } else {
+                vector = vectorOrParams.vector;
+                namespace = vectorOrParams.namespace;
+                topK = vectorOrParams.topK;
+              }
+              
+              const queryOpts: Record<string, unknown> = { topK, returnMetadata: 'all' };
+              if (namespace) queryOpts.namespace = namespace;
+              
+              const results = await this.env.VECTORIZE.query(vector, queryOpts as any);
+              return {
+                matches: results.matches.map(match => ({
+                  values: Array.from(match.values || []) as number[],
+                  metadata: (match.metadata || {}) as Record<string, unknown>,
+                  score: match.score,
+                })),
+                count: results.count,
+              };
             },
           };
 

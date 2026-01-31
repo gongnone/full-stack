@@ -82,14 +82,14 @@ function cosineSimilarity(vecA: number[], vecB: number[]): number {
  */
 function calculateStoppingPower(
   hookEmbedding: number[],
-  topHooks: Array<{ values: number[]; metadata: { engagement_rate?: number } }>
+  topHooks: Array<{ values?: number[]; metadata: Record<string, unknown>; score: number }>
 ): number {
   if (topHooks.length === 0) return 5; // Default mid-score if no data
 
-  // Calculate similarity to top 10 hooks
+  // Use Vectorize similarity scores directly (already cosine similarity)
   const topSimilarities = topHooks
     .slice(0, 10)
-    .map(hook => cosineSimilarity(hookEmbedding, hook.values));
+    .map(hook => hook.score);
 
   // Average similarity * 10 = score 0-10
   const avgSimilarity = topSimilarities.reduce((sum, sim) => sum + sim, 0) / topSimilarities.length;
@@ -106,15 +106,13 @@ function calculateStoppingPower(
  */
 function calculateNovelty(
   hookEmbedding: number[],
-  allHooks: Array<{ values: number[]; metadata: { engagement_rate?: number } }>
+  allHooks: Array<{ values?: number[]; metadata: Record<string, unknown>; score: number }>
 ): number {
   if (allHooks.length === 0) return 5; // Default mid-score if no data
 
-  // Check similarity to bottom-performing hooks (clichés)
+  // Check similarity to bottom-scoring hooks (least similar = potential clichés)
   const bottomHooks = allHooks.slice(-20);
-  const clicheSimilarities = bottomHooks.map(hook =>
-    cosineSimilarity(hookEmbedding, hook.values)
-  );
+  const clicheSimilarities = bottomHooks.map(hook => hook.score);
 
   const avgClicheSimilarity = clicheSimilarities.reduce((sum, sim) => sum + sim, 0) / clicheSimilarities.length;
 
@@ -130,10 +128,10 @@ function calculateNovelty(
  * Calculate average engagement rate from top hooks
  */
 function calculateBenchmark(
-  topHooks: Array<{ metadata: { engagement_rate?: number } }>
+  topHooks: Array<{ metadata: Record<string, unknown>; score: number }>
 ): number {
   const engagementRates = topHooks
-    .map(hook => hook.metadata.engagement_rate)
+    .map(hook => hook.metadata?.engagementRate as number | undefined)
     .filter((rate): rate is number => rate !== undefined);
 
   if (engagementRates.length === 0) return 0.042; // Default 4.2%
@@ -181,22 +179,50 @@ export async function scoreEngagement(
 
   // Query admired profiles namespace
   const admiredNamespace = VECTORIZE_NAMESPACES.admiredProfiles(clientId);
-  const admiredHooks = await vectorize.query({
+  const admiredResult = await vectorize.query(hookEmbedding, {
     namespace: admiredNamespace,
-    vector: hookEmbedding,
     topK: 50,
+    returnMetadata: 'all',
   });
+  let admiredHooks = (admiredResult.matches || []).map(m => ({
+    values: m.values || hookEmbedding, // fallback if values not returned
+    metadata: (m.metadata || {}) as Record<string, unknown>,
+    score: m.score,
+  }));
 
   // Query baseline namespace
   const baselineNamespace = VECTORIZE_NAMESPACES.baseline(brandDNA.niche);
-  const baselineHooks = await vectorize.query({
+  const baselineResult = await vectorize.query(hookEmbedding, {
     namespace: baselineNamespace,
-    vector: hookEmbedding,
     topK: 50,
+    returnMetadata: 'all',
   });
+  let baselineHooks = (baselineResult.matches || []).map(m => ({
+    values: m.values || hookEmbedding,
+    metadata: (m.metadata || {}) as Record<string, unknown>,
+    score: m.score,
+  }));
 
-  // If BOTH namespaces are empty, we have no data to score against.
-  // Default to pass so we don't block content generation on an empty index.
+  console.log(`[G7] admired=${admiredHooks.length} baseline=${baselineHooks.length} admiredRaw=${JSON.stringify(admiredResult).substring(0,200)} baselineRaw=${JSON.stringify(baselineResult).substring(0,200)}`);
+
+  // QR-1 fix: If namespaced queries return empty, fall back to global hook database
+  if (admiredHooks.length === 0 && baselineHooks.length === 0) {
+    const globalResult = await vectorize.query(hookEmbedding, {
+      topK: 50,
+      returnMetadata: 'all',
+    });
+    console.log(`[G7] globalFallback matches=${globalResult.matches?.length} count=${globalResult.count} raw=${JSON.stringify(globalResult).substring(0,300)}`);
+    const globalHooks = (globalResult.matches || []).map(m => ({
+      values: m.values || hookEmbedding,
+      metadata: (m.metadata || {}) as Record<string, unknown>,
+      score: m.score,
+    }));
+    if (globalHooks.length > 0) {
+      baselineHooks = globalHooks;
+    }
+  }
+
+  // If still no data, default pass
   if (admiredHooks.length === 0 && baselineHooks.length === 0) {
     return {
       g7Score: 7.5,

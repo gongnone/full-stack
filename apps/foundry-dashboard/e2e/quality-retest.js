@@ -116,8 +116,10 @@ async function run() {
   console.log('='.repeat(80));
 
   for (const spoke of spokes.slice(0, 6)) {
-    const hasG2 = spoke.g2_hook != null;
-    const hasG7 = spoke.g7_engagement != null;
+    // Scores are nested under qualityScores object from DO
+    const qs = spoke.qualityScores || {};
+    const hasG2 = qs.g2_hook != null;
+    const hasG7 = qs.g7_engagement != null;
     if (hasG2 || hasG7) scoreCount++; else noScoreCount++;
     
     const contentLower = (spoke.content || '').toLowerCase();
@@ -127,10 +129,11 @@ async function run() {
     const hasTestRef = TEST_PATTERNS.some(p => contentLower.includes(p));
     if (hasTestRef) testRefCount++;
     
-    if (!spoke.visual_archetype && !spoke.image_prompt) emptyVisualCount++;
+    // Visual fields are camelCase from DO
+    if (!spoke.visualArchetype && !spoke.imagePrompt) emptyVisualCount++;
 
     console.log(`\n${'─'.repeat(70)}`);
-    console.log(`📱 ${(spoke.platform || '').toUpperCase()} | G2: ${spoke.g2_hook ?? 'NULL'} | G7: ${spoke.g7_engagement ?? 'NULL'} | Visual: ${spoke.visual_archetype || 'NULL'}`);
+    console.log(`📱 ${(spoke.platform || '').toUpperCase()} | G2: ${qs.g2_hook ?? 'NULL'} | G7: ${qs.g7_engagement ?? 'NULL'} | Visual: ${spoke.visualArchetype || 'NULL'}`);
     console.log(`Status: ${spoke.status} | Leakage: ${hasLeakage ? '❌ YES' : '✅ No'} | Test refs: ${hasTestRef ? '❌ YES' : '✅ No'}`);
     console.log(`${'─'.repeat(70)}`);
     console.log(`\n${(spoke.content || '').substring(0, 400)}${(spoke.content || '').length > 400 ? '...' : ''}\n`);

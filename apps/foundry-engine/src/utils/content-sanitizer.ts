@@ -4,7 +4,8 @@
 
 const LEAKAGE_PREFIXES = [
   /^here is the (?:generated |revised |rewritten |new |updated )?(?:content|version|tweet|post|thread|script)[\s:.,\n]*/i,
-  /^here(?:'s| is) (?:a |the )?(?:rewritten |revised |updated |new )?(?:version|tweet|post|content)(?:[,\s].*?)?\s*[:.\n]+\s*/i,
+  /^here(?:'s| is) (?:a |the )?(?:rewritten |revised |updated |new )?(?:version|attempt|tweet|post|content)(?:[,\s].*?)?\s*[:.\n]+\s*/i,
+  /^here's a new attempt[\s\S]*?[:.\n]+\s*/i,
   /^i'm ready to get started[\s\S]*?(?=\n\n|\*\*|$)/i,
   /^let(?:'s| me) get started[\s.!]*/i,
   /^let me (?:generate|create|write)[\s.!]*/i,
@@ -12,6 +13,7 @@ const LEAKAGE_PREFIXES = [
   /^please (?:share|provide) the source material[\s\S]*/i,
   /^(?:sure|okay|alright)[,!.]?\s*(?:here|let)/i,
   /^(?:output|response|result)[\s:]*\n/i,
+  /^(?:i've |i have )?(?:revised|rewritten|updated|created|generated) (?:the |a )?(?:content|version|tweet|post)[\s\S]*?[:.\n]+\s*/i,
 ];
 
 const LEAKAGE_SUFFIXES = [

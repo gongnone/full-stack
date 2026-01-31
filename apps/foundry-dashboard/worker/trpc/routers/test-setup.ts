@@ -456,4 +456,16 @@ export const testSetupRouter = t.router({
       platforms: platforms,
     };
   }),
+
+  /**
+   * Seed Vectorize with hook database for G7 scoring
+   */
+  seedHooks: procedure.mutation(async ({ ctx }) => {
+    const result = await ctx.callEngine<{ seeded: number }>('http://internal/api/hooks/seed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    return result;
+  }),
 });

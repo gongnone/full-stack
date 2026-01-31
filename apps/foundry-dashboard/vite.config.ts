@@ -17,6 +17,7 @@ export default defineConfig({
           'vendor-query': ['@tanstack/react-query'],
           'vendor-trpc': ['@trpc/client', '@trpc/react-query'],
           'vendor-zod': ['zod'],
+          'vendor-recharts': ['recharts'],
         },
       },
     },

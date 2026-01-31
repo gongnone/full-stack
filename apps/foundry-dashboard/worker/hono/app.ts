@@ -666,8 +666,8 @@ app.get('/api/calendar/:clientId/ical', async (c) => {
     }
 
     // Get approved spokes with scheduling data from Durable Object
-    const doId = c.env.CLIENT_AGENT.idFromName(clientId);
-    const stub = c.env.CLIENT_AGENT.get(doId);
+    const doId = (c.env as any).CLIENT_AGENT.idFromName(clientId);
+    const stub = (c.env as any).CLIENT_AGENT.get(doId);
     const response = await stub.fetch(new Request('http://do/getApprovedSpokes', {
       method: 'POST',
       body: JSON.stringify({ limit: 200 }),

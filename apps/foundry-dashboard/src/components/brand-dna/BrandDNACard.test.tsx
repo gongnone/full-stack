@@ -83,7 +83,7 @@ describe('BrandDNACard', () => {
       writingStyle: undefined,
       targetAudience: undefined,
     };
-    // @ts-expect-error - Testing with incomplete report data
+    // Testing with incomplete report data
     render(<BrandDNACard report={emptyReport} />);
     
     const notDetected = screen.getAllByText('Not detected');

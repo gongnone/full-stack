@@ -415,7 +415,7 @@ export const testSetupRouter = t.router({
           hub_id: hubId,
           pillar_id: pillarId,
           platform,
-          content: `Test ${platform} post #${spokeIndex}: ${psychAngle} angle. This is compelling content that demonstrates ${pillarId.includes('catalyst') ? 'disruption' : pillarId.includes('core-truth') ? 'authenticity' : 'results'}. Engaging hook that captures attention and drives action. #testcontent #e2e`,
+          content: `Test ${platform} post #${spokeIndex}: ${psychAngle} angle. This is compelling content that demonstrates ${(pillarId || '').includes('catalyst') ? 'disruption' : (pillarId || '').includes('core-truth') ? 'authenticity' : 'results'}. Engaging hook that captures attention and drives action. #testcontent #e2e`,
           psychological_angle: psychAngle,
           g2_score: 75 + (spokeIndex % 20), // Vary scores 75-95
           g4_status: 'pass',

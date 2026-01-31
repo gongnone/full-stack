@@ -381,8 +381,8 @@ export const engagementRouter = t.router({
       let denomActual = 0;
 
       for (let i = 0; i < n; i++) {
-        const diffPred = predictions[i] - meanPred;
-        const diffActual = actuals[i] - meanActual;
+        const diffPred = (predictions[i] ?? 0) - meanPred;
+        const diffActual = (actuals[i] ?? 0) - meanActual;
         numerator += diffPred * diffActual;
         denomPred += diffPred * diffPred;
         denomActual += diffActual * diffActual;
@@ -409,8 +409,8 @@ export const engagementRouter = t.router({
       let correctDirection = 0;
       for (let i = 0; i < n - 1; i++) {
         for (let j = i + 1; j < Math.min(i + 5, n); j++) {
-          const predDirection = predictions[i] > predictions[j];
-          const actualDirection = actuals[i] > actuals[j];
+          const predDirection = (predictions[i] ?? 0) > (predictions[j] ?? 0);
+          const actualDirection = (actuals[i] ?? 0) > (actuals[j] ?? 0);
           if (predDirection === actualDirection) correctDirection++;
         }
       }

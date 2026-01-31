@@ -845,7 +845,7 @@ export const hubsRouter = t.router({
           const requestedIndices = input.pillarIds
             .map(id => {
               const match = id.match(/^pillar-(\d+)$/);
-              return match ? parseInt(match[1], 10) - 1 : -1;
+              return match ? parseInt(match[1] || '0', 10) - 1 : -1;
             })
             .filter(idx => idx >= 0 && idx < patterns.length);
 
@@ -857,8 +857,8 @@ export const hubsRouter = t.router({
           }
 
           pillarsToInsert = requestedIndices.map(idx => ({
-            title: patterns[idx],
-            description: `Content pillar focusing on ${patterns[idx].toLowerCase()}`,
+            title: patterns[idx] || 'Untitled Pillar',
+            description: `Content pillar focusing on ${(patterns[idx] || '').toLowerCase()}`,
           }));
         } catch (error) {
           throw new TRPCError({
@@ -1078,7 +1078,7 @@ export const hubsRouter = t.router({
       await assertClientAccess(ctx, input.clientId);
       
       try {
-        const result = await ctx.callAgent(input.clientId, 'syncAllSpokeCountsToD1', {});
+        const result = await ctx.callAgent(input.clientId, 'syncAllSpokeCountsToD1', {}) as { synced?: number };
         return { success: true, synced: result.synced };
       } catch (error) {
         throw new TRPCError({

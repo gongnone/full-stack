@@ -206,7 +206,7 @@ function EngagementPage() {
             }}
           >
             {accuracyQuery.data.dataPoints === 0 ? (
-              <p className="text-[var(--text-secondary)]">{accuracyQuery.data.message}</p>
+              <p className="text-[var(--text-secondary)]">{'message' in accuracyQuery.data ? accuracyQuery.data.message : 'No data'}</p>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>

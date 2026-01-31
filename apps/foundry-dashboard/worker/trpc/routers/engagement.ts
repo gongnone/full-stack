@@ -1,8 +1,8 @@
 /**
- * Engagement Data Pipeline Router (Epic 11)
+ * Engagement Data Pipeline Router (Epic 11 + 12)
  * 
- * Handles platform connections, engagement metrics, and manual entry.
- * Foundation for G7 prediction model (Epic 12).
+ * Handles platform connections, engagement metrics, manual entry,
+ * G7 predictions, and model accuracy tracking.
  */
 
 import { initTRPC } from '@trpc/server';
@@ -137,7 +137,6 @@ export const engagementRouter = t.router({
         GROUP BY platform
       `).bind(input.clientId, since).all();
 
-      // Overall stats
       const overall = await ctx.env.DB.prepare(`
         SELECT 
           COUNT(*) as total_posts,
@@ -154,7 +153,7 @@ export const engagementRouter = t.router({
     }),
 
   /**
-   * Manual metric entry (Story 11-6 - fallback for no API access)
+   * Manual metric entry (Story 11-6)
    */
   addManualMetrics: procedure
     .input(z.object({
@@ -168,7 +167,7 @@ export const engagementRouter = t.router({
       shares: z.number().min(0).default(0),
       clicks: z.number().min(0).default(0),
       saves: z.number().min(0).default(0),
-      publishedAt: z.number().optional(), // unix timestamp
+      publishedAt: z.number().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const id = crypto.randomUUID();
@@ -196,7 +195,7 @@ export const engagementRouter = t.router({
     }),
 
   /**
-   * Update existing metrics (for manual corrections or API refreshes)
+   * Update existing metrics
    */
   updateMetrics: procedure
     .input(z.object({
@@ -210,7 +209,6 @@ export const engagementRouter = t.router({
       saves: z.number().min(0).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      // Fetch current metrics first
       const current = await ctx.env.DB.prepare(
         `SELECT * FROM engagement_metrics WHERE id = ? AND client_id = ?`
       ).bind(input.metricId, input.clientId).first();
@@ -239,7 +237,6 @@ export const engagementRouter = t.router({
         (current as any).clicks, (current as any).engagement_rate
       ).run();
 
-      // Update metrics
       await ctx.env.DB.prepare(`
         UPDATE engagement_metrics 
         SET impressions = ?, likes = ?, comments = ?, shares = ?, clicks = ?, saves = ?,
@@ -305,7 +302,6 @@ export const engagementRouter = t.router({
         ORDER BY snapshot_at ASC
       `).bind(input.metricId).all();
 
-      // Also get current values
       const current = await ctx.env.DB.prepare(
         `SELECT * FROM engagement_metrics WHERE id = ? AND client_id = ?`
       ).bind(input.metricId, input.clientId).first();
@@ -313,6 +309,125 @@ export const engagementRouter = t.router({
       return {
         snapshots: snapshots.results || [],
         current,
+      };
+    }),
+
+  /**
+   * Story 12-6: Model Accuracy Tracking
+   * Compare G7 predictions against actual engagement data
+   */
+  getModelAccuracy: procedure
+    .input(z.object({
+      clientId: z.string(),
+      platform: platformSchema.optional(),
+      modelVersion: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Join predictions with actual engagement metrics
+      let query = `
+        SELECT 
+          g7.spoke_id,
+          g7.platform,
+          g7.g7_score as predicted_score,
+          g7.confidence,
+          g7.model_version,
+          em.engagement_rate as actual_rate,
+          em.impressions,
+          em.likes + em.comments + em.shares as total_engagements
+        FROM g7_predictions g7
+        INNER JOIN engagement_metrics em ON em.spoke_id = g7.spoke_id AND em.platform = g7.platform
+        WHERE g7.client_id = ?
+      `;
+      const bindings: any[] = [input.clientId];
+
+      if (input.platform) {
+        query += ' AND g7.platform = ?';
+        bindings.push(input.platform);
+      }
+      if (input.modelVersion) {
+        query += ' AND g7.model_version = ?';
+        bindings.push(input.modelVersion);
+      }
+
+      query += ' ORDER BY g7.calculated_at DESC LIMIT 200';
+
+      const pairs = await ctx.env.DB.prepare(query).bind(...bindings).all();
+      const data = (pairs.results || []) as any[];
+
+      if (data.length === 0) {
+        return {
+          dataPoints: 0,
+          correlation: null,
+          meanAbsoluteError: null,
+          accuracy: null,
+          goldenNuggetPrecision: null,
+          message: 'Not enough data points. Add engagement metrics to track model accuracy.',
+        };
+      }
+
+      // Calculate Pearson correlation between predicted G7 and actual engagement rate
+      const n = data.length;
+      const predictions = data.map(d => d.predicted_score);
+      const actuals = data.map(d => d.actual_rate * 100); // Scale to comparable range
+
+      const meanPred = predictions.reduce((s, v) => s + v, 0) / n;
+      const meanActual = actuals.reduce((s, v) => s + v, 0) / n;
+
+      let numerator = 0;
+      let denomPred = 0;
+      let denomActual = 0;
+
+      for (let i = 0; i < n; i++) {
+        const diffPred = predictions[i] - meanPred;
+        const diffActual = actuals[i] - meanActual;
+        numerator += diffPred * diffActual;
+        denomPred += diffPred * diffPred;
+        denomActual += diffActual * diffActual;
+      }
+
+      const correlation = denomPred > 0 && denomActual > 0
+        ? numerator / (Math.sqrt(denomPred) * Math.sqrt(denomActual))
+        : 0;
+
+      // Mean Absolute Error (normalized to 0-10 scale)
+      const mae = data.reduce((sum, d) => {
+        const normalizedActual = Math.min(10, d.actual_rate * 100); // Scale engagement rate
+        return sum + Math.abs(d.predicted_score - normalizedActual);
+      }, 0) / n;
+
+      // Golden Nugget precision: of all predicted Golden Nuggets (G7 >= 9), what % actually performed well?
+      const predictedGolden = data.filter(d => d.predicted_score >= 9);
+      const actualGolden = predictedGolden.filter(d => d.actual_rate >= 0.05); // Top 5% engagement
+      const goldenPrecision = predictedGolden.length > 0
+        ? actualGolden.length / predictedGolden.length
+        : null;
+
+      // Directional accuracy: did higher predictions correspond to higher actuals?
+      let correctDirection = 0;
+      for (let i = 0; i < n - 1; i++) {
+        for (let j = i + 1; j < Math.min(i + 5, n); j++) {
+          const predDirection = predictions[i] > predictions[j];
+          const actualDirection = actuals[i] > actuals[j];
+          if (predDirection === actualDirection) correctDirection++;
+        }
+      }
+      const totalPairs = Math.min(n * 4, n * (n - 1) / 2);
+      const directionalAccuracy = totalPairs > 0 ? correctDirection / totalPairs : null;
+
+      return {
+        dataPoints: n,
+        correlation: Math.round(correlation * 1000) / 1000,
+        meanAbsoluteError: Math.round(mae * 100) / 100,
+        directionalAccuracy: directionalAccuracy != null ? Math.round(directionalAccuracy * 1000) / 1000 : null,
+        goldenNuggetPrecision: goldenPrecision != null ? Math.round(goldenPrecision * 1000) / 1000 : null,
+        modelHealth: correlation > 0.6 ? 'good' : correlation > 0.3 ? 'learning' : 'needs-data',
+        recommendation: n < 50
+          ? 'Add more engagement data. Need 50+ data points for reliable accuracy metrics.'
+          : correlation > 0.6
+            ? 'Model performing well! G7 predictions correlate with actual engagement.'
+            : correlation > 0.3
+              ? 'Model is learning. Continue adding engagement data to improve predictions.'
+              : 'Model needs more training data. Consider adding manual metrics for published content.',
       };
     }),
 });

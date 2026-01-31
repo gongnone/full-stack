@@ -48,6 +48,12 @@ function EngagementPage() {
 
   const goldenNuggets = g7Query.data?.goldenNuggets || 0;
 
+  // Story 12-6: Model accuracy tracking
+  const accuracyQuery = trpc.engagement.getModelAccuracy.useQuery(
+    { clientId: clientId!, platform: selectedPlatform },
+    { enabled: !!clientId }
+  );
+
   return (
     <div className="space-y-6 pb-8">
       {/* Header */}
@@ -180,6 +186,79 @@ function EngagementPage() {
             {(g7Query.data.predictions as any[]).map((pred: any) => (
               <G7PredictionCard key={pred.id} prediction={pred} />
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Model Accuracy (Story 12-6) */}
+      {accuracyQuery.data && (
+        <div>
+          <h2 className="text-lg font-medium mb-3 text-[var(--text-primary)]">
+            🎯 Model Accuracy
+          </h2>
+          <div
+            className="p-5 rounded-xl border"
+            style={{
+              backgroundColor: 'var(--bg-elevated)',
+              borderColor: accuracyQuery.data.modelHealth === 'good' ? 'var(--approve)' :
+                accuracyQuery.data.modelHealth === 'learning' ? 'var(--warning)' : 'var(--border-subtle)',
+              borderWidth: accuracyQuery.data.modelHealth === 'good' ? '2px' : '1px',
+            }}
+          >
+            {accuracyQuery.data.dataPoints === 0 ? (
+              <p className="text-[var(--text-secondary)]">{accuracyQuery.data.message}</p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-xs text-[var(--text-muted)]">Correlation</p>
+                  <p className="text-2xl font-semibold text-[var(--text-primary)]">
+                    {accuracyQuery.data.correlation != null ? `r=${accuracyQuery.data.correlation}` : '—'}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)]">Target: r &gt; 0.6</p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--text-muted)]">Mean Abs Error</p>
+                  <p className="text-2xl font-semibold text-[var(--text-primary)]">
+                    {accuracyQuery.data.meanAbsoluteError ?? '—'}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)]">Lower is better</p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--text-muted)]">Directional Accuracy</p>
+                  <p className="text-2xl font-semibold text-[var(--text-primary)]">
+                    {accuracyQuery.data.directionalAccuracy != null
+                      ? `${(accuracyQuery.data.directionalAccuracy * 100).toFixed(0)}%`
+                      : '—'}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)]">Higher predicted = higher actual</p>
+                </div>
+                <div>
+                  <p className="text-xs text-[var(--text-muted)]">🏆 Golden Precision</p>
+                  <p className="text-2xl font-semibold text-[var(--text-primary)]">
+                    {accuracyQuery.data.goldenNuggetPrecision != null
+                      ? `${(accuracyQuery.data.goldenNuggetPrecision * 100).toFixed(0)}%`
+                      : '—'}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)]">G7≥9 that performed well</p>
+                </div>
+              </div>
+            )}
+            <div className="mt-4 flex items-center gap-2">
+              <span
+                className="px-2 py-0.5 rounded text-xs font-medium"
+                style={{
+                  backgroundColor: accuracyQuery.data.modelHealth === 'good' ? 'var(--approve)' :
+                    accuracyQuery.data.modelHealth === 'learning' ? 'var(--warning)' : 'var(--bg-surface)',
+                  color: accuracyQuery.data.modelHealth === 'needs-data' ? 'var(--text-muted)' : 'white',
+                }}
+              >
+                {accuracyQuery.data.modelHealth === 'good' ? '✅ Model Healthy' :
+                  accuracyQuery.data.modelHealth === 'learning' ? '📈 Learning' : '📊 Needs Data'}
+              </span>
+              <span className="text-xs text-[var(--text-muted)]">
+                {accuracyQuery.data.dataPoints} data points • {accuracyQuery.data.recommendation}
+              </span>
+            </div>
           </div>
         </div>
       )}

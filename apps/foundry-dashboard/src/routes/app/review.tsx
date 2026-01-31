@@ -804,18 +804,24 @@ function ReviewPage() {
             {currentSpoke.content}
           </div>
 
-          {/* Quality Gates */}
-          <div className="grid grid-cols-2 gap-4 mb-2">
+          {/* Quality Summary */}
+          <div className="grid grid-cols-3 gap-3 mb-2">
             <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-              <span className="text-xs font-medium text-[var(--text-secondary)]">Voice (G4)</span>
-              <span className={`text-xs font-bold ${currentSpoke.qualityScores?.g4_voice ? 'text-[var(--approve)]' : 'text-[var(--kill)]'}`}>
-                {currentSpoke.qualityScores?.g4_voice ? 'PASSED' : 'FAILED'}
+              <span className="text-xs font-medium text-[var(--text-secondary)]">Hook Quality</span>
+              <span className={`text-xs font-bold ${(currentSpoke.qualityScores?.g2_hook || 0) >= 80 ? 'text-[var(--approve)]' : (currentSpoke.qualityScores?.g2_hook || 0) >= 60 ? 'text-yellow-400' : 'text-[var(--kill)]'}`}>
+                {currentSpoke.qualityScores?.g2_hook || '—'}/100
               </span>
             </div>
             <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
-              <span className="text-xs font-medium text-[var(--text-secondary)]">Platform (G5)</span>
+              <span className="text-xs font-medium text-[var(--text-secondary)]">Length</span>
               <span className={`text-xs font-bold ${currentSpoke.qualityScores?.g5_platform ? 'text-[var(--approve)]' : 'text-[var(--kill)]'}`}>
-                {currentSpoke.qualityScores?.g5_platform ? 'PASSED' : 'FAILED'}
+                {currentSpoke.qualityScores?.g5_platform ? '✓ OK' : '✕ Too long'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-subtle)]">
+              <span className="text-xs font-medium text-[var(--text-secondary)]">Engagement</span>
+              <span className={`text-xs font-bold ${(currentSpoke.qualityScores?.g7_engagement || 0) >= 7 ? 'text-[var(--approve)]' : 'text-yellow-400'}`}>
+                {currentSpoke.qualityScores?.g7_engagement?.toFixed(1) || '—'}/10
               </span>
             </div>
           </div>

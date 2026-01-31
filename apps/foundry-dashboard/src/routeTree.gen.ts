@@ -24,6 +24,7 @@ import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppReviewRouteImport } from './routes/app/review'
 import { Route as AppHubsRouteImport } from './routes/app/hubs'
 import { Route as AppExportsRouteImport } from './routes/app/exports'
+import { Route as AppEngagementRouteImport } from './routes/app/engagement'
 import { Route as AppCreativeConflictsRouteImport } from './routes/app/creative-conflicts'
 import { Route as AppClientsRouteImport } from './routes/app/clients'
 import { Route as AppCalendarRouteImport } from './routes/app/calendar'
@@ -113,6 +114,11 @@ const AppExportsRoute = AppExportsRouteImport.update({
   path: '/exports',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEngagementRoute = AppEngagementRouteImport.update({
+  id: '/engagement',
+  path: '/engagement',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCreativeConflictsRoute = AppCreativeConflictsRouteImport.update({
   id: '/creative-conflicts',
   path: '/creative-conflicts',
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/app/calendar': typeof AppCalendarRoute
   '/app/clients': typeof AppClientsRouteWithChildren
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
+  '/app/engagement': typeof AppEngagementRoute
   '/app/exports': typeof AppExportsRoute
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
@@ -223,6 +230,7 @@ export interface FileRoutesByTo {
   '/app/brand-dna': typeof AppBrandDnaRoute
   '/app/calendar': typeof AppCalendarRoute
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
+  '/app/engagement': typeof AppEngagementRoute
   '/app/exports': typeof AppExportsRoute
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
@@ -253,6 +261,7 @@ export interface FileRoutesById {
   '/app/calendar': typeof AppCalendarRoute
   '/app/clients': typeof AppClientsRouteWithChildren
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
+  '/app/engagement': typeof AppEngagementRoute
   '/app/exports': typeof AppExportsRoute
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/app/calendar'
     | '/app/clients'
     | '/app/creative-conflicts'
+    | '/app/engagement'
     | '/app/exports'
     | '/app/hubs'
     | '/app/review'
@@ -313,6 +323,7 @@ export interface FileRouteTypes {
     | '/app/brand-dna'
     | '/app/calendar'
     | '/app/creative-conflicts'
+    | '/app/engagement'
     | '/app/exports'
     | '/app/hubs'
     | '/app/review'
@@ -342,6 +353,7 @@ export interface FileRouteTypes {
     | '/app/calendar'
     | '/app/clients'
     | '/app/creative-conflicts'
+    | '/app/engagement'
     | '/app/exports'
     | '/app/hubs'
     | '/app/review'
@@ -478,6 +490,13 @@ declare module '@tanstack/react-router' {
       path: '/exports'
       fullPath: '/app/exports'
       preLoaderRoute: typeof AppExportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/engagement': {
+      id: '/app/engagement'
+      path: '/engagement'
+      fullPath: '/app/engagement'
+      preLoaderRoute: typeof AppEngagementRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/creative-conflicts': {
@@ -625,6 +644,7 @@ interface AppRouteChildren {
   AppCalendarRoute: typeof AppCalendarRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
   AppCreativeConflictsRoute: typeof AppCreativeConflictsRoute
+  AppEngagementRoute: typeof AppEngagementRoute
   AppExportsRoute: typeof AppExportsRoute
   AppHubsRoute: typeof AppHubsRouteWithChildren
   AppReviewRoute: typeof AppReviewRoute
@@ -638,6 +658,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarRoute: AppCalendarRoute,
   AppClientsRoute: AppClientsRouteWithChildren,
   AppCreativeConflictsRoute: AppCreativeConflictsRoute,
+  AppEngagementRoute: AppEngagementRoute,
   AppExportsRoute: AppExportsRoute,
   AppHubsRoute: AppHubsRouteWithChildren,
   AppReviewRoute: AppReviewRoute,

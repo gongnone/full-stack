@@ -85,7 +85,7 @@ export const ROLE_DESCRIPTIONS = CLIENT_ROLES.reduce((acc, role) => {
  * Menu visibility configuration for RBAC UI
  * Maps menu items to the roles that can see them
  */
-export type MenuItemId = 'dashboard' | 'hubs' | 'review' | 'clients' | 'brand-dna' | 'analytics' | 'settings';
+export type MenuItemId = 'dashboard' | 'hubs' | 'review' | 'clients' | 'brand-dna' | 'engagement' | 'analytics' | 'settings';
 
 export const MENU_VISIBILITY: Record<MenuItemId, ClientRole[]> = {
   // Dashboard: visible to all authenticated users
@@ -103,6 +103,9 @@ export const MENU_VISIBILITY: Record<MenuItemId, ClientRole[]> = {
   // Brand DNA: agency_owner, account_manager (configure brand), creators can view
   'brand-dna': ['agency_owner', 'account_manager', 'creator'],
 
+  // Engagement: agency_owner, account_manager, creator (track content performance)
+  engagement: ['agency_owner', 'account_manager', 'creator', 'client_admin'],
+
   // Analytics: all internal roles (not client_reviewer)
   analytics: ['agency_owner', 'account_manager', 'creator', 'client_admin'],
 
@@ -114,7 +117,7 @@ export const MENU_VISIBILITY: Record<MenuItemId, ClientRole[]> = {
  * Check if a role can see a specific menu item
  */
 // Default menu items visible when no client role is assigned (e.g., account owner before client setup)
-const NO_ROLE_MENU_ITEMS: MenuItemId[] = ['dashboard', 'hubs', 'brand-dna', 'clients', 'analytics', 'settings'];
+const NO_ROLE_MENU_ITEMS: MenuItemId[] = ['dashboard', 'hubs', 'brand-dna', 'clients', 'engagement', 'analytics', 'settings'];
 
 export function canAccessMenuItem(role: ClientRole | null, menuItem: MenuItemId): boolean {
   // No role = account owner who hasn't set up clients yet → safe default set

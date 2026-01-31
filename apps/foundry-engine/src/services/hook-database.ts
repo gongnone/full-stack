@@ -5,7 +5,7 @@
  * Uses semantic similarity to find hooks similar to generated content.
  */
 
-import type { VectorizeIndex, Ai, D1Database } from '@cloudflare/workers-types';
+import type { VectorizeIndex, VectorizeVectorMetadata, Ai, D1Database } from '@cloudflare/workers-types';
 
 // Embedding model configuration (matches agent-logic/config.ts)
 const EMBEDDING_MODEL = '@cf/baai/bge-base-en-v1.5';
@@ -139,7 +139,7 @@ export async function bulkIngestHooks(
     const vectors: Array<{
       id: string;
       values: number[];
-      metadata: Record<string, unknown>;
+      metadata: Record<string, VectorizeVectorMetadata>;
     }> = [];
 
     for (const hook of batch) {

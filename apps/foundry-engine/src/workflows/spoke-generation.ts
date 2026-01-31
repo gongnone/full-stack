@@ -13,7 +13,7 @@ interface Env {
   VECTORIZE: VectorizeIndex;
 }
 
-// Story 4.3: Type definitions for Brand DNA (matches ClientAgent DO types)
+// Brand DNA types (matches ClientAgent DO)
 interface VoiceMarker {
   id: string;
   phrase: string;
@@ -31,14 +31,25 @@ interface BannedWord {
   createdAt: string;
 }
 
+interface BrandStance {
+  id: string;
+  topic: string;
+  position: string;
+  source: 'voice' | 'manual' | 'analysis';
+  createdAt: string;
+}
+
 interface BrandDNA {
   voiceMarkers: VoiceMarker[];
   bannedWords: BannedWord[];
+  stances: BrandStance[];
   signaturePatterns: string[];
   toneProfile: Record<string, number>;
+  voiceBaseline: number | null;
+  timeToDNA: number | null;
+  lastCalibration: string | null;
 }
 
-// Type for AI text generation response
 interface AiTextGenerationResponse {
   response: string;
 }
@@ -54,9 +65,28 @@ interface SpokeGenerationParams {
   sourceContent: string;
   parentSpokeId?: string;
   isVariation?: boolean;
+  // New: enriched content inputs
+  contentSeed?: string; // Specific angle/idea, not just pillar title
+  examplePosts?: string[]; // Client's best content for pattern matching
+  antiExamples?: string[]; // Content they hate
+  audiencePersona?: string; // Psychographic audience description
 }
 
-// Story 1.5-4-7: Platform-specific structural requirements
+// ═══════════════════════════════════════════════════════════════════════
+// MODEL CONFIGURATION — Single place to change models
+// ═══════════════════════════════════════════════════════════════════════
+const MODELS = {
+  // Creative content generation — needs highest quality writing
+  creator: '@cf/openai/gpt-oss-120b' as const,
+  // Visual concept generation — needs creative thinking
+  visual: '@cf/openai/gpt-oss-120b' as const,
+  // Hook quality scoring — evaluation task, small model is fine
+  critic: '@cf/meta/llama-3.1-8b-instruct-fast' as const,
+  // Embeddings for G7
+  embedding: '@cf/baai/bge-base-en-v1.5' as const,
+};
+
+// Platform-specific structural requirements
 const PLATFORM_INSTRUCTIONS: Record<string, string> = {
   twitter: `
 STRUCTURE:
@@ -92,7 +122,7 @@ STRUCTURE: Generate a 10-SLIDE outline:
 STRUCTURE: 5-7 tweet thread.
 - Tweet 1: Mega-hook and promise.
 - Tweets 2-6: Individual value points with numbering (1/7, 2/7...).
-- Tweet 7: Conclusion and CTA.`
+- Tweet 7: Conclusion and CTA.`,
 };
 
 const PLATFORM_SPECS: Record<string, {
@@ -132,57 +162,31 @@ const PLATFORM_SPECS: Record<string, {
   },
 };
 
-const MAX_REGENERATION_ATTEMPTS = 3;
+// Quality thresholds — scores are ADVISORY, not gates
+// Only G2 < POLISH_THRESHOLD triggers a single regen attempt
+const G2_HOOK_POLISH_THRESHOLD = 50; // Truly bad hooks get one polish pass
+const G7_ENGAGEMENT_PASS_THRESHOLD = 5.0;
 
-// Story 4.3: Content length limits for AI prompts (token optimization)
-const SOURCE_CONTENT_LIMIT_INITIAL = 2000;
-const SOURCE_CONTENT_LIMIT_REGENERATION = 1500;
-
-// Story 4.3: Quality gate pass thresholds (consistent across evaluation and feedback)
-const G2_HOOK_PASS_THRESHOLD = 70;
-const G6_VISUAL_PASS_THRESHOLD = 70;
-const G7_ENGAGEMENT_PASS_THRESHOLD = 5.0; // Lowered from 7.5 — bootstrapped Vectorize scores ~5-6 range
-
-// Story 4.3: Gate result interface for Self-Healing Loop
-interface GateResult {
-  passed: boolean;
-  score?: number;
-  feedback: string;
-  violations?: string[];
-  cliches?: string[];
-}
-
-// Story 4.3: Aggregated feedback for regeneration
-interface HealingFeedback {
-  g2?: { score: number; feedback: string };
-  g4?: { violations: string[]; feedback: string };
-  g5?: { feedback: string };
-  g6?: { cliches: string[]; feedback: string };
-  g7?: { score: number; benchmark: number; feedback: string }; // Story 4.6: G7 Engagement Prediction
-  userEditPatterns?: string[]; // Context Refresh on 3rd attempt
-}
+// Content length limits for AI prompts
+const SOURCE_CONTENT_LIMIT = 3000; // Increased — better models handle more context
 
 export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenerationParams> {
-  // Helper: Call ClientAgent DO with error handling
+  // Helper: Call ClientAgent DO
   private async callAgent(clientId: string, method: string, params: Record<string, unknown>) {
     try {
       const id = this.env.CLIENT_AGENT.idFromName(clientId);
       const agent = this.env.CLIENT_AGENT.get(id);
-
       const response = await agent.fetch(new Request('http://internal/rpc', {
         method: 'POST',
         body: JSON.stringify({ method, params }),
       }));
-
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`ClientAgent ${method} failed: ${response.status} - ${errorText}`);
       }
-
       return response.json();
     } catch (error) {
-      // Log error for debugging, re-throw for workflow to handle
-      console.error(`[SpokeGenerationWorkflow] callAgent(${method}) failed:`, error);
+      console.error(`[SpokeGen] callAgent(${method}) failed:`, error);
       throw error;
     }
   }
@@ -199,17 +203,23 @@ export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenera
       sourceContent,
       parentSpokeId,
       isVariation,
+      contentSeed,
+      examplePosts,
+      antiExamples,
+      audiencePersona,
     } = event.payload;
 
-    // Step 1: Get Brand DNA and platform specs
-    const context = await step.do('get-generation-context', async () => {
-      const brandDNA = await this.callAgent(clientId, 'getBrandDNA', {});
-      const platformSpec = PLATFORM_SPECS[platform] || PLATFORM_SPECS.twitter;
+    const platformSpec = PLATFORM_SPECS[platform] || PLATFORM_SPECS.twitter;
 
-      return { brandDNA, platformSpec };
+    // ═══════════════════════════════════════════════════════════════════
+    // PHASE 0: GATHER CONTEXT
+    // ═══════════════════════════════════════════════════════════════════
+    const context = await step.do('gather-context', async () => {
+      const brandDNA = await this.callAgent(clientId, 'getBrandDNA', {}) as BrandDNA;
+      return { brandDNA };
     });
 
-    // Step 2: Create initial spoke record
+    // Create spoke record
     await step.do('create-spoke-record', async () => {
       await this.callAgent(clientId, 'createSpoke', {
         id: spokeId,
@@ -225,358 +235,228 @@ export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenera
       });
     });
 
-    // Story 4.3: Self-Healing Loop - Track attempts and feedback
-    let regenerationCount = 0;
-    let healingFeedback: HealingFeedback = {};
+    const { brandDNA } = context;
 
-    // Step 3: CREATOR AGENT - Generate content (with healing feedback if regenerating)
-    let generatedContent = await step.do('creator-generate-0', async () => {
-      const { brandDNA, platformSpec } = context;
+    // ═══════════════════════════════════════════════════════════════════
+    // PHASE 1: CREATE (Creator + Visual — the only creative LLM calls)
+    // ═══════════════════════════════════════════════════════════════════
 
-      // Different prompt for variations vs original content
-      const creatorPrompt = isVariation
-        ? `You are a CREATOR agent - a divergent thinker who generates VARIATIONS of existing content.
+    // Build the enriched Creator prompt
+    const buildCreatorPrompt = (isRegen: boolean, prevContent?: string, feedback?: string): string => {
+      // Voice identity section
+      const voiceMarkers = brandDNA.voiceMarkers?.map(v => v.phrase).join(', ') || 'Authentic, engaging';
+      const bannedWords = brandDNA.bannedWords?.map(b => b.word).join(', ') || 'None';
+      const stances = brandDNA.stances?.map(s => `• ${s.topic}: ${s.position}`).join('\n') || 'None provided';
+      const patterns = brandDNA.signaturePatterns?.join(', ') || 'None detected';
 
-ORIGINAL CONTENT TO VARY:
+      // Example content section
+      let examplesSection = '';
+      if (examplePosts && examplePosts.length > 0) {
+        const examples = examplePosts.slice(0, 3).map((p, i) =>
+          `Example ${i + 1}:\n"""\n${p.substring(0, 500)}\n"""`
+        ).join('\n\n');
+        examplesSection = `\nEXAMPLE CONTENT (match this quality and voice):\n${examples}\n`;
+      }
+
+      let antiSection = '';
+      if (antiExamples && antiExamples.length > 0) {
+        antiSection = `\nNEVER write like this:\n"""\n${antiExamples[0].substring(0, 300)}\n"""\n`;
+      }
+
+      // Audience section
+      const audienceSection = audiencePersona
+        ? `\nAUDIENCE: ${audiencePersona}\nWrite as if speaking directly to this person.\n`
+        : '';
+
+      // Content seed (specific angle vs generic pillar title)
+      const seedSection = contentSeed
+        ? `CONTENT SEED: ${contentSeed}`
+        : `CONTENT PILLAR: ${pillarTitle}`;
+
+      if (isRegen && prevContent && feedback) {
+        return `You are a world-class social media copywriter. Your previous draft needs improvement.
+
+PREVIOUS DRAFT:
 """
-${sourceContent}
+${prevContent}
 """
+
+WHAT TO FIX:
+${feedback}
 
 BRAND VOICE:
-- Voice Markers: ${(brandDNA as BrandDNA).voiceMarkers?.map(v => v.phrase).join(', ') || 'Authentic, engaging'}
-- Banned Words: ${(brandDNA as BrandDNA).bannedWords?.map(b => b.word).join(', ') || 'None'}
-- Signature Patterns: ${(brandDNA as BrandDNA).signaturePatterns?.join(', ') || 'None'}
+- Voice markers: ${voiceMarkers}
+- Never use these words: ${bannedWords}
+- Signature patterns: ${patterns}
+${examplesSection}${antiSection}${audienceSection}
+${seedSection}
+HOOK OPTIONS: ${Array.isArray(hooks) && hooks.length > 0 ? hooks.join(' | ') : 'Create an attention-grabbing opener'}
 
-PLATFORM REQUIREMENTS (${platform.toUpperCase()}):
-- Max Length: ${platformSpec.maxLength} characters
-- Format: ${platformSpec.format}
-- Style: ${platformSpec.style}
-
-VARIATION REQUIREMENTS:
-Create an ALTERNATIVE version that:
-1. MAINTAINS the same core message and value proposition
-2. Uses a COMPLETELY DIFFERENT hook/opening approach
-3. Varies sentence structure and rhythm
-4. Explores a different angle or perspective
-5. Keeps the same brand voice and platform constraints
-6. Ends with a different engagement driver
-
-DO NOT just rephrase - create a genuinely fresh take on the same idea.
-
-Output ONLY the new variation, no meta-commentary.`
-        : `You are a CREATOR agent - a divergent thinker who generates engaging content.
-
-BRAND VOICE:
-- Voice Markers: ${(brandDNA as BrandDNA).voiceMarkers?.map(v => v.phrase).join(', ') || 'Authentic, engaging'}
-- Banned Words: ${(brandDNA as BrandDNA).bannedWords?.map(b => b.word).join(', ') || 'None'}
-- Signature Patterns: ${(brandDNA as BrandDNA).signaturePatterns?.join(', ') || 'None'}
-
-PLATFORM REQUIREMENTS (${platform.toUpperCase()}):
+PLATFORM: ${platform.toUpperCase()}
 - Max Length: ${platformSpec.maxLength} characters
 - Format: ${platformSpec.format}
 - Style: ${platformSpec.style}
 ${PLATFORM_INSTRUCTIONS[platform] || ''}
 
-CONTENT PILLAR: ${pillarTitle}
+Write an IMPROVED version. Output ONLY the final content.
+Do NOT start with "Here is", "Sure", "Let me", "I'm ready", or any commentary.
+Start directly with the hook.`;
+      }
+
+      if (isVariation) {
+        return `You are a world-class social media copywriter creating a VARIATION of existing content.
+
+ORIGINAL TO VARY:
+"""
+${sourceContent.substring(0, SOURCE_CONTENT_LIMIT)}
+"""
+
+Create a genuinely DIFFERENT take on the same idea. Different hook, different angle, same core message.
+
+BRAND VOICE:
+- Voice markers: ${voiceMarkers}
+- Never use: ${bannedWords}
+- Brand believes:\n${stances}
+${examplesSection}${audienceSection}
+PLATFORM: ${platform.toUpperCase()}
+- Max: ${platformSpec.maxLength} chars | Format: ${platformSpec.format}
+${PLATFORM_INSTRUCTIONS[platform] || ''}
+
+Output ONLY the variation. No preamble.`;
+      }
+
+      return `You are a world-class social media copywriter.
+
+BRAND IDENTITY:
+- Voice markers: ${voiceMarkers}
+- Never use these words: ${bannedWords}
+- Signature patterns: ${patterns}
+- Brand believes:
+${stances}
+${examplesSection}${antiSection}${audienceSection}
+${seedSection}
 HOOK OPTIONS: ${Array.isArray(hooks) && hooks.length > 0 ? hooks.join(' | ') : 'Create an attention-grabbing opener'}
 
-Generate content that:
-1. Opens with a strong hook
-2. Delivers clear value
-3. Matches the brand voice exactly
-4. Fits platform constraints
-5. Ends with engagement driver
+PLATFORM: ${platform.toUpperCase()}
+- Max Length: ${platformSpec.maxLength} characters
+- Format: ${platformSpec.format}
+- Style: ${platformSpec.style}
+${PLATFORM_INSTRUCTIONS[platform] || ''}
 
-CRITICAL RULES:
-- Output ONLY the final content. No preamble, no "Here is the content:", no notes.
-- NEVER start with "Here is", "Sure", "Let me", "I'm ready", or any meta-commentary.
-- NEVER reference source material, prompts, or instructions in the output.
-- Start directly with the hook or content.`;
+RULES:
+1. Open with a strong hook that stops the scroll
+2. Deliver clear, specific value (not platitudes)
+3. Match the brand voice exactly
+4. Fit platform constraints
+5. End with an engagement driver
+6. Use SPECIFIC details, stories, or data — not generic advice
+7. Output ONLY the final content. No preamble, no meta-commentary.
+8. NEVER start with "Here is", "Sure", "Let me", "I'm ready", or similar.
+9. Start directly with the hook or content.`;
+    };
 
-      const result = await this.env.AI.run('@cf/meta/llama-3.1-70b-instruct' as any, {
+    // PHASE 1a: Generate content
+    let generatedContent = await step.do('creator-generate', async () => {
+      const prompt = buildCreatorPrompt(false);
+
+      // gpt-oss-120b uses Responses API format
+      const result = await this.env.AI.run(MODELS.creator as any, {
         messages: [
-          { role: 'system', content: creatorPrompt },
-          { role: 'user', content: `Source material:\n${sourceContent.substring(0, SOURCE_CONTENT_LIMIT_INITIAL)}` },
+          { role: 'system', content: prompt },
+          { role: 'user', content: `Source material:\n${sourceContent.substring(0, SOURCE_CONTENT_LIMIT)}` },
         ],
       });
 
       return sanitizeContent((result as AiTextGenerationResponse).response);
     });
 
-    // Story 4.3: Helper function to generate content with healing feedback
-    const generateWithFeedback = async (
-      attempt: number,
-      feedback: HealingFeedback,
-      previousContent: string
-    ): Promise<string> => {
-      const { brandDNA, platformSpec } = context;
-
-      // Build feedback instructions for regeneration
-      let feedbackInstructions = '';
-      if (feedback.g2) {
-        feedbackInstructions += `\n\nPREVIOUS HOOK FAILED (Score: ${feedback.g2.score}/100):
-${feedback.g2.feedback}
-REQUIRED: Improve Pattern Interrupt and Benefit signals. Target score >= ${G2_HOOK_PASS_THRESHOLD}.`;
-      }
-      if (feedback.g4 && feedback.g4.violations.length > 0) {
-        feedbackInstructions += `\n\nVOICE ALIGNMENT FAILED:
-Violations: ${feedback.g4.violations.join(', ')}
-${feedback.g4.feedback}
-REQUIRED: Remove all banned words and match brand voice markers.`;
-      }
-      if (feedback.g5) {
-        feedbackInstructions += `\n\nPLATFORM COMPLIANCE FAILED:
-${feedback.g5.feedback}
-REQUIRED: Strictly adhere to platform character limits.`;
-      }
-      if (feedback.g6 && feedback.g6.cliches && feedback.g6.cliches.length > 0) {
-        feedbackInstructions += `\n\nVISUAL CLICHÉS DETECTED:
-Avoid: ${feedback.g6.cliches.join(', ')}
-${feedback.g6.feedback}`;
-      }
-      if (feedback.g7) {
-        feedbackInstructions += `\n\nENGAGEMENT PREDICTION FAILED (Score: ${feedback.g7.score.toFixed(1)}/10):
-${feedback.g7.feedback}
-REQUIRED: Improve hook stopping power and novelty. Target score >= ${G7_ENGAGEMENT_PASS_THRESHOLD}.
-Benchmark engagement rate: ${(feedback.g7.benchmark * 100).toFixed(1)}%`;
-      }
-      // Story 4.3 AC7: Context Refresh on 3rd attempt
-      if (feedback.userEditPatterns && feedback.userEditPatterns.length > 0) {
-        feedbackInstructions += `\n\nUSER EDIT PATTERNS DETECTED (from mutation registry):
-${feedback.userEditPatterns.join('\n')}
-INCORPORATE these patterns to match user preferences.`;
-      }
-
-      const regenerationPrompt = `You are a CREATOR agent REGENERATING content after Critic rejection.
-
-PREVIOUS FAILED CONTENT:
-"""
-${previousContent}
-"""
-
-BRAND VOICE:
-- Voice Markers: ${(brandDNA as Record<string, unknown>).voiceMarkers ? ((brandDNA as Record<string, unknown>).voiceMarkers as string[]).join(', ') : 'Authentic, engaging'}
-- Banned Words: ${(brandDNA as Record<string, unknown>).bannedWords ? ((brandDNA as Record<string, unknown>).bannedWords as Array<{ word: string }>).map((b) => b.word).join(', ') : 'None'}
-
-PLATFORM REQUIREMENTS (${platform.toUpperCase()}):
-- Max Length: ${platformSpec.maxLength} characters
-- Format: ${platformSpec.format}
-- Style: ${platformSpec.style}
-${PLATFORM_INSTRUCTIONS[platform] || ''}
-
-CONTENT PILLAR: ${pillarTitle}
-REGENERATION ATTEMPT: ${attempt}/${MAX_REGENERATION_ATTEMPTS}
-${feedbackInstructions}
-
-Generate IMPROVED content that fixes ALL identified issues.
-
-CRITICAL RULES:
-- Output ONLY the final content. No preamble, no "Here is the content:", no notes.
-- NEVER start with "Here is", "Sure", "Let me", "I'm ready", "Here's the", or any meta-commentary.
-- NEVER say "regenerated", "revised", "rewritten", "improved version", or reference the feedback.
-- Start directly with the hook or content. The first word should be part of the actual post.`;
-
-      const result = await this.env.AI.run('@cf/meta/llama-3.1-70b-instruct' as any, {
-        messages: [
-          { role: 'system', content: regenerationPrompt },
-          { role: 'user', content: `Original source material:\n${sourceContent.substring(0, SOURCE_CONTENT_LIMIT_REGENERATION)}` },
-        ],
-      });
-
-      return sanitizeContent((result as AiTextGenerationResponse).response);
-    };
-
-    // Story 4.3: Helper function to generate visual metadata (reusable for healing loop)
-    const generateVisualMetadata = async (
-      content: string,
-      stepId: string
-    ): Promise<{ archetype: string; thumbnailConcept: string; imagePrompt: string }> => {
-      return await step.do(stepId, async () => {
-        const { brandDNA } = context;
-
-        const visualPrompt = `You are a VISUAL STRATEGIST.
+    // PHASE 1b: Generate visual metadata
+    let visualMetadata = await step.do('visual-generate', async () => {
+      const visualPrompt = `You are a visual strategist for social media content.
 Based on this content, generate a visual concept for ${platform}.
 
 CONTENT:
-${content}
+${generatedContent}
 
-BRAND IDENTITY:
-- Tone: ${JSON.stringify((brandDNA as Record<string, unknown>).toneProfile)}
-- Markers: ${(brandDNA as Record<string, unknown>).voiceMarkers ? ((brandDNA as Record<string, unknown>).voiceMarkers as string[]).join(', ') : ''}
+BRAND TONE: ${JSON.stringify(brandDNA.toneProfile || {})}
+
+RULES:
+- AVOID clichés: robot brains, handshakes, lightbulbs, generic stock business people, puzzle pieces, gears
+- Think cinematographic, specific, evocative
+- Match the emotional tone of the content
 
 Output JSON only:
 {
-  "archetype": "string (e.g. Bold Contrast, Minimalist, Data-Driven)",
-  "thumbnailConcept": "string (short description of the main visual idea)",
-  "imagePrompt": "string (detailed prompt for AI image generation, avoiding robot brains, handshakes, lightbulbs)"
+  "archetype": "string (e.g. Bold Contrast, Minimalist, Data-Driven, Street Photography, Candid Moment)",
+  "thumbnailConcept": "string (specific visual description, not generic)",
+  "imagePrompt": "string (detailed, specific prompt for AI image generation)"
 }`;
 
-        const result = await this.env.AI.run('@cf/meta/llama-3.1-70b-instruct' as any, {
-          messages: [
-            { role: 'system', content: visualPrompt },
-            { role: 'user', content: 'Generate visual concept metadata.' },
-          ],
-        });
-
-        try {
-          const text = (result as { response: string }).response;
-          return JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-        } catch {
-          return {
-            archetype: 'Generic',
-            thumbnailConcept: 'Related image',
-            imagePrompt: 'A brand-aligned image representing the content.',
-          };
-        }
+      const result = await this.env.AI.run(MODELS.visual as any, {
+        messages: [
+          { role: 'system', content: visualPrompt },
+          { role: 'user', content: 'Generate visual concept metadata.' },
+        ],
       });
-    };
 
-    // Step 3.5: VISUAL CONCEPT ENGINE - Generate initial visual metadata
-    let visualMetadata = await generateVisualMetadata(generatedContent, 'visual-concept-generate-0');
-    let archetype = visualMetadata.archetype;
-    let thumbnailConcept = visualMetadata.thumbnailConcept;
-    let imagePrompt = visualMetadata.imagePrompt;
+      try {
+        const text = (result as { response: string }).response;
+        return JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
+      } catch {
+        return {
+          archetype: 'Brand Aligned',
+          thumbnailConcept: 'Content-specific visual',
+          imagePrompt: 'A visually striking image that matches the content tone and brand identity.',
+        };
+      }
+    });
 
-    // Story 4.3: Self-Healing Loop - Helper to run all gates
-    const runGates = async (content: string, attempt: number): Promise<{
-      allPassed: boolean;
-      scores: Record<string, unknown>;
-      feedback: HealingFeedback;
-      g2Result: GateResult;
-      g4Result: GateResult;
-      g5Result: GateResult;
-      g6Result: GateResult;
-      g7Result: { score: number; feedback: string };
-    }> => {
-      const { brandDNA, platformSpec } = context;
-
-      // G2: Hook Strength
-      const g2Result = await step.do(`critic-g2-attempt-${attempt}`, async () => {
-        const result = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as any, {
-          messages: [
-            {
-              role: 'system',
-              content: `You are a CRITIC agent evaluating hook strength.
-Rate the opening hook on a scale of 0-100 based on:
+    // ═══════════════════════════════════════════════════════════════════
+    // PHASE 2: SCORE (parallel, non-blocking — scores are advisory)
+    // ═══════════════════════════════════════════════════════════════════
+    const scores = await step.do('score-parallel', async () => {
+      // G2: Hook Quality (LLM-based)
+      const g2Promise = (async () => {
+        try {
+          const result = await this.env.AI.run(MODELS.critic as any, {
+            messages: [
+              {
+                role: 'system',
+                content: `You are a social media hook quality evaluator.
+Rate the opening hook on a scale of 0-100:
 - Curiosity gap (does it make you want to read more?)
 - Pattern interrupt (does it break expectations?)
+- Specificity (does it use concrete details, not generic claims?)
 - Relevance (does it connect to the value proposition?)
 
-Output JSON: { "score": number, "passed": boolean, "feedback": "string" }
-Pass threshold: ${G2_HOOK_PASS_THRESHOLD}`,
-            },
-            { role: 'user', content: `Content to evaluate:\n${content}` },
-          ],
-        });
-
-        try {
+Output JSON only: { "score": number, "feedback": "one sentence explaining the score" }`,
+              },
+              { role: 'user', content: `Evaluate this ${platform} content:\n${generatedContent}` },
+            ],
+          });
           const text = (result as { response: string }).response;
           const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-          const score = json.score || 50;
-          const feedback = json.feedback || '';
-          // If critic returned no feedback and a middling score, it didn't
-          // meaningfully evaluate — default to pass to avoid blind regen loops
-          const passed = feedback === '' && score < G2_HOOK_PASS_THRESHOLD
-            ? true
-            : (json.passed ?? score >= G2_HOOK_PASS_THRESHOLD);
-          return { score, passed, feedback };
+          return { score: json.score || 50, feedback: json.feedback || '' };
         } catch {
-          return { score: G2_HOOK_PASS_THRESHOLD, passed: true, feedback: '' };
+          return { score: 60, feedback: 'G2 evaluation failed' };
         }
-      });
+      })();
 
-      // G4: Voice Alignment — skip when Brand DNA is empty
-      const hasBrandDNA = brandDNA && (
-        ((brandDNA as BrandDNA).voiceMarkers?.length > 0) ||
-        ((brandDNA as BrandDNA).bannedWords?.length > 0) ||
-        ((brandDNA as BrandDNA).signaturePatterns?.length > 0)
-      );
+      // G5: Platform Compliance (pure JS — no LLM)
+      const g5 = {
+        passed: generatedContent.length <= platformSpec.maxLength,
+        length: generatedContent.length,
+        maxLength: platformSpec.maxLength,
+      };
 
-      const g4Result = hasBrandDNA
-        ? await step.do(`critic-g4-attempt-${attempt}`, async () => {
-            const result = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as any, {
-              messages: [
-                {
-                  role: 'system',
-                  content: `You are a CRITIC agent evaluating voice alignment.
-Check if the content matches the brand voice:
-- Voice Markers: ${(brandDNA as Record<string, unknown>).voiceMarkers ? ((brandDNA as Record<string, unknown>).voiceMarkers as string[]).join(', ') : 'None'}
-- Banned Words: ${(brandDNA as Record<string, unknown>).bannedWords ? ((brandDNA as Record<string, unknown>).bannedWords as Array<{ word: string }>).map((b) => b.word).join(', ') : 'None'}
-
-Output JSON: { "passed": boolean, "violations": ["string"], "feedback": "string" }`,
-                },
-                { role: 'user', content: `Content to evaluate:\n${content}` },
-              ],
-            });
-
-            try {
-              const text = (result as { response: string }).response;
-              const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-              return {
-                passed: json.passed ?? true,
-                violations: json.violations || [],
-                feedback: json.feedback || '',
-              };
-            } catch {
-              return { passed: true, violations: [], feedback: '' };
-            }
-          })
-        : { passed: true, violations: [] as string[], feedback: 'Brand DNA not configured — voice alignment skipped' };
-
-      // G5: Platform Compliance
-      const g5Result = await step.do(`critic-g5-attempt-${attempt}`, async () => {
-        const lengthOk = content.length <= platformSpec.maxLength;
-        return {
-          passed: lengthOk,
-          feedback: lengthOk ? '' : `Content exceeds ${platformSpec.maxLength} char limit (current: ${content.length})`,
-        };
-      });
-
-      // G6: Visual Metaphor
-      const g6Result = await step.do(`critic-g6-attempt-${attempt}`, async () => {
-        const result = await this.env.AI.run('@cf/meta/llama-3.1-8b-instruct' as any, {
-          messages: [
-            {
-              role: 'system',
-              content: `You are a CRITIC agent evaluating visual metaphors and prompts.
-Identify AI clichés: robot brains, handshakes, lightbulbs, generic stock business people, puzzle pieces.
-Check if the prompt avoids these and matches brand identity.
-
-Output JSON: { "score": number, "passed": boolean, "feedback": "string", "cliches": ["string"] }
-Pass threshold: ${G6_VISUAL_PASS_THRESHOLD}`,
-            },
-            { role: 'user', content: `Visual Archetype: ${archetype}\nThumbnail Concept: ${thumbnailConcept}\nImage Prompt: ${imagePrompt}` },
-          ],
-        });
-
+      // G7: Engagement Prediction (heuristic + Vectorize)
+      const g7Promise = (async () => {
         try {
-          const text = (result as { response: string }).response;
-          const json = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
-          const score = json.score || 50;
-          const feedback = json.feedback || '';
-          const cliches = json.cliches || [];
-          // If critic returned no feedback, no clichés, and a middling score,
-          // it didn't meaningfully evaluate — default to pass
-          const passed = (feedback === '' && cliches.length === 0 && score < G6_VISUAL_PASS_THRESHOLD)
-            ? true
-            : (json.passed ?? score >= G6_VISUAL_PASS_THRESHOLD);
-          return { score, passed, feedback, cliches };
-        } catch {
-          return { score: G6_VISUAL_PASS_THRESHOLD, passed: true, feedback: '', cliches: [] };
-        }
-      });
-
-      // G7: Engagement Prediction (Story 4.6 - Hybrid Vectorize approach)
-      const g7Result = await step.do(`critic-g7-attempt-${attempt}`, async () => {
-        try {
-          // Create adapter for Vectorize API matching VectorizeClient interface
-          // query({namespace?, vector, topK}) => Array<{values, metadata, score}>
           const vectorizeAdapter = {
             query: async (params: { namespace?: string; vector: number[]; topK: number }) => {
               try {
                 const opts: Record<string, any> = { topK: params.topK };
                 if (params.namespace) opts.namespace = params.namespace;
-                
                 const results = await this.env.VECTORIZE.query(params.vector, opts);
                 return (results?.matches || []).map((m: any) => ({
                   values: (m.values ? Array.from(m.values) : []) as number[],
@@ -584,13 +464,11 @@ Pass threshold: ${G6_VISUAL_PASS_THRESHOLD}`,
                   score: (m.score || 0) as number,
                 }));
               } catch (e) {
-                console.warn('[G7 adapter] Vectorize query error:', e);
+                console.warn('[G7] Vectorize query error:', e);
                 return [];
               }
             },
           };
-
-          // Create adapter for Workers AI to match g7-scorer interface
           const aiAdapter = {
             run: async (model: string, params: { text: string }) => {
               const result = await this.env.AI.run(model as any, params);
@@ -599,206 +477,153 @@ Pass threshold: ${G6_VISUAL_PASS_THRESHOLD}`,
           };
 
           const result: G7ScoringResult = await scoreEngagement(
-            {
-              id: spokeId,
-              content,
-              platform,
-            },
-            {
-              niche: 'business', // TODO: Add niche tracking to BrandDNA in Story 4.7
-            },
+            { id: spokeId, content: generatedContent, platform },
+            { niche: 'business' },
             clientId,
             vectorizeAdapter,
-            aiAdapter
+            aiAdapter,
           );
-
-          const passed = result.g7Score >= G7_ENGAGEMENT_PASS_THRESHOLD;
-          const feedback = !passed
-            ? `Low engagement prediction (${result.g7Score.toFixed(1)}/10). Target >= ${G7_ENGAGEMENT_PASS_THRESHOLD}. Benchmark: ${(result.g7Benchmark * 100).toFixed(1)}% engagement rate.`
-            : '';
-
           return {
-            passed,
             score: result.g7Score,
             benchmark: result.g7Benchmark,
             source: result.g7Source,
             stoppingPower: result.stoppingPower,
             novelty: result.novelty,
-            feedback,
           };
         } catch (error) {
-          // Default to pass on error to avoid blocking content generation
-          console.error('G7 scoring error:', error);
-          return {
-            passed: true,
-            score: 7.5,
-            benchmark: 0.042,
-            source: 'error-fallback',
-            stoppingPower: 5,
-            novelty: 5,
-            feedback: 'G7 evaluation failed (defaulting to pass)',
-          };
+          console.error('[G7] scoring error:', error);
+          return { score: 6.0, benchmark: 0.042, source: 'error-fallback', stoppingPower: 5, novelty: 5 };
         }
-      });
+      })();
 
-      // Aggregate results
-      // Note: G6 (visual) and G7 (engagement) included in pass/fail
-      // Story 4.6: G7 now BLOCKS content with score < 7.5
-      const allPassed = g2Result.passed && g4Result.passed && g5Result.passed && g6Result.passed && g7Result.passed;
-      const scores = {
-        g2_hook: g2Result.score,
-        g4_voice: g4Result.passed,
-        g5_platform: g5Result.passed,
-        g6_visual: g6Result.score,
-        g6_visual_passed: g6Result.passed,
-        g7_engagement: g7Result.score, // Story 4.6: 0-10 scale (maps to g7_engagement column in DO)
-        engagement_prediction: g7Result.score, // Also populate engagement_prediction for Golden Nugget filter
-        g7_benchmark: g7Result.benchmark,
-        g7_source: g7Result.source,
-        g7_stopping_power: g7Result.stoppingPower,
-        g7_novelty: g7Result.novelty,
-        g7_passed: g7Result.passed,
-      };
+      // Wait for all scores in parallel
+      const [g2, g7] = await Promise.all([g2Promise, g7Promise]);
 
-      // Build feedback for regeneration if gates failed
-      const feedback: HealingFeedback = {};
-      if (!g2Result.passed) {
-        feedback.g2 = { score: g2Result.score || 0, feedback: g2Result.feedback };
-      }
-      if (!g4Result.passed) {
-        feedback.g4 = { violations: g4Result.violations || [], feedback: g4Result.feedback };
-      }
-      if (!g5Result.passed) {
-        feedback.g5 = { feedback: g5Result.feedback };
-      }
-      if (!g6Result.passed && g6Result.cliches && g6Result.cliches.length > 0) {
-        feedback.g6 = { cliches: g6Result.cliches, feedback: g6Result.feedback };
-      }
-      if (!g7Result.passed) {
-        feedback.g7 = {
-          score: g7Result.score,
-          benchmark: g7Result.benchmark,
-          feedback: g7Result.feedback,
-        };
-      }
+      return { g2, g5, g7 };
+    });
 
-      return { allPassed, scores, feedback, g2Result, g4Result, g5Result, g6Result, g7Result };
-    };
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Story 4.3: SELF-HEALING LOOP - The Core Differentiator
-    // ═══════════════════════════════════════════════════════════════════════════
-    let allGatesPassed = false;
-    let qualityScores: Record<string, unknown> = {};
+    // ═══════════════════════════════════════════════════════════════════
+    // PHASE 3: POLISH (conditional — one targeted regen if hook is bad)
+    // ═══════════════════════════════════════════════════════════════════
     let finalContent = generatedContent;
+    let regenerationCount = 0;
+    let polished = false;
 
-    // Run initial gate evaluation
-    let gateResults = await runGates(finalContent, 0);
-    allGatesPassed = gateResults.allPassed;
-    qualityScores = gateResults.scores;
-    healingFeedback = gateResults.feedback;
+    // Only polish if hook is truly bad OR content exceeds platform limit
+    const needsPolish = scores.g2.score < G2_HOOK_POLISH_THRESHOLD || !scores.g5.passed;
 
-    // Self-Healing Loop: Regenerate if gates failed
-    while (!allGatesPassed && regenerationCount < MAX_REGENERATION_ATTEMPTS) {
-      regenerationCount++;
+    if (needsPolish) {
+      regenerationCount = 1;
+      polished = true;
 
-      // Story 4.3 AC1: Write failure reason to feedback_log
-      await step.do(`log-failure-${regenerationCount}`, async () => {
-        await this.callAgent(clientId, 'logHealingFeedback', {
-          spokeId,
-          attempt: regenerationCount,
-          feedback: healingFeedback,
-          scores: qualityScores,
+      finalContent = await step.do('creator-polish', async () => {
+        let feedback = '';
+        if (scores.g2.score < G2_HOOK_POLISH_THRESHOLD) {
+          feedback += `Hook is weak (scored ${scores.g2.score}/100). ${scores.g2.feedback}. Make the opening more specific and scroll-stopping.\n`;
+        }
+        if (!scores.g5.passed) {
+          feedback += `Content is ${scores.g5.length} chars but platform max is ${scores.g5.maxLength}. Tighten it up.\n`;
+        }
+
+        const prompt = buildCreatorPrompt(true, generatedContent, feedback);
+        const result = await this.env.AI.run(MODELS.creator as any, {
+          messages: [
+            { role: 'system', content: prompt },
+            { role: 'user', content: `Source material:\n${sourceContent.substring(0, SOURCE_CONTENT_LIMIT)}` },
+          ],
         });
+        return sanitizeContent((result as AiTextGenerationResponse).response);
       });
 
-      // Story 4.3 AC7: Context Refresh on 3rd attempt - Query mutation registry
-      if (regenerationCount === MAX_REGENERATION_ATTEMPTS) {
-        const userPatterns = await step.do('context-refresh', async () => {
-          const patterns = await this.callAgent(clientId, 'getUserEditPatterns', {
-            pillarId,
-            platform,
-            limit: 5,
+      // Re-generate visual if content changed significantly
+      if (finalContent !== generatedContent) {
+        visualMetadata = await step.do('visual-regenerate', async () => {
+          const visualPrompt = `You are a visual strategist. Generate a visual concept for this ${platform} post.
+
+CONTENT:
+${finalContent}
+
+AVOID: robot brains, handshakes, lightbulbs, generic stock photos, puzzle pieces, gears.
+
+Output JSON only:
+{
+  "archetype": "string",
+  "thumbnailConcept": "string",
+  "imagePrompt": "string"
+}`;
+
+          const result = await this.env.AI.run(MODELS.visual as any, {
+            messages: [
+              { role: 'system', content: visualPrompt },
+              { role: 'user', content: 'Generate visual concept.' },
+            ],
           });
-          return patterns as string[];
+
+          try {
+            const text = (result as { response: string }).response;
+            return JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || '{}');
+          } catch {
+            return visualMetadata; // Keep previous if parse fails
+          }
         });
-        healingFeedback.userEditPatterns = userPatterns;
       }
-
-      // Story 4.3 AC2-3: Regenerate with Critic feedback
-      finalContent = await step.do(`creator-regenerate-${regenerationCount}`, async () => {
-        return await generateWithFeedback(regenerationCount, healingFeedback, finalContent);
-      });
-
-      // Story 4.3: Regenerate visual metadata for the healed content
-      // This ensures G6 evaluates visuals based on the new content, not stale initial content
-      visualMetadata = await generateVisualMetadata(finalContent, `visual-concept-regenerate-${regenerationCount}`);
-      archetype = visualMetadata.archetype;
-      thumbnailConcept = visualMetadata.thumbnailConcept;
-      imagePrompt = visualMetadata.imagePrompt;
-
-      // Re-run gates on regenerated content (with updated visuals)
-      gateResults = await runGates(finalContent, regenerationCount);
-      allGatesPassed = gateResults.allPassed;
-      qualityScores = gateResults.scores;
-      healingFeedback = gateResults.feedback;
-
-      // Story 4.3 AC4: Update regeneration count in DO (< 10 seconds per loop)
-      await step.do(`update-regen-count-${regenerationCount}`, async () => {
-        await this.callAgent(clientId, 'updateSpoke', {
-          spokeId,
-          updates: { regenerationCount },
-        });
-      });
     }
 
-    // Story 4.3 AC5-6: Determine final status based on gate results
-    // AC5: If passed after regeneration → ready_for_review
-    // Story 4.4: If still failed after 3 attempts → creative_conflict (escalate to human)
-    const finalStatus = allGatesPassed ? 'pending_review' : 'creative_conflict';
+    // ═══════════════════════════════════════════════════════════════════
+    // PHASE 4: FINALIZE — Everything produces output. Always.
+    // ═══════════════════════════════════════════════════════════════════
+    const cleanedContent = sanitizeContent(finalContent);
 
-    // Step 5: Update spoke with final content and scores
-    // Final sanitization pass — last line of defense against leakage
-    const cleanedFinalContent = sanitizeContent(finalContent);
-    
+    // Determine status: pending_review (good) or needs_review (has issues but still usable)
+    // NEVER creative_conflict — user always gets content
+    const qualityLevel =
+      scores.g2.score >= 70 && scores.g7.score >= G7_ENGAGEMENT_PASS_THRESHOLD && scores.g5.passed
+        ? 'high'
+        : scores.g2.score >= 50 && scores.g5.passed
+          ? 'medium'
+          : 'low';
+
+    const finalStatus = qualityLevel === 'low' ? 'needs_review' : 'pending_review';
+
+    const qualityScores = {
+      g2_hook: scores.g2.score,
+      g2_feedback: scores.g2.feedback,
+      g5_platform: scores.g5.passed,
+      g5_length: scores.g5.length,
+      g7_engagement: scores.g7.score,
+      engagement_prediction: scores.g7.score,
+      g7_benchmark: scores.g7.benchmark,
+      g7_source: scores.g7.source,
+      g7_stopping_power: scores.g7.stoppingPower,
+      g7_novelty: scores.g7.novelty,
+      quality_level: qualityLevel,
+      polished,
+    };
+
     await step.do('update-spoke-final', async () => {
       await this.callAgent(clientId, 'updateSpoke', {
         spokeId,
         updates: {
-          content: cleanedFinalContent,
+          content: cleanedContent,
           status: finalStatus,
           qualityScores,
-          visualArchetype: archetype,
-          imagePrompt: imagePrompt,
-          thumbnailConcept: thumbnailConcept,
+          visualArchetype: visualMetadata.archetype || 'Brand Aligned',
+          imagePrompt: visualMetadata.imagePrompt || '',
+          thumbnailConcept: visualMetadata.thumbnailConcept || '',
           regenerationCount,
-          // Story 4.3 AC5: Log successful healing
-          healedAt: allGatesPassed && regenerationCount > 0 ? new Date().toISOString() : null,
         },
       });
-
-      // Log healing success/failure for analytics (FR50)
-      if (regenerationCount > 0) {
-        await this.callAgent(clientId, 'logHealingResult', {
-          spokeId,
-          attempts: regenerationCount,
-          success: allGatesPassed,
-          finalScores: qualityScores,
-        });
-      }
     });
 
     return {
       spokeId,
       platform,
       status: finalStatus,
-      iterations: regenerationCount + 1,
-      allGatesPassed,
+      qualityLevel,
       qualityScores,
-      contentLength: finalContent.length,
-      // Story 4.3 metrics
-      selfHealed: regenerationCount > 0 && allGatesPassed,
-      escalatedToCreativeConflict: !allGatesPassed && regenerationCount >= MAX_REGENERATION_ATTEMPTS,
+      contentLength: cleanedContent.length,
+      polished,
+      iterations: regenerationCount + 1,
     };
   }
 }

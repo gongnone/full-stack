@@ -11,6 +11,7 @@ interface Env {
   VECTORIZE: VectorizeIndex;
   MEDIA_BUCKET: R2Bucket;
   DB: D1Database;
+  FOUNDRY_DASHBOARD_URL: string;
 }
 
 // Constants

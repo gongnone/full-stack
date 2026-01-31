@@ -52,7 +52,7 @@ interface Spoke {
   pillarId: string
   platform: string
   content: string
-  status: 'generating' | 'reviewing' | 'approved' | 'rejected' | 'killed'
+  status: 'generating' | 'reviewing' | 'approved' | 'rejected' | 'killed' | 'pending_review' | 'needs_review' | 'creative_conflict'
   qualityScores: {
     g2_hook?: number
     g4_voice?: boolean
@@ -60,6 +60,9 @@ interface Spoke {
     g5_platform?: boolean
     g6_visual?: number
     g7_engagement?: number
+    engagement_prediction?: number
+    quality_level?: string
+    [key: string]: unknown
   }
   visualArchetype?: string
   imagePrompt?: string
@@ -1407,18 +1410,18 @@ export class ClientAgent extends DurableObject<Env> {
       // Needs Review: Pending review spokes (completed pipeline, awaiting human review)
       conditions.push(`status IN ('pending_review', 'generating', 'reviewing')`)
     } else if (params.filter === 'flagged' || params.filter === 'conflicts') {
-      // Creative Conflicts: Failed all regen attempts, needs human intervention
-      conditions.push(`status IN ('creative_conflict', 'rejected')`)
+      // Low quality or rejected — needs attention but still has content
+      conditions.push(`status IN ('creative_conflict', 'needs_review', 'rejected')`)
     } else if (params.filter === 'just-generated') {
-      // Just Generated: All pending spokes (generating or pending review)
-      conditions.push(`status IN ('generating', 'pending_review')`)
+      // Just Generated: All pending spokes
+      conditions.push(`status IN ('generating', 'pending_review', 'needs_review')`)
     } else if (params.filter === 'golden-nuggets') {
       // Epic 12-1: Golden Nuggets - engagement_prediction >= 9.0
-      conditions.push(`status IN ('pending_review', 'generating', 'reviewing')`)
+      conditions.push(`status IN ('pending_review', 'needs_review', 'generating', 'reviewing')`)
       conditions.push(`engagement_prediction >= 9.0`)
     } else {
-      // All pending review items
-      conditions.push(`status IN ('pending_review', 'generating', 'reviewing', 'creative_conflict')`)
+      // All review items
+      conditions.push(`status IN ('pending_review', 'needs_review', 'generating', 'reviewing', 'creative_conflict')`)
     }
 
     if (conditions.length > 0) {
@@ -1462,7 +1465,7 @@ export class ClientAgent extends DurableObject<Env> {
         createdAt: row.created_at as string,
         // Epic 12-1: Engagement Prediction
         engagementPrediction: row.engagement_prediction as number | null,
-        engagementConfidence: row.engagement_confidence as string | null,
+        engagementConfidence: (row.engagement_confidence as Spoke['engagementConfidence']) || null,
       }))
     } catch (error) {
       console.error('getReviewQueue query failed:', error)
@@ -2846,7 +2849,7 @@ Return JSON format:
       WHERE s.pillar_id = ?
         AND s.platform = ?
         AND s.mutated_at IS NOT NULL
-        AND s.status IN ('approved', 'published', 'pending_review')
+        AND s.status IN ('approved', 'published', 'pending_review', 'needs_review')
       ORDER BY s.mutated_at DESC
       LIMIT ?
     `, params.pillarId, params.platform, limit).toArray()

@@ -14,6 +14,8 @@ function ContentLibrary() {
   const [newType, setNewType] = useState<'good' | 'bad'>('good');
   const [newNotes, setNewNotes] = useState('');
   const [activeTab, setActiveTab] = useState<'examples' | 'audience'>('examples');
+  const [urlToScrape, setUrlToScrape] = useState('');
+  const [scrapeType, setScrapeType] = useState<'good' | 'bad'>('good');
 
   // Audience form state
   const [persona, setPersona] = useState('');
@@ -52,6 +54,12 @@ function ContentLibrary() {
   });
   const updateAudience = trpc.contentExamples.updateAudience.useMutation({
     onSuccess: () => audience.refetch(),
+  });
+  const scrapeUrl = trpc.contentExamples.scrapeUrl.useMutation({
+    onSuccess: () => {
+      examples.refetch();
+      setUrlToScrape('');
+    },
   });
 
   const goodExamples = ((examples.data as any[]) || []).filter((e: any) => e.type === 'good');
@@ -148,6 +156,44 @@ function ContentLibrary() {
             >
               {addExample.isPending ? 'Adding...' : 'Add Example'}
             </button>
+          </div>
+
+          {/* URL Scraper */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+            <h2 className="font-semibold mb-2">Import from URL</h2>
+            <p className="text-gray-500 text-sm mb-3">Paste a blog post, social media profile, or article URL to extract content.</p>
+            <div className="flex gap-3">
+              <input
+                value={urlToScrape}
+                onChange={(e) => setUrlToScrape(e.target.value)}
+                placeholder="https://example.com/blog/great-post"
+                className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900"
+              />
+              <select
+                value={scrapeType}
+                onChange={(e) => setScrapeType(e.target.value as 'good' | 'bad')}
+                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-900"
+              >
+                <option value="good">✅ Good</option>
+                <option value="bad">❌ Bad</option>
+              </select>
+              <button
+                onClick={() => {
+                  if (!urlToScrape.trim()) return;
+                  scrapeUrl.mutate({ clientId, url: urlToScrape.trim(), type: scrapeType });
+                }}
+                disabled={!urlToScrape.trim() || scrapeUrl.isPending}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+              >
+                {scrapeUrl.isPending ? '🔄 Scraping...' : '🔗 Import'}
+              </button>
+            </div>
+            {scrapeUrl.isError && (
+              <p className="text-red-500 text-sm mt-2">❌ {scrapeUrl.error.message}</p>
+            )}
+            {scrapeUrl.isSuccess && (
+              <p className="text-green-500 text-sm mt-2">✅ Content imported successfully</p>
+            )}
           </div>
 
           {/* Good Examples */}

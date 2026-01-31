@@ -204,22 +204,26 @@ app.post('/api/hubs/generate-spokes', async (c) => {
     const hubResponse = await agent.fetch(new Request('http://internal/rpc', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method: 'getHub', args: { hubId } }),
+      body: JSON.stringify({ method: 'getHub', params: { hubId } }),
     }));
     if (hubResponse.ok) {
       const hubData = await hubResponse.json() as { sourceContent?: string };
       sourceContent = hubData?.sourceContent || '';
     }
     
-    // QR-2: Always fetch Brand DNA for richer context
-    const dnaResponse = await agent.fetch(new Request('http://internal/rpc', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method: 'getBrandDNA', args: {} }),
-    }));
-    if (dnaResponse.ok) {
-      const dna = await dnaResponse.json() as Record<string, unknown>;
-      brandDNAContext = JSON.stringify(dna);
+    // QR-2: Also fetch Brand DNA for richer context (non-blocking)
+    try {
+      const dnaResponse = await agent.fetch(new Request('http://internal/rpc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method: 'getBrandDNA', params: {} }),
+      }));
+      if (dnaResponse.ok) {
+        const dna = await dnaResponse.json() as Record<string, unknown>;
+        brandDNAContext = JSON.stringify(dna);
+      }
+    } catch (e) {
+      console.warn('[generate-spokes] Could not fetch Brand DNA:', e);
     }
   } catch (e) {
     console.warn('[generate-spokes] Could not fetch source content from DO, continuing with empty:', e);

@@ -238,6 +238,25 @@ app.post('/api/hubs/generate-spokes', async (c) => {
     sourceContent = `BRAND CONTEXT:\n${brandDNAContext ? brandDNAContext.substring(0, 2000) : 'No brand DNA available'}\n\nCONTENT PILLARS:\n${pillarContext}\n\nINSTRUCTION: Generate original, engaging content based on these pillars and brand context. Do NOT reference testing, platforms, databases, or technical infrastructure.`;
   }
 
+  // Fetch enriched generation context (examples, audience persona)
+  let generationContext: { examplePosts: string[]; antiExamples: string[]; audiencePersona: string | null } = {
+    examplePosts: [], antiExamples: [], audiencePersona: null,
+  };
+  try {
+    const ctxAgentId = c.env.CLIENT_AGENT.idFromName(clientId);
+    const ctxAgent = c.env.CLIENT_AGENT.get(ctxAgentId);
+    const ctxResponse = await ctxAgent.fetch(new Request('http://internal/rpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'getGenerationContext', params: {} }),
+    }));
+    if (ctxResponse.ok) {
+      generationContext = await ctxResponse.json() as typeof generationContext;
+    }
+  } catch (e) {
+    console.warn('[generate-spokes] Could not fetch generation context:', e);
+  }
+
   // Create workflow instances for each pillar × platform
   const workflowInstances: Array<{
     instanceId: string;
@@ -270,6 +289,10 @@ app.post('/api/hubs/generate-spokes', async (c) => {
           pillarTitle: pillar.title,
           hooks,
           sourceContent,
+          contentSeed: pillar.core_claim || pillar.description || undefined,
+          examplePosts: generationContext.examplePosts,
+          antiExamples: generationContext.antiExamples,
+          audiencePersona: generationContext.audiencePersona,
         },
       });
 

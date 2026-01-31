@@ -150,10 +150,36 @@ export class ClientAgent extends DurableObject<Env> {
       INSERT OR IGNORE INTO brand_dna (id) VALUES (1)
     `)
 
+    // Content Examples table — client's best/worst posts for pattern matching
+    this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS content_examples (
+        id TEXT PRIMARY KEY,
+        content TEXT NOT NULL,
+        platform TEXT,
+        type TEXT NOT NULL DEFAULT 'good',
+        notes TEXT,
+        source TEXT NOT NULL DEFAULT 'manual',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    // Audience Profile table — psychographic audience description
+    this.sql.exec(`
+      CREATE TABLE IF NOT EXISTS audience_profile (
+        id INTEGER PRIMARY KEY,
+        persona TEXT,
+        pain_points TEXT,
+        language_style TEXT,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+    this.sql.exec(`INSERT OR IGNORE INTO audience_profile (id) VALUES (1)`)
+
     // Create indexes for voice tables
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_voice_markers_phrase ON voice_markers(phrase)`)
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_banned_words_word ON banned_words(word)`)
     this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_brand_stances_topic ON brand_stances(topic)`)
+    this.sql.exec(`CREATE INDEX IF NOT EXISTS idx_content_examples_type ON content_examples(type)`)
 
     // Hubs table
     this.sql.exec(`
@@ -437,6 +463,25 @@ export class ClientAgent extends DurableObject<Env> {
 
       case 'removeBrandStance':
         return Response.json(await this.removeBrandStance(params.stanceId))
+
+      // Content Examples & Audience Profile
+      case 'addContentExample':
+        return Response.json(await this.addContentExample(params))
+
+      case 'removeContentExample':
+        return Response.json(await this.removeContentExample(params.exampleId as string))
+
+      case 'getContentExamples':
+        return Response.json(await this.getContentExamples(params.type as string | undefined))
+
+      case 'updateAudienceProfile':
+        return Response.json(await this.updateAudienceProfile(params))
+
+      case 'getAudienceProfile':
+        return Response.json(await this.getAudienceProfile())
+
+      case 'getGenerationContext':
+        return Response.json(await this.getGenerationContext())
 
       case 'checkBannedWords':
         return Response.json(await this.checkBannedWords(params.content))
@@ -976,6 +1021,98 @@ export class ClientAgent extends DurableObject<Env> {
     this.sql.exec(`DELETE FROM brand_stances WHERE id = ?`, stanceId)
     this.sql.exec(`UPDATE brand_dna SET last_calibration = CURRENT_TIMESTAMP WHERE id = 1`)
     return { success: true }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Content Examples & Audience Profile Methods
+  // ═══════════════════════════════════════════════════════════════════
+
+  private async addContentExample(params: Record<string, unknown>): Promise<{ id: string }> {
+    const id = crypto.randomUUID()
+    this.sql.exec(
+      `INSERT INTO content_examples (id, content, platform, type, notes, source) VALUES (?, ?, ?, ?, ?, ?)`,
+      id,
+      params.content as string,
+      (params.platform as string) || null,
+      (params.type as string) || 'good',
+      (params.notes as string) || null,
+      (params.source as string) || 'manual',
+    )
+    return { id }
+  }
+
+  private async removeContentExample(exampleId: string): Promise<{ success: boolean }> {
+    this.sql.exec(`DELETE FROM content_examples WHERE id = ?`, exampleId)
+    return { success: true }
+  }
+
+  private async getContentExamples(type?: string): Promise<Array<{
+    id: string; content: string; platform: string | null; type: string; notes: string | null; createdAt: string;
+  }>> {
+    const query = type
+      ? `SELECT * FROM content_examples WHERE type = ? ORDER BY created_at DESC`
+      : `SELECT * FROM content_examples ORDER BY created_at DESC`
+    const rows = type
+      ? this.sql.exec(query, type).toArray()
+      : this.sql.exec(query).toArray()
+    return rows.map(r => ({
+      id: r.id as string,
+      content: r.content as string,
+      platform: r.platform as string | null,
+      type: r.type as string,
+      notes: r.notes as string | null,
+      createdAt: r.created_at as string,
+    }))
+  }
+
+  private async updateAudienceProfile(params: Record<string, unknown>): Promise<{ success: boolean }> {
+    const sets: string[] = []
+    const values: unknown[] = []
+    if (params.persona !== undefined) { sets.push('persona = ?'); values.push(params.persona) }
+    if (params.painPoints !== undefined) { sets.push('pain_points = ?'); values.push(params.painPoints) }
+    if (params.languageStyle !== undefined) { sets.push('language_style = ?'); values.push(params.languageStyle) }
+    if (sets.length > 0) {
+      sets.push('updated_at = CURRENT_TIMESTAMP')
+      this.sql.exec(`UPDATE audience_profile SET ${sets.join(', ')} WHERE id = 1`, ...values)
+    }
+    return { success: true }
+  }
+
+  private async getAudienceProfile(): Promise<{
+    persona: string | null; painPoints: string | null; languageStyle: string | null;
+  }> {
+    const row = this.sql.exec(`SELECT * FROM audience_profile WHERE id = 1`).one()
+    return {
+      persona: (row?.persona as string) || null,
+      painPoints: (row?.pain_points as string) || null,
+      languageStyle: (row?.language_style as string) || null,
+    }
+  }
+
+  /**
+   * getGenerationContext — Returns everything the Creator needs for high-quality generation.
+   * Called by the generate-spokes endpoint to enrich workflow params.
+   */
+  private async getGenerationContext(): Promise<{
+    examplePosts: string[];
+    antiExamples: string[];
+    audiencePersona: string | null;
+  }> {
+    // Get good examples (max 3)
+    const goodExamples = this.sql.exec(
+      `SELECT content FROM content_examples WHERE type = 'good' ORDER BY created_at DESC LIMIT 3`
+    ).toArray().map(r => r.content as string)
+
+    // Get anti-examples (max 1)
+    const antiExamples = this.sql.exec(
+      `SELECT content FROM content_examples WHERE type = 'bad' ORDER BY created_at DESC LIMIT 1`
+    ).toArray().map(r => r.content as string)
+
+    // Get audience persona
+    const audience = this.sql.exec(`SELECT persona FROM audience_profile WHERE id = 1`).one()
+    const audiencePersona = (audience?.persona as string) || null
+
+    return { examplePosts: goodExamples, antiExamples, audiencePersona }
   }
 
   // Hub Methods

@@ -26,6 +26,7 @@ import { Route as AppHubsRouteImport } from './routes/app/hubs'
 import { Route as AppExportsRouteImport } from './routes/app/exports'
 import { Route as AppEngagementRouteImport } from './routes/app/engagement'
 import { Route as AppCreativeConflictsRouteImport } from './routes/app/creative-conflicts'
+import { Route as AppContentLibraryRouteImport } from './routes/app/content-library'
 import { Route as AppClientsRouteImport } from './routes/app/clients'
 import { Route as AppCalendarRouteImport } from './routes/app/calendar'
 import { Route as AppBrandDnaRouteImport } from './routes/app/brand-dna'
@@ -124,6 +125,11 @@ const AppCreativeConflictsRoute = AppCreativeConflictsRouteImport.update({
   path: '/creative-conflicts',
   getParentRoute: () => AppRoute,
 } as any)
+const AppContentLibraryRoute = AppContentLibraryRouteImport.update({
+  id: '/content-library',
+  path: '/content-library',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppClientsRoute = AppClientsRouteImport.update({
   id: '/clients',
   path: '/clients',
@@ -200,6 +206,7 @@ export interface FileRoutesByFullPath {
   '/app/brand-dna': typeof AppBrandDnaRoute
   '/app/calendar': typeof AppCalendarRoute
   '/app/clients': typeof AppClientsRouteWithChildren
+  '/app/content-library': typeof AppContentLibraryRoute
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
   '/app/engagement': typeof AppEngagementRoute
   '/app/exports': typeof AppExportsRoute
@@ -229,6 +236,7 @@ export interface FileRoutesByTo {
   '/app/analytics': typeof AppAnalyticsRoute
   '/app/brand-dna': typeof AppBrandDnaRoute
   '/app/calendar': typeof AppCalendarRoute
+  '/app/content-library': typeof AppContentLibraryRoute
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
   '/app/engagement': typeof AppEngagementRoute
   '/app/exports': typeof AppExportsRoute
@@ -260,6 +268,7 @@ export interface FileRoutesById {
   '/app/brand-dna': typeof AppBrandDnaRoute
   '/app/calendar': typeof AppCalendarRoute
   '/app/clients': typeof AppClientsRouteWithChildren
+  '/app/content-library': typeof AppContentLibraryRoute
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
   '/app/engagement': typeof AppEngagementRoute
   '/app/exports': typeof AppExportsRoute
@@ -293,6 +302,7 @@ export interface FileRouteTypes {
     | '/app/brand-dna'
     | '/app/calendar'
     | '/app/clients'
+    | '/app/content-library'
     | '/app/creative-conflicts'
     | '/app/engagement'
     | '/app/exports'
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/app/analytics'
     | '/app/brand-dna'
     | '/app/calendar'
+    | '/app/content-library'
     | '/app/creative-conflicts'
     | '/app/engagement'
     | '/app/exports'
@@ -352,6 +363,7 @@ export interface FileRouteTypes {
     | '/app/brand-dna'
     | '/app/calendar'
     | '/app/clients'
+    | '/app/content-library'
     | '/app/creative-conflicts'
     | '/app/engagement'
     | '/app/exports'
@@ -506,6 +518,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCreativeConflictsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/content-library': {
+      id: '/app/content-library'
+      path: '/content-library'
+      fullPath: '/app/content-library'
+      preLoaderRoute: typeof AppContentLibraryRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/clients': {
       id: '/app/clients'
       path: '/clients'
@@ -643,6 +662,7 @@ interface AppRouteChildren {
   AppBrandDnaRoute: typeof AppBrandDnaRoute
   AppCalendarRoute: typeof AppCalendarRoute
   AppClientsRoute: typeof AppClientsRouteWithChildren
+  AppContentLibraryRoute: typeof AppContentLibraryRoute
   AppCreativeConflictsRoute: typeof AppCreativeConflictsRoute
   AppEngagementRoute: typeof AppEngagementRoute
   AppExportsRoute: typeof AppExportsRoute
@@ -657,6 +677,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppBrandDnaRoute: AppBrandDnaRoute,
   AppCalendarRoute: AppCalendarRoute,
   AppClientsRoute: AppClientsRouteWithChildren,
+  AppContentLibraryRoute: AppContentLibraryRoute,
   AppCreativeConflictsRoute: AppCreativeConflictsRoute,
   AppEngagementRoute: AppEngagementRoute,
   AppExportsRoute: AppExportsRoute,

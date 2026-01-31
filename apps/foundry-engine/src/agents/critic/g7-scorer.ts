@@ -141,10 +141,10 @@ function calculateBenchmark(
 
 export interface VectorizeClient {
   query: (params: {
-    namespace: string;
+    namespace?: string;
     vector: number[];
     topK: number;
-  }) => Promise<Array<{ values: number[]; metadata: Record<string, unknown> }>>;
+  }) => Promise<Array<{ values: number[]; metadata: Record<string, unknown>; score: number }>>;
 }
 
 export interface WorkersAI {
@@ -177,46 +177,28 @@ export async function scoreEngagement(
   });
   const hookEmbedding = embeddingResult.data[0];
 
-  // Query admired profiles namespace
+  // Query admired profiles namespace (uses VectorizeClient interface: query({namespace?, vector, topK}))
   const admiredNamespace = VECTORIZE_NAMESPACES.admiredProfiles(clientId);
-  const admiredResult = await vectorize.query(hookEmbedding, {
+  let admiredHooks = await vectorize.query({
     namespace: admiredNamespace,
+    vector: hookEmbedding,
     topK: 50,
-    returnMetadata: 'all',
   });
-  let admiredHooks = (admiredResult.matches || []).map(m => ({
-    values: m.values || hookEmbedding, // fallback if values not returned
-    metadata: (m.metadata || {}) as Record<string, unknown>,
-    score: m.score,
-  }));
 
   // Query baseline namespace
   const baselineNamespace = VECTORIZE_NAMESPACES.baseline(brandDNA.niche);
-  const baselineResult = await vectorize.query(hookEmbedding, {
+  let baselineHooks = await vectorize.query({
     namespace: baselineNamespace,
+    vector: hookEmbedding,
     topK: 50,
-    returnMetadata: 'all',
   });
-  let baselineHooks = (baselineResult.matches || []).map(m => ({
-    values: m.values || hookEmbedding,
-    metadata: (m.metadata || {}) as Record<string, unknown>,
-    score: m.score,
-  }));
-
-  console.log(`[G7] admired=${admiredHooks.length} baseline=${baselineHooks.length} admiredRaw=${JSON.stringify(admiredResult).substring(0,200)} baselineRaw=${JSON.stringify(baselineResult).substring(0,200)}`);
 
   // QR-1 fix: If namespaced queries return empty, fall back to global hook database
   if (admiredHooks.length === 0 && baselineHooks.length === 0) {
-    const globalResult = await vectorize.query(hookEmbedding, {
+    const globalHooks = await vectorize.query({
+      vector: hookEmbedding,
       topK: 50,
-      returnMetadata: 'all',
     });
-    console.log(`[G7] globalFallback matches=${globalResult.matches?.length} count=${globalResult.count} raw=${JSON.stringify(globalResult).substring(0,300)}`);
-    const globalHooks = (globalResult.matches || []).map(m => ({
-      values: m.values || hookEmbedding,
-      metadata: (m.metadata || {}) as Record<string, unknown>,
-      score: m.score,
-    }));
     if (globalHooks.length > 0) {
       baselineHooks = globalHooks;
     }

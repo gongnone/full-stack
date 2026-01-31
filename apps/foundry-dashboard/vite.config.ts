@@ -8,9 +8,23 @@ import path from 'path';
 export default defineConfig({
   build: {
     sourcemap: true, // Required for Sentry source maps
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split vendor chunks
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-router': ['@tanstack/react-router'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-trpc': ['@trpc/client', '@trpc/react-query'],
+          'vendor-zod': ['zod'],
+        },
+      },
+    },
   },
   plugins: [
-    TanStackRouterVite(),
+    TanStackRouterVite({
+      autoCodeSplitting: true,
+    }),
     react(),
     tailwindcss(),
     // Sentry plugin uploads source maps during build

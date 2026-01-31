@@ -4,6 +4,7 @@ import {
   WorkflowEvent,
 } from 'cloudflare:workers';
 import { scoreEngagement, type G7ScoringResult } from '../agents/critic/g7-scorer';
+import { sanitizeContent } from '../utils/content-sanitizer';
 
 interface Env {
   CLIENT_AGENT: DurableObjectNamespace;
@@ -286,7 +287,11 @@ Generate content that:
 4. Fits platform constraints
 5. Ends with engagement driver
 
-Output ONLY the content, no meta-commentary.`;
+CRITICAL RULES:
+- Output ONLY the final content. No preamble, no "Here is the content:", no notes.
+- NEVER start with "Here is", "Sure", "Let me", "I'm ready", or any meta-commentary.
+- NEVER reference source material, prompts, or instructions in the output.
+- Start directly with the hook or content.`;
 
       const result = await this.env.AI.run('@cf/meta/llama-3.1-70b-instruct' as any, {
         messages: [
@@ -295,7 +300,7 @@ Output ONLY the content, no meta-commentary.`;
         ],
       });
 
-      return (result as AiTextGenerationResponse).response.trim();
+      return sanitizeContent((result as AiTextGenerationResponse).response);
     });
 
     // Story 4.3: Helper function to generate content with healing feedback
@@ -373,7 +378,7 @@ Output ONLY the content, no meta-commentary.`;
         ],
       });
 
-      return (result as AiTextGenerationResponse).response.trim();
+      return sanitizeContent((result as AiTextGenerationResponse).response);
     };
 
     // Story 4.3: Helper function to generate visual metadata (reusable for healing loop)
@@ -635,7 +640,8 @@ Pass threshold: ${G6_VISUAL_PASS_THRESHOLD}`,
         g5_platform: g5Result.passed,
         g6_visual: g6Result.score,
         g6_visual_passed: g6Result.passed,
-        g7_score: g7Result.score, // Story 4.6: 0-10 scale
+        g7_engagement: g7Result.score, // Story 4.6: 0-10 scale (maps to g7_engagement column in DO)
+        engagement_prediction: g7Result.score, // Also populate engagement_prediction for Golden Nugget filter
         g7_benchmark: g7Result.benchmark,
         g7_source: g7Result.source,
         g7_stopping_power: g7Result.stoppingPower,

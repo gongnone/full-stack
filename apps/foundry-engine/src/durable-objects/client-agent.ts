@@ -1172,6 +1172,10 @@ export class ClientAgent extends DurableObject<Env> {
         sets.push(`g7_engagement = ?`)
         sqlParams.push(updates.qualityScores.g7_engagement)
       }
+      if (updates.qualityScores.engagement_prediction !== undefined) {
+        sets.push(`engagement_prediction = ?`)
+        sqlParams.push(updates.qualityScores.engagement_prediction)
+      }
     }
     if (updates.visualArchetype !== undefined) {
       sets.push(`visual_archetype = ?`)

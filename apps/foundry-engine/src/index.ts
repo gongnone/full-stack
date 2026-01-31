@@ -195,9 +195,12 @@ app.post('/api/hubs/generate-spokes', async (c) => {
 
   // Get source content from ClientAgent DO
   let sourceContent = '';
+  let brandDNAContext = '';
   try {
     const agentId = c.env.CLIENT_AGENT.idFromName(clientId);
     const agent = c.env.CLIENT_AGENT.get(agentId);
+    
+    // Fetch hub source content
     const hubResponse = await agent.fetch(new Request('http://internal/rpc', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -207,8 +210,28 @@ app.post('/api/hubs/generate-spokes', async (c) => {
       const hubData = await hubResponse.json() as { sourceContent?: string };
       sourceContent = hubData?.sourceContent || '';
     }
+    
+    // QR-2: Always fetch Brand DNA for richer context
+    const dnaResponse = await agent.fetch(new Request('http://internal/rpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method: 'getBrandDNA', args: {} }),
+    }));
+    if (dnaResponse.ok) {
+      const dna = await dnaResponse.json() as Record<string, unknown>;
+      brandDNAContext = JSON.stringify(dna);
+    }
   } catch (e) {
     console.warn('[generate-spokes] Could not fetch source content from DO, continuing with empty:', e);
+  }
+  
+  // QR-2: If source content is empty, synthesize from Brand DNA + pillar details
+  if (!sourceContent || sourceContent.length < 100) {
+    const pillarContext = pillars.map((p: any) => 
+      `Pillar: ${p.title || p.pillar_name}\nCore claim: ${p.core_claim || 'N/A'}\nAngle: ${p.psychological_angle || 'N/A'}\nSupporting points: ${p.supporting_points || 'N/A'}`
+    ).join('\n\n');
+    
+    sourceContent = `BRAND CONTEXT:\n${brandDNAContext ? brandDNAContext.substring(0, 2000) : 'No brand DNA available'}\n\nCONTENT PILLARS:\n${pillarContext}\n\nINSTRUCTION: Generate original, engaging content based on these pillars and brand context. Do NOT reference testing, platforms, databases, or technical infrastructure.`;
   }
 
   // Create workflow instances for each pillar × platform

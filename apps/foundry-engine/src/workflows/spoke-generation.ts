@@ -369,7 +369,12 @@ REGENERATION ATTEMPT: ${attempt}/${MAX_REGENERATION_ATTEMPTS}
 ${feedbackInstructions}
 
 Generate IMPROVED content that fixes ALL identified issues.
-Output ONLY the content, no meta-commentary.`;
+
+CRITICAL RULES:
+- Output ONLY the final content. No preamble, no "Here is the content:", no notes.
+- NEVER start with "Here is", "Sure", "Let me", "I'm ready", "Here's the", or any meta-commentary.
+- NEVER say "regenerated", "revised", "rewritten", "improved version", or reference the feedback.
+- Start directly with the hook or content. The first word should be part of the actual post.`;
 
       const result = await this.env.AI.run('@cf/meta/llama-3.1-70b-instruct' as any, {
         messages: [
@@ -753,11 +758,14 @@ Pass threshold: ${G6_VISUAL_PASS_THRESHOLD}`,
     const finalStatus = allGatesPassed ? 'pending_review' : 'creative_conflict';
 
     // Step 5: Update spoke with final content and scores
+    // Final sanitization pass — last line of defense against leakage
+    const cleanedFinalContent = sanitizeContent(finalContent);
+    
     await step.do('update-spoke-final', async () => {
       await this.callAgent(clientId, 'updateSpoke', {
         spokeId,
         updates: {
-          content: finalContent,
+          content: cleanedFinalContent,
           status: finalStatus,
           qualityScores,
           visualArchetype: archetype,

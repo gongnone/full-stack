@@ -22,6 +22,7 @@ import { hooksRouter } from './routers/hooks';
 import { calendarRouter } from './routers/calendar';
 import { testSetupRouter } from './routers/test-setup';
 import { admiredProfilesRouter } from './routers/admired-profiles';
+import { engagementRouter } from './routers/engagement';
 import type { Context } from './context';
 
 const t = initTRPC.context<Context>().create();
@@ -50,6 +51,7 @@ export const appRouter = t.router({
   calendar: calendarRouter,
   testSetup: testSetupRouter,
   admiredProfiles: admiredProfilesRouter,
+  engagement: engagementRouter,
 });
 
 export type AppRouter = typeof appRouter;

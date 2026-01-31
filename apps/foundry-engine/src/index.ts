@@ -239,8 +239,8 @@ app.post('/api/hubs/generate-spokes', async (c) => {
   }
 
   // Fetch enriched generation context (examples, audience persona)
-  let generationContext: { examplePosts: string[]; antiExamples: string[]; audiencePersona: string | null } = {
-    examplePosts: [], antiExamples: [], audiencePersona: null,
+  let generationContext: { examplePosts: string[]; antiExamples: string[]; audiencePersona: string | null; recentContent: string[] } = {
+    examplePosts: [], antiExamples: [], audiencePersona: null, recentContent: [],
   };
   try {
     const ctxAgentId = c.env.CLIENT_AGENT.idFromName(clientId);
@@ -293,6 +293,7 @@ app.post('/api/hubs/generate-spokes', async (c) => {
           examplePosts: generationContext.examplePosts,
           antiExamples: generationContext.antiExamples,
           audiencePersona: generationContext.audiencePersona,
+          recentContent: generationContext.recentContent,
         },
       });
 

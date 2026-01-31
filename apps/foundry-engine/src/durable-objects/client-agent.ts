@@ -1097,6 +1097,7 @@ export class ClientAgent extends DurableObject<Env> {
     examplePosts: string[];
     antiExamples: string[];
     audiencePersona: string | null;
+    recentContent: string[];
   }> {
     // Get good examples (max 3)
     const goodExamples = this.sql.exec(
@@ -1112,7 +1113,18 @@ export class ClientAgent extends DurableObject<Env> {
     const audience = this.sql.exec(`SELECT persona FROM audience_profile WHERE id = 1`).one()
     const audiencePersona = (audience?.persona as string) || null
 
-    return { examplePosts: goodExamples, antiExamples, audiencePersona }
+    // Get recent spokes (last 7 days) to prevent repetition
+    const recentContent = this.sql.exec(
+      `SELECT content FROM spokes
+       WHERE content IS NOT NULL AND content != ''
+       AND created_at > datetime('now', '-7 days')
+       ORDER BY created_at DESC LIMIT 10`
+    ).toArray().map(r => {
+      const c = r.content as string
+      return c.substring(0, 150) // Just first 150 chars for dedup signal
+    })
+
+    return { examplePosts: goodExamples, antiExamples, audiencePersona, recentContent }
   }
 
   // Hub Methods

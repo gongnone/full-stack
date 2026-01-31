@@ -70,6 +70,7 @@ interface SpokeGenerationParams {
   examplePosts?: string[]; // Client's best content for pattern matching
   antiExamples?: string[]; // Content they hate
   audiencePersona?: string; // Psychographic audience description
+  recentContent?: string[]; // Last 7 days of generated content (first 150 chars) to avoid repetition
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -208,6 +209,7 @@ export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenera
       examplePosts,
       antiExamples,
       audiencePersona,
+      recentContent,
     } = event.payload;
 
     const platformSpec = PLATFORM_SPECS[platform] || PLATFORM_SPECS.twitter;
@@ -269,6 +271,12 @@ export class SpokeGenerationWorkflow extends WorkflowEntrypoint<Env, SpokeGenera
         ? `\nAUDIENCE: ${audiencePersona}\nWrite as if speaking directly to this person.\n`
         : '';
 
+      // Recent content dedup
+      let dedupSection = '';
+      if (recentContent && recentContent.length > 0) {
+        dedupSection = `\nRECENT CONTENT (do NOT repeat these angles or openings):\n${recentContent.map((c, i) => `${i + 1}. "${c}"`).join('\n')}\n`;
+      }
+
       // Content seed (specific angle vs generic pillar title)
       const seedSection = contentSeed
         ? `CONTENT SEED: ${contentSeed}`
@@ -289,7 +297,7 @@ BRAND VOICE:
 - Voice markers: ${voiceMarkers}
 - Never use these words: ${bannedWords}
 - Signature patterns: ${patterns}
-${examplesSection}${antiSection}${audienceSection}
+${examplesSection}${antiSection}${audienceSection}${dedupSection}
 ${seedSection}
 HOOK OPTIONS: ${Array.isArray(hooks) && hooks.length > 0 ? hooks.join(' | ') : 'Create an attention-grabbing opener'}
 
@@ -318,7 +326,7 @@ BRAND VOICE:
 - Voice markers: ${voiceMarkers}
 - Never use: ${bannedWords}
 - Brand believes:\n${stances}
-${examplesSection}${audienceSection}
+${examplesSection}${audienceSection}${dedupSection}
 PLATFORM: ${platform.toUpperCase()}
 - Max: ${platformSpec.maxLength} chars | Format: ${platformSpec.format}
 ${PLATFORM_INSTRUCTIONS[platform] || ''}
@@ -334,7 +342,7 @@ BRAND IDENTITY:
 - Signature patterns: ${patterns}
 - Brand believes:
 ${stances}
-${examplesSection}${antiSection}${audienceSection}
+${examplesSection}${antiSection}${audienceSection}${dedupSection}
 ${seedSection}
 HOOK OPTIONS: ${Array.isArray(hooks) && hooks.length > 0 ? hooks.join(' | ') : 'Create an attention-grabbing opener'}
 

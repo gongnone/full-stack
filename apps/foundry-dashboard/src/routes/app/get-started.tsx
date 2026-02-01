@@ -60,8 +60,7 @@ function GetStarted() {
       });
       const clientId = client.clientId;
 
-      // 2. Quick Start first — this creates hub + pillars + triggers generation
-      // and also warms up the DO (creating all tables)
+      // 2. Quick Start — creates hub + pillars + triggers generation
       setGeneratingStatus('Setting up your content engine...');
       await quickStart.mutateAsync({
         clientId,
@@ -69,46 +68,34 @@ function GetStarted() {
         brandName: brandName || undefined,
       });
 
-      // 3. Add content examples (DO is now warm)
+      // 3. Save content examples + audience in background (non-blocking)
+      // These enrich future generations but shouldn't block onboarding
+      const bgSaves = [];
       if (bestPost.trim()) {
-        setGeneratingStatus('Saving your best content...');
-        try {
-          await addExample.mutateAsync({
-            clientId,
-            content: bestPost.trim(),
-            type: 'good',
-            platform: platform || undefined,
-            notes: 'From onboarding — best post',
-          });
-        } catch (e) { console.warn('Failed to add good example:', e); }
+        bgSaves.push(addExample.mutateAsync({
+          clientId, content: bestPost.trim(), type: 'good' as const,
+          platform: platform || undefined, notes: 'From onboarding',
+        }).catch(() => {}));
       }
-
       if (worstPost.trim()) {
-        try {
-          await addExample.mutateAsync({
-            clientId,
-            content: worstPost.trim(),
-            type: 'bad',
-            notes: 'From onboarding — content to avoid',
-          });
-        } catch (e) { console.warn('Failed to add anti-example:', e); }
+        bgSaves.push(addExample.mutateAsync({
+          clientId, content: worstPost.trim(), type: 'bad' as const,
+          notes: 'From onboarding — content to avoid',
+        }).catch(() => {}));
       }
-
-      // 4. Save audience profile
       if (persona.trim() || painPoints.trim()) {
-        setGeneratingStatus('Building audience profile...');
-        try {
-          await updateAudience.mutateAsync({
-            clientId,
-            persona: persona.trim() || undefined,
-            painPoints: painPoints.trim() || undefined,
-          });
-        } catch (e) { console.warn('Failed to save audience:', e); }
+        bgSaves.push(updateAudience.mutateAsync({
+          clientId, persona: persona.trim() || undefined,
+          painPoints: painPoints.trim() || undefined,
+        }).catch(() => {}));
       }
 
-      setGeneratingStatus('🎉 Your content is being generated! Redirecting...');
-      await new Promise(r => setTimeout(r, 2000));
-      navigate({ to: '/app' });
+      // Navigate immediately — don't wait for bg saves
+      setGeneratingStatus('🎉 Content is generating! Redirecting...');
+      // Fire and forget bg saves
+      Promise.all(bgSaves).catch(() => {});
+      await new Promise(r => setTimeout(r, 1500));
+      window.location.href = '/app'; // Hard redirect to avoid React state issues
 
     } catch (err: any) {
       console.error('Onboarding error:', err);

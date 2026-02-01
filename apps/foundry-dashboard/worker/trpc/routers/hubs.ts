@@ -1136,14 +1136,14 @@ export const hubsRouter = t.router({
       // 1. Create hub source
       await ctx.db.prepare(`
         INSERT INTO hub_sources (id, client_id, user_id, title, source_type, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'pillars', 'ready', ?, ?)
+        VALUES (?, ?, ?, ?, 'text', 'ready', ?, ?)
       `).bind(sourceId, input.clientId, ctx.userId, `${input.brandName || 'My'} Quick Start`, now, now).run();
 
       // 2. Create hub
       await ctx.db.prepare(`
-        INSERT INTO hubs (id, source_id, client_id, title, status, spoke_count, created_at, updated_at)
-        VALUES (?, ?, ?, ?, 'ready', 0, ?, ?)
-      `).bind(hubId, sourceId, input.clientId, `${input.brandName || 'My Brand'} - Content Hub`, now, now).run();
+        INSERT INTO hubs (id, source_id, client_id, user_id, title, source_type, pillar_count, status, spoke_count, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, 'text', ?, 'ready', 0, ?, ?)
+      `).bind(hubId, sourceId, input.clientId, ctx.userId, `${input.brandName || 'My Brand'} - Content Hub`, pillars.length, now, now).run();
 
       // 3. Create extracted pillars
       for (const p of pillars) {
@@ -1154,14 +1154,15 @@ export const hubsRouter = t.router({
         `).bind(pillarId, hubId, input.clientId, p.title, p.claim, p.angle, now).run();
       }
 
-      // 4. Create platform recommendations
+      // 4. Create platform recommendations (best-effort)
       const platforms = ['twitter', 'linkedin', 'instagram'];
       for (const platform of platforms) {
-        await ctx.db.prepare(`
-          INSERT INTO platform_recommendations (id, client_id, platform, status, posting_cadence, created_at, updated_at)
-          VALUES (?, ?, ?, 'recommended', 'daily', ?, ?)
-          ON CONFLICT(client_id, platform) DO NOTHING
-        `).bind(crypto.randomUUID(), input.clientId, platform, now, now).run();
+        try {
+          await ctx.db.prepare(`
+            INSERT INTO platform_recommendations (id, client_id, platform, status, posting_cadence, created_at, updated_at)
+            VALUES (?, ?, ?, 'recommended', 'daily', ?, ?)
+          `).bind(crypto.randomUUID(), input.clientId, platform, now, now).run();
+        } catch { /* ignore duplicates */ }
       }
 
       // 5. Trigger spoke generation

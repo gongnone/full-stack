@@ -23,6 +23,7 @@ import { Route as OnboardTokenRouteImport } from './routes/onboard.$token'
 import { Route as AppSettingsRouteImport } from './routes/app/settings'
 import { Route as AppReviewRouteImport } from './routes/app/review'
 import { Route as AppHubsRouteImport } from './routes/app/hubs'
+import { Route as AppGetStartedRouteImport } from './routes/app/get-started'
 import { Route as AppExportsRouteImport } from './routes/app/exports'
 import { Route as AppEngagementRouteImport } from './routes/app/engagement'
 import { Route as AppCreativeConflictsRouteImport } from './routes/app/creative-conflicts'
@@ -108,6 +109,11 @@ const AppReviewRoute = AppReviewRouteImport.update({
 const AppHubsRoute = AppHubsRouteImport.update({
   id: '/hubs',
   path: '/hubs',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGetStartedRoute = AppGetStartedRouteImport.update({
+  id: '/get-started',
+  path: '/get-started',
   getParentRoute: () => AppRoute,
 } as any)
 const AppExportsRoute = AppExportsRouteImport.update({
@@ -210,6 +216,7 @@ export interface FileRoutesByFullPath {
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
   '/app/engagement': typeof AppEngagementRoute
   '/app/exports': typeof AppExportsRoute
+  '/app/get-started': typeof AppGetStartedRoute
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
@@ -240,6 +247,7 @@ export interface FileRoutesByTo {
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
   '/app/engagement': typeof AppEngagementRoute
   '/app/exports': typeof AppExportsRoute
+  '/app/get-started': typeof AppGetStartedRoute
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
@@ -272,6 +280,7 @@ export interface FileRoutesById {
   '/app/creative-conflicts': typeof AppCreativeConflictsRoute
   '/app/engagement': typeof AppEngagementRoute
   '/app/exports': typeof AppExportsRoute
+  '/app/get-started': typeof AppGetStartedRoute
   '/app/hubs': typeof AppHubsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
@@ -306,6 +315,7 @@ export interface FileRouteTypes {
     | '/app/creative-conflicts'
     | '/app/engagement'
     | '/app/exports'
+    | '/app/get-started'
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
@@ -336,6 +346,7 @@ export interface FileRouteTypes {
     | '/app/creative-conflicts'
     | '/app/engagement'
     | '/app/exports'
+    | '/app/get-started'
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
@@ -367,6 +378,7 @@ export interface FileRouteTypes {
     | '/app/creative-conflicts'
     | '/app/engagement'
     | '/app/exports'
+    | '/app/get-started'
     | '/app/hubs'
     | '/app/review'
     | '/app/settings'
@@ -495,6 +507,13 @@ declare module '@tanstack/react-router' {
       path: '/hubs'
       fullPath: '/app/hubs'
       preLoaderRoute: typeof AppHubsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/get-started': {
+      id: '/app/get-started'
+      path: '/get-started'
+      fullPath: '/app/get-started'
+      preLoaderRoute: typeof AppGetStartedRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/exports': {
@@ -666,6 +685,7 @@ interface AppRouteChildren {
   AppCreativeConflictsRoute: typeof AppCreativeConflictsRoute
   AppEngagementRoute: typeof AppEngagementRoute
   AppExportsRoute: typeof AppExportsRoute
+  AppGetStartedRoute: typeof AppGetStartedRoute
   AppHubsRoute: typeof AppHubsRouteWithChildren
   AppReviewRoute: typeof AppReviewRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -681,6 +701,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCreativeConflictsRoute: AppCreativeConflictsRoute,
   AppEngagementRoute: AppEngagementRoute,
   AppExportsRoute: AppExportsRoute,
+  AppGetStartedRoute: AppGetStartedRoute,
   AppHubsRoute: AppHubsRouteWithChildren,
   AppReviewRoute: AppReviewRoute,
   AppSettingsRoute: AppSettingsRoute,

@@ -1087,4 +1087,112 @@ export const hubsRouter = t.router({
         });
       }
     }),
+
+  // Quick Start: Auto-create hub with starter pillars and trigger generation
+  // For onboarding — gets users to first content in ~30 seconds
+  quickStart: procedure
+    .input(z.object({
+      clientId: z.string().min(1),
+      industry: z.string().optional(),
+      brandName: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertClientAccess(ctx, input.clientId);
+
+      const now = Date.now();
+      const hubId = crypto.randomUUID();
+      const sourceId = crypto.randomUUID();
+
+      // Industry-specific starter pillars
+      const STARTER_PILLARS: Record<string, Array<{ title: string; claim: string; angle: string }>> = {
+        'marketing': [
+          { title: 'Myth Busting', claim: 'Most marketing advice is outdated or wrong', angle: 'Contrarian' },
+          { title: 'Real Results', claim: 'Case studies and proof over theory', angle: 'Authority' },
+          { title: 'DIY Strategies', claim: 'You don\'t need a huge budget to win', angle: 'Transformation' },
+          { title: 'Industry Trends', claim: 'What\'s actually working right now', angle: 'Curiosity' },
+        ],
+        'saas': [
+          { title: 'Product Thinking', claim: 'Build what users need, not what\'s trendy', angle: 'Contrarian' },
+          { title: 'Growth Tactics', claim: 'Sustainable growth beats viral hacks', angle: 'Authority' },
+          { title: 'Founder Stories', claim: 'Real lessons from building products', angle: 'Transformation' },
+          { title: 'Market Insights', claim: 'Where the industry is heading', angle: 'Curiosity' },
+        ],
+        'consulting': [
+          { title: 'Expert Insights', claim: 'Deep knowledge others can\'t replicate', angle: 'Authority' },
+          { title: 'Common Mistakes', claim: 'What your competitors get wrong', angle: 'Contrarian' },
+          { title: 'Client Wins', claim: 'Transformation stories that build trust', angle: 'Transformation' },
+          { title: 'Future Thinking', claim: 'Where your industry is headed', angle: 'Curiosity' },
+        ],
+        'default': [
+          { title: 'Industry Insights', claim: 'Unique perspective on your market', angle: 'Authority' },
+          { title: 'Myth Busting', claim: 'Challenge conventional wisdom', angle: 'Contrarian' },
+          { title: 'Success Stories', claim: 'Real results and transformations', angle: 'Transformation' },
+          { title: 'Practical Tips', claim: 'Actionable advice people can use today', angle: 'Curiosity' },
+        ],
+      };
+
+      const pillars = STARTER_PILLARS[input.industry || ''] || STARTER_PILLARS['default'];
+
+      // 1. Create hub source
+      await ctx.db.prepare(`
+        INSERT INTO hub_sources (id, client_id, user_id, title, source_type, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'pillars', 'ready', ?, ?)
+      `).bind(sourceId, input.clientId, ctx.userId, `${input.brandName || 'My'} Quick Start`, now, now).run();
+
+      // 2. Create hub
+      await ctx.db.prepare(`
+        INSERT INTO hubs (id, source_id, client_id, title, status, spoke_count, created_at, updated_at)
+        VALUES (?, ?, ?, ?, 'ready', 0, ?, ?)
+      `).bind(hubId, sourceId, input.clientId, `${input.brandName || 'My Brand'} - Content Hub`, now, now).run();
+
+      // 3. Create extracted pillars
+      for (const p of pillars) {
+        const pillarId = crypto.randomUUID();
+        await ctx.db.prepare(`
+          INSERT INTO extracted_pillars (id, hub_id, client_id, title, core_claim, psychological_angle, supporting_points, golden_nuggets, status, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, '[]', '[]', 'approved', ?)
+        `).bind(pillarId, hubId, input.clientId, p.title, p.claim, p.angle, now).run();
+      }
+
+      // 4. Create platform recommendations
+      const platforms = ['twitter', 'linkedin', 'instagram'];
+      for (const platform of platforms) {
+        await ctx.db.prepare(`
+          INSERT INTO platform_recommendations (id, client_id, platform, status, posting_cadence, created_at, updated_at)
+          VALUES (?, ?, ?, 'recommended', 'daily', ?, ?)
+          ON CONFLICT(client_id, platform) DO NOTHING
+        `).bind(crypto.randomUUID(), input.clientId, platform, now, now).run();
+      }
+
+      // 5. Trigger spoke generation
+      try {
+        const pillarsForGen = await ctx.db.prepare(`
+          SELECT id, title, core_claim, psychological_angle, supporting_points, golden_nuggets
+          FROM extracted_pillars WHERE hub_id = ? AND client_id = ?
+        `).bind(hubId, input.clientId).all();
+
+        const strategy = await ctx.db.prepare(`
+          SELECT platform, status, posting_cadence
+          FROM platform_recommendations WHERE client_id = ? AND status != 'excluded'
+        `).bind(input.clientId).all();
+
+        await ctx.callEngine<{ instanceId: string }>('http://internal/api/hubs/generate-spokes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientId: input.clientId,
+            hubId,
+            pillars: pillarsForGen.results,
+            strategy: strategy.results,
+          }),
+        });
+
+        await ctx.db.prepare(`UPDATE hubs SET status = 'processing', updated_at = ? WHERE id = ?`).bind(Date.now(), hubId).run();
+      } catch (err) {
+        console.error('[quickStart] Generation trigger failed:', err);
+        // Non-fatal — hub is created, user can trigger manually
+      }
+
+      return { hubId, pillarCount: pillars.length, generating: true };
+    }),
 });

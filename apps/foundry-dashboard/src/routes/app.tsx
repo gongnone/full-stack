@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, Navigate } from '@tanstack/react-router';
+import { createFileRoute, Outlet, Navigate, useRouterState } from '@tanstack/react-router';
 import { useSession } from '@/lib/auth-client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Sidebar, CommandPalette, ClientSelector } from '@/components/layout';
@@ -20,6 +20,7 @@ function AppLayout() {
   const { data: session, isPending } = useSession();
   const activeClientId = useClientId();
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const currentPath = useRouterState({ select: s => s.location.pathname });
 
   // R-13 AC3: Include userId in query key for cache isolation
   const clientsQuery = trpc.clients.list.useQuery(
@@ -134,7 +135,16 @@ function AppLayout() {
   }
 
   if (!clientsQuery.isLoading && clientsQuery.data && (!clientsQuery.data.items?.length || activeClientId === null)) {
-    return <CreateFirstClient />;
+    // Allow get-started page to render without a client
+    if (currentPath === '/app/get-started') {
+      return (
+        <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-base)' }}>
+          <Outlet />
+        </div>
+      );
+    }
+    // Redirect to streamlined onboarding wizard
+    return <Navigate to="/app/get-started" />;
   }
 
   return (

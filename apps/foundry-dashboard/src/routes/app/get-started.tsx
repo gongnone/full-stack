@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, useNavigate, Navigate } from '@tanstack/react-router';
 import { useState } from 'react';
 import { trpc } from '@/lib/trpc-client';
 import { useSession } from '@/lib/auth-client';
@@ -43,9 +43,7 @@ function GetStarted() {
   );
 
   if (clientsQuery.data?.items && clientsQuery.data.items.length > 0) {
-    // User already onboarded, redirect to dashboard
-    navigate({ to: '/app' });
-    return null;
+    return <Navigate to="/app" />;
   }
 
   async function handleGenerate() {

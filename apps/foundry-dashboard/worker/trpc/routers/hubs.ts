@@ -1149,9 +1149,9 @@ export const hubsRouter = t.router({
       for (const p of pillars) {
         const pillarId = crypto.randomUUID();
         await ctx.db.prepare(`
-          INSERT INTO extracted_pillars (id, hub_id, client_id, title, core_claim, psychological_angle, supporting_points, golden_nuggets, status, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, '[]', '[]', 'approved', ?)
-        `).bind(pillarId, hubId, input.clientId, p.title, p.claim, p.angle, now).run();
+          INSERT INTO extracted_pillars (id, source_id, hub_id, client_id, title, core_claim, psychological_angle, supporting_points, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, '[]', ?)
+        `).bind(pillarId, sourceId, hubId, input.clientId, p.title, p.claim, p.angle, now).run();
       }
 
       // 4. Create platform recommendations (best-effort)

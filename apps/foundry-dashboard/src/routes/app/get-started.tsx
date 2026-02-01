@@ -59,44 +59,51 @@ function GetStarted() {
       });
       const clientId = client.clientId;
 
-      // 2. Add content examples
-      if (bestPost.trim()) {
-        setGeneratingStatus('Saving your best content...');
-        await addExample.mutateAsync({
-          clientId,
-          content: bestPost.trim(),
-          type: 'good',
-          platform: platform || undefined,
-          notes: 'From onboarding — best post',
-        });
-      }
-
-      if (worstPost.trim()) {
-        await addExample.mutateAsync({
-          clientId,
-          content: worstPost.trim(),
-          type: 'bad',
-          notes: 'From onboarding — content to avoid',
-        });
-      }
-
-      // 3. Save audience profile
-      if (persona.trim() || painPoints.trim()) {
-        setGeneratingStatus('Building audience profile...');
-        await updateAudience.mutateAsync({
-          clientId,
-          persona: persona.trim() || undefined,
-          painPoints: painPoints.trim() || undefined,
-        });
-      }
-
-      // 4. Quick Start — auto-create hub + pillars + trigger generation
-      setGeneratingStatus('Generating your first batch of content...');
+      // 2. Quick Start first — this creates hub + pillars + triggers generation
+      // and also warms up the DO (creating all tables)
+      setGeneratingStatus('Setting up your content engine...');
       await quickStart.mutateAsync({
         clientId,
         industry: industry || undefined,
         brandName: brandName || undefined,
       });
+
+      // 3. Add content examples (DO is now warm)
+      if (bestPost.trim()) {
+        setGeneratingStatus('Saving your best content...');
+        try {
+          await addExample.mutateAsync({
+            clientId,
+            content: bestPost.trim(),
+            type: 'good',
+            platform: platform || undefined,
+            notes: 'From onboarding — best post',
+          });
+        } catch (e) { console.warn('Failed to add good example:', e); }
+      }
+
+      if (worstPost.trim()) {
+        try {
+          await addExample.mutateAsync({
+            clientId,
+            content: worstPost.trim(),
+            type: 'bad',
+            notes: 'From onboarding — content to avoid',
+          });
+        } catch (e) { console.warn('Failed to add anti-example:', e); }
+      }
+
+      // 4. Save audience profile
+      if (persona.trim() || painPoints.trim()) {
+        setGeneratingStatus('Building audience profile...');
+        try {
+          await updateAudience.mutateAsync({
+            clientId,
+            persona: persona.trim() || undefined,
+            painPoints: painPoints.trim() || undefined,
+          });
+        } catch (e) { console.warn('Failed to save audience:', e); }
+      }
 
       setGeneratingStatus('🎉 Your content is being generated! Redirecting...');
       await new Promise(r => setTimeout(r, 2000));

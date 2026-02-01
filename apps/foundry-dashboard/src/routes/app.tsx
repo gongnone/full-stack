@@ -134,17 +134,32 @@ function AppLayout() {
     });
   }
 
-  if (!clientsQuery.isLoading && clientsQuery.data && (!clientsQuery.data.items?.length || activeClientId === null)) {
-    // Allow get-started page to render without a client
-    if (currentPath === '/app/get-started') {
-      return (
-        <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-base)' }}>
-          <Outlet />
-        </div>
-      );
+  if (!clientsQuery.isLoading && clientsQuery.data) {
+    const hasClients = clientsQuery.data.items && clientsQuery.data.items.length > 0;
+
+    // No clients at all → onboarding wizard
+    if (!hasClients) {
+      if (currentPath === '/app/get-started') {
+        return (
+          <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-base)' }}>
+            <Outlet />
+          </div>
+        );
+      }
+      return <Navigate to="/app/get-started" />;
     }
-    // Redirect to streamlined onboarding wizard
-    return <Navigate to="/app/get-started" />;
+
+    // Has clients but activeClientId not loaded yet → allow get-started to render, otherwise show dashboard normally
+    if (activeClientId === null) {
+      if (currentPath === '/app/get-started') {
+        return (
+          <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-base)' }}>
+            <Outlet />
+          </div>
+        );
+      }
+      // activeClientId cache stale — fall through to render dashboard (it'll use first client)
+    }
   }
 
   return (

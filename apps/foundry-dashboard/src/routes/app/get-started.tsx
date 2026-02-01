@@ -42,7 +42,8 @@ function GetStarted() {
     { enabled: !!session?.user?.id }
   );
 
-  if (clientsQuery.data?.items && clientsQuery.data.items.length > 0) {
+  // Only redirect if user has clients AND we're not in the middle of creating
+  if (clientsQuery.data?.items && clientsQuery.data.items.length > 0 && step === 'brand' && !brandName) {
     return <Navigate to="/app" />;
   }
 
@@ -110,8 +111,9 @@ function GetStarted() {
       navigate({ to: '/app' });
 
     } catch (err: any) {
+      console.error('Onboarding error:', err);
       setError(err.message || 'Something went wrong. Please try again.');
-      setStep('audience'); // Go back so they can retry
+      setStep('audience');
     }
   }
 

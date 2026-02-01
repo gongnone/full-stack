@@ -57,7 +57,7 @@ function GetStarted() {
         name: brandName || `${session?.user?.name || 'My'}'s Brand`,
         industry: industry || undefined,
       });
-      const clientId = client.id;
+      const clientId = client.clientId;
 
       // 2. Add content examples
       if (bestPost.trim()) {
